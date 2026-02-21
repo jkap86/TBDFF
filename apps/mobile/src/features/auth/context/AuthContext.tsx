@@ -5,6 +5,7 @@ import { storage } from '../../../utils/storage';
 interface User {
   id: string;
   username: string;
+  display_username: string;
   email: string;
 }
 

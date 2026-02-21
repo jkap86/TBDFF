@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { AuthService } from './auth.service';
 import { AuthRequest } from '../../middleware/auth.middleware';
-import { InvalidCredentialsException, ValidationException } from '../../shared/exceptions';
+import { InvalidCredentialsException } from '../../shared/exceptions';
 
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
@@ -9,6 +9,7 @@ export class AuthController {
   private mapUserToResponse(user: {
     userId: string;
     username: string;
+    displayUsername: string;
     email: string;
     createdAt?: Date;
     updatedAt?: Date;
@@ -16,6 +17,7 @@ export class AuthController {
     return {
       id: user.userId,
       username: user.username,
+      display_username: user.displayUsername,
       email: user.email,
       created_at: user.createdAt,
       updated_at: user.updatedAt,
@@ -54,8 +56,6 @@ export class AuthController {
 
   refresh = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     const { refreshToken } = req.body;
-    if (!refreshToken) return next(new ValidationException('Refresh token is required'));
-
     const result = await this.authService.refreshAccessToken(refreshToken);
     res.status(200).json({
       user: this.mapUserToResponse(result.user),

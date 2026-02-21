@@ -26,6 +26,10 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   },
   plugins: ['expo-secure-store'],
   extra: {
+    // 'localhost' only works in emulators/simulators.
+    // For physical devices, set API_URL to your machine's LAN IP:
+    //   API_URL=http://192.168.x.x:5000/api pnpm dev:mobile
+    // For Android emulator, use: API_URL=http://10.0.2.2:5000/api
     apiUrl: process.env.API_URL || 'http://localhost:5000/api',
   },
 });

@@ -26,7 +26,7 @@ export class LeagueService {
       settings?: Record<string, number>;
       scoringSettings?: Record<string, number>;
       rosterPositions?: string[];
-    }
+    },
   ): Promise<League> {
     // Validation
     const name = data.name?.trim();
@@ -62,7 +62,7 @@ export class LeagueService {
     });
 
     // Auto-add creator as owner
-    await this.leagueRepository.addMember(league.id, userId, 'owner');
+    await this.leagueRepository.addMember(league.id, userId, 'commissioner');
 
     return league;
   }
@@ -82,20 +82,14 @@ export class LeagueService {
     return league;
   }
 
-  async updateLeague(
-    leagueId: string,
-    userId: string,
-    data: Record<string, any>
-  ): Promise<League> {
+  async updateLeague(leagueId: string, userId: string, data: Record<string, any>): Promise<League> {
     const league = await this.leagueRepository.findById(leagueId);
     if (!league) throw new NotFoundException('League not found');
 
     // Only owner/commissioner can update
     const member = await this.leagueRepository.findMember(leagueId, userId);
     if (!member || (member.role !== 'owner' && member.role !== 'commissioner')) {
-      throw new ForbiddenException(
-        'Only league owner or commissioner can update league settings'
-      );
+      throw new ForbiddenException('Only league owner or commissioner can update league settings');
     }
 
     // If settings or scoring_settings are partial, merge with existing
@@ -111,8 +105,7 @@ export class LeagueService {
     if (data.scoringSettings !== undefined) {
       updateData.scoringSettings = { ...league.scoringSettings, ...data.scoringSettings };
     }
-    if (data.rosterPositions !== undefined)
-      updateData.rosterPositions = data.rosterPositions;
+    if (data.rosterPositions !== undefined) updateData.rosterPositions = data.rosterPositions;
 
     const updated = await this.leagueRepository.update(leagueId, updateData);
     if (!updated) throw new NotFoundException('League not found');
@@ -164,7 +157,7 @@ export class LeagueService {
     if (!member) throw new NotFoundException('Not a member of this league');
     if (member.role === 'owner') {
       throw new ValidationException(
-        'Owner cannot leave the league. Transfer ownership or delete the league.'
+        'Owner cannot leave the league. Transfer ownership or delete the league.',
       );
     }
 
@@ -174,7 +167,7 @@ export class LeagueService {
   async removeMember(
     leagueId: string,
     requestingUserId: string,
-    targetUserId: string
+    targetUserId: string,
   ): Promise<void> {
     // Verify requester is owner/commissioner
     const requester = await this.leagueRepository.findMember(leagueId, requestingUserId);
@@ -195,7 +188,7 @@ export class LeagueService {
     leagueId: string,
     requestingUserId: string,
     targetUserId: string,
-    role: string
+    role: string,
   ): Promise<LeagueMember> {
     if (!['commissioner', 'member'].includes(role)) {
       throw new ValidationException('Role must be "commissioner" or "member"');
@@ -213,11 +206,7 @@ export class LeagueService {
       throw new ForbiddenException('Cannot change the owner role through this endpoint');
     }
 
-    const updated = await this.leagueRepository.updateMemberRole(
-      leagueId,
-      targetUserId,
-      role
-    );
+    const updated = await this.leagueRepository.updateMemberRole(leagueId, targetUserId, role);
     if (!updated) throw new NotFoundException('Member not found');
     return updated;
   }

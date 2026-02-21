@@ -17,12 +17,12 @@ export class UserRepository {
     return result.rows.length > 0 ? User.fromDatabase(result.rows[0]) : null;
   }
 
-  async create(username: string, email: string, passwordHash: string): Promise<User> {
+  async create(username: string, displayUsername: string, email: string, passwordHash: string): Promise<User> {
     const result = await this.db.query(
-      `INSERT INTO users (username, email, password_hash)
-       VALUES ($1, $2, $3)
+      `INSERT INTO users (username, display_username, email, password_hash)
+       VALUES ($1, $2, $3, $4)
        RETURNING *`,
-      [username, email, passwordHash]
+      [username, displayUsername, email, passwordHash]
     );
     return User.fromDatabase(result.rows[0]);
   }

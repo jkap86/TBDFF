@@ -17,6 +17,7 @@ export interface AuthResult {
   user: {
     userId: string;
     username: string;
+    displayUsername: string;
     email: string;
     createdAt: Date;
     updatedAt: Date;
@@ -33,9 +34,10 @@ export class AuthService {
 
   async register(username: string, email: string, password: string): Promise<AuthResult> {
     const normalizedEmail = email.toLowerCase().trim();
-    const normalizedUsername = username.toLowerCase().trim();
+    const trimmedUsername = username.trim();
+    const normalizedUsername = trimmedUsername.toLowerCase();
 
-    if (!User.isValidUsername(normalizedUsername)) {
+    if (!User.isValidUsername(trimmedUsername)) {
       throw new ValidationException(
         'Username must be 3-20 characters and contain only letters, numbers, and underscores'
       );
@@ -56,7 +58,7 @@ export class AuthService {
     }
 
     const passwordHash = await bcrypt.hash(password, 10);
-    const user = await this.userRepository.create(normalizedUsername, normalizedEmail, passwordHash);
+    const user = await this.userRepository.create(normalizedUsername, trimmedUsername, normalizedEmail, passwordHash);
 
     const accessToken = this.generateAccessToken(user);
     const refreshToken = this.generateRefreshToken(user);
