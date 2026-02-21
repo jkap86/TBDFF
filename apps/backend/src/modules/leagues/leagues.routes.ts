@@ -5,6 +5,8 @@ import { LeagueService } from './leagues.service';
 import { LeagueRepository } from './leagues.repository';
 import { authMiddleware } from '../../middleware/auth.middleware';
 import { asyncHandler } from '../../shared/async-handler';
+import { validate } from '../../shared/validate';
+import { updateLeagueSchema } from './leagues.schemas';
 
 export function createLeagueRoutes(pool: Pool): Router {
   const leagueRepository = new LeagueRepository(pool);
@@ -20,7 +22,7 @@ export function createLeagueRoutes(pool: Pool): Router {
   router.post('/', asyncHandler(controller.create));
   router.get('/', asyncHandler(controller.getMyLeagues));
   router.get('/:leagueId', asyncHandler(controller.getById));
-  router.put('/:leagueId', asyncHandler(controller.update));
+  router.put('/:leagueId', validate(updateLeagueSchema), asyncHandler(controller.update));
   router.delete('/:leagueId', asyncHandler(controller.delete));
 
   // Member management

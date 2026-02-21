@@ -92,6 +92,38 @@ export class LeagueService {
       throw new ForbiddenException('Only league owner or commissioner can update league settings');
     }
 
+    // Business logic validations
+    if (data.name !== undefined) {
+      const name = data.name.trim();
+      if (name.length < 1 || name.length > 100) {
+        throw new ValidationException('League name must be between 1 and 100 characters');
+      }
+      data.name = name;
+    }
+
+    if (data.totalRosters !== undefined) {
+      if (data.totalRosters < 2 || data.totalRosters > 32) {
+        throw new ValidationException('Total rosters must be between 2 and 32');
+      }
+      // Prevent reducing below current member count
+      const currentMembers = await this.leagueRepository.getMemberCount(leagueId);
+      if (data.totalRosters < currentMembers) {
+        throw new ValidationException(
+          `Cannot reduce total rosters to ${data.totalRosters}. League currently has ${currentMembers} members.`
+        );
+      }
+      // Sync settings.num_teams with totalRosters
+      if (!data.settings) data.settings = {};
+      data.settings.num_teams = data.totalRosters;
+    }
+
+    if (data.status !== undefined) {
+      // Prevent reopening completed leagues
+      if (league.status === 'complete' && data.status !== 'complete') {
+        throw new ValidationException('Cannot change status of a completed league');
+      }
+    }
+
     // If settings or scoring_settings are partial, merge with existing
     const updateData: Record<string, any> = {};
     if (data.name !== undefined) updateData.name = data.name;

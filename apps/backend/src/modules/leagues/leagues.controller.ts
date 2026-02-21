@@ -2,6 +2,7 @@ import { Response } from 'express';
 import { AuthRequest } from '../../middleware/auth.middleware';
 import { LeagueService } from './leagues.service';
 import { InvalidCredentialsException } from '../../shared/exceptions';
+import { UpdateLeagueInput } from './leagues.schemas';
 
 export class LeagueController {
   constructor(private readonly leagueService: LeagueService) {}
@@ -45,15 +46,19 @@ export class LeagueController {
     if (!userId) throw new InvalidCredentialsException();
 
     const leagueId = Array.isArray(req.params.leagueId) ? req.params.leagueId[0] : req.params.leagueId;
+
+    // req.body is validated by updateLeagueSchema middleware
+    const validatedData = req.body as UpdateLeagueInput;
+
     const league = await this.leagueService.updateLeague(leagueId, userId, {
-      name: req.body.name,
-      seasonType: req.body.season_type,
-      status: req.body.status,
-      totalRosters: req.body.total_rosters,
-      avatar: req.body.avatar,
-      settings: req.body.settings,
-      scoringSettings: req.body.scoring_settings,
-      rosterPositions: req.body.roster_positions,
+      name: validatedData.name,
+      seasonType: validatedData.season_type,
+      status: validatedData.status,
+      totalRosters: validatedData.total_rosters,
+      avatar: validatedData.avatar,
+      settings: validatedData.settings,
+      scoringSettings: validatedData.scoring_settings,
+      rosterPositions: validatedData.roster_positions,
     });
 
     res.status(200).json({ league: league.toSafeObject() });
