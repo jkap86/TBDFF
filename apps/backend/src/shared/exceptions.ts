@@ -3,6 +3,7 @@ export const ErrorCode = {
   VALIDATION_ERROR: 'VALIDATION_ERROR',
   INVALID_CREDENTIALS: 'INVALID_CREDENTIALS',
   NOT_FOUND: 'NOT_FOUND',
+  FORBIDDEN: 'FORBIDDEN',
   CONFLICT: 'CONFLICT',
   INTERNAL_ERROR: 'INTERNAL_ERROR',
 } as const;
@@ -36,5 +37,17 @@ export class InvalidCredentialsException extends AppException {
 export class ConflictException extends AppException {
   constructor(message: string) {
     super(message, 409, ErrorCode.CONFLICT);
+  }
+}
+
+export class NotFoundException extends AppException {
+  constructor(message: string = 'Not found') {
+    super(message, 404, ErrorCode.NOT_FOUND);
+  }
+}
+
+export class ForbiddenException extends AppException {
+  constructor(message: string = 'Forbidden') {
+    super(message, 403, ErrorCode.FORBIDDEN);
   }
 }

@@ -5,6 +5,7 @@ import { createServer } from 'http';
 import { Pool } from 'pg';
 import dotenv from 'dotenv';
 import { createAuthRoutes } from './modules/auth/auth.routes';
+import { createLeagueRoutes } from './modules/leagues/leagues.routes';
 import { errorHandler } from './shared/error-handler';
 
 dotenv.config();
@@ -38,7 +39,10 @@ app.use(
   })
 );
 app.use(cors({
-  origin: process.env.CORS_ORIGIN?.split(',') || ['http://localhost:8081'],
+  origin: process.env.CORS_ORIGIN?.split(',') || [
+    'http://localhost:3000',
+    'http://localhost:8081',
+  ],
   credentials: true,
 }));
 app.use(express.json({ limit: '1mb' }));
@@ -75,6 +79,7 @@ if (NODE_ENV === 'development') {
 
 // Routes
 app.use('/api/auth', createAuthRoutes(pool));
+app.use('/api/leagues', createLeagueRoutes(pool));
 
 // Error handler (must be last middleware)
 app.use(errorHandler);

@@ -45,8 +45,17 @@ async function request<T>(
     body: body ? JSON.stringify(body) : undefined,
   });
 
+  // Safely parse the response body — avoid crashing on 204, HTML proxy errors, etc.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const json: any = await response.json();
+  let json: any = null;
+  const contentType = response.headers.get('content-type') || '';
+  if (response.status !== 204 && contentType.includes('application/json')) {
+    try {
+      json = await response.json();
+    } catch {
+      json = null;
+    }
+  }
 
   if (!response.ok) {
     // On 401, try to refresh the token and retry once
@@ -59,7 +68,7 @@ async function request<T>(
       await tokenManager.logout();
     }
 
-    const errorMessage = json?.error?.message || 'Something went wrong';
+    const errorMessage = json?.error?.message || `Request failed with status ${response.status}`;
     const errorCode = json?.error?.code;
     throw new ApiError(errorMessage, response.status, errorCode);
   }
@@ -70,4 +79,6 @@ async function request<T>(
 export const apiClient = {
   get: <T>(path: string, token?: string) => request<T>('GET', path, undefined, token),
   post: <T>(path: string, body?: unknown, token?: string) => request<T>('POST', path, body, token),
+  put: <T>(path: string, body?: unknown, token?: string) => request<T>('PUT', path, body, token),
+  delete: <T>(path: string, token?: string) => request<T>('DELETE', path, undefined, token),
 };

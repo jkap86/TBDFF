@@ -1,6 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 
 export default function DashboardPage() {
@@ -19,12 +20,20 @@ export default function DashboardPage() {
         <p className="text-gray-600">
           Welcome, <span className="font-medium">{user?.username}</span>
         </p>
-        <button
-          onClick={handleLogout}
-          className="rounded-md bg-gray-200 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-300"
-        >
-          Log out
-        </button>
+        <div className="flex flex-col gap-3">
+          <Link
+            href="/leagues"
+            className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+          >
+            My Leagues
+          </Link>
+          <button
+            onClick={handleLogout}
+            className="rounded-md bg-gray-200 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-300"
+          >
+            Log out
+          </button>
+        </div>
       </div>
     </div>
   );

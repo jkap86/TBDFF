@@ -5,5 +5,25 @@ export { tokenManager } from './api/token-manager';
 // Auth
 export { authApi } from './auth/auth-api';
 
+// Leagues
+export { leagueApi } from './leagues/league-api';
+
 // Types
 export type { User, AuthResponse, UserResponse } from './types/auth';
+export type {
+  League,
+  LeagueMember,
+  LeagueSettings,
+  LeagueScoringSettings,
+  RosterPosition,
+  LeagueStatus,
+  SeasonType,
+  MemberRole,
+  LeagueType,
+  CreateLeagueRequest,
+  UpdateLeagueRequest,
+  LeagueResponse,
+  LeagueListResponse,
+  LeagueMembersResponse,
+  LeagueMemberResponse,
+} from './types/league';
