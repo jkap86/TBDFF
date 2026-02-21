@@ -1,0 +1,18 @@
+{
+  "name": "tbdff",
+  "private": true,
+  "scripts": {
+    "dev:backend": "pnpm --filter @tbdff/backend dev",
+    "dev:mobile": "pnpm --filter @tbdff/mobile start",
+    "dev:web": "pnpm --filter @tbdff/web dev",
+    "build:shared": "pnpm --filter @tbdff/shared build",
+    "build:backend": "pnpm --filter @tbdff/backend build",
+    "build:web": "pnpm --filter @tbdff/web build"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": ["bcrypt"]
+  }
+}
