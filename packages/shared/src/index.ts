@@ -8,6 +8,9 @@ export { authApi } from './auth/auth-api';
 // Leagues
 export { leagueApi } from './leagues/league-api';
 
+// Players
+export { playerApi } from './players/players-api';
+
 // Types
 export type { User, AuthResponse, UserResponse } from './types/auth';
 export type {
@@ -27,3 +30,10 @@ export type {
   LeagueMembersResponse,
   LeagueMemberResponse,
 } from './types/league';
+export type {
+  Player,
+  Position,
+  InjuryStatus,
+  PlayerResponse,
+  PlayersListResponse,
+} from './types/player';

@@ -6,6 +6,8 @@ import { Pool } from 'pg';
 import dotenv from 'dotenv';
 import { createAuthRoutes } from './modules/auth/auth.routes';
 import { createLeagueRoutes } from './modules/leagues/leagues.routes';
+import { createPlayerRoutes } from './modules/players/players.routes';
+import { PlayerSyncJob } from './jobs/player-sync.job';
 import { errorHandler } from './shared/error-handler';
 
 dotenv.config();
@@ -80,6 +82,7 @@ if (NODE_ENV === 'development') {
 // Routes
 app.use('/api/auth', createAuthRoutes(pool));
 app.use('/api/leagues', createLeagueRoutes(pool));
+app.use('/api/players', createPlayerRoutes(pool));
 
 // Error handler (must be last middleware)
 app.use(errorHandler);
@@ -90,6 +93,11 @@ const server = createServer(app);
 server.listen(PORT, '0.0.0.0', () => {
   console.log(`TBDFF Backend started on port ${PORT}`);
   console.log(`Health check: http://localhost:${PORT}/api/health`);
+
+  // Start background jobs
+  const playerSyncJob = new PlayerSyncJob(pool);
+  playerSyncJob.start();
+  console.log('Background jobs started');
 });
 
 // Graceful shutdown
