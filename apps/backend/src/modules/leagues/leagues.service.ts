@@ -3,6 +3,7 @@ import {
   League,
   LeagueMember,
   LeagueInvite,
+  Roster,
   PublicLeague,
   DEFAULT_SETTINGS,
   DEFAULT_SCORING,
@@ -65,6 +66,10 @@ export class LeagueService {
 
     // Auto-add creator as commissioner
     await this.leagueRepository.addMember(league.id, userId, 'commissioner');
+
+    // Auto-create roster slots and assign commissioner to roster 1
+    await this.leagueRepository.createRosters(league.id, totalRosters);
+    await this.leagueRepository.assignRosterOwner(league.id, 1, userId);
 
     return league;
   }
@@ -183,7 +188,15 @@ export class LeagueService {
       throw new ValidationException('League is full');
     }
 
-    return this.leagueRepository.addMember(leagueId, userId, 'member');
+    const member = await this.leagueRepository.addMember(leagueId, userId, 'member');
+
+    // Auto-assign to next available roster
+    const roster = await this.leagueRepository.findAvailableRoster(leagueId);
+    if (roster) {
+      await this.leagueRepository.assignRosterOwner(leagueId, roster.rosterId, userId);
+    }
+
+    return member;
   }
 
   async leaveLeague(leagueId: string, userId: string): Promise<void> {
@@ -195,6 +208,7 @@ export class LeagueService {
       );
     }
 
+    await this.leagueRepository.unassignRosterOwner(leagueId, userId);
     await this.leagueRepository.removeMember(leagueId, userId);
   }
 
@@ -215,6 +229,7 @@ export class LeagueService {
       throw new ForbiddenException('Cannot remove the league commissioner');
     }
 
+    await this.leagueRepository.unassignRosterOwner(leagueId, targetUserId);
     await this.leagueRepository.removeMember(leagueId, targetUserId);
   }
 
@@ -392,9 +407,15 @@ export class LeagueService {
       throw new ValidationException('League is now full');
     }
 
-    // 7. Add as member and mark invite accepted (use transaction semantics)
+    // 7. Add as member and mark invite accepted
     const member = await this.leagueRepository.addMember(invite.leagueId, userId, 'member');
     await this.leagueRepository.updateInviteStatus(inviteId, 'accepted');
+
+    // Auto-assign to next available roster
+    const roster = await this.leagueRepository.findAvailableRoster(invite.leagueId);
+    if (roster) {
+      await this.leagueRepository.assignRosterOwner(invite.leagueId, roster.rosterId, userId);
+    }
 
     return member;
   }
@@ -440,5 +461,14 @@ export class LeagueService {
 
     // 4. Delete invite (cancel = remove entirely)
     await this.leagueRepository.deleteInvite(inviteId);
+  }
+
+  // ---- Rosters ----
+
+  async getLeagueRosters(leagueId: string, userId: string): Promise<Roster[]> {
+    const member = await this.leagueRepository.findMember(leagueId, userId);
+    if (!member) throw new NotFoundException('League not found');
+
+    return this.leagueRepository.findRostersByLeagueId(leagueId);
   }
 }

@@ -208,4 +208,18 @@ export class LeagueController {
       res.status(200).json({ message: 'Invite cancelled' });
     }
   };
+
+  // ---- Rosters ----
+
+  getRosters = async (req: AuthRequest, res: Response): Promise<void> => {
+    const userId = req.user?.userId;
+    if (!userId) throw new InvalidCredentialsException();
+
+    const leagueId = Array.isArray(req.params.leagueId)
+      ? req.params.leagueId[0]
+      : req.params.leagueId;
+
+    const rosters = await this.leagueService.getLeagueRosters(leagueId, userId);
+    res.status(200).json({ rosters: rosters.map((r) => r.toSafeObject()) });
+  };
 }

@@ -232,6 +232,39 @@ export interface InviteListResponse {
   invites: LeagueInvite[];
 }
 
+// Roster types (Sleeper-compatible)
+export interface RosterSettings {
+  wins: number;
+  losses: number;
+  ties: number;
+  fpts: number;
+  waiver_position: number;
+  [key: string]: number;
+}
+
+export interface Roster {
+  id: string;
+  roster_id: number;
+  league_id: string;
+  owner_id: string | null;
+  players: string[];
+  starters: string[];
+  reserve: string[];
+  taxi: string[];
+  settings: RosterSettings;
+  metadata: Record<string, any>;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface RosterResponse {
+  roster: Roster;
+}
+
+export interface RosterListResponse {
+  rosters: Roster[];
+}
+
 // Public leagues response
 export interface PublicLeaguesResponse {
   leagues: PublicLeague[];

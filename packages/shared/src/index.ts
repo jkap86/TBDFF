@@ -35,6 +35,10 @@ export type {
   InviteResponse,
   InviteListResponse,
   PublicLeaguesResponse,
+  Roster,
+  RosterSettings,
+  RosterResponse,
+  RosterListResponse,
 } from './types/league';
 export type {
   Player,

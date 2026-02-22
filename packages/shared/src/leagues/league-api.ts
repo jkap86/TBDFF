@@ -10,6 +10,7 @@ import type {
   InviteResponse,
   InviteListResponse,
   PublicLeaguesResponse,
+  RosterListResponse,
 } from '../types/league';
 
 export const leagueApi = {
@@ -43,6 +44,10 @@ export const leagueApi = {
 
   updateMemberRole: (leagueId: string, userId: string, role: string, token: string) =>
     apiClient.put<LeagueMemberResponse>(`/leagues/${leagueId}/members/${userId}`, { role }, token),
+
+  // Rosters
+  getRosters: (leagueId: string, token: string) =>
+    apiClient.get<RosterListResponse>(`/leagues/${leagueId}/rosters`, token),
 
   // Public leagues (no auth required)
   getPublicLeagues: (limit = 20, offset = 0) =>

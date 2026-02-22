@@ -347,6 +347,74 @@ export class LeagueInvite {
   }
 }
 
+export interface RosterSettings {
+  wins: number;
+  losses: number;
+  ties: number;
+  fpts: number;
+  waiver_position: number;
+  [key: string]: number;
+}
+
+export const DEFAULT_ROSTER_SETTINGS: RosterSettings = {
+  wins: 0,
+  losses: 0,
+  ties: 0,
+  fpts: 0,
+  waiver_position: 0,
+};
+
+export class Roster {
+  constructor(
+    public readonly id: string,
+    public readonly rosterId: number,
+    public readonly leagueId: string,
+    public readonly ownerId: string | null,
+    public readonly players: string[],
+    public readonly starters: string[],
+    public readonly reserve: string[],
+    public readonly taxi: string[],
+    public readonly settings: RosterSettings,
+    public readonly metadata: Record<string, any>,
+    public readonly createdAt: Date,
+    public readonly updatedAt: Date,
+  ) {}
+
+  static fromDatabase(row: any): Roster {
+    return new Roster(
+      row.id,
+      row.roster_id,
+      row.league_id,
+      row.owner_id,
+      row.players ?? [],
+      row.starters ?? [],
+      row.reserve ?? [],
+      row.taxi ?? [],
+      row.settings ?? DEFAULT_ROSTER_SETTINGS,
+      row.metadata ?? {},
+      row.created_at,
+      row.updated_at,
+    );
+  }
+
+  toSafeObject() {
+    return {
+      id: this.id,
+      roster_id: this.rosterId,
+      league_id: this.leagueId,
+      owner_id: this.ownerId,
+      players: this.players,
+      starters: this.starters,
+      reserve: this.reserve,
+      taxi: this.taxi,
+      settings: this.settings,
+      metadata: this.metadata,
+      created_at: this.createdAt,
+      updated_at: this.updatedAt,
+    };
+  }
+}
+
 // Public league interface for safe public data exposure
 export interface PublicLeague {
   id: string;

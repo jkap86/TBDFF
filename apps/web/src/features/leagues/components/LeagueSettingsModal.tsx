@@ -18,6 +18,7 @@ export function LeagueSettingsModal({ isOpen, onClose, league, onUpdate, onDelet
   const [totalRosters, setTotalRosters] = useState(league.total_rosters);
   const [status, setStatus] = useState<LeagueStatus>(league.status);
   const [isPublic, setIsPublic] = useState(league.settings?.public === 1);
+  const [memberCanInvite, setMemberCanInvite] = useState(league.settings?.member_can_invite === 1);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
@@ -30,6 +31,7 @@ export function LeagueSettingsModal({ isOpen, onClose, league, onUpdate, onDelet
       setTotalRosters(league.total_rosters);
       setStatus(league.status);
       setIsPublic(league.settings?.public === 1);
+      setMemberCanInvite(league.settings?.member_can_invite === 1);
       setError(null);
       setShowDeleteConfirmation(false);
       setIsDeleting(false);
@@ -65,8 +67,12 @@ export function LeagueSettingsModal({ isOpen, onClose, league, onUpdate, onDelet
       updates.status = status;
     }
     const currentIsPublic = league.settings?.public === 1;
-    if (isPublic !== currentIsPublic) {
-      updates.settings = { public: isPublic ? 1 : 0 };
+    const currentMemberCanInvite = league.settings?.member_can_invite === 1;
+    if (isPublic !== currentIsPublic || memberCanInvite !== currentMemberCanInvite) {
+      updates.settings = {
+        public: isPublic ? 1 : 0,
+        member_can_invite: memberCanInvite ? 1 : 0,
+      };
     }
 
     // Skip if no changes
@@ -175,7 +181,7 @@ export function LeagueSettingsModal({ isOpen, onClose, league, onUpdate, onDelet
             </select>
           </div>
 
-          <div className="mb-6">
+          <div className="mb-4">
             <label htmlFor="visibility" className="mb-1 block text-sm font-medium text-gray-700">
               League Visibility
             </label>
@@ -190,6 +196,24 @@ export function LeagueSettingsModal({ isOpen, onClose, league, onUpdate, onDelet
               <option value="private">Private - Invite only</option>
             </select>
           </div>
+
+          {!isPublic && (
+            <div className="mb-6">
+              <label htmlFor="invitePermission" className="mb-1 block text-sm font-medium text-gray-700">
+                Who can send invites?
+              </label>
+              <select
+                id="invitePermission"
+                value={memberCanInvite ? 'anyone' : 'commissioner'}
+                onChange={(e) => setMemberCanInvite(e.target.value === 'anyone')}
+                className="w-full rounded border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                disabled={isSubmitting}
+              >
+                <option value="commissioner">Commissioner only</option>
+                <option value="anyone">All members</option>
+              </select>
+            </div>
+          )}
 
           {isOwner && (
             <div className="mb-6 border-t border-gray-300 pt-6">

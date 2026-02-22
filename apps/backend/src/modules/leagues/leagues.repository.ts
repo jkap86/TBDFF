@@ -1,5 +1,5 @@
 import { Pool } from 'pg';
-import { League, LeagueMember, LeagueInvite } from './leagues.model';
+import { League, LeagueMember, LeagueInvite, Roster } from './leagues.model';
 
 export class LeagueRepository {
   constructor(private readonly db: Pool) {}
@@ -334,5 +334,64 @@ export class LeagueRepository {
       [username]
     );
     return result.rows.length > 0 ? result.rows[0] : null;
+  }
+
+  // ---- Rosters ----
+
+  async createRosters(leagueId: string, count: number): Promise<Roster[]> {
+    const result = await this.db.query(
+      `INSERT INTO rosters (roster_id, league_id)
+       SELECT s, $1
+       FROM generate_series(1, $2) AS s
+       RETURNING *`,
+      [leagueId, count]
+    );
+    return result.rows.map(Roster.fromDatabase);
+  }
+
+  async findRostersByLeagueId(leagueId: string): Promise<Roster[]> {
+    const result = await this.db.query(
+      `SELECT * FROM rosters WHERE league_id = $1 ORDER BY roster_id ASC`,
+      [leagueId]
+    );
+    return result.rows.map(Roster.fromDatabase);
+  }
+
+  async assignRosterOwner(leagueId: string, rosterId: number, ownerId: string): Promise<Roster | null> {
+    const result = await this.db.query(
+      `UPDATE rosters SET owner_id = $1
+       WHERE league_id = $2 AND roster_id = $3
+       RETURNING *`,
+      [ownerId, leagueId, rosterId]
+    );
+    return result.rows.length > 0 ? Roster.fromDatabase(result.rows[0]) : null;
+  }
+
+  async findAvailableRoster(leagueId: string): Promise<Roster | null> {
+    const result = await this.db.query(
+      `SELECT * FROM rosters
+       WHERE league_id = $1 AND owner_id IS NULL
+       ORDER BY roster_id ASC
+       LIMIT 1`,
+      [leagueId]
+    );
+    return result.rows.length > 0 ? Roster.fromDatabase(result.rows[0]) : null;
+  }
+
+  async findRosterByOwner(leagueId: string, ownerId: string): Promise<Roster | null> {
+    const result = await this.db.query(
+      `SELECT * FROM rosters WHERE league_id = $1 AND owner_id = $2`,
+      [leagueId, ownerId]
+    );
+    return result.rows.length > 0 ? Roster.fromDatabase(result.rows[0]) : null;
+  }
+
+  async unassignRosterOwner(leagueId: string, ownerId: string): Promise<boolean> {
+    const result = await this.db.query(
+      `UPDATE rosters SET owner_id = NULL
+       WHERE league_id = $1 AND owner_id = $2`,
+      [leagueId, ownerId]
+    );
+    return (result.rowCount ?? 0) > 0;
   }
 }
