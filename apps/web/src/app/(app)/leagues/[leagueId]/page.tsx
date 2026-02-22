@@ -1,19 +1,23 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useParams } from 'next/navigation';
-import { leagueApi, ApiError, type League, type LeagueMember } from '@/lib/api';
+import { useParams, useRouter } from 'next/navigation';
+import { Settings } from 'lucide-react';
+import { leagueApi, ApiError, type League, type LeagueMember, type UpdateLeagueRequest } from '@/lib/api';
 import { useAuth } from '@/features/auth/hooks/useAuth';
+import { LeagueSettingsModal } from '@/features/leagues/components/LeagueSettingsModal';
 
 export default function LeagueDetailPage() {
   const params = useParams();
+  const router = useRouter();
   const leagueId = params.leagueId as string;
-  const { accessToken } = useAuth();
+  const { accessToken, user } = useAuth();
 
   const [league, setLeague] = useState<League | null>(null);
   const [members, setMembers] = useState<LeagueMember[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -43,6 +47,25 @@ export default function LeagueDetailPage() {
 
     fetchData();
   }, [leagueId, accessToken]);
+
+  const handleUpdateLeague = async (updates: UpdateLeagueRequest) => {
+    if (!accessToken) throw new Error('Not authenticated');
+
+    const result = await leagueApi.update(leagueId, updates, accessToken);
+    setLeague(result.league);
+  };
+
+  const handleDeleteLeague = async () => {
+    if (!accessToken) throw new Error('Not authenticated');
+
+    await leagueApi.delete(leagueId, accessToken);
+    router.push('/leagues');
+  };
+
+  // Check if current user is a commissioner (commissioner is the owner in this app)
+  const currentUserMember = members.find((m) => m.user_id === user?.id);
+  const isCommissioner = currentUserMember?.role === 'commissioner';
+  const isOwner = isCommissioner; // Commissioner is the owner role
 
   if (isLoading) {
     return (
@@ -77,9 +100,9 @@ export default function LeagueDetailPage() {
   };
 
   const roleColors: Record<string, string> = {
-    owner: 'bg-purple-100 text-purple-700',
     commissioner: 'bg-blue-100 text-blue-700',
     member: 'bg-gray-100 text-gray-600',
+    spectator: 'bg-yellow-100 text-yellow-700',
   };
 
   return (
@@ -88,7 +111,18 @@ export default function LeagueDetailPage() {
         {/* League Header */}
         <div className="rounded-lg bg-white p-6 shadow">
           <div className="mb-4 flex items-start justify-between">
-            <h1 className="text-3xl font-bold text-gray-900">{league.name}</h1>
+            <div className="flex items-center gap-3">
+              <h1 className="text-3xl font-bold text-gray-900">{league.name}</h1>
+              {isCommissioner && (
+                <button
+                  onClick={() => setIsSettingsOpen(true)}
+                  className="rounded p-2 text-gray-500 hover:bg-gray-100 hover:text-gray-700"
+                  title="League Settings"
+                >
+                  <Settings className="h-5 w-5" />
+                </button>
+              )}
+            </div>
             <span
               className={`rounded-full px-3 py-1 text-sm font-medium ${statusColors[league.status] || statusColors.pre_draft}`}
             >
@@ -156,6 +190,18 @@ export default function LeagueDetailPage() {
           </div>
         </div>
       </div>
+
+      {/* Settings Modal */}
+      {league && (
+        <LeagueSettingsModal
+          isOpen={isSettingsOpen}
+          onClose={() => setIsSettingsOpen(false)}
+          league={league}
+          onUpdate={handleUpdateLeague}
+          onDelete={handleDeleteLeague}
+          isOwner={isCommissioner}
+        />
+      )}
     </div>
   );
 }

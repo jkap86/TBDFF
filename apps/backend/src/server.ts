@@ -6,6 +6,7 @@ import { Pool } from 'pg';
 import dotenv from 'dotenv';
 import { createAuthRoutes } from './modules/auth/auth.routes';
 import { createLeagueRoutes } from './modules/leagues/leagues.routes';
+import { createInviteRoutes } from './modules/leagues/invites.routes';
 import { createPlayerRoutes } from './modules/players/players.routes';
 import { PlayerSyncJob } from './jobs/player-sync.job';
 import { errorHandler } from './shared/error-handler';
@@ -82,6 +83,7 @@ if (NODE_ENV === 'development') {
 // Routes
 app.use('/api/auth', createAuthRoutes(pool));
 app.use('/api/leagues', createLeagueRoutes(pool));
+app.use('/api/invites', createInviteRoutes(pool));
 app.use('/api/players', createPlayerRoutes(pool));
 
 // Error handler (must be last middleware)

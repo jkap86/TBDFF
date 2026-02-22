@@ -6,7 +6,7 @@ import { LeagueRepository } from './leagues.repository';
 import { authMiddleware } from '../../middleware/auth.middleware';
 import { asyncHandler } from '../../shared/async-handler';
 import { validate } from '../../shared/validate';
-import { updateLeagueSchema } from './leagues.schemas';
+import { updateLeagueSchema, createInviteSchema } from './leagues.schemas';
 
 export function createLeagueRoutes(pool: Pool): Router {
   const leagueRepository = new LeagueRepository(pool);
@@ -15,7 +15,14 @@ export function createLeagueRoutes(pool: Pool): Router {
 
   const router = Router();
 
-  // All league routes require authentication
+  // ---- PUBLIC ROUTES (no auth) ----
+
+  // Get public leagues
+  router.get('/public', asyncHandler(controller.getPublicLeagues));
+
+  // ---- AUTHENTICATED ROUTES ----
+
+  // Apply auth middleware to all routes below this point
   router.use(authMiddleware);
 
   // League CRUD
@@ -31,6 +38,10 @@ export function createLeagueRoutes(pool: Pool): Router {
   router.delete('/:leagueId/members/me', asyncHandler(controller.leave));
   router.delete('/:leagueId/members/:userId', asyncHandler(controller.removeMember));
   router.put('/:leagueId/members/:userId', asyncHandler(controller.updateMemberRole));
+
+  // League invites management
+  router.post('/:leagueId/invites', validate(createInviteSchema), asyncHandler(controller.createInvite));
+  router.get('/:leagueId/invites', asyncHandler(controller.getLeagueInvites));
 
   return router;
 }

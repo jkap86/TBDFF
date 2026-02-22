@@ -53,6 +53,8 @@ const leagueSettingsPartialSchema = z.object({
   waiver_clear_days: z.number().int().min(0).max(7).optional(),
   waiver_day_of_week: z.number().int().min(0).max(6).optional(),
   waiver_type: z.number().int().min(0).optional(),
+  member_can_invite: z.number().int().min(0).max(1).optional(),
+  public: z.number().int().min(0).max(1).optional(),
 }).strict();
 
 /**
@@ -148,3 +150,24 @@ export const updateLeagueSchema = z.object({
 }).strict(); // Reject unknown fields like id, season, created_by, etc.
 
 export type UpdateLeagueInput = z.infer<typeof updateLeagueSchema>;
+
+/**
+ * Schema for creating a league invite
+ */
+export const createInviteSchema = z.object({
+  username: z.string()
+    .min(1, 'Username is required')
+    .max(50, 'Username must be at most 50 characters'),
+}).strict();
+
+export type CreateInviteInput = z.infer<typeof createInviteSchema>;
+
+/**
+ * Schema for pagination parameters (public leagues)
+ */
+export const paginationSchema = z.object({
+  limit: z.coerce.number().int().min(1).max(100).default(20),
+  offset: z.coerce.number().int().min(0).default(0),
+});
+
+export type PaginationInput = z.infer<typeof paginationSchema>;

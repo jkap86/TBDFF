@@ -37,6 +37,8 @@ export interface LeagueSettings {
   waiver_clear_days: number;
   waiver_day_of_week: number;
   waiver_type: number;
+  member_can_invite: number; // 0 = commissioner only, 1 = all members can invite
+  public: number; // 0 = private, 1 = public
 }
 
 // League scoring settings interface (Sleeper-compatible)
@@ -138,6 +140,8 @@ export const DEFAULT_SETTINGS: LeagueSettings = {
   waiver_clear_days: 2,
   waiver_day_of_week: 2,
   waiver_type: 0,
+  member_can_invite: 0, // Default: only commissioner can invite
+  public: 0, // Default: private league
 };
 
 // Default PPR scoring settings
@@ -296,4 +300,63 @@ export class LeagueMember {
       joined_at: this.joinedAt,
     };
   }
+}
+
+export class LeagueInvite {
+  constructor(
+    public readonly id: string,
+    public readonly leagueId: string,
+    public readonly inviterId: string,
+    public readonly inviteeId: string,
+    public readonly status: 'pending' | 'accepted' | 'declined',
+    public readonly inviterUsername: string,
+    public readonly inviteeUsername: string,
+    public readonly leagueName: string,
+    public readonly createdAt: Date,
+    public readonly updatedAt: Date,
+  ) {}
+
+  static fromDatabase(row: any): LeagueInvite {
+    return new LeagueInvite(
+      row.id,
+      row.league_id,
+      row.inviter_id,
+      row.invitee_id,
+      row.status,
+      row.inviter_username,
+      row.invitee_username,
+      row.league_name,
+      row.created_at,
+      row.updated_at,
+    );
+  }
+
+  toSafeObject() {
+    return {
+      id: this.id,
+      league_id: this.leagueId,
+      inviter_id: this.inviterId,
+      invitee_id: this.inviteeId,
+      status: this.status,
+      inviter_username: this.inviterUsername,
+      invitee_username: this.inviteeUsername,
+      league_name: this.leagueName,
+      created_at: this.createdAt,
+      updated_at: this.updatedAt,
+    };
+  }
+}
+
+// Public league interface for safe public data exposure
+export interface PublicLeague {
+  id: string;
+  name: string;
+  sport: string;
+  season: string;
+  status: LeagueStatus;
+  total_rosters: number;
+  avatar: string | null;
+  settings: Partial<LeagueSettings>;
+  roster_positions: RosterPosition[];
+  member_count: number;
 }

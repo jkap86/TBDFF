@@ -141,7 +141,7 @@ export interface League {
 }
 
 // League member
-export type MemberRole = 'owner' | 'commissioner' | 'member';
+export type MemberRole = 'commissioner' | 'member' | 'spectator';
 
 export interface LeagueMember {
   id: string;
@@ -189,4 +189,53 @@ export interface LeagueMembersResponse {
 
 export interface LeagueMemberResponse {
   member: LeagueMember;
+}
+
+// League invite
+export interface LeagueInvite {
+  id: string;
+  league_id: string;
+  inviter_id: string;
+  invitee_id: string;
+  status: 'pending' | 'accepted' | 'declined';
+  inviter_username: string;
+  invitee_username: string;
+  league_name: string;
+  created_at: string;
+  updated_at: string;
+}
+
+// Public league (limited data exposed)
+export interface PublicLeague {
+  id: string;
+  name: string;
+  sport: string;
+  season: string;
+  status: LeagueStatus;
+  total_rosters: number;
+  avatar: string | null;
+  settings: Partial<LeagueSettings>;
+  roster_positions: RosterPosition[];
+  member_count: number;
+}
+
+// Invite request/response types
+export interface CreateInviteRequest {
+  username: string;
+}
+
+export interface InviteResponse {
+  invite: LeagueInvite;
+}
+
+export interface InviteListResponse {
+  invites: LeagueInvite[];
+}
+
+// Public leagues response
+export interface PublicLeaguesResponse {
+  leagues: PublicLeague[];
+  total: number;
+  limit: number;
+  offset: number;
 }

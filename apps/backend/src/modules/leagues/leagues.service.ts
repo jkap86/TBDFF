@@ -2,6 +2,8 @@ import { LeagueRepository } from './leagues.repository';
 import {
   League,
   LeagueMember,
+  LeagueInvite,
+  PublicLeague,
   DEFAULT_SETTINGS,
   DEFAULT_SCORING,
   DEFAULT_ROSTER_POSITIONS,
@@ -61,7 +63,7 @@ export class LeagueService {
       createdBy: userId,
     });
 
-    // Auto-add creator as owner
+    // Auto-add creator as commissioner
     await this.leagueRepository.addMember(league.id, userId, 'commissioner');
 
     return league;
@@ -86,10 +88,10 @@ export class LeagueService {
     const league = await this.leagueRepository.findById(leagueId);
     if (!league) throw new NotFoundException('League not found');
 
-    // Only owner/commissioner can update
+    // Only commissioner can update
     const member = await this.leagueRepository.findMember(leagueId, userId);
-    if (!member || (member.role !== 'owner' && member.role !== 'commissioner')) {
-      throw new ForbiddenException('Only league owner or commissioner can update league settings');
+    if (!member || member.role !== 'commissioner') {
+      throw new ForbiddenException('Only the league commissioner can update league settings');
     }
 
     // Business logic validations
@@ -148,10 +150,10 @@ export class LeagueService {
     const league = await this.leagueRepository.findById(leagueId);
     if (!league) throw new NotFoundException('League not found');
 
-    // Only owner can delete
+    // Only commissioner can delete
     const member = await this.leagueRepository.findMember(leagueId, userId);
-    if (!member || member.role !== 'owner') {
-      throw new ForbiddenException('Only the league owner can delete a league');
+    if (!member || member.role !== 'commissioner') {
+      throw new ForbiddenException('Only the league commissioner can delete a league');
     }
 
     await this.leagueRepository.delete(leagueId);
@@ -187,9 +189,9 @@ export class LeagueService {
   async leaveLeague(leagueId: string, userId: string): Promise<void> {
     const member = await this.leagueRepository.findMember(leagueId, userId);
     if (!member) throw new NotFoundException('Not a member of this league');
-    if (member.role === 'owner') {
+    if (member.role === 'commissioner') {
       throw new ValidationException(
-        'Owner cannot leave the league. Transfer ownership or delete the league.',
+        'Commissioner cannot leave the league. Transfer commissioner role or delete the league.',
       );
     }
 
@@ -201,16 +203,16 @@ export class LeagueService {
     requestingUserId: string,
     targetUserId: string,
   ): Promise<void> {
-    // Verify requester is owner/commissioner
+    // Verify requester is commissioner
     const requester = await this.leagueRepository.findMember(leagueId, requestingUserId);
-    if (!requester || (requester.role !== 'owner' && requester.role !== 'commissioner')) {
-      throw new ForbiddenException('Only owner or commissioner can remove members');
+    if (!requester || requester.role !== 'commissioner') {
+      throw new ForbiddenException('Only the commissioner can remove members');
     }
 
     const target = await this.leagueRepository.findMember(leagueId, targetUserId);
     if (!target) throw new NotFoundException('Member not found');
-    if (target.role === 'owner') {
-      throw new ForbiddenException('Cannot remove the league owner');
+    if (target.role === 'commissioner') {
+      throw new ForbiddenException('Cannot remove the league commissioner');
     }
 
     await this.leagueRepository.removeMember(leagueId, targetUserId);
@@ -222,24 +224,221 @@ export class LeagueService {
     targetUserId: string,
     role: string,
   ): Promise<LeagueMember> {
-    if (!['commissioner', 'member'].includes(role)) {
-      throw new ValidationException('Role must be "commissioner" or "member"');
+    if (!['commissioner', 'member', 'spectator'].includes(role)) {
+      throw new ValidationException('Role must be "commissioner", "member", or "spectator"');
     }
 
-    // Only owner can change roles
+    // Only commissioner can change roles
     const requester = await this.leagueRepository.findMember(leagueId, requestingUserId);
-    if (!requester || requester.role !== 'owner') {
-      throw new ForbiddenException('Only the league owner can change member roles');
+    if (!requester || requester.role !== 'commissioner') {
+      throw new ForbiddenException('Only the league commissioner can change member roles');
     }
 
     const target = await this.leagueRepository.findMember(leagueId, targetUserId);
     if (!target) throw new NotFoundException('Member not found');
-    if (target.role === 'owner') {
-      throw new ForbiddenException('Cannot change the owner role through this endpoint');
+    if (target.role === 'commissioner') {
+      throw new ForbiddenException('Cannot change the commissioner role through this endpoint');
     }
 
     const updated = await this.leagueRepository.updateMemberRole(leagueId, targetUserId, role);
     if (!updated) throw new NotFoundException('Member not found');
     return updated;
+  }
+
+  // ---- Public Leagues ----
+
+  async getPublicLeagues(limit: number, offset: number): Promise<{
+    leagues: PublicLeague[];
+    total: number;
+    limit: number;
+    offset: number;
+  }> {
+    const [rows, total] = await Promise.all([
+      this.leagueRepository.findPublicLeagues(limit, offset),
+      this.leagueRepository.countPublicLeagues(),
+    ]);
+
+    const leagues: PublicLeague[] = rows.map(row => ({
+      id: row.id,
+      name: row.name,
+      sport: row.sport,
+      season: row.season,
+      status: row.status,
+      total_rosters: row.total_rosters,
+      avatar: row.avatar,
+      settings: {
+        // Only expose safe, non-sensitive settings
+        num_teams: row.settings.num_teams,
+        type: row.settings.type,
+        playoff_teams: row.settings.playoff_teams,
+        playoff_week_start: row.settings.playoff_week_start,
+      },
+      roster_positions: row.roster_positions,
+      member_count: row.member_count,
+    }));
+
+    return { leagues, total, limit, offset };
+  }
+
+  // ---- League Invites ----
+
+  async createInvite(
+    leagueId: string,
+    inviterUserId: string,
+    inviteeUsername: string
+  ): Promise<LeagueInvite> {
+    // 1. Verify league exists
+    const league = await this.leagueRepository.findById(leagueId);
+    if (!league) throw new NotFoundException('League not found');
+
+    // 2. Verify inviter is a member and has permission
+    const inviterMember = await this.leagueRepository.findMember(leagueId, inviterUserId);
+    if (!inviterMember) {
+      throw new ForbiddenException('You must be a member of this league to invite others');
+    }
+
+    // Check permission based on settings
+    const canInvite =
+      inviterMember.role === 'commissioner' ||
+      (league.settings.member_can_invite === 1);
+
+    if (!canInvite) {
+      throw new ForbiddenException('Only commissioners can send invites for this league');
+    }
+
+    // 3. Find invitee by username
+    const invitee = await this.leagueRepository.findUserByUsername(inviteeUsername);
+    if (!invitee) {
+      throw new NotFoundException(`User '${inviteeUsername}' not found`);
+    }
+
+    // 4. Prevent self-invite
+    if (invitee.id === inviterUserId) {
+      throw new ValidationException('You cannot invite yourself');
+    }
+
+    // 5. Check if already a member
+    const existingMember = await this.leagueRepository.findMember(leagueId, invitee.id);
+    if (existingMember) {
+      throw new ConflictException('User is already a member of this league');
+    }
+
+    // 6. Check for existing invite
+    const existingInvite = await this.leagueRepository.findExistingInvite(leagueId, invitee.id);
+    if (existingInvite) {
+      if (existingInvite.status === 'pending') {
+        throw new ConflictException('An invite has already been sent to this user');
+      }
+      if (existingInvite.status === 'declined') {
+        throw new ConflictException('This user has declined an invite to this league');
+      }
+      // If accepted, they should already be a member (handled above)
+    }
+
+    // 7. Check league capacity
+    const memberCount = await this.leagueRepository.getMemberCount(leagueId);
+    if (memberCount >= league.totalRosters) {
+      throw new ValidationException('League is full');
+    }
+
+    // 8. Create invite
+    return this.leagueRepository.createInvite(leagueId, inviterUserId, invitee.id);
+  }
+
+  async getLeagueInvites(leagueId: string, userId: string): Promise<LeagueInvite[]> {
+    // Verify user is commissioner
+    const member = await this.leagueRepository.findMember(leagueId, userId);
+    if (!member || member.role !== 'commissioner') {
+      throw new ForbiddenException('Only commissioners can view league invites');
+    }
+
+    return this.leagueRepository.findPendingInvitesByLeague(leagueId);
+  }
+
+  async getMyInvites(userId: string): Promise<LeagueInvite[]> {
+    return this.leagueRepository.findPendingInvitesByUser(userId);
+  }
+
+  async acceptInvite(inviteId: string, userId: string): Promise<LeagueMember> {
+    // 1. Get invite
+    const invite = await this.leagueRepository.findInviteById(inviteId);
+    if (!invite) throw new NotFoundException('Invite not found');
+
+    // 2. Verify user is the invitee
+    if (invite.inviteeId !== userId) {
+      throw new ForbiddenException('You can only accept invites sent to you');
+    }
+
+    // 3. Verify invite is still pending
+    if (invite.status !== 'pending') {
+      throw new ConflictException(`Invite has already been ${invite.status}`);
+    }
+
+    // 4. Verify league still exists and has capacity
+    const league = await this.leagueRepository.findById(invite.leagueId);
+    if (!league) throw new NotFoundException('League no longer exists');
+
+    // 5. Check if user is already a member (race condition check)
+    const existingMember = await this.leagueRepository.findMember(invite.leagueId, userId);
+    if (existingMember) {
+      // Update invite status and return existing member
+      await this.leagueRepository.updateInviteStatus(inviteId, 'accepted');
+      return existingMember;
+    }
+
+    // 6. Check capacity
+    const memberCount = await this.leagueRepository.getMemberCount(invite.leagueId);
+    if (memberCount >= league.totalRosters) {
+      throw new ValidationException('League is now full');
+    }
+
+    // 7. Add as member and mark invite accepted (use transaction semantics)
+    const member = await this.leagueRepository.addMember(invite.leagueId, userId, 'member');
+    await this.leagueRepository.updateInviteStatus(inviteId, 'accepted');
+
+    return member;
+  }
+
+  async declineInvite(inviteId: string, userId: string): Promise<void> {
+    // 1. Get invite
+    const invite = await this.leagueRepository.findInviteById(inviteId);
+    if (!invite) throw new NotFoundException('Invite not found');
+
+    // 2. Verify user is the invitee
+    if (invite.inviteeId !== userId) {
+      throw new ForbiddenException('You can only decline invites sent to you');
+    }
+
+    // 3. Verify invite is still pending
+    if (invite.status !== 'pending') {
+      throw new ConflictException(`Invite has already been ${invite.status}`);
+    }
+
+    // 4. Mark as declined (don't delete for audit trail)
+    await this.leagueRepository.updateInviteStatus(inviteId, 'declined');
+  }
+
+  async cancelInvite(inviteId: string, userId: string): Promise<void> {
+    // 1. Get invite
+    const invite = await this.leagueRepository.findInviteById(inviteId);
+    if (!invite) throw new NotFoundException('Invite not found');
+
+    // 2. Verify user is the inviter or a commissioner
+    const member = await this.leagueRepository.findMember(invite.leagueId, userId);
+    const canCancel =
+      invite.inviterId === userId ||
+      (member && member.role === 'commissioner');
+
+    if (!canCancel) {
+      throw new ForbiddenException('Only the inviter or league commissioner can cancel invites');
+    }
+
+    // 3. Verify invite is still pending
+    if (invite.status !== 'pending') {
+      throw new ConflictException(`Invite has already been ${invite.status}`);
+    }
+
+    // 4. Delete invite (cancel = remove entirely)
+    await this.leagueRepository.deleteInvite(inviteId);
   }
 }

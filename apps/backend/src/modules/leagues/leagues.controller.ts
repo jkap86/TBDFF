@@ -1,8 +1,8 @@
-import { Response } from 'express';
+import { Request, Response } from 'express';
 import { AuthRequest } from '../../middleware/auth.middleware';
 import { LeagueService } from './leagues.service';
-import { InvalidCredentialsException } from '../../shared/exceptions';
-import { UpdateLeagueInput } from './leagues.schemas';
+import { InvalidCredentialsException, NotFoundException } from '../../shared/exceptions';
+import { UpdateLeagueInput, CreateInviteInput } from './leagues.schemas';
 
 export class LeagueController {
   constructor(private readonly leagueService: LeagueService) {}
@@ -125,5 +125,87 @@ export class LeagueController {
       req.body.role
     );
     res.status(200).json({ member: member.toSafeObject() });
+  };
+
+  // ---- Public Leagues ----
+
+  getPublicLeagues = async (req: Request, res: Response): Promise<void> => {
+    // No auth required - this is a public endpoint
+    const limit = parseInt(req.query.limit as string) || 20;
+    const offset = parseInt(req.query.offset as string) || 0;
+
+    const result = await this.leagueService.getPublicLeagues(limit, offset);
+    res.status(200).json(result);
+  };
+
+  // ---- League Invites ----
+
+  createInvite = async (req: AuthRequest, res: Response): Promise<void> => {
+    const userId = req.user?.userId;
+    if (!userId) throw new InvalidCredentialsException();
+
+    const leagueId = Array.isArray(req.params.leagueId)
+      ? req.params.leagueId[0]
+      : req.params.leagueId;
+
+    const { username } = req.body as CreateInviteInput;
+
+    const invite = await this.leagueService.createInvite(leagueId, userId, username);
+    res.status(201).json({ invite: invite.toSafeObject() });
+  };
+
+  getLeagueInvites = async (req: AuthRequest, res: Response): Promise<void> => {
+    const userId = req.user?.userId;
+    if (!userId) throw new InvalidCredentialsException();
+
+    const leagueId = Array.isArray(req.params.leagueId)
+      ? req.params.leagueId[0]
+      : req.params.leagueId;
+
+    const invites = await this.leagueService.getLeagueInvites(leagueId, userId);
+    res.status(200).json({ invites: invites.map(i => i.toSafeObject()) });
+  };
+
+  getMyInvites = async (req: AuthRequest, res: Response): Promise<void> => {
+    const userId = req.user?.userId;
+    if (!userId) throw new InvalidCredentialsException();
+
+    const invites = await this.leagueService.getMyInvites(userId);
+    res.status(200).json({ invites: invites.map(i => i.toSafeObject()) });
+  };
+
+  acceptInvite = async (req: AuthRequest, res: Response): Promise<void> => {
+    const userId = req.user?.userId;
+    if (!userId) throw new InvalidCredentialsException();
+
+    const inviteId = Array.isArray(req.params.inviteId)
+      ? req.params.inviteId[0]
+      : req.params.inviteId;
+
+    const member = await this.leagueService.acceptInvite(inviteId, userId);
+    res.status(200).json({ member: member.toSafeObject() });
+  };
+
+  cancelOrDeclineInvite = async (req: AuthRequest, res: Response): Promise<void> => {
+    const userId = req.user?.userId;
+    if (!userId) throw new InvalidCredentialsException();
+
+    const inviteId = Array.isArray(req.params.inviteId)
+      ? req.params.inviteId[0]
+      : req.params.inviteId;
+
+    // Determine if this is a decline (invitee) or cancel (inviter/commissioner)
+    const invite = await this.leagueService['leagueRepository'].findInviteById(inviteId);
+    if (!invite) throw new NotFoundException('Invite not found');
+
+    if (invite.inviteeId === userId) {
+      // User is declining their own invite
+      await this.leagueService.declineInvite(inviteId, userId);
+      res.status(200).json({ message: 'Invite declined' });
+    } else {
+      // User is canceling an invite they sent (or they're a commissioner)
+      await this.leagueService.cancelInvite(inviteId, userId);
+      res.status(200).json({ message: 'Invite cancelled' });
+    }
   };
 }

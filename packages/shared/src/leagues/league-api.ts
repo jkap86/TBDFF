@@ -6,6 +6,10 @@ import type {
   LeagueListResponse,
   LeagueMembersResponse,
   LeagueMemberResponse,
+  CreateInviteRequest,
+  InviteResponse,
+  InviteListResponse,
+  PublicLeaguesResponse,
 } from '../types/league';
 
 export const leagueApi = {
@@ -39,4 +43,25 @@ export const leagueApi = {
 
   updateMemberRole: (leagueId: string, userId: string, role: string, token: string) =>
     apiClient.put<LeagueMemberResponse>(`/leagues/${leagueId}/members/${userId}`, { role }, token),
+
+  // Public leagues (no auth required)
+  getPublicLeagues: (limit = 20, offset = 0) =>
+    apiClient.get<PublicLeaguesResponse>(`/leagues/public?limit=${limit}&offset=${offset}`),
+
+  // Invites (league-scoped)
+  createInvite: (leagueId: string, body: CreateInviteRequest, token: string) =>
+    apiClient.post<InviteResponse>(`/leagues/${leagueId}/invites`, body, token),
+
+  getLeagueInvites: (leagueId: string, token: string) =>
+    apiClient.get<InviteListResponse>(`/leagues/${leagueId}/invites`, token),
+
+  // Invites (user-scoped)
+  getMyInvites: (token: string) =>
+    apiClient.get<InviteListResponse>('/invites/pending', token),
+
+  acceptInvite: (inviteId: string, token: string) =>
+    apiClient.post<LeagueMemberResponse>(`/invites/${inviteId}/accept`, undefined, token),
+
+  declineInvite: (inviteId: string, token: string) =>
+    apiClient.delete<{ message: string }>(`/invites/${inviteId}`, token),
 };
