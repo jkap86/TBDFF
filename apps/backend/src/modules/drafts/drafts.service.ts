@@ -1,5 +1,6 @@
 import { DraftRepository } from './drafts.repository';
 import { LeagueRepository } from '../leagues/leagues.repository';
+import { PlayerRepository } from '../players/players.repository';
 import { Draft, DraftPick, DEFAULT_DRAFT_SETTINGS, DraftType } from './drafts.model';
 import {
   ValidationException,
@@ -12,6 +13,7 @@ export class DraftService {
   constructor(
     private readonly draftRepository: DraftRepository,
     private readonly leagueRepository: LeagueRepository,
+    private readonly playerRepository: PlayerRepository,
   ) {}
 
   async createDraft(
@@ -146,19 +148,44 @@ export class DraftService {
     const league = await this.leagueRepository.findById(draft.leagueId);
     if (!league) throw new NotFoundException('League not found');
 
-    const orderSlots = Object.values(draftOrder);
-    const rosterSlots = Object.keys(slotToRosterId);
+    const slots = Object.values(draftOrder);
 
-    if (orderSlots.length !== league.totalRosters) {
+    if (slots.length !== league.totalRosters) {
       throw new ValidationException(
         `Draft order must have exactly ${league.totalRosters} slots`
       );
     }
 
-    if (rosterSlots.length !== league.totalRosters) {
+    // Validate slot values are unique sequential 1..N
+    const uniqueSlots = new Set(slots);
+    if (uniqueSlots.size !== slots.length) {
+      throw new ValidationException('Draft order slots must be unique');
+    }
+    for (let i = 1; i <= league.totalRosters; i++) {
+      if (!uniqueSlots.has(i)) {
+        throw new ValidationException(`Draft order must include slot ${i}`);
+      }
+    }
+
+    // Validate slotToRosterId keys cover 1..N
+    if (Object.keys(slotToRosterId).length !== league.totalRosters) {
       throw new ValidationException(
         `Slot to roster mapping must have exactly ${league.totalRosters} entries`
       );
+    }
+    for (let i = 1; i <= league.totalRosters; i++) {
+      if (slotToRosterId[String(i)] === undefined) {
+        throw new ValidationException(`Slot to roster mapping must include slot ${i}`);
+      }
+    }
+
+    // Validate roster IDs exist
+    const rosters = await this.leagueRepository.findRostersByLeagueId(draft.leagueId);
+    const validRosterIds = new Set(rosters.map((r) => r.rosterId));
+    for (const rosterId of Object.values(slotToRosterId)) {
+      if (!validRosterIds.has(rosterId)) {
+        throw new ValidationException(`Invalid roster ID: ${rosterId}`);
+      }
     }
 
     const updated = await this.draftRepository.update(draftId, {
@@ -273,12 +300,24 @@ export class DraftService {
       ? this.findUserBySlot(draft.draftOrder, nextPick.draftSlot) ?? userId
       : userId;
 
+    // Look up player for metadata
+    const player = await this.playerRepository.findById(playerId);
+    const pickMetadata = player
+      ? {
+          first_name: player.firstName,
+          last_name: player.lastName,
+          full_name: player.fullName,
+          position: player.position,
+          team: player.team,
+        }
+      : {};
+
     // Make the pick
     const pick = await this.draftRepository.makePick(
       nextPick.id,
       playerId,
       pickingUserId,
-      {},
+      pickMetadata,
     );
 
     if (!pick) throw new ConflictException('Pick was already made');
@@ -288,12 +327,9 @@ export class DraftService {
       lastPicked: new Date().toISOString(),
     });
 
-    // Check if draft is complete
-    const totalPicks = await this.draftRepository.countTotalPicks(draftId);
-    const picksMade = await this.draftRepository.countPicksMade(draftId);
-
-    if (picksMade >= totalPicks) {
-      await this.draftRepository.updateStatus(draftId, 'complete');
+    // Atomically complete draft if all picks are made
+    const completed = await this.draftRepository.completeIfAllPicked(draftId);
+    if (completed) {
       await this.draftRepository.updateLeagueStatus(draft.leagueId, 'in_season');
     }
 

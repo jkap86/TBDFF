@@ -207,20 +207,15 @@ export class DraftRepository {
     return result.rows.length > 0;
   }
 
-  async countPicksMade(draftId: string): Promise<number> {
+  async completeIfAllPicked(draftId: string): Promise<Draft | null> {
     const result = await this.db.query(
-      'SELECT COUNT(*)::int AS count FROM draft_picks WHERE draft_id = $1 AND player_id IS NOT NULL',
+      `UPDATE drafts SET status = 'complete'
+       WHERE id = $1 AND status = 'drafting'
+       AND (SELECT COUNT(*) FROM draft_picks WHERE draft_id = $1 AND player_id IS NULL) = 0
+       RETURNING *`,
       [draftId]
     );
-    return result.rows[0].count;
-  }
-
-  async countTotalPicks(draftId: string): Promise<number> {
-    const result = await this.db.query(
-      'SELECT COUNT(*)::int AS count FROM draft_picks WHERE draft_id = $1',
-      [draftId]
-    );
-    return result.rows[0].count;
+    return result.rows.length > 0 ? Draft.fromDatabase(result.rows[0]) : null;
   }
 
   async delete(id: string): Promise<boolean> {

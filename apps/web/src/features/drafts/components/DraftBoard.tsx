@@ -1,14 +1,15 @@
 'use client';
 
-import type { Draft, DraftPick } from '@/lib/api';
+import type { Draft, DraftPick, LeagueMember } from '@/lib/api';
 
 interface DraftBoardProps {
   draft: Draft;
   picks: DraftPick[];
+  members: LeagueMember[];
   currentUserId: string | undefined;
 }
 
-export function DraftBoard({ draft, picks, currentUserId }: DraftBoardProps) {
+export function DraftBoard({ draft, picks, members, currentUserId }: DraftBoardProps) {
   const { settings, draft_order } = draft;
   const teams = settings.teams;
   const rounds = settings.rounds;
@@ -30,17 +31,11 @@ export function DraftBoard({ draft, picks, currentUserId }: DraftBoardProps) {
   // Find the next pick
   const nextPick = picks.find((p) => !p.player_id);
 
-  // Build slot -> username mapping from draft_order (reversed)
+  // Build slot -> username mapping from draft_order + members
   const slotToUser: Record<number, string> = {};
   for (const [userId, slot] of Object.entries(draft_order) as [string, number][]) {
-    const pick = picks.find((p) => p.draft_slot === slot && p.picked_by === userId);
-    slotToUser[slot] = pick?.username ?? `Slot ${slot}`;
-  }
-  // Fallback: use any pick's username for that slot
-  for (const pick of picks) {
-    if (!slotToUser[pick.draft_slot] && pick.username) {
-      slotToUser[pick.draft_slot] = pick.username;
-    }
+    const member = members.find((m) => m.user_id === userId);
+    slotToUser[slot] = member?.display_name || member?.username || `Slot ${slot}`;
   }
 
   return (

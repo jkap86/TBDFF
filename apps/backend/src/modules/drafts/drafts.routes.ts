@@ -4,6 +4,7 @@ import { DraftController } from './drafts.controller';
 import { DraftService } from './drafts.service';
 import { DraftRepository } from './drafts.repository';
 import { LeagueRepository } from '../leagues/leagues.repository';
+import { PlayerRepository } from '../players/players.repository';
 import { authMiddleware } from '../../middleware/auth.middleware';
 import { asyncHandler } from '../../shared/async-handler';
 import { validate } from '../../shared/validate';
@@ -17,7 +18,8 @@ import {
 function buildController(pool: Pool): DraftController {
   const draftRepository = new DraftRepository(pool);
   const leagueRepository = new LeagueRepository(pool);
-  const draftService = new DraftService(draftRepository, leagueRepository);
+  const playerRepository = new PlayerRepository(pool);
+  const draftService = new DraftService(draftRepository, leagueRepository, playerRepository);
   return new DraftController(draftService);
 }
 

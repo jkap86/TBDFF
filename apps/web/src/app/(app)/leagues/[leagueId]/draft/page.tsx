@@ -301,13 +301,13 @@ export default function DraftRoomPage() {
               )}
             </div>
 
-            <DraftBoard draft={draft} picks={picks} currentUserId={user?.id} />
+            <DraftBoard draft={draft} picks={picks} members={members} currentUserId={user?.id} />
           </>
         )}
 
         {/* Complete State */}
         {draft.status === 'complete' && picks.length > 0 && (
-          <DraftBoard draft={draft} picks={picks} currentUserId={user?.id} />
+          <DraftBoard draft={draft} picks={picks} members={members} currentUserId={user?.id} />
         )}
 
         {/* Pre-draft - no board yet */}
