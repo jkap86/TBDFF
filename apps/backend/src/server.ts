@@ -9,6 +9,7 @@ import { createLeagueRoutes } from './modules/leagues/leagues.routes';
 import { createInviteRoutes } from './modules/leagues/invites.routes';
 import { createPlayerRoutes } from './modules/players/players.routes';
 import { createDraftRoutes, createDraftLeagueRoutes } from './modules/drafts/drafts.routes';
+import { createMatchupRoutes } from './modules/matchups/matchups.routes';
 import { PlayerSyncJob } from './jobs/player-sync.job';
 import { errorHandler } from './shared/error-handler';
 
@@ -88,6 +89,7 @@ app.use('/api/invites', createInviteRoutes(pool));
 app.use('/api/players', createPlayerRoutes(pool));
 app.use('/api/drafts', createDraftRoutes(pool));
 app.use('/api/leagues', createDraftLeagueRoutes(pool));
+app.use('/api/leagues', createMatchupRoutes(pool));
 
 // Error handler (must be last middleware)
 app.use(errorHandler);

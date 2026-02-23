@@ -14,6 +14,9 @@ export { playerApi } from './players/players-api';
 // Drafts
 export { draftApi } from './drafts/draft-api';
 
+// Matchups
+export { matchupApi } from './matchups/matchup-api';
+
 // Types
 export type { User, AuthResponse, UserResponse } from './types/auth';
 export type {
@@ -66,3 +69,7 @@ export type {
   DraftPickListResponse,
   ToggleAutoPickResponse,
 } from './types/draft';
+export type {
+  Matchup,
+  MatchupListResponse,
+} from './types/matchup';

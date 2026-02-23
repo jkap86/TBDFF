@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { Settings } from 'lucide-react';
-import { leagueApi, draftApi, ApiError, type League, type LeagueMember, type Roster, type UpdateLeagueRequest, type Draft } from '@/lib/api';
+import { leagueApi, draftApi, matchupApi, ApiError, type League, type LeagueMember, type Roster, type UpdateLeagueRequest, type Draft, type Matchup } from '@/lib/api';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import { LeagueSettingsModal } from '@/features/leagues/components/LeagueSettingsModal';
 
@@ -26,8 +26,11 @@ export default function LeagueDetailPage() {
   const [drafts, setDrafts] = useState<Draft[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [matchups, setMatchups] = useState<Matchup[]>([]);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isCreatingDraft, setIsCreatingDraft] = useState(false);
+  const [isGeneratingMatchups, setIsGeneratingMatchups] = useState(false);
+  const [selectedWeek, setSelectedWeek] = useState(1);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -37,17 +40,19 @@ export default function LeagueDetailPage() {
         setIsLoading(true);
         setError(null);
 
-        const [leagueResult, membersResult, rostersResult, draftsResult] = await Promise.all([
+        const [leagueResult, membersResult, rostersResult, draftsResult, matchupsResult] = await Promise.all([
           leagueApi.getById(leagueId, accessToken),
           leagueApi.getMembers(leagueId, accessToken),
           leagueApi.getRosters(leagueId, accessToken),
           draftApi.getByLeague(leagueId, accessToken),
+          matchupApi.getAll(leagueId, accessToken).catch(() => ({ matchups: [] })),
         ]);
 
         setLeague(leagueResult.league);
         setMembers(membersResult.members);
         setRosters(rostersResult.rosters);
         setDrafts(draftsResult.drafts);
+        setMatchups(matchupsResult.matchups);
       } catch (err) {
         if (err instanceof ApiError) {
           setError(err.message);
@@ -111,6 +116,23 @@ export default function LeagueDetailPage() {
       }
     } finally {
       setIsCreatingDraft(false);
+    }
+  };
+
+  const handleGenerateMatchups = async () => {
+    if (!accessToken) return;
+
+    try {
+      setIsGeneratingMatchups(true);
+      const result = await matchupApi.generate(leagueId, accessToken);
+      setMatchups(result.matchups);
+      setSelectedWeek(1);
+    } catch (err) {
+      if (err instanceof ApiError) {
+        setError(err.message);
+      }
+    } finally {
+      setIsGeneratingMatchups(false);
     }
   };
 
@@ -291,6 +313,114 @@ export default function LeagueDetailPage() {
             </div>
           )}
         </div>
+
+        {/* Matchups Card */}
+        {(league.status === 'in_season' || league.status === 'complete') && (
+          <div className="rounded-lg bg-white p-6 shadow">
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="text-xl font-bold text-gray-900">Matchups</h2>
+              {isCommissioner && league.status === 'in_season' && (
+                <button
+                  onClick={handleGenerateMatchups}
+                  disabled={isGeneratingMatchups}
+                  className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+                >
+                  {isGeneratingMatchups
+                    ? 'Generating...'
+                    : matchups.length > 0
+                      ? 'Re-Randomize Schedule'
+                      : 'Generate Schedule'}
+                </button>
+              )}
+            </div>
+
+            {matchups.length > 0 ? (
+              <div>
+                {/* Week selector */}
+                <div className="mb-4 flex gap-2 overflow-x-auto pb-1">
+                  {Array.from(new Set(matchups.map((m) => m.week)))
+                    .sort((a, b) => a - b)
+                    .map((week) => (
+                      <button
+                        key={week}
+                        onClick={() => setSelectedWeek(week)}
+                        className={`rounded-full px-3 py-1 text-sm font-medium whitespace-nowrap ${
+                          selectedWeek === week
+                            ? 'bg-blue-600 text-white'
+                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                        }`}
+                      >
+                        Wk {week}
+                      </button>
+                    ))}
+                </div>
+
+                {/* Matchup pairings for selected week */}
+                <div className="space-y-2">
+                  {(() => {
+                    const weekMatchups = matchups.filter(
+                      (m) => m.week === selectedWeek && m.matchup_id > 0
+                    );
+                    const grouped: Record<number, Matchup[]> = {};
+                    for (const m of weekMatchups) {
+                      if (!grouped[m.matchup_id]) grouped[m.matchup_id] = [];
+                      grouped[m.matchup_id].push(m);
+                    }
+
+                    const byes = matchups.filter(
+                      (m) => m.week === selectedWeek && m.matchup_id === 0
+                    );
+
+                    const getRosterLabel = (rosterId: number) => {
+                      const roster = rosters.find((r) => r.roster_id === rosterId);
+                      if (roster?.owner_id) {
+                        const member = members.find((m) => m.user_id === roster.owner_id);
+                        return member?.display_name || member?.username || `Team ${rosterId}`;
+                      }
+                      return `Team ${rosterId}`;
+                    };
+
+                    return (
+                      <>
+                        {Object.values(grouped).map((pair) => (
+                          <div
+                            key={pair[0].id}
+                            className="flex items-center justify-between rounded border border-gray-200 p-3"
+                          >
+                            <span className="font-medium text-gray-900">
+                              {getRosterLabel(pair[0].roster_id)}
+                            </span>
+                            <span className="text-sm text-gray-400">vs</span>
+                            <span className="font-medium text-gray-900">
+                              {pair[1] ? getRosterLabel(pair[1].roster_id) : 'BYE'}
+                            </span>
+                          </div>
+                        ))}
+                        {byes.map((bye) => (
+                          <div
+                            key={bye.id}
+                            className="flex items-center justify-between rounded border border-gray-200 bg-gray-50 p-3"
+                          >
+                            <span className="font-medium text-gray-900">
+                              {getRosterLabel(bye.roster_id)}
+                            </span>
+                            <span className="text-sm italic text-gray-400">BYE</span>
+                          </div>
+                        ))}
+                      </>
+                    );
+                  })()}
+                </div>
+              </div>
+            ) : (
+              <p className="py-4 text-center text-gray-500">
+                {isCommissioner
+                  ? 'No matchups generated yet. Click the button above to generate the schedule.'
+                  : 'No matchups have been generated yet.'}
+              </p>
+            )}
+          </div>
+        )}
 
         {/* Members List */}
         <div className="rounded-lg bg-white p-6 shadow">
