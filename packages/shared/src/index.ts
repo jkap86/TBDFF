@@ -11,6 +11,9 @@ export { leagueApi } from './leagues/league-api';
 // Players
 export { playerApi } from './players/players-api';
 
+// Drafts
+export { draftApi } from './drafts/draft-api';
+
 // Types
 export type { User, AuthResponse, UserResponse } from './types/auth';
 export type {
@@ -47,3 +50,18 @@ export type {
   PlayerResponse,
   PlayersListResponse,
 } from './types/player';
+export type {
+  Draft,
+  DraftPick,
+  DraftType,
+  DraftStatus,
+  DraftSettings,
+  CreateDraftRequest,
+  UpdateDraftRequest,
+  SetDraftOrderRequest,
+  MakeDraftPickRequest,
+  DraftResponse,
+  DraftListResponse,
+  DraftPickResponse,
+  DraftPickListResponse,
+} from './types/draft';

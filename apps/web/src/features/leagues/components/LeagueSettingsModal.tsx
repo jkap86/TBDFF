@@ -2,18 +2,24 @@
 
 import { useState, useEffect } from 'react';
 import { ApiError } from '@/lib/api';
-import type { League, UpdateLeagueRequest, LeagueStatus } from '@tbdff/shared';
+import type { League, LeagueMember, Roster, UpdateLeagueRequest, LeagueStatus } from '@tbdff/shared';
 
 interface LeagueSettingsModalProps {
   isOpen: boolean;
   onClose: () => void;
   league: League;
+  members: LeagueMember[];
+  rosters: Roster[];
   onUpdate: (data: UpdateLeagueRequest) => Promise<void>;
   onDelete: () => Promise<void>;
+  onAssignRoster: (rosterId: number, userId: string) => Promise<void>;
+  onUnassignRoster: (rosterId: number) => Promise<void>;
   isOwner: boolean;
 }
 
-export function LeagueSettingsModal({ isOpen, onClose, league, onUpdate, onDelete, isOwner }: LeagueSettingsModalProps) {
+export function LeagueSettingsModal({
+  isOpen, onClose, league, members, rosters, onUpdate, onDelete, onAssignRoster, onUnassignRoster, isOwner,
+}: LeagueSettingsModalProps) {
   const [name, setName] = useState(league.name);
   const [totalRosters, setTotalRosters] = useState(league.total_rosters);
   const [status, setStatus] = useState<LeagueStatus>(league.status);
@@ -23,6 +29,8 @@ export function LeagueSettingsModal({ isOpen, onClose, league, onUpdate, onDelet
   const [error, setError] = useState<string | null>(null);
   const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [rosterAssignments, setRosterAssignments] = useState<Record<number, string>>({});
+  const [assigningRosterId, setAssigningRosterId] = useState<number | null>(null);
 
   // Reset form when league changes or modal opens
   useEffect(() => {
@@ -35,10 +43,59 @@ export function LeagueSettingsModal({ isOpen, onClose, league, onUpdate, onDelet
       setError(null);
       setShowDeleteConfirmation(false);
       setIsDeleting(false);
+      setRosterAssignments({});
+      setAssigningRosterId(null);
     }
   }, [isOpen, league]);
 
   if (!isOpen) return null;
+
+  const spectators = members.filter((m) => m.role === 'spectator');
+
+  const getMemberUsername = (userId: string) => {
+    const member = members.find((m) => m.user_id === userId);
+    return member?.username ?? 'Unknown';
+  };
+
+  const handleAssign = async (rosterId: number) => {
+    const userId = rosterAssignments[rosterId];
+    if (!userId) return;
+
+    try {
+      setAssigningRosterId(rosterId);
+      setError(null);
+      await onAssignRoster(rosterId, userId);
+      setRosterAssignments((prev) => {
+        const next = { ...prev };
+        delete next[rosterId];
+        return next;
+      });
+    } catch (err) {
+      if (err instanceof ApiError) {
+        setError(err.message);
+      } else {
+        setError('Failed to assign roster');
+      }
+    } finally {
+      setAssigningRosterId(null);
+    }
+  };
+
+  const handleUnassign = async (rosterId: number) => {
+    try {
+      setAssigningRosterId(rosterId);
+      setError(null);
+      await onUnassignRoster(rosterId);
+    } catch (err) {
+      if (err instanceof ApiError) {
+        setError(err.message);
+      } else {
+        setError('Failed to unassign roster');
+      }
+    } finally {
+      setAssigningRosterId(null);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -117,7 +174,7 @@ export function LeagueSettingsModal({ isOpen, onClose, league, onUpdate, onDelet
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-      <div className="w-full max-w-md rounded-lg bg-white p-6 shadow-xl">
+      <div className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-lg bg-white p-6 shadow-xl">
         <h2 className="mb-4 text-xl font-bold text-gray-900">League Settings</h2>
 
         {error && (
@@ -198,7 +255,7 @@ export function LeagueSettingsModal({ isOpen, onClose, league, onUpdate, onDelet
           </div>
 
           {!isPublic && (
-            <div className="mb-6">
+            <div className="mb-4">
               <label htmlFor="invitePermission" className="mb-1 block text-sm font-medium text-gray-700">
                 Who can send invites?
               </label>
@@ -212,6 +269,82 @@ export function LeagueSettingsModal({ isOpen, onClose, league, onUpdate, onDelet
                 <option value="commissioner">Commissioner only</option>
                 <option value="anyone">All members</option>
               </select>
+            </div>
+          )}
+
+          {/* Roster Assignments - Commissioner only */}
+          {isOwner && (
+            <div className="mb-4 border-t border-gray-200 pt-4">
+              <h3 className="mb-3 text-sm font-semibold text-gray-900">Roster Assignments</h3>
+              <div className="space-y-2">
+                {rosters
+                  .slice()
+                  .sort((a, b) => a.roster_id - b.roster_id)
+                  .map((roster) => {
+                    const isCommissionerRoster = roster.owner_id && members.find((m) => m.user_id === roster.owner_id)?.role === 'commissioner';
+                    return (
+                      <div
+                        key={roster.roster_id}
+                        className="flex items-center gap-2 rounded border border-gray-200 p-2"
+                      >
+                        <span className="w-16 text-xs font-medium text-gray-500">
+                          Roster {roster.roster_id}
+                        </span>
+                        {roster.owner_id ? (
+                          <div className="flex flex-1 items-center justify-between">
+                            <span className="text-sm font-medium text-gray-900">
+                              {getMemberUsername(roster.owner_id)}
+                            </span>
+                            {!isCommissionerRoster && (
+                              <button
+                                type="button"
+                                onClick={() => handleUnassign(roster.roster_id)}
+                                disabled={assigningRosterId === roster.roster_id}
+                                className="rounded px-2 py-1 text-xs text-red-600 hover:bg-red-50 disabled:opacity-50"
+                              >
+                                {assigningRosterId === roster.roster_id ? '...' : 'Unassign'}
+                              </button>
+                            )}
+                          </div>
+                        ) : (
+                          <div className="flex flex-1 items-center gap-2">
+                            <select
+                              value={rosterAssignments[roster.roster_id] || ''}
+                              onChange={(e) =>
+                                setRosterAssignments((prev) => ({
+                                  ...prev,
+                                  [roster.roster_id]: e.target.value,
+                                }))
+                              }
+                              className="flex-1 rounded border border-gray-300 px-2 py-1 text-sm focus:border-blue-500 focus:outline-none"
+                              disabled={assigningRosterId === roster.roster_id}
+                            >
+                              <option value="">Select spectator...</option>
+                              {spectators.map((s) => (
+                                <option key={s.user_id} value={s.user_id}>
+                                  {s.username}
+                                </option>
+                              ))}
+                            </select>
+                            <button
+                              type="button"
+                              onClick={() => handleAssign(roster.roster_id)}
+                              disabled={!rosterAssignments[roster.roster_id] || assigningRosterId === roster.roster_id}
+                              className="rounded bg-blue-600 px-2 py-1 text-xs font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+                            >
+                              {assigningRosterId === roster.roster_id ? '...' : 'Assign'}
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+              </div>
+              {spectators.length > 0 && (
+                <p className="mt-2 text-xs text-gray-500">
+                  {spectators.length} spectator{spectators.length !== 1 ? 's' : ''} waiting for roster assignment
+                </p>
+              )}
             </div>
           )}
 

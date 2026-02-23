@@ -3,9 +3,16 @@
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { Settings } from 'lucide-react';
-import { leagueApi, ApiError, type League, type LeagueMember, type UpdateLeagueRequest } from '@/lib/api';
+import { leagueApi, draftApi, ApiError, type League, type LeagueMember, type Roster, type UpdateLeagueRequest, type Draft } from '@/lib/api';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import { LeagueSettingsModal } from '@/features/leagues/components/LeagueSettingsModal';
+
+const draftTypeLabels: Record<string, string> = {
+  snake: 'Snake',
+  linear: 'Linear',
+  '3rr': '3rd Round Reversal',
+  auction: 'Auction',
+};
 
 export default function LeagueDetailPage() {
   const params = useParams();
@@ -15,9 +22,12 @@ export default function LeagueDetailPage() {
 
   const [league, setLeague] = useState<League | null>(null);
   const [members, setMembers] = useState<LeagueMember[]>([]);
+  const [rosters, setRosters] = useState<Roster[]>([]);
+  const [drafts, setDrafts] = useState<Draft[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isCreatingDraft, setIsCreatingDraft] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -27,13 +37,17 @@ export default function LeagueDetailPage() {
         setIsLoading(true);
         setError(null);
 
-        const [leagueResult, membersResult] = await Promise.all([
+        const [leagueResult, membersResult, rostersResult, draftsResult] = await Promise.all([
           leagueApi.getById(leagueId, accessToken),
           leagueApi.getMembers(leagueId, accessToken),
+          leagueApi.getRosters(leagueId, accessToken),
+          draftApi.getByLeague(leagueId, accessToken),
         ]);
 
         setLeague(leagueResult.league);
         setMembers(membersResult.members);
+        setRosters(rostersResult.rosters);
+        setDrafts(draftsResult.drafts);
       } catch (err) {
         if (err instanceof ApiError) {
           setError(err.message);
@@ -62,10 +76,51 @@ export default function LeagueDetailPage() {
     router.push('/leagues');
   };
 
+  const handleAssignRoster = async (rosterId: number, userId: string) => {
+    if (!accessToken) throw new Error('Not authenticated');
+
+    const result = await leagueApi.assignRoster(leagueId, rosterId, { user_id: userId }, accessToken);
+    // Update local state
+    setRosters((prev) => prev.map((r) => (r.roster_id === rosterId ? result.roster : r)));
+    setMembers((prev) => prev.map((m) => (m.user_id === result.member.user_id ? result.member : m)));
+  };
+
+  const handleUnassignRoster = async (rosterId: number) => {
+    if (!accessToken) throw new Error('Not authenticated');
+
+    await leagueApi.unassignRoster(leagueId, rosterId, accessToken);
+    // Refetch members and rosters to get updated state
+    const [membersResult, rostersResult] = await Promise.all([
+      leagueApi.getMembers(leagueId, accessToken),
+      leagueApi.getRosters(leagueId, accessToken),
+    ]);
+    setMembers(membersResult.members);
+    setRosters(rostersResult.rosters);
+  };
+
+  const handleCreateDraft = async () => {
+    if (!accessToken) return;
+
+    try {
+      setIsCreatingDraft(true);
+      const result = await draftApi.create(leagueId, {}, accessToken);
+      setDrafts((prev) => [result.draft, ...prev]);
+    } catch (err) {
+      if (err instanceof ApiError) {
+        setError(err.message);
+      }
+    } finally {
+      setIsCreatingDraft(false);
+    }
+  };
+
   // Check if current user is a commissioner (commissioner is the owner in this app)
   const currentUserMember = members.find((m) => m.user_id === user?.id);
   const isCommissioner = currentUserMember?.role === 'commissioner';
   const isOwner = isCommissioner; // Commissioner is the owner role
+
+  // Find the active draft (pre_draft or drafting)
+  const activeDraft = drafts.find((d) => d.status === 'pre_draft' || d.status === 'drafting');
 
   if (isLoading) {
     return (
@@ -103,6 +158,18 @@ export default function LeagueDetailPage() {
     commissioner: 'bg-blue-100 text-blue-700',
     member: 'bg-gray-100 text-gray-600',
     spectator: 'bg-yellow-100 text-yellow-700',
+  };
+
+  const draftStatusColors: Record<string, string> = {
+    pre_draft: 'bg-yellow-100 text-yellow-700',
+    drafting: 'bg-blue-100 text-blue-700',
+    complete: 'bg-green-100 text-green-700',
+  };
+
+  const draftStatusLabels: Record<string, string> = {
+    pre_draft: 'Setup',
+    drafting: 'In Progress',
+    complete: 'Complete',
   };
 
   return (
@@ -162,6 +229,69 @@ export default function LeagueDetailPage() {
           </div>
         </div>
 
+        {/* Draft Card */}
+        <div className="rounded-lg bg-white p-6 shadow">
+          <div className="mb-4 flex items-center justify-between">
+            <h2 className="text-xl font-bold text-gray-900">Draft</h2>
+            {activeDraft && (
+              <span className={`rounded-full px-3 py-1 text-sm font-medium ${draftStatusColors[activeDraft.status]}`}>
+                {draftStatusLabels[activeDraft.status]}
+              </span>
+            )}
+          </div>
+
+          {activeDraft ? (
+            <div className="space-y-4">
+              <div className="grid gap-4 sm:grid-cols-3">
+                <div>
+                  <p className="text-sm text-gray-500">Type</p>
+                  <p className="font-medium text-gray-900">{draftTypeLabels[activeDraft.type] || activeDraft.type}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-500">Rounds</p>
+                  <p className="font-medium text-gray-900">{activeDraft.settings.rounds}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-500">Pick Timer</p>
+                  <p className="font-medium text-gray-900">{activeDraft.settings.pick_timer}s</p>
+                </div>
+              </div>
+
+              <div className="flex gap-3">
+                {activeDraft.status === 'drafting' && (
+                  <button
+                    onClick={() => router.push(`/leagues/${leagueId}/draft`)}
+                    className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+                  >
+                    Enter Draft Room
+                  </button>
+                )}
+                {activeDraft.status === 'pre_draft' && (
+                  <button
+                    onClick={() => router.push(`/leagues/${leagueId}/draft`)}
+                    className="rounded-lg bg-gray-600 px-4 py-2 text-sm font-medium text-white hover:bg-gray-700"
+                  >
+                    Draft Settings
+                  </button>
+                )}
+              </div>
+            </div>
+          ) : (
+            <div className="text-center py-4">
+              <p className="mb-3 text-gray-500">No draft has been created yet.</p>
+              {isCommissioner && (
+                <button
+                  onClick={handleCreateDraft}
+                  disabled={isCreatingDraft}
+                  className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+                >
+                  {isCreatingDraft ? 'Creating...' : 'Create Draft'}
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+
         {/* Members List */}
         <div className="rounded-lg bg-white p-6 shadow">
           <h2 className="mb-4 text-xl font-bold text-gray-900">
@@ -197,8 +327,12 @@ export default function LeagueDetailPage() {
           isOpen={isSettingsOpen}
           onClose={() => setIsSettingsOpen(false)}
           league={league}
+          members={members}
+          rosters={rosters}
           onUpdate={handleUpdateLeague}
           onDelete={handleDeleteLeague}
+          onAssignRoster={handleAssignRoster}
+          onUnassignRoster={handleUnassignRoster}
           isOwner={isCommissioner}
         />
       )}

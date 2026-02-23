@@ -222,4 +222,46 @@ export class LeagueController {
     const rosters = await this.leagueService.getLeagueRosters(leagueId, userId);
     res.status(200).json({ rosters: rosters.map((r) => r.toSafeObject()) });
   };
+
+  assignRoster = async (req: AuthRequest, res: Response): Promise<void> => {
+    const userId = req.user?.userId;
+    if (!userId) throw new InvalidCredentialsException();
+
+    const leagueId = Array.isArray(req.params.leagueId)
+      ? req.params.leagueId[0]
+      : req.params.leagueId;
+    const rosterIdParam = Array.isArray(req.params.rosterId) ? req.params.rosterId[0] : req.params.rosterId;
+    const rosterId = parseInt(rosterIdParam, 10);
+    const targetUserId = req.body.user_id;
+
+    const result = await this.leagueService.assignMemberToRoster(
+      leagueId,
+      userId,
+      targetUserId,
+      rosterId,
+    );
+    res.status(200).json({
+      roster: result.roster.toSafeObject(),
+      member: result.member.toSafeObject(),
+    });
+  };
+
+  unassignRoster = async (req: AuthRequest, res: Response): Promise<void> => {
+    const userId = req.user?.userId;
+    if (!userId) throw new InvalidCredentialsException();
+
+    const leagueId = Array.isArray(req.params.leagueId)
+      ? req.params.leagueId[0]
+      : req.params.leagueId;
+    const rosterIdParam = Array.isArray(req.params.rosterId) ? req.params.rosterId[0] : req.params.rosterId;
+    const rosterId = parseInt(rosterIdParam, 10);
+
+    // Find who owns this roster to unassign them
+    const rosters = await this.leagueService.getLeagueRosters(leagueId, userId);
+    const roster = rosters.find((r) => r.rosterId === rosterId);
+    if (!roster || !roster.ownerId) throw new NotFoundException('Roster not found or not assigned');
+
+    await this.leagueService.unassignMemberFromRoster(leagueId, userId, roster.ownerId);
+    res.status(200).json({ message: 'Roster unassigned' });
+  };
 }

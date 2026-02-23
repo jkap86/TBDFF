@@ -1,0 +1,230 @@
+import { Pool } from 'pg';
+import { Draft, DraftPick } from './drafts.model';
+
+export class DraftRepository {
+  constructor(private readonly db: Pool) {}
+
+  async create(data: {
+    leagueId: string;
+    season: string;
+    sport: string;
+    type: string;
+    settings: object;
+    metadata: object;
+    createdBy: string;
+  }): Promise<Draft> {
+    const result = await this.db.query(
+      `INSERT INTO drafts (league_id, season, sport, type, settings, metadata, created_by)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
+       RETURNING *`,
+      [
+        data.leagueId,
+        data.season,
+        data.sport,
+        data.type,
+        JSON.stringify(data.settings),
+        JSON.stringify(data.metadata),
+        data.createdBy,
+      ]
+    );
+    return Draft.fromDatabase(result.rows[0]);
+  }
+
+  async findById(id: string): Promise<Draft | null> {
+    const result = await this.db.query('SELECT * FROM drafts WHERE id = $1', [id]);
+    return result.rows.length > 0 ? Draft.fromDatabase(result.rows[0]) : null;
+  }
+
+  async findByLeagueId(leagueId: string): Promise<Draft[]> {
+    const result = await this.db.query(
+      'SELECT * FROM drafts WHERE league_id = $1 ORDER BY created_at DESC',
+      [leagueId]
+    );
+    return result.rows.map(Draft.fromDatabase);
+  }
+
+  async findActiveDraftByLeagueId(leagueId: string): Promise<Draft | null> {
+    const result = await this.db.query(
+      `SELECT * FROM drafts
+       WHERE league_id = $1 AND status IN ('pre_draft', 'drafting')
+       ORDER BY created_at DESC LIMIT 1`,
+      [leagueId]
+    );
+    return result.rows.length > 0 ? Draft.fromDatabase(result.rows[0]) : null;
+  }
+
+  async update(id: string, data: Record<string, any>): Promise<Draft | null> {
+    const fields: string[] = [];
+    const values: any[] = [];
+    let paramIndex = 1;
+
+    const columnMap: Record<string, string> = {
+      type: 'type',
+      status: 'status',
+      startTime: 'start_time',
+      lastPicked: 'last_picked',
+      draftOrder: 'draft_order',
+      slotToRosterId: 'slot_to_roster_id',
+      settings: 'settings',
+      metadata: 'metadata',
+    };
+
+    for (const [key, column] of Object.entries(columnMap)) {
+      if (data[key] !== undefined) {
+        fields.push(`${column} = $${paramIndex}`);
+        const val =
+          key === 'settings' || key === 'metadata' || key === 'draftOrder' || key === 'slotToRosterId'
+            ? JSON.stringify(data[key])
+            : data[key];
+        values.push(val);
+        paramIndex++;
+      }
+    }
+
+    if (fields.length === 0) return this.findById(id);
+
+    values.push(id);
+    const result = await this.db.query(
+      `UPDATE drafts SET ${fields.join(', ')} WHERE id = $${paramIndex} RETURNING *`,
+      values
+    );
+    return result.rows.length > 0 ? Draft.fromDatabase(result.rows[0]) : null;
+  }
+
+  async updateStatus(id: string, status: string): Promise<Draft | null> {
+    const result = await this.db.query(
+      'UPDATE drafts SET status = $1 WHERE id = $2 RETURNING *',
+      [status, id]
+    );
+    return result.rows.length > 0 ? Draft.fromDatabase(result.rows[0]) : null;
+  }
+
+  async linkDraftToLeague(draftId: string, leagueId: string): Promise<void> {
+    await this.db.query(
+      'UPDATE leagues SET draft_id = $1 WHERE id = $2',
+      [draftId, leagueId]
+    );
+  }
+
+  async updateLeagueStatus(leagueId: string, status: string): Promise<void> {
+    await this.db.query(
+      'UPDATE leagues SET status = $1 WHERE id = $2',
+      [status, leagueId]
+    );
+  }
+
+  // ---- Draft Picks ----
+
+  async createPicks(draftId: string, rounds: number, teams: number, draftType: string, draftOrder: Record<string, number>, slotToRosterId: Record<string, number>): Promise<DraftPick[]> {
+    // Generate all pick slots based on draft type and order
+    const pickValues: string[] = [];
+    const params: any[] = [draftId];
+    let paramIndex = 2;
+
+    for (let round = 1; round <= rounds; round++) {
+      for (let pickInRound = 1; pickInRound <= teams; pickInRound++) {
+        // Determine draft_slot based on draft type
+        let draftSlot: number;
+        if (draftType === 'snake') {
+          // Even rounds go in reverse order
+          draftSlot = round % 2 === 1 ? pickInRound : teams - pickInRound + 1;
+        } else if (draftType === '3rr') {
+          // 3rd Round Reversal: rounds 1-2 normal snake, round 3+ reversed
+          if (round <= 2) {
+            draftSlot = round % 2 === 1 ? pickInRound : teams - pickInRound + 1;
+          } else {
+            draftSlot = round % 2 === 0 ? pickInRound : teams - pickInRound + 1;
+          }
+        } else {
+          // Linear: same order every round
+          draftSlot = pickInRound;
+        }
+
+        const overallPick = (round - 1) * teams + pickInRound;
+        const rosterId = slotToRosterId[String(draftSlot)] ?? draftSlot;
+
+        pickValues.push(`($1, $${paramIndex}, $${paramIndex + 1}, $${paramIndex + 2}, $${paramIndex + 3})`);
+        params.push(rosterId, round, overallPick, draftSlot);
+        paramIndex += 4;
+      }
+    }
+
+    const result = await this.db.query(
+      `INSERT INTO draft_picks (draft_id, roster_id, round, pick_no, draft_slot)
+       VALUES ${pickValues.join(', ')}
+       RETURNING *`,
+      params
+    );
+    return result.rows.map(DraftPick.fromDatabase);
+  }
+
+  async findPicksByDraftId(draftId: string): Promise<DraftPick[]> {
+    const result = await this.db.query(
+      `SELECT dp.*, u.username
+       FROM draft_picks dp
+       LEFT JOIN users u ON u.id = dp.picked_by
+       WHERE dp.draft_id = $1
+       ORDER BY dp.pick_no ASC`,
+      [draftId]
+    );
+    return result.rows.map(DraftPick.fromDatabase);
+  }
+
+  async findNextPick(draftId: string): Promise<DraftPick | null> {
+    const result = await this.db.query(
+      `SELECT dp.*, u.username
+       FROM draft_picks dp
+       LEFT JOIN users u ON u.id = dp.picked_by
+       WHERE dp.draft_id = $1 AND dp.player_id IS NULL
+       ORDER BY dp.pick_no ASC
+       LIMIT 1`,
+      [draftId]
+    );
+    return result.rows.length > 0 ? DraftPick.fromDatabase(result.rows[0]) : null;
+  }
+
+  async makePick(pickId: string, playerId: string, pickedBy: string, metadata: object): Promise<DraftPick | null> {
+    const result = await this.db.query(
+      `WITH updated AS (
+         UPDATE draft_picks
+         SET player_id = $1, picked_by = $2, metadata = $3
+         WHERE id = $4 AND player_id IS NULL
+         RETURNING *
+       )
+       SELECT updated.*, u.username
+       FROM updated
+       LEFT JOIN users u ON u.id = updated.picked_by`,
+      [playerId, pickedBy, JSON.stringify(metadata), pickId]
+    );
+    return result.rows.length > 0 ? DraftPick.fromDatabase(result.rows[0]) : null;
+  }
+
+  async isPlayerPicked(draftId: string, playerId: string): Promise<boolean> {
+    const result = await this.db.query(
+      'SELECT 1 FROM draft_picks WHERE draft_id = $1 AND player_id = $2 LIMIT 1',
+      [draftId, playerId]
+    );
+    return result.rows.length > 0;
+  }
+
+  async countPicksMade(draftId: string): Promise<number> {
+    const result = await this.db.query(
+      'SELECT COUNT(*)::int AS count FROM draft_picks WHERE draft_id = $1 AND player_id IS NOT NULL',
+      [draftId]
+    );
+    return result.rows[0].count;
+  }
+
+  async countTotalPicks(draftId: string): Promise<number> {
+    const result = await this.db.query(
+      'SELECT COUNT(*)::int AS count FROM draft_picks WHERE draft_id = $1',
+      [draftId]
+    );
+    return result.rows[0].count;
+  }
+
+  async delete(id: string): Promise<boolean> {
+    const result = await this.db.query('DELETE FROM drafts WHERE id = $1', [id]);
+    return (result.rowCount ?? 0) > 0;
+  }
+}

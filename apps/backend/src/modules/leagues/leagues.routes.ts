@@ -41,6 +41,8 @@ export function createLeagueRoutes(pool: Pool): Router {
 
   // Rosters
   router.get('/:leagueId/rosters', asyncHandler(controller.getRosters));
+  router.put('/:leagueId/rosters/:rosterId/assign', asyncHandler(controller.assignRoster));
+  router.delete('/:leagueId/rosters/:rosterId/assign', asyncHandler(controller.unassignRoster));
 
   // League invites management
   router.post('/:leagueId/invites', validate(createInviteSchema), asyncHandler(controller.createInvite));
