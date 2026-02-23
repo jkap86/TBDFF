@@ -70,5 +70,11 @@ export function createDraftRoutes(pool: Pool): Router {
   // Make a pick
   router.post('/:draftId/picks', validate(makeDraftPickSchema), asyncHandler(controller.makePick));
 
+  // Auto-pick best available (timer expired or commissioner override)
+  router.post('/:draftId/autopick', asyncHandler(controller.autoPick));
+
+  // Toggle auto-pick mode for the current user
+  router.post('/:draftId/autopick/toggle', asyncHandler(controller.toggleAutoPick));
+
   return router;
 }

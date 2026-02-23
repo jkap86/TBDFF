@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { ArrowLeft } from 'lucide-react';
 import { draftApi, leagueApi, ApiError, type Draft, type DraftPick, type LeagueMember, type Roster } from '@/lib/api';
@@ -13,6 +13,14 @@ const draftTypeLabels: Record<string, string> = {
   '3rr': '3rd Round Reversal',
   auction: 'Auction',
 };
+
+function applyChainedPicks(prev: DraftPick[], chainedPicks: DraftPick[]): DraftPick[] {
+  let updated = prev;
+  for (const cp of chainedPicks) {
+    updated = updated.map((p) => (p.id === cp.id ? cp : p));
+  }
+  return updated;
+}
 
 export default function DraftRoomPage() {
   const params = useParams();
@@ -29,6 +37,13 @@ export default function DraftRoomPage() {
   const [pickPlayerId, setPickPlayerId] = useState('');
   const [isPicking, setIsPicking] = useState(false);
   const [pickError, setPickError] = useState<string | null>(null);
+  const [timeRemaining, setTimeRemaining] = useState<number | null>(null);
+  const [isTogglingAutoPick, setIsTogglingAutoPick] = useState(false);
+  const autoPickTriggered = useRef(false);
+
+  // Derive autopick status from draft metadata
+  const autoPickUsers: string[] = draft?.metadata?.auto_pick_users ?? [];
+  const isAutoPick = user?.id ? autoPickUsers.includes(user.id) : false;
 
   const fetchDraftData = useCallback(async () => {
     if (!accessToken) return;
@@ -96,6 +111,64 @@ export default function DraftRoomPage() {
     return () => clearInterval(interval);
   }, [draft, accessToken]);
 
+  // Countdown timer
+  useEffect(() => {
+    if (!draft || draft.status !== 'drafting' || !draft.settings.pick_timer) {
+      setTimeRemaining(null);
+      return;
+    }
+
+    const referenceTime = draft.last_picked || draft.start_time;
+    if (!referenceTime) {
+      setTimeRemaining(null);
+      return;
+    }
+
+    // Reset auto-pick flag when reference time changes (new pick was made)
+    autoPickTriggered.current = false;
+
+    const deadline = new Date(referenceTime).getTime() + draft.settings.pick_timer * 1000;
+
+    const tick = () => {
+      const remaining = Math.max(0, Math.ceil((deadline - Date.now()) / 1000));
+      setTimeRemaining(remaining);
+    };
+
+    tick();
+    const interval = setInterval(tick, 1000);
+    return () => clearInterval(interval);
+  }, [draft?.status, draft?.last_picked, draft?.start_time, draft?.settings.pick_timer]);
+
+  // Auto-pick when timer expires
+  useEffect(() => {
+    if (timeRemaining !== 0 || !draft || !accessToken || autoPickTriggered.current) return;
+    autoPickTriggered.current = true;
+
+    (async () => {
+      try {
+        const result = await draftApi.autoPick(draft.id, accessToken);
+        setPicks((prev) => {
+          let updated = prev.map((p) => (p.id === result.pick.id ? result.pick : p));
+          if (result.chained_picks?.length) {
+            updated = applyChainedPicks(updated, result.chained_picks);
+          }
+          return updated;
+        });
+        // Refresh draft state for updated last_picked and auto_pick_users
+        const draftResult = await draftApi.getById(draft.id, accessToken);
+        setDraft(draftResult.draft);
+      } catch {
+        // Another client may have already triggered auto-pick; polling will catch up
+      }
+    })();
+  }, [timeRemaining, draft, accessToken]);
+
+  const formatTime = (seconds: number) => {
+    const m = Math.floor(seconds / 60);
+    const s = seconds % 60;
+    return `${m}:${s.toString().padStart(2, '0')}`;
+  };
+
   const handleSetOrder = async () => {
     if (!draft || !accessToken) return;
 
@@ -146,9 +219,13 @@ export default function DraftRoomPage() {
       setIsPicking(true);
       setPickError(null);
       const result = await draftApi.makePick(draft.id, { player_id: pickPlayerId.trim() }, accessToken);
-      setPicks((prev) =>
-        prev.map((p) => (p.id === result.pick.id ? result.pick : p))
-      );
+      setPicks((prev) => {
+        let updated = prev.map((p) => (p.id === result.pick.id ? result.pick : p));
+        if (result.chained_picks?.length) {
+          updated = applyChainedPicks(updated, result.chained_picks);
+        }
+        return updated;
+      });
       setPickPlayerId('');
 
       // Refresh draft state
@@ -162,6 +239,28 @@ export default function DraftRoomPage() {
       }
     } finally {
       setIsPicking(false);
+    }
+  };
+
+  const handleToggleAutoPick = async () => {
+    if (!draft || !accessToken) return;
+
+    try {
+      setIsTogglingAutoPick(true);
+      setPickError(null);
+      const result = await draftApi.toggleAutoPick(draft.id, accessToken);
+      setDraft(result.draft);
+
+      // Apply any chained picks that were made
+      if (result.picks.length > 0) {
+        setPicks((prev) => applyChainedPicks(prev, result.picks));
+      }
+    } catch (err) {
+      if (err instanceof ApiError) {
+        setPickError(err.message);
+      }
+    } finally {
+      setIsTogglingAutoPick(false);
     }
   };
 
@@ -263,12 +362,43 @@ export default function DraftRoomPage() {
         {/* Draft Board */}
         {draft.status === 'drafting' && (
           <>
-            {/* Pick Input */}
+            {/* Pick Input + Timer */}
             <div className="rounded-lg bg-white p-4 shadow">
               <div className="flex items-center gap-4">
-                {isMyTurn && (
+                {/* Timer */}
+                {timeRemaining !== null && (
+                  <div className={`flex items-center gap-2 rounded-lg px-4 py-2 font-mono text-lg font-bold ${
+                    timeRemaining <= 30
+                      ? 'bg-red-100 text-red-700'
+                      : timeRemaining <= 60
+                        ? 'bg-yellow-100 text-yellow-700'
+                        : 'bg-gray-100 text-gray-700'
+                  }`}>
+                    {formatTime(timeRemaining)}
+                  </div>
+                )}
+                {/* Autopick Toggle */}
+                {userSlot !== undefined && (
+                  <button
+                    onClick={handleToggleAutoPick}
+                    disabled={isTogglingAutoPick}
+                    className={`rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+                      isAutoPick
+                        ? 'bg-orange-100 text-orange-700 hover:bg-orange-200'
+                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                    } disabled:opacity-50`}
+                  >
+                    {isTogglingAutoPick ? '...' : isAutoPick ? 'Auto: ON' : 'Auto: OFF'}
+                  </button>
+                )}
+                {isMyTurn && !isAutoPick && (
                   <span className="rounded-full bg-green-100 px-3 py-1 text-sm font-medium text-green-700">
                     Your Pick!
+                  </span>
+                )}
+                {isMyTurn && isAutoPick && (
+                  <span className="rounded-full bg-orange-100 px-3 py-1 text-sm font-medium text-orange-700">
+                    Auto-picking...
                   </span>
                 )}
                 {nextPick && !isMyTurn && (
@@ -276,14 +406,14 @@ export default function DraftRoomPage() {
                     Waiting for pick #{nextPick.pick_no} (Round {nextPick.round})
                   </span>
                 )}
-                {(isMyTurn || isCommissioner) && (
+                {((isMyTurn && !isAutoPick) || isCommissioner) && (
                   <div className="flex flex-1 items-center gap-2">
                     <input
                       type="text"
                       value={pickPlayerId}
                       onChange={(e) => setPickPlayerId(e.target.value)}
                       placeholder="Enter Player ID"
-                      className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                      className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                       onKeyDown={(e) => e.key === 'Enter' && handleMakePick()}
                     />
                     <button

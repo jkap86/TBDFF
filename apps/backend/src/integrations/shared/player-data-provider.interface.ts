@@ -12,6 +12,7 @@ export interface PlayerData {
   yearsExp: number | null;
   age: number | null;
   jerseyNumber: number | null;
+  searchRank: number | null;
 }
 
 // Provider interface - all providers must implement

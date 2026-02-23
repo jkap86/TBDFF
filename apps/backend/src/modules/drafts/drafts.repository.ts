@@ -1,5 +1,6 @@
 import { Pool } from 'pg';
 import { Draft, DraftPick } from './drafts.model';
+import { Player } from '../players/players.model';
 
 export class DraftRepository {
   constructor(private readonly db: Pool) {}
@@ -214,6 +215,55 @@ export class DraftRepository {
        AND (SELECT COUNT(*) FROM draft_picks WHERE draft_id = $1 AND player_id IS NULL) = 0
        RETURNING *`,
       [draftId]
+    );
+    return result.rows.length > 0 ? Draft.fromDatabase(result.rows[0]) : null;
+  }
+
+  async findBestAvailable(draftId: string): Promise<Player | null> {
+    const result = await this.db.query(
+      `SELECT p.* FROM players p
+       WHERE p.active = true
+         AND p.position IN ('QB', 'RB', 'WR', 'TE', 'K', 'DEF')
+         AND p.id::text NOT IN (
+           SELECT dp.player_id FROM draft_picks dp
+           WHERE dp.draft_id = $1 AND dp.player_id IS NOT NULL
+         )
+       ORDER BY p.search_rank ASC NULLS LAST
+       LIMIT 1`,
+      [draftId]
+    );
+    return result.rows.length > 0 ? Player.fromDatabase(result.rows[0]) : null;
+  }
+
+  async addAutoPickUser(draftId: string, userId: string): Promise<Draft | null> {
+    const result = await this.db.query(
+      `UPDATE drafts
+       SET metadata = jsonb_set(
+         COALESCE(metadata, '{}'),
+         '{auto_pick_users}',
+         (COALESCE(metadata->'auto_pick_users', '[]'::jsonb) || to_jsonb($2::text))
+       )
+       WHERE id = $1
+         AND NOT (COALESCE(metadata->'auto_pick_users', '[]'::jsonb) ? $2)
+       RETURNING *`,
+      [draftId, userId]
+    );
+    return result.rows.length > 0 ? Draft.fromDatabase(result.rows[0]) : null;
+  }
+
+  async removeAutoPickUser(draftId: string, userId: string): Promise<Draft | null> {
+    const result = await this.db.query(
+      `UPDATE drafts
+       SET metadata = jsonb_set(
+         COALESCE(metadata, '{}'),
+         '{auto_pick_users}',
+         (SELECT COALESCE(jsonb_agg(elem), '[]'::jsonb)
+          FROM jsonb_array_elements(COALESCE(metadata->'auto_pick_users', '[]'::jsonb)) AS elem
+          WHERE elem #>> '{}' != $2)
+       )
+       WHERE id = $1
+       RETURNING *`,
+      [draftId, userId]
     );
     return result.rows.length > 0 ? Draft.fromDatabase(result.rows[0]) : null;
   }

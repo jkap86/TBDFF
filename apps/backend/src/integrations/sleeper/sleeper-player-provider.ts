@@ -23,6 +23,7 @@ export class SleeperPlayerProvider implements PlayerDataProvider {
       yearsExp: sp.years_exp ?? null,
       age: sp.age ?? null,
       jerseyNumber: sp.number ?? null,
+      searchRank: sp.search_rank ?? null,
     }));
   }
 
@@ -44,6 +45,7 @@ export class SleeperPlayerProvider implements PlayerDataProvider {
       yearsExp: sleeperPlayer.years_exp ?? null,
       age: sleeperPlayer.age ?? null,
       jerseyNumber: sleeperPlayer.number ?? null,
+      searchRank: sleeperPlayer.search_rank ?? null,
     };
   }
 }

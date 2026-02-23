@@ -12,6 +12,7 @@ interface SleeperPlayer {
   years_exp: number | null;
   age: number | null;
   number: number | null;
+  search_rank: number | null;
 }
 
 export class SleeperApiClient {

@@ -31,12 +31,16 @@ export function DraftBoard({ draft, picks, members, currentUserId }: DraftBoardP
   // Find the next pick
   const nextPick = picks.find((p) => !p.player_id);
 
-  // Build slot -> username mapping from draft_order + members
+  // Build slot -> username and slot -> userId mapping from draft_order + members
   const slotToUser: Record<number, string> = {};
+  const slotToUserId: Record<number, string> = {};
   for (const [userId, slot] of Object.entries(draft_order) as [string, number][]) {
     const member = members.find((m) => m.user_id === userId);
     slotToUser[slot] = member?.display_name || member?.username || `Slot ${slot}`;
+    slotToUserId[slot] = userId;
   }
+
+  const autoPickUsers: string[] = draft.metadata?.auto_pick_users ?? [];
 
   return (
     <div className="overflow-x-auto">
@@ -53,7 +57,12 @@ export function DraftBoard({ draft, picks, members, currentUserId }: DraftBoardP
                   slot === userSlot ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-600'
                 }`}
               >
-                {slotToUser[slot] || `Slot ${slot}`}
+                <div className="flex items-center justify-center gap-1">
+                  {slotToUser[slot] || `Slot ${slot}`}
+                  {autoPickUsers.includes(slotToUserId[slot]) && (
+                    <span className="text-orange-500 text-[10px] font-bold" title="Auto-picking">AUTO</span>
+                  )}
+                </div>
               </th>
             ))}
           </tr>

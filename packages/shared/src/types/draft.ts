@@ -97,8 +97,14 @@ export interface DraftListResponse {
 
 export interface DraftPickResponse {
   pick: DraftPick;
+  chained_picks?: DraftPick[];
 }
 
 export interface DraftPickListResponse {
+  picks: DraftPick[];
+}
+
+export interface ToggleAutoPickResponse {
+  draft: Draft;
   picks: DraftPick[];
 }

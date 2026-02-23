@@ -61,6 +61,7 @@ export class PlayerService {
         yearsExp: playerData.yearsExp,
         age: playerData.age,
         jerseyNumber: playerData.jerseyNumber,
+        searchRank: playerData.searchRank,
       });
 
       // Link external ID

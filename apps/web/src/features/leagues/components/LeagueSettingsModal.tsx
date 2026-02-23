@@ -31,6 +31,7 @@ export function LeagueSettingsModal({
   const [isDeleting, setIsDeleting] = useState(false);
   const [rosterAssignments, setRosterAssignments] = useState<Record<number, string>>({});
   const [assigningRosterId, setAssigningRosterId] = useState<number | null>(null);
+  const [isAssigningAll, setIsAssigningAll] = useState(false);
 
   // Reset form when league changes or modal opens
   useEffect(() => {
@@ -95,6 +96,37 @@ export function LeagueSettingsModal({
     } finally {
       setAssigningRosterId(null);
     }
+  };
+
+  const handleAssignAll = async () => {
+    const openRosters = rosters
+      .slice()
+      .sort((a, b) => a.roster_id - b.roster_id)
+      .filter((r) => !r.owner_id);
+    const availableSpectators = [...spectators];
+
+    if (openRosters.length === 0 || availableSpectators.length === 0) return;
+
+    setIsAssigningAll(true);
+    setError(null);
+
+    for (const roster of openRosters) {
+      const spectator = availableSpectators.shift();
+      if (!spectator) break;
+
+      try {
+        await onAssignRoster(roster.roster_id, spectator.user_id);
+      } catch (err) {
+        if (err instanceof ApiError) {
+          setError(err.message);
+        } else {
+          setError('Failed to assign roster');
+        }
+        break;
+      }
+    }
+
+    setIsAssigningAll(false);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -191,7 +223,7 @@ export function LeagueSettingsModal({
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="w-full rounded border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              className="w-full rounded border border-gray-300 px-3 py-2 text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
               placeholder="My League"
               disabled={isSubmitting}
               maxLength={100}
@@ -206,7 +238,7 @@ export function LeagueSettingsModal({
               id="totalRosters"
               value={totalRosters}
               onChange={(e) => setTotalRosters(parseInt(e.target.value, 10))}
-              className="w-full rounded border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              className="w-full rounded border border-gray-300 px-3 py-2 text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
               disabled={isSubmitting}
             >
               {[...Array(31)].map((_, i) => {
@@ -228,7 +260,7 @@ export function LeagueSettingsModal({
               id="status"
               value={status}
               onChange={(e) => setStatus(e.target.value as LeagueStatus)}
-              className="w-full rounded border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              className="w-full rounded border border-gray-300 px-3 py-2 text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
               disabled={isSubmitting}
             >
               <option value="pre_draft">Pre-Draft</option>
@@ -246,7 +278,7 @@ export function LeagueSettingsModal({
               id="visibility"
               value={isPublic ? 'public' : 'private'}
               onChange={(e) => setIsPublic(e.target.value === 'public')}
-              className="w-full rounded border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              className="w-full rounded border border-gray-300 px-3 py-2 text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
               disabled={isSubmitting}
             >
               <option value="public">Public - Anyone can find and join</option>
@@ -263,7 +295,7 @@ export function LeagueSettingsModal({
                 id="invitePermission"
                 value={memberCanInvite ? 'anyone' : 'commissioner'}
                 onChange={(e) => setMemberCanInvite(e.target.value === 'anyone')}
-                className="w-full rounded border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                className="w-full rounded border border-gray-300 px-3 py-2 text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                 disabled={isSubmitting}
               >
                 <option value="commissioner">Commissioner only</option>
@@ -275,7 +307,24 @@ export function LeagueSettingsModal({
           {/* Roster Assignments - Commissioner only */}
           {isOwner && (
             <div className="mb-4 border-t border-gray-200 pt-4">
-              <h3 className="mb-3 text-sm font-semibold text-gray-900">Roster Assignments</h3>
+              <div className="mb-3 flex items-center justify-between">
+                <h3 className="text-sm font-semibold text-gray-900">Roster Assignments</h3>
+                {spectators.length > 0 && rosters.some((r) => !r.owner_id) && (
+                  <button
+                    type="button"
+                    onClick={handleAssignAll}
+                    disabled={isAssigningAll || assigningRosterId !== null}
+                    className="rounded bg-green-600 px-3 py-1 text-xs font-medium text-white hover:bg-green-700 disabled:opacity-50"
+                  >
+                    {isAssigningAll ? 'Assigning...' : `Assign All (${spectators.length})`}
+                  </button>
+                )}
+              </div>
+              {spectators.length > 0 && (
+                <p className="mb-2 text-xs text-gray-500">
+                  {spectators.length} spectator{spectators.length !== 1 ? 's' : ''} waiting for roster assignment
+                </p>
+              )}
               <div className="space-y-2">
                 {rosters
                   .slice()
@@ -285,9 +334,9 @@ export function LeagueSettingsModal({
                     return (
                       <div
                         key={roster.roster_id}
-                        className="flex items-center gap-2 rounded border border-gray-200 p-2"
+                        className="flex items-center gap-2 rounded border border-gray-300 bg-gray-50 p-2"
                       >
-                        <span className="w-16 text-xs font-medium text-gray-500">
+                        <span className="w-16 shrink-0 text-xs font-bold text-gray-700">
                           Roster {roster.roster_id}
                         </span>
                         {roster.owner_id ? (
@@ -299,7 +348,7 @@ export function LeagueSettingsModal({
                               <button
                                 type="button"
                                 onClick={() => handleUnassign(roster.roster_id)}
-                                disabled={assigningRosterId === roster.roster_id}
+                                disabled={assigningRosterId === roster.roster_id || isAssigningAll}
                                 className="rounded px-2 py-1 text-xs text-red-600 hover:bg-red-50 disabled:opacity-50"
                               >
                                 {assigningRosterId === roster.roster_id ? '...' : 'Unassign'}
@@ -316,8 +365,8 @@ export function LeagueSettingsModal({
                                   [roster.roster_id]: e.target.value,
                                 }))
                               }
-                              className="flex-1 rounded border border-gray-300 px-2 py-1 text-sm focus:border-blue-500 focus:outline-none"
-                              disabled={assigningRosterId === roster.roster_id}
+                              className="flex-1 rounded border border-gray-300 bg-white px-2 py-1 text-sm text-gray-900 focus:border-blue-500 focus:outline-none"
+                              disabled={assigningRosterId === roster.roster_id || isAssigningAll}
                             >
                               <option value="">Select spectator...</option>
                               {spectators.map((s) => (
@@ -329,7 +378,7 @@ export function LeagueSettingsModal({
                             <button
                               type="button"
                               onClick={() => handleAssign(roster.roster_id)}
-                              disabled={!rosterAssignments[roster.roster_id] || assigningRosterId === roster.roster_id}
+                              disabled={!rosterAssignments[roster.roster_id] || assigningRosterId === roster.roster_id || isAssigningAll}
                               className="rounded bg-blue-600 px-2 py-1 text-xs font-medium text-white hover:bg-blue-700 disabled:opacity-50"
                             >
                               {assigningRosterId === roster.roster_id ? '...' : 'Assign'}
@@ -340,11 +389,6 @@ export function LeagueSettingsModal({
                     );
                   })}
               </div>
-              {spectators.length > 0 && (
-                <p className="mt-2 text-xs text-gray-500">
-                  {spectators.length} spectator{spectators.length !== 1 ? 's' : ''} waiting for roster assignment
-                </p>
-              )}
             </div>
           )}
 

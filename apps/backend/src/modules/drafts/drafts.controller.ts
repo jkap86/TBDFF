@@ -112,8 +112,37 @@ export class DraftController {
     const draftId = Array.isArray(req.params.draftId) ? req.params.draftId[0] : req.params.draftId;
     const body = req.body as MakeDraftPickInput;
 
-    const pick = await this.draftService.makePick(draftId, userId, body.player_id);
+    const result = await this.draftService.makePick(draftId, userId, body.player_id);
 
-    res.status(201).json({ pick: pick.toSafeObject() });
+    res.status(201).json({
+      pick: result.pick.toSafeObject(),
+      chained_picks: result.chainedPicks.map((p) => p.toSafeObject()),
+    });
+  };
+
+  autoPick = async (req: AuthRequest, res: Response): Promise<void> => {
+    const userId = req.user?.userId;
+    if (!userId) throw new InvalidCredentialsException();
+
+    const draftId = Array.isArray(req.params.draftId) ? req.params.draftId[0] : req.params.draftId;
+    const result = await this.draftService.autoPick(draftId, userId);
+
+    res.status(201).json({
+      pick: result.pick.toSafeObject(),
+      chained_picks: result.chainedPicks.map((p) => p.toSafeObject()),
+    });
+  };
+
+  toggleAutoPick = async (req: AuthRequest, res: Response): Promise<void> => {
+    const userId = req.user?.userId;
+    if (!userId) throw new InvalidCredentialsException();
+
+    const draftId = Array.isArray(req.params.draftId) ? req.params.draftId[0] : req.params.draftId;
+    const result = await this.draftService.toggleAutoPick(draftId, userId);
+
+    res.status(200).json({
+      draft: result.draft.toSafeObject(),
+      picks: result.picks.map((p) => p.toSafeObject()),
+    });
   };
 }

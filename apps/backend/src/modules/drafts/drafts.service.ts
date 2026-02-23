@@ -258,7 +258,7 @@ export class DraftService {
     draftId: string,
     userId: string,
     playerId: string,
-  ): Promise<DraftPick> {
+  ): Promise<{ pick: DraftPick; chainedPicks: DraftPick[] }> {
     const draft = await this.draftRepository.findById(draftId);
     if (!draft) throw new NotFoundException('Draft not found');
 
@@ -333,7 +333,175 @@ export class DraftService {
       await this.draftRepository.updateLeagueStatus(draft.leagueId, 'in_season');
     }
 
-    return pick;
+    // Process auto-pick chain for subsequent autopick users
+    const chainedPicks = completed ? [] : await this.processAutoPickChain(draftId);
+
+    return { pick, chainedPicks };
+  }
+
+  async autoPick(draftId: string, userId: string): Promise<{ pick: DraftPick; chainedPicks: DraftPick[] }> {
+    const draft = await this.draftRepository.findById(draftId);
+    if (!draft) throw new NotFoundException('Draft not found');
+
+    if (draft.status !== 'drafting') {
+      throw new ValidationException('Draft is not currently active');
+    }
+
+    // Verify membership
+    const member = await this.leagueRepository.findMember(draft.leagueId, userId);
+    if (!member) throw new ForbiddenException('You are not a member of this league');
+
+    // Find the next pick
+    const nextPick = await this.draftRepository.findNextPick(draftId);
+    if (!nextPick) {
+      throw new ValidationException('All picks have been made');
+    }
+
+    // Check timer has expired OR user is commissioner
+    const isCommissioner = member.role === 'commissioner';
+    const referenceTime = draft.lastPicked || draft.startTime;
+    if (referenceTime && !isCommissioner) {
+      const deadline = new Date(referenceTime).getTime() + draft.settings.pick_timer * 1000;
+      if (Date.now() < deadline) {
+        throw new ValidationException('Pick timer has not expired yet');
+      }
+    }
+
+    // Find best available player
+    const bestPlayer = await this.draftRepository.findBestAvailable(draftId);
+    if (!bestPlayer) {
+      throw new ValidationException('No available players to auto-pick');
+    }
+
+    // Determine the user who owns the current slot
+    const slotOwner = this.findUserBySlot(draft.draftOrder, nextPick.draftSlot) ?? userId;
+
+    // Make the pick using the best available player
+    const pickMetadata = {
+      first_name: bestPlayer.firstName,
+      last_name: bestPlayer.lastName,
+      full_name: bestPlayer.fullName,
+      position: bestPlayer.position,
+      team: bestPlayer.team,
+      auto_pick: true,
+    };
+
+    const pick = await this.draftRepository.makePick(
+      nextPick.id,
+      bestPlayer.id,
+      slotOwner,
+      pickMetadata,
+    );
+
+    if (!pick) throw new ConflictException('Pick was already made');
+
+    // Update last_picked timestamp
+    await this.draftRepository.update(draftId, {
+      lastPicked: new Date().toISOString(),
+    });
+
+    // Timeout triggers autopick mode for the timed-out user
+    await this.draftRepository.addAutoPickUser(draftId, slotOwner);
+
+    // Atomically complete draft if all picks are made
+    const completed = await this.draftRepository.completeIfAllPicked(draftId);
+    if (completed) {
+      await this.draftRepository.updateLeagueStatus(draft.leagueId, 'in_season');
+    }
+
+    // Process auto-pick chain for subsequent autopick users
+    const chainedPicks = completed ? [] : await this.processAutoPickChain(draftId);
+
+    return { pick, chainedPicks };
+  }
+
+  async toggleAutoPick(
+    draftId: string,
+    userId: string,
+  ): Promise<{ draft: Draft; picks: DraftPick[] }> {
+    const draft = await this.draftRepository.findById(draftId);
+    if (!draft) throw new NotFoundException('Draft not found');
+
+    if (draft.status !== 'drafting') {
+      throw new ValidationException('Draft is not currently active');
+    }
+
+    const member = await this.leagueRepository.findMember(draft.leagueId, userId);
+    if (!member) throw new ForbiddenException('You are not a member of this league');
+
+    const userSlot = draft.draftOrder[userId];
+    if (userSlot === undefined) {
+      throw new ForbiddenException('You are not assigned a draft slot');
+    }
+
+    const autoPickUsers: string[] = draft.metadata?.auto_pick_users ?? [];
+    const isCurrentlyOn = autoPickUsers.includes(userId);
+
+    if (isCurrentlyOn) {
+      const updatedDraft = await this.draftRepository.removeAutoPickUser(draftId, userId) ?? draft;
+      return { draft: updatedDraft, picks: [] };
+    }
+
+    // Toggle ON
+    await this.draftRepository.addAutoPickUser(draftId, userId);
+
+    // If it's currently this user's turn, chain auto-picks starting now
+    const chainedPicks = await this.processAutoPickChain(draftId);
+
+    const finalDraft = await this.draftRepository.findById(draftId);
+    return { draft: finalDraft ?? draft, picks: chainedPicks };
+  }
+
+  private async processAutoPickChain(draftId: string): Promise<DraftPick[]> {
+    const chainedPicks: DraftPick[] = [];
+    const MAX_CHAIN = 50;
+
+    for (let i = 0; i < MAX_CHAIN; i++) {
+      const draft = await this.draftRepository.findById(draftId);
+      if (!draft || draft.status !== 'drafting') break;
+
+      const nextPick = await this.draftRepository.findNextPick(draftId);
+      if (!nextPick) break;
+
+      const autoPickUsers: string[] = draft.metadata?.auto_pick_users ?? [];
+      const slotOwner = this.findUserBySlot(draft.draftOrder, nextPick.draftSlot);
+      if (!slotOwner || !autoPickUsers.includes(slotOwner)) break;
+
+      const bestPlayer = await this.draftRepository.findBestAvailable(draftId);
+      if (!bestPlayer) break;
+
+      const pickMetadata = {
+        first_name: bestPlayer.firstName,
+        last_name: bestPlayer.lastName,
+        full_name: bestPlayer.fullName,
+        position: bestPlayer.position,
+        team: bestPlayer.team,
+        auto_pick: true,
+      };
+
+      const pick = await this.draftRepository.makePick(
+        nextPick.id,
+        bestPlayer.id,
+        slotOwner,
+        pickMetadata,
+      );
+
+      if (!pick) break;
+
+      await this.draftRepository.update(draftId, {
+        lastPicked: new Date().toISOString(),
+      });
+
+      chainedPicks.push(pick);
+
+      const completed = await this.draftRepository.completeIfAllPicked(draftId);
+      if (completed) {
+        await this.draftRepository.updateLeagueStatus(draft.leagueId, 'in_season');
+        break;
+      }
+    }
+
+    return chainedPicks;
   }
 
   private findUserBySlot(draftOrder: Record<string, number>, slot: number): string | null {

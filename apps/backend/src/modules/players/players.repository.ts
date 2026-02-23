@@ -58,12 +58,13 @@ export class PlayerRepository {
     yearsExp: number | null;
     age: number | null;
     jerseyNumber: number | null;
+    searchRank: number | null;
   }): Promise<Player> {
     const result = await this.db.query(
       `INSERT INTO players (
         id, first_name, last_name, full_name, position, fantasy_positions,
-        team, active, injury_status, years_exp, age, jersey_number
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+        team, active, injury_status, years_exp, age, jersey_number, search_rank
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
       ON CONFLICT (id) DO UPDATE SET
         first_name = EXCLUDED.first_name,
         last_name = EXCLUDED.last_name,
@@ -76,6 +77,7 @@ export class PlayerRepository {
         years_exp = EXCLUDED.years_exp,
         age = EXCLUDED.age,
         jersey_number = EXCLUDED.jersey_number,
+        search_rank = EXCLUDED.search_rank,
         updated_at = NOW()
       RETURNING *`,
       [
@@ -91,6 +93,7 @@ export class PlayerRepository {
         data.yearsExp,
         data.age,
         data.jerseyNumber,
+        data.searchRank,
       ]
     );
     return Player.fromDatabase(result.rows[0]);

@@ -64,4 +64,5 @@ export type {
   DraftListResponse,
   DraftPickResponse,
   DraftPickListResponse,
+  ToggleAutoPickResponse,
 } from './types/draft';

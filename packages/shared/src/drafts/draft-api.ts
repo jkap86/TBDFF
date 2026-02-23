@@ -8,6 +8,7 @@ import type {
   DraftListResponse,
   DraftPickResponse,
   DraftPickListResponse,
+  ToggleAutoPickResponse,
 } from '../types/draft';
 
 export const draftApi = {
@@ -36,4 +37,10 @@ export const draftApi = {
 
   makePick: (draftId: string, body: MakeDraftPickRequest, token: string) =>
     apiClient.post<DraftPickResponse>(`/drafts/${draftId}/picks`, body, token),
+
+  autoPick: (draftId: string, token: string) =>
+    apiClient.post<DraftPickResponse>(`/drafts/${draftId}/autopick`, undefined, token),
+
+  toggleAutoPick: (draftId: string, token: string) =>
+    apiClient.post<ToggleAutoPickResponse>(`/drafts/${draftId}/autopick/toggle`, undefined, token),
 };

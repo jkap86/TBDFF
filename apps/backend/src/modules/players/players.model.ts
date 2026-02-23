@@ -15,6 +15,7 @@ export class Player {
     public readonly yearsExp: number | null,
     public readonly age: number | null,
     public readonly jerseyNumber: number | null,
+    public readonly searchRank: number | null,
     public readonly createdAt: Date,
     public readonly updatedAt: Date
   ) {}
@@ -33,6 +34,7 @@ export class Player {
       row.years_exp,
       row.age,
       row.jersey_number,
+      row.search_rank ?? null,
       new Date(row.created_at),
       new Date(row.updated_at)
     );
@@ -52,6 +54,7 @@ export class Player {
       years_exp: this.yearsExp,
       age: this.age,
       jersey_number: this.jerseyNumber,
+      search_rank: this.searchRank,
       created_at: this.createdAt.toISOString(),
       updated_at: this.updatedAt.toISOString(),
     };
