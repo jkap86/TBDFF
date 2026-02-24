@@ -25,6 +25,63 @@ function applyChainedPicks(prev: DraftPick[], chainedPicks: DraftPick[]): DraftP
   return updated;
 }
 
+function NominationMaxBid({ nomination, queue, budget, onUpdateMaxBid }: {
+  nomination: { player_id: string; player_metadata?: { auction_value?: number | null } };
+  queue: DraftQueueItem[];
+  budget: number;
+  onUpdateMaxBid: (playerId: string, maxBid: number | null) => void;
+}) {
+  const queueItem = queue.find((q) => q.player_id === nomination.player_id);
+  const currentMaxBid = queueItem?.max_bid ?? null;
+  const aav = nomination.player_metadata?.auction_value ?? queueItem?.auction_value ?? null;
+  const defaultBid = aav != null ? Math.floor(aav * 0.8 * (budget / 200)) : null;
+
+  const [value, setValue] = useState(currentMaxBid != null ? String(currentMaxBid) : '');
+  const [isFocused, setIsFocused] = useState(false);
+
+  useEffect(() => {
+    if (!isFocused) {
+      setValue(currentMaxBid != null ? String(currentMaxBid) : '');
+    }
+  }, [currentMaxBid, isFocused]);
+
+  const commit = () => {
+    setIsFocused(false);
+    const trimmed = value.trim();
+    if (trimmed === '') {
+      if (currentMaxBid != null) onUpdateMaxBid(nomination.player_id, null);
+      return;
+    }
+    const num = parseInt(trimmed, 10);
+    if (isNaN(num) || num < 0) {
+      setValue(currentMaxBid != null ? String(currentMaxBid) : '');
+      return;
+    }
+    if (num !== currentMaxBid) {
+      onUpdateMaxBid(nomination.player_id, num);
+    }
+  };
+
+  return (
+    <div className="flex items-center gap-1 border-l border-gray-200 pl-2 ml-1">
+      <span className="text-xs text-gray-500 whitespace-nowrap">Auto-bid up to</span>
+      <span className="text-xs text-gray-400">$</span>
+      <input
+        type="text"
+        inputMode="numeric"
+        value={value}
+        onChange={(e) => setValue(e.target.value.replace(/[^0-9]/g, ''))}
+        onFocus={() => setIsFocused(true)}
+        onBlur={commit}
+        onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
+        placeholder={defaultBid != null ? String(defaultBid) : '—'}
+        title={defaultBid != null ? `Default: $${defaultBid} (80% of AAV $${aav})` : 'Set max auto-bid'}
+        className="w-14 rounded border border-gray-200 px-1 py-1 text-center text-sm text-gray-700 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+      />
+    </div>
+  );
+}
+
 export default function DraftRoomPage() {
   const params = useParams();
   const router = useRouter();
@@ -383,6 +440,22 @@ export default function DraftRoomPage() {
     }
   };
 
+  const handleNominationMaxBid = async (playerId: string, maxBid: number | null) => {
+    if (!draft || !accessToken) return;
+    const inQueue = queue.some((q) => q.player_id === playerId);
+    try {
+      if (inQueue) {
+        const result = await draftApi.updateQueueMaxBid(draft.id, playerId, { max_bid: maxBid }, accessToken);
+        setQueue(result.queue);
+      } else {
+        const result = await draftApi.addToQueue(draft.id, { player_id: playerId, max_bid: maxBid }, accessToken);
+        setQueue(result.queue);
+      }
+    } catch {
+      // Silently ignore
+    }
+  };
+
   const handleToggleAutoPick = async () => {
     if (!draft || !accessToken) return;
 
@@ -626,6 +699,12 @@ export default function DraftRoomPage() {
                     >
                       {isBidding ? 'Bidding...' : 'Bid'}
                     </button>
+                    <NominationMaxBid
+                      nomination={draft.metadata.current_nomination}
+                      queue={queue}
+                      budget={draft.settings.budget}
+                      onUpdateMaxBid={handleNominationMaxBid}
+                    />
                   </div>
                 )}
               </div>

@@ -635,7 +635,7 @@ export class DraftService {
 
     const player = await this.playerRepository.findById(playerId);
     const playerMeta = player
-      ? { first_name: player.firstName, last_name: player.lastName, full_name: player.fullName, position: player.position, team: player.team }
+      ? { first_name: player.firstName, last_name: player.lastName, full_name: player.fullName, position: player.position, team: player.team, auction_value: player.auctionValue ?? null }
       : {};
 
     const bidDeadline = new Date(
@@ -863,6 +863,7 @@ export class DraftService {
         full_name: bestPlayer.fullName,
         position: bestPlayer.position,
         team: bestPlayer.team,
+        auction_value: bestPlayer.auctionValue ?? null,
       },
     };
 
@@ -917,6 +918,7 @@ export class DraftService {
           full_name: bestPlayer.fullName,
           position: bestPlayer.position,
           team: bestPlayer.team,
+          auction_value: bestPlayer.auctionValue ?? null,
         },
       };
 
