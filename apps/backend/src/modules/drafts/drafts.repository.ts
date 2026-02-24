@@ -268,6 +268,77 @@ export class DraftRepository {
     return result.rows.length > 0 ? Draft.fromDatabase(result.rows[0]) : null;
   }
 
+  // ---- Auction-specific ----
+
+  async makeAuctionPick(
+    pickId: string,
+    playerId: string,
+    pickedBy: string,
+    rosterId: number,
+    amount: number,
+    metadata: object,
+  ): Promise<DraftPick | null> {
+    const result = await this.db.query(
+      `WITH updated AS (
+         UPDATE draft_picks
+         SET player_id = $1, picked_by = $2, roster_id = $3, amount = $4, metadata = $5
+         WHERE id = $6 AND player_id IS NULL
+         RETURNING *
+       )
+       SELECT updated.*, u.username
+       FROM updated
+       LEFT JOIN users u ON u.id = updated.picked_by`,
+      [playerId, pickedBy, rosterId, amount, JSON.stringify(metadata), pickId]
+    );
+    return result.rows.length > 0 ? DraftPick.fromDatabase(result.rows[0]) : null;
+  }
+
+  async initializeAuctionBudgets(
+    draftId: string,
+    budgets: Record<string, number>,
+  ): Promise<Draft | null> {
+    const result = await this.db.query(
+      `UPDATE drafts
+       SET metadata = jsonb_set(
+         COALESCE(metadata, '{}'),
+         '{auction_budgets}',
+         $2::jsonb
+       )
+       WHERE id = $1
+       RETURNING *`,
+      [draftId, JSON.stringify(budgets)]
+    );
+    return result.rows.length > 0 ? Draft.fromDatabase(result.rows[0]) : null;
+  }
+
+  async deductBudget(
+    draftId: string,
+    rosterId: number,
+    amount: number,
+  ): Promise<Draft | null> {
+    const result = await this.db.query(
+      `UPDATE drafts
+       SET metadata = jsonb_set(
+         metadata,
+         ARRAY['auction_budgets', $2::text],
+         to_jsonb((metadata->'auction_budgets'->>$2::text)::int - $3)
+       )
+       WHERE id = $1
+       RETURNING *`,
+      [draftId, String(rosterId), amount]
+    );
+    return result.rows.length > 0 ? Draft.fromDatabase(result.rows[0]) : null;
+  }
+
+  async countPicksWonByRoster(draftId: string, rosterId: number): Promise<number> {
+    const result = await this.db.query(
+      `SELECT COUNT(*) as cnt FROM draft_picks
+       WHERE draft_id = $1 AND roster_id = $2 AND player_id IS NOT NULL`,
+      [draftId, rosterId]
+    );
+    return parseInt(result.rows[0].cnt, 10);
+  }
+
   async delete(id: string): Promise<boolean> {
     const result = await this.db.query('DELETE FROM drafts WHERE id = $1', [id]);
     return (result.rowCount ?? 0) > 0;

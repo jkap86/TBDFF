@@ -13,6 +13,8 @@ import {
   updateDraftSchema,
   setDraftOrderSchema,
   makeDraftPickSchema,
+  nominateDraftPickSchema,
+  placeBidSchema,
 } from './drafts.schemas';
 
 function buildController(pool: Pool): DraftController {
@@ -75,6 +77,18 @@ export function createDraftRoutes(pool: Pool): Router {
 
   // Toggle auto-pick mode for the current user
   router.post('/:draftId/autopick/toggle', asyncHandler(controller.toggleAutoPick));
+
+  // Auction: Nominate a player with starting bid
+  router.post('/:draftId/nominate', validate(nominateDraftPickSchema), asyncHandler(controller.nominate));
+
+  // Auction: Place a bid on current nomination
+  router.post('/:draftId/bid', validate(placeBidSchema), asyncHandler(controller.bid));
+
+  // Auction: Resolve expired nomination (timer triggered by client)
+  router.post('/:draftId/resolve', asyncHandler(controller.resolveNomination));
+
+  // Auction: Auto-nominate when nomination timer expires
+  router.post('/:draftId/autonominate', asyncHandler(controller.autoNominate));
 
   return router;
 }

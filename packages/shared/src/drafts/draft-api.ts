@@ -4,11 +4,15 @@ import type {
   UpdateDraftRequest,
   SetDraftOrderRequest,
   MakeDraftPickRequest,
+  NominateDraftPickRequest,
+  PlaceBidRequest,
   DraftResponse,
   DraftListResponse,
   DraftPickResponse,
   DraftPickListResponse,
   ToggleAutoPickResponse,
+  NominationResponse,
+  BidResponse,
 } from '../types/draft';
 
 export const draftApi = {
@@ -43,4 +47,17 @@ export const draftApi = {
 
   toggleAutoPick: (draftId: string, token: string) =>
     apiClient.post<ToggleAutoPickResponse>(`/drafts/${draftId}/autopick/toggle`, undefined, token),
+
+  // Auction-specific
+  nominate: (draftId: string, body: NominateDraftPickRequest, token: string) =>
+    apiClient.post<NominationResponse>(`/drafts/${draftId}/nominate`, body, token),
+
+  bid: (draftId: string, body: PlaceBidRequest, token: string) =>
+    apiClient.post<BidResponse>(`/drafts/${draftId}/bid`, body, token),
+
+  resolve: (draftId: string, token: string) =>
+    apiClient.post<BidResponse>(`/drafts/${draftId}/resolve`, undefined, token),
+
+  autoNominate: (draftId: string, token: string) =>
+    apiClient.post<NominationResponse>(`/drafts/${draftId}/autonominate`, undefined, token),
 };

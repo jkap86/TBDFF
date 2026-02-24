@@ -71,6 +71,10 @@ export type {
   DraftPickResponse,
   DraftPickListResponse,
   ToggleAutoPickResponse,
+  NominateDraftPickRequest,
+  PlaceBidRequest,
+  NominationResponse,
+  BidResponse,
 } from './types/draft';
 export type {
   Matchup,

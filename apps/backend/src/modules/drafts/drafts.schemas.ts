@@ -24,6 +24,7 @@ const draftSettingsPartialSchema = z.object({
   slots_def: z.number().int().min(0).max(10).optional(),
   slots_k: z.number().int().min(0).max(10).optional(),
   slots_bn: z.number().int().min(0).max(20).optional(),
+  budget: z.number().int().min(1).max(9999).optional(),
 }).passthrough();
 
 export const createDraftSchema = z.object({
@@ -54,3 +55,17 @@ export const makeDraftPickSchema = z.object({
 }).strict();
 
 export type MakeDraftPickInput = z.infer<typeof makeDraftPickSchema>;
+
+// Auction-specific schemas
+export const nominateDraftPickSchema = z.object({
+  player_id: z.string().min(1, 'Player ID is required'),
+  amount: z.number().int().min(1, 'Minimum bid is $1'),
+}).strict();
+
+export type NominateDraftPickInput = z.infer<typeof nominateDraftPickSchema>;
+
+export const placeBidSchema = z.object({
+  amount: z.number().int().min(1, 'Minimum bid is $1'),
+}).strict();
+
+export type PlaceBidInput = z.infer<typeof placeBidSchema>;

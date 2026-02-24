@@ -23,6 +23,7 @@ export interface DraftSettings {
   slots_def: number;
   slots_k: number;
   slots_bn: number;
+  budget: number;
   [key: string]: number;
 }
 
@@ -48,6 +49,7 @@ export const DEFAULT_DRAFT_SETTINGS: DraftSettings = {
   slots_def: 1,
   slots_k: 1,
   slots_bn: 5,
+  budget: 200,
 };
 
 export class Draft {
@@ -121,6 +123,7 @@ export class DraftPick {
     public readonly pickNo: number,
     public readonly draftSlot: number,
     public readonly isKeeper: boolean,
+    public readonly amount: number | null,
     public readonly metadata: Record<string, any>,
     public readonly username: string | null,
     public readonly createdAt: Date,
@@ -137,6 +140,7 @@ export class DraftPick {
       row.pick_no,
       row.draft_slot,
       row.is_keeper ?? false,
+      row.amount ?? null,
       row.metadata ?? {},
       row.username ?? null,
       row.created_at,
@@ -154,6 +158,7 @@ export class DraftPick {
       pick_no: this.pickNo,
       draft_slot: this.draftSlot,
       is_keeper: this.isKeeper,
+      amount: this.amount,
       metadata: this.metadata,
       username: this.username,
       created_at: this.createdAt,

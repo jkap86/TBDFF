@@ -6,6 +6,7 @@ import { ArrowLeft } from 'lucide-react';
 import { draftApi, leagueApi, ApiError, type Draft, type DraftPick, type LeagueMember, type Roster } from '@/lib/api';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import { DraftBoard } from '@/features/drafts/components/DraftBoard';
+import { AuctionBoard } from '@/features/drafts/components/AuctionBoard';
 
 const draftTypeLabels: Record<string, string> = {
   snake: 'Snake',
@@ -40,6 +41,14 @@ export default function DraftRoomPage() {
   const [timeRemaining, setTimeRemaining] = useState<number | null>(null);
   const [isTogglingAutoPick, setIsTogglingAutoPick] = useState(false);
   const autoPickTriggered = useRef(false);
+
+  // Auction-specific state
+  const [nominatePlayerId, setNominatePlayerId] = useState('');
+  const [nominateAmount, setNominateAmount] = useState(1);
+  const [bidAmount, setBidAmount] = useState(0);
+  const [isNominating, setIsNominating] = useState(false);
+  const [isBidding, setIsBidding] = useState(false);
+  const isAuction = draft?.type === 'auction';
 
   // Derive autopick status from draft metadata
   const autoPickUsers: string[] = draft?.metadata?.auto_pick_users ?? [];
@@ -106,61 +115,92 @@ export default function DraftRoomPage() {
       } catch {
         // Silently ignore polling errors
       }
-    }, 5000);
+    }, draft.type === 'auction' ? 2000 : 5000);
 
     return () => clearInterval(interval);
   }, [draft, accessToken]);
 
   // Countdown timer
   useEffect(() => {
-    if (!draft || draft.status !== 'drafting' || !draft.settings.pick_timer) {
+    if (!draft || draft.status !== 'drafting') {
       setTimeRemaining(null);
       return;
     }
 
-    const referenceTime = draft.last_picked || draft.start_time;
-    if (!referenceTime) {
-      setTimeRemaining(null);
-      return;
+    let deadline: number | null = null;
+
+    if (draft.type === 'auction') {
+      const nomination = draft.metadata?.current_nomination;
+      if (nomination?.bid_deadline) {
+        deadline = new Date(nomination.bid_deadline).getTime();
+      } else if (draft.metadata?.nomination_deadline) {
+        deadline = new Date(draft.metadata.nomination_deadline).getTime();
+      }
+    } else {
+      if (!draft.settings.pick_timer) { setTimeRemaining(null); return; }
+      const referenceTime = draft.last_picked || draft.start_time;
+      if (!referenceTime) { setTimeRemaining(null); return; }
+      deadline = new Date(referenceTime).getTime() + draft.settings.pick_timer * 1000;
     }
 
-    // Reset auto-pick flag when reference time changes (new pick was made)
+    if (!deadline) { setTimeRemaining(null); return; }
+
     autoPickTriggered.current = false;
 
-    const deadline = new Date(referenceTime).getTime() + draft.settings.pick_timer * 1000;
-
+    const tickInterval = draft.type === 'auction' ? 250 : 1000;
     const tick = () => {
-      const remaining = Math.max(0, Math.ceil((deadline - Date.now()) / 1000));
+      const remaining = Math.max(0, Math.ceil((deadline! - Date.now()) / 1000));
       setTimeRemaining(remaining);
     };
 
     tick();
-    const interval = setInterval(tick, 1000);
+    const interval = setInterval(tick, tickInterval);
     return () => clearInterval(interval);
-  }, [draft?.status, draft?.last_picked, draft?.start_time, draft?.settings.pick_timer]);
+  }, [draft?.status, draft?.type, draft?.last_picked, draft?.start_time, draft?.settings?.pick_timer, draft?.metadata?.current_nomination?.bid_deadline, draft?.metadata?.nomination_deadline]);
 
-  // Auto-pick when timer expires
+  // Auto-pick / auction resolve when timer expires
   useEffect(() => {
     if (timeRemaining !== 0 || !draft || !accessToken || autoPickTriggered.current) return;
     autoPickTriggered.current = true;
 
-    (async () => {
-      try {
-        const result = await draftApi.autoPick(draft.id, accessToken);
-        setPicks((prev) => {
-          let updated = prev.map((p) => (p.id === result.pick.id ? result.pick : p));
-          if (result.chained_picks?.length) {
-            updated = applyChainedPicks(updated, result.chained_picks);
+    if (draft.type === 'auction') {
+      const nomination = draft.metadata?.current_nomination;
+      (async () => {
+        try {
+          if (nomination) {
+            // Bidding timer expired — resolve nomination
+            const result = await draftApi.resolve(draft.id, accessToken);
+            setDraft(result.draft);
+            if (result.won) {
+              setPicks((prev) => prev.map((p) => (p.id === result.won!.id ? result.won! : p)));
+            }
+          } else {
+            // Nomination timer expired — auto-nominate
+            const result = await draftApi.autoNominate(draft.id, accessToken);
+            setDraft(result.draft);
           }
-          return updated;
-        });
-        // Refresh draft state for updated last_picked and auto_pick_users
-        const draftResult = await draftApi.getById(draft.id, accessToken);
-        setDraft(draftResult.draft);
-      } catch {
-        // Another client may have already triggered auto-pick; polling will catch up
-      }
-    })();
+        } catch {
+          // Another client already triggered; polling will catch up
+        }
+      })();
+    } else {
+      (async () => {
+        try {
+          const result = await draftApi.autoPick(draft.id, accessToken);
+          setPicks((prev) => {
+            let updated = prev.map((p) => (p.id === result.pick.id ? result.pick : p));
+            if (result.chained_picks?.length) {
+              updated = applyChainedPicks(updated, result.chained_picks);
+            }
+            return updated;
+          });
+          const draftResult = await draftApi.getById(draft.id, accessToken);
+          setDraft(draftResult.draft);
+        } catch {
+          // Another client may have already triggered auto-pick; polling will catch up
+        }
+      })();
+    }
   }, [timeRemaining, draft, accessToken]);
 
   const formatTime = (seconds: number) => {
@@ -242,6 +282,45 @@ export default function DraftRoomPage() {
     }
   };
 
+  // Auction handlers
+  const handleNominate = async () => {
+    if (!draft || !accessToken || !nominatePlayerId.trim()) return;
+    try {
+      setIsNominating(true);
+      setPickError(null);
+      const result = await draftApi.nominate(draft.id, { player_id: nominatePlayerId.trim(), amount: nominateAmount }, accessToken);
+      setDraft(result.draft);
+      setNominatePlayerId('');
+      setNominateAmount(1);
+    } catch (err) {
+      if (err instanceof ApiError) setPickError(err.message);
+      else setPickError('Failed to nominate');
+    } finally {
+      setIsNominating(false);
+    }
+  };
+
+  const handleBid = async (amount?: number) => {
+    if (!draft || !accessToken) return;
+    const bidAmt = amount ?? bidAmount;
+    if (bidAmt < 1) return;
+    try {
+      setIsBidding(true);
+      setPickError(null);
+      const result = await draftApi.bid(draft.id, { amount: bidAmt }, accessToken);
+      setDraft(result.draft);
+      if (result.won) {
+        setPicks((prev) => prev.map((p) => (p.id === result.won!.id ? result.won! : p)));
+      }
+      setBidAmount(0);
+    } catch (err) {
+      if (err instanceof ApiError) setPickError(err.message);
+      else setPickError('Failed to place bid');
+    } finally {
+      setIsBidding(false);
+    }
+  };
+
   const handleToggleAutoPick = async () => {
     if (!draft || !accessToken) return;
 
@@ -319,7 +398,7 @@ export default function DraftRoomPage() {
             </span>
           </div>
           <div className="text-sm text-gray-500">
-            {draftTypeLabels[draft.type]} | {draft.settings.rounds} rounds | {draft.settings.pick_timer}s timer
+            {draftTypeLabels[draft.type]} | {draft.settings.rounds} rounds | {isAuction ? `$${draft.settings.budget} budget` : `${draft.settings.pick_timer}s timer`}
           </div>
         </div>
 
@@ -360,7 +439,140 @@ export default function DraftRoomPage() {
         )}
 
         {/* Draft Board */}
-        {draft.status === 'drafting' && (
+        {draft.status === 'drafting' && isAuction && (
+          <>
+            {/* Auction Controls */}
+            <div className="rounded-lg bg-white p-4 shadow">
+              <div className="flex flex-wrap items-center gap-4">
+                {/* Timer */}
+                {timeRemaining !== null && (
+                  <div className={`flex items-center gap-2 rounded-lg px-4 py-2 font-mono text-lg font-bold ${
+                    timeRemaining <= 10
+                      ? 'bg-red-100 text-red-700'
+                      : timeRemaining <= 20
+                        ? 'bg-yellow-100 text-yellow-700'
+                        : 'bg-gray-100 text-gray-700'
+                  }`}>
+                    {formatTime(timeRemaining)}
+                    <span className="text-xs font-normal">
+                      {draft.metadata?.current_nomination ? 'Bidding' : 'Nominate'}
+                    </span>
+                  </div>
+                )}
+                {/* Autopick Toggle */}
+                {userSlot !== undefined && (
+                  <button
+                    onClick={handleToggleAutoPick}
+                    disabled={isTogglingAutoPick}
+                    className={`rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+                      isAutoPick
+                        ? 'bg-orange-100 text-orange-700 hover:bg-orange-200'
+                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                    } disabled:opacity-50`}
+                  >
+                    {isTogglingAutoPick ? '...' : isAutoPick ? 'Auto: ON' : 'Auto: OFF'}
+                  </button>
+                )}
+
+                {/* Nomination Input (no active nomination, user's turn) */}
+                {!draft.metadata?.current_nomination && isMyTurn && !isAutoPick && (
+                  <div className="flex flex-1 items-center gap-2">
+                    <span className="rounded-full bg-green-100 px-3 py-1 text-sm font-medium text-green-700">
+                      Your Nomination!
+                    </span>
+                    <input
+                      type="text"
+                      value={nominatePlayerId}
+                      onChange={(e) => setNominatePlayerId(e.target.value)}
+                      placeholder="Player ID"
+                      className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    />
+                    <div className="flex items-center gap-1">
+                      <span className="text-sm text-gray-500">$</span>
+                      <input
+                        type="number"
+                        value={nominateAmount}
+                        onChange={(e) => setNominateAmount(Math.max(1, parseInt(e.target.value) || 1))}
+                        min={1}
+                        className="w-20 rounded-lg border border-gray-300 px-2 py-2 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                      />
+                    </div>
+                    <button
+                      onClick={handleNominate}
+                      disabled={isNominating || !nominatePlayerId.trim()}
+                      className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+                    >
+                      {isNominating ? 'Nominating...' : 'Nominate'}
+                    </button>
+                  </div>
+                )}
+
+                {/* Waiting for nomination */}
+                {!draft.metadata?.current_nomination && !isMyTurn && (
+                  <span className="text-sm text-gray-500">
+                    Waiting for nomination...
+                  </span>
+                )}
+
+                {/* Bidding Controls (active nomination) */}
+                {draft.metadata?.current_nomination && userSlot !== undefined && (
+                  <div className="flex flex-1 items-center gap-2">
+                    <span className="text-sm font-medium text-gray-700">
+                      Current: <span className="text-green-700 font-bold">${draft.metadata.current_nomination.current_bid}</span>
+                    </span>
+                    <button
+                      onClick={() => handleBid(draft.metadata.current_nomination.current_bid + 1)}
+                      disabled={isBidding}
+                      className="rounded-lg bg-green-600 px-3 py-2 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-50"
+                    >
+                      +$1
+                    </button>
+                    <button
+                      onClick={() => handleBid(draft.metadata.current_nomination.current_bid + 5)}
+                      disabled={isBidding}
+                      className="rounded-lg bg-green-600 px-3 py-2 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-50"
+                    >
+                      +$5
+                    </button>
+                    <button
+                      onClick={() => handleBid(draft.metadata.current_nomination.current_bid + 10)}
+                      disabled={isBidding}
+                      className="rounded-lg bg-green-600 px-3 py-2 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-50"
+                    >
+                      +$10
+                    </button>
+                    <div className="flex items-center gap-1">
+                      <span className="text-sm text-gray-500">$</span>
+                      <input
+                        type="number"
+                        value={bidAmount || ''}
+                        onChange={(e) => setBidAmount(parseInt(e.target.value) || 0)}
+                        placeholder="Custom"
+                        min={1}
+                        className="w-20 rounded-lg border border-gray-300 px-2 py-2 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                      />
+                    </div>
+                    <button
+                      onClick={() => handleBid()}
+                      disabled={isBidding || bidAmount < 1}
+                      className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+                    >
+                      {isBidding ? 'Bidding...' : 'Bid'}
+                    </button>
+                  </div>
+                )}
+              </div>
+              {pickError && (
+                <p className="mt-2 text-sm text-red-600">{pickError}</p>
+              )}
+            </div>
+
+            <AuctionBoard draft={draft} picks={picks} members={members} currentUserId={user?.id} />
+          </>
+        )}
+
+        {/* Standard Draft Board (snake/linear/3rr) */}
+        {draft.status === 'drafting' && !isAuction && (
           <>
             {/* Pick Input + Timer */}
             <div className="rounded-lg bg-white p-4 shadow">
@@ -437,7 +649,9 @@ export default function DraftRoomPage() {
 
         {/* Complete State */}
         {draft.status === 'complete' && picks.length > 0 && (
-          <DraftBoard draft={draft} picks={picks} members={members} currentUserId={user?.id} />
+          isAuction
+            ? <AuctionBoard draft={draft} picks={picks} members={members} currentUserId={user?.id} />
+            : <DraftBoard draft={draft} picks={picks} members={members} currentUserId={user?.id} />
         )}
 
         {/* Pre-draft - no board yet */}

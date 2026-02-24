@@ -7,6 +7,8 @@ import {
   UpdateDraftInput,
   SetDraftOrderInput,
   MakeDraftPickInput,
+  NominateDraftPickInput,
+  PlaceBidInput,
 } from './drafts.schemas';
 
 export class DraftController {
@@ -144,5 +146,53 @@ export class DraftController {
       draft: result.draft.toSafeObject(),
       picks: result.picks.map((p) => p.toSafeObject()),
     });
+  };
+
+  // ---- Auction-specific ----
+
+  nominate = async (req: AuthRequest, res: Response): Promise<void> => {
+    const userId = req.user?.userId;
+    if (!userId) throw new InvalidCredentialsException();
+
+    const draftId = Array.isArray(req.params.draftId) ? req.params.draftId[0] : req.params.draftId;
+    const body = req.body as NominateDraftPickInput;
+
+    const draft = await this.draftService.nominate(draftId, userId, body.player_id, body.amount);
+    res.status(200).json({ draft: draft.toSafeObject() });
+  };
+
+  bid = async (req: AuthRequest, res: Response): Promise<void> => {
+    const userId = req.user?.userId;
+    if (!userId) throw new InvalidCredentialsException();
+
+    const draftId = Array.isArray(req.params.draftId) ? req.params.draftId[0] : req.params.draftId;
+    const body = req.body as PlaceBidInput;
+
+    const result = await this.draftService.placeBid(draftId, userId, body.amount);
+    res.status(200).json({
+      draft: result.draft.toSafeObject(),
+      won: result.won?.toSafeObject() ?? null,
+    });
+  };
+
+  resolveNomination = async (req: AuthRequest, res: Response): Promise<void> => {
+    const userId = req.user?.userId;
+    if (!userId) throw new InvalidCredentialsException();
+
+    const draftId = Array.isArray(req.params.draftId) ? req.params.draftId[0] : req.params.draftId;
+    const result = await this.draftService.resolveNomination(draftId);
+    res.status(200).json({
+      draft: result.draft.toSafeObject(),
+      won: result.won?.toSafeObject() ?? null,
+    });
+  };
+
+  autoNominate = async (req: AuthRequest, res: Response): Promise<void> => {
+    const userId = req.user?.userId;
+    if (!userId) throw new InvalidCredentialsException();
+
+    const draftId = Array.isArray(req.params.draftId) ? req.params.draftId[0] : req.params.draftId;
+    const draft = await this.draftService.autoNominate(draftId, userId);
+    res.status(200).json({ draft: draft.toSafeObject() });
   };
 }

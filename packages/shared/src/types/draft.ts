@@ -26,6 +26,7 @@ export interface DraftSettings {
   slots_def: number;
   slots_k: number;
   slots_bn: number;
+  budget: number;
   [key: string]: number;
 }
 
@@ -59,6 +60,7 @@ export interface DraftPick {
   pick_no: number;
   draft_slot: number;
   is_keeper: boolean;
+  amount: number | null;
   metadata: Record<string, any>;
   username: string | null; // joined from users table
   created_at: string;
@@ -86,6 +88,16 @@ export interface MakeDraftPickRequest {
   player_id: string;
 }
 
+// Auction-specific request types
+export interface NominateDraftPickRequest {
+  player_id: string;
+  amount: number;
+}
+
+export interface PlaceBidRequest {
+  amount: number;
+}
+
 // Response types
 export interface DraftResponse {
   draft: Draft;
@@ -107,4 +119,14 @@ export interface DraftPickListResponse {
 export interface ToggleAutoPickResponse {
   draft: Draft;
   picks: DraftPick[];
+}
+
+// Auction-specific response types
+export interface NominationResponse {
+  draft: Draft;
+}
+
+export interface BidResponse {
+  draft: Draft;
+  won: DraftPick | null;
 }
