@@ -17,6 +17,9 @@ export { draftApi } from './drafts/draft-api';
 // Matchups
 export { matchupApi } from './matchups/matchup-api';
 
+// Scoring
+export { scoringApi } from './scoring/scoring-api';
+
 // Types
 export type { User, AuthResponse, UserResponse } from './types/auth';
 export type {
@@ -73,3 +76,16 @@ export type {
   Matchup,
   MatchupListResponse,
 } from './types/matchup';
+export type {
+  NflStateResponse,
+  LeaguePlayerScore,
+  LeagueScoresResponse,
+  LeaguePlayerProjection,
+  LeagueProjectionsResponse,
+  GameInfo,
+  GameScheduleResponse,
+  PlayerGameStatus,
+  LivePlayerScore,
+  LiveRosterScore,
+  LiveScoresResponse,
+} from './types/scoring';

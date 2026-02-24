@@ -10,7 +10,9 @@ import { createInviteRoutes } from './modules/leagues/invites.routes';
 import { createPlayerRoutes } from './modules/players/players.routes';
 import { createDraftRoutes, createDraftLeagueRoutes } from './modules/drafts/drafts.routes';
 import { createMatchupRoutes } from './modules/matchups/matchups.routes';
+import { createScoringRoutes, createLeagueScoringRoutes } from './modules/scoring/scoring.routes';
 import { PlayerSyncJob } from './jobs/player-sync.job';
+import { StatsSyncJob } from './jobs/stats-sync.job';
 import { errorHandler } from './shared/error-handler';
 
 dotenv.config();
@@ -90,6 +92,8 @@ app.use('/api/players', createPlayerRoutes(pool));
 app.use('/api/drafts', createDraftRoutes(pool));
 app.use('/api/leagues', createDraftLeagueRoutes(pool));
 app.use('/api/leagues', createMatchupRoutes(pool));
+app.use('/api/scoring', createScoringRoutes(pool));
+app.use('/api/leagues', createLeagueScoringRoutes(pool));
 
 // Error handler (must be last middleware)
 app.use(errorHandler);
@@ -104,6 +108,8 @@ server.listen(PORT, '0.0.0.0', () => {
   // Start background jobs
   const playerSyncJob = new PlayerSyncJob(pool);
   playerSyncJob.start();
+  const statsSyncJob = new StatsSyncJob(pool);
+  statsSyncJob.start();
   console.log('Background jobs started');
 });
 

@@ -99,6 +99,15 @@ export class PlayerRepository {
     return Player.fromDatabase(result.rows[0]);
   }
 
+  async findByIds(ids: string[]): Promise<Player[]> {
+    if (ids.length === 0) return [];
+    const result = await this.db.query(
+      'SELECT * FROM players WHERE id = ANY($1)',
+      [ids],
+    );
+    return result.rows.map(Player.fromDatabase);
+  }
+
   async findByExternalId(provider: string, externalId: string): Promise<Player | null> {
     const result = await this.db.query(
       `SELECT p.* FROM players p
@@ -107,6 +116,23 @@ export class PlayerRepository {
       [provider, externalId]
     );
     return result.rows.length > 0 ? Player.fromDatabase(result.rows[0]) : null;
+  }
+
+  async findPlayerIdsByExternalIds(
+    provider: string,
+    externalIds: string[],
+  ): Promise<Map<string, string>> {
+    if (externalIds.length === 0) return new Map();
+    const result = await this.db.query(
+      `SELECT player_id, external_id FROM player_external_ids
+       WHERE provider = $1 AND external_id = ANY($2)`,
+      [provider, externalIds],
+    );
+    const map = new Map<string, string>();
+    for (const row of result.rows) {
+      map.set(row.external_id, row.player_id);
+    }
+    return map;
   }
 
   async linkExternalId(playerId: string, provider: string, externalId: string): Promise<void> {
