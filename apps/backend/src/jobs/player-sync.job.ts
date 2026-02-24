@@ -1,12 +1,14 @@
-import cron from 'node-cron';
+import cron, { ScheduledTask } from 'node-cron';
 import { PlayerService } from '../modules/players/players.service';
 
 export class PlayerSyncJob {
+  private task: ScheduledTask | null = null;
+
   constructor(private readonly playerService: PlayerService) {}
 
   start(): void {
     // Run every 12 hours at :00 minutes
-    cron.schedule('0 */12 * * *', async () => {
+    this.task = cron.schedule('0 */12 * * *', async () => {
       console.log('[PlayerSyncJob] Starting player sync...');
       try {
         const result = await this.playerService.syncPlayersFromProvider();
@@ -19,6 +21,10 @@ export class PlayerSyncJob {
     });
 
     console.log('[PlayerSyncJob] Scheduled to run every 12 hours');
+  }
+
+  stop(): void {
+    this.task?.stop();
   }
 
   // Manual trigger (for testing or admin endpoint)

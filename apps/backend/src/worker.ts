@@ -1,6 +1,13 @@
+import { config } from './config';
 import { createContainer } from './container';
 
 const container = createContainer();
+
+if (!config.ENABLE_JOBS) {
+  console.log('ENABLE_JOBS=false, worker exiting');
+  container.pool.end();
+  process.exit(0);
+}
 
 container.jobs.playerSyncJob.start();
 container.jobs.statsSyncJob.start();
@@ -12,6 +19,9 @@ const gracefulShutdown = () => {
   if (isShuttingDown) return;
   isShuttingDown = true;
   console.log('Worker shutting down...');
+
+  container.jobs.playerSyncJob.stop();
+  container.jobs.statsSyncJob.stop();
 
   container.pool.removeAllListeners();
   container.pool.end().then(() => {

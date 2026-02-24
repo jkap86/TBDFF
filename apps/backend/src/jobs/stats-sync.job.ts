@@ -1,12 +1,15 @@
-import cron from 'node-cron';
+import cron, { ScheduledTask } from 'node-cron';
 import { ScoringService } from '../modules/scoring/scoring.service';
 
 export class StatsSyncJob {
+  private statsTask: ScheduledTask | null = null;
+  private projectionsTask: ScheduledTask | null = null;
+
   constructor(private readonly scoringService: ScoringService) {}
 
   start(): void {
     // Stats: every 5 minutes
-    cron.schedule('*/5 * * * *', async () => {
+    this.statsTask = cron.schedule('*/5 * * * *', async () => {
       try {
         const state = await this.scoringService.getNflState();
         if (state.seasonType === 'off') return;
@@ -27,7 +30,7 @@ export class StatsSyncJob {
     });
 
     // Projections: once daily at 6 AM
-    cron.schedule('0 6 * * *', async () => {
+    this.projectionsTask = cron.schedule('0 6 * * *', async () => {
       console.log('[StatsSyncJob] Starting daily projections sync...');
       try {
         const state = await this.scoringService.getNflState();
@@ -47,6 +50,11 @@ export class StatsSyncJob {
     });
 
     console.log('[StatsSyncJob] Scheduled: stats every 5min, projections daily@6AM');
+  }
+
+  stop(): void {
+    this.statsTask?.stop();
+    this.projectionsTask?.stop();
   }
 
   // Manual trigger for testing

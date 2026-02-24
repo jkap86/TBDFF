@@ -1,13 +1,6 @@
 import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react';
-import { authApi, tokenManager } from '@tbdff/shared';
+import { authApi, tokenManager, type User } from '@tbdff/shared';
 import { storage } from '../../../utils/storage';
-
-interface User {
-  id: string;
-  username: string;
-  display_username: string;
-  email: string;
-}
 
 interface AuthContextType {
   user: User | null;

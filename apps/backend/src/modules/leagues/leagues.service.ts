@@ -53,7 +53,7 @@ export class LeagueService {
     const scoringSettings = { ...DEFAULT_SCORING, ...(data.scoringSettings ?? {}) };
     const rosterPositions = data.rosterPositions ?? DEFAULT_ROSTER_POSITIONS;
 
-    const league = await this.leagueRepository.create({
+    const league = await this.leagueRepository.createLeagueWithDefaults({
       name,
       sport: data.sport ?? 'nfl',
       season: data.season,
@@ -63,13 +63,6 @@ export class LeagueService {
       rosterPositions,
       createdBy: userId,
     });
-
-    // Auto-add creator as commissioner
-    await this.leagueRepository.addMember(league.id, userId, 'commissioner');
-
-    // Auto-create roster slots and assign commissioner to roster 1
-    await this.leagueRepository.createRosters(league.id, totalRosters);
-    await this.leagueRepository.assignRosterOwner(league.id, 1, userId);
 
     return league;
   }
@@ -195,8 +188,7 @@ export class LeagueService {
       );
     }
 
-    await this.leagueRepository.unassignRosterOwner(leagueId, userId);
-    await this.leagueRepository.removeMember(leagueId, userId);
+    await this.leagueRepository.removeMemberTransaction(leagueId, userId);
   }
 
   async removeMember(
@@ -216,8 +208,7 @@ export class LeagueService {
       throw new ForbiddenException('Cannot remove the league commissioner');
     }
 
-    await this.leagueRepository.unassignRosterOwner(leagueId, targetUserId);
-    await this.leagueRepository.removeMember(leagueId, targetUserId);
+    await this.leagueRepository.removeMemberTransaction(leagueId, targetUserId);
   }
 
   async updateMemberRole(
@@ -388,9 +379,10 @@ export class LeagueService {
       return existingMember;
     }
 
-    // 6. Add as spectator and mark invite accepted — commissioner will assign roster later
-    const member = await this.leagueRepository.addMember(invite.leagueId, userId, 'spectator');
-    await this.leagueRepository.updateInviteStatus(inviteId, 'accepted');
+    // 6. Add as spectator and mark invite accepted (transactional)
+    const member = await this.leagueRepository.acceptInviteTransaction(
+      invite.leagueId, userId, inviteId,
+    );
 
     return member;
   }
@@ -472,18 +464,8 @@ export class LeagueService {
       throw new ConflictException('User is already assigned to a roster');
     }
 
-    // 4. Assign roster owner
-    const roster = await this.leagueRepository.assignRosterOwner(leagueId, rosterId, targetUserId);
-    if (!roster) throw new NotFoundException('Roster not found');
-
-    // 5. Promote to 'member' if currently a spectator
-    let member = target;
-    if (target.role === 'spectator') {
-      const updated = await this.leagueRepository.updateMemberRole(leagueId, targetUserId, 'member');
-      if (updated) member = updated;
-    }
-
-    return { roster, member };
+    // 4. Assign roster owner and promote to member (transactional)
+    return this.leagueRepository.assignRosterOwnerTransaction(leagueId, rosterId, targetUserId);
   }
 
   async unassignMemberFromRoster(
@@ -504,8 +486,7 @@ export class LeagueService {
       throw new ForbiddenException('Cannot unassign the commissioner from their roster');
     }
 
-    // 3. Unassign roster and demote to spectator
-    await this.leagueRepository.unassignRosterOwner(leagueId, targetUserId);
-    await this.leagueRepository.updateMemberRole(leagueId, targetUserId, 'spectator');
+    // 3. Unassign roster and demote to spectator (transactional)
+    await this.leagueRepository.unassignRosterOwnerTransaction(leagueId, targetUserId);
   }
 }

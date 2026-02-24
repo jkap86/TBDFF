@@ -1,4 +1,4 @@
-import { Pool } from 'pg';
+import { Pool, PoolClient } from 'pg';
 import { League, LeagueMember, LeagueInvite, Roster } from './leagues.model';
 
 export class LeagueRepository {
@@ -393,5 +393,164 @@ export class LeagueRepository {
       [leagueId, ownerId]
     );
     return (result.rowCount ?? 0) > 0;
+  }
+
+  // ---- Transactional operations ----
+
+  private async withTransaction<T>(fn: (client: PoolClient) => Promise<T>): Promise<T> {
+    const client = await this.db.connect();
+    try {
+      await client.query('BEGIN');
+      const result = await fn(client);
+      await client.query('COMMIT');
+      return result;
+    } catch (e) {
+      await client.query('ROLLBACK');
+      throw e;
+    } finally {
+      client.release();
+    }
+  }
+
+  async createLeagueWithDefaults(data: {
+    name: string;
+    sport: string;
+    season: string;
+    totalRosters: number;
+    settings: object;
+    scoringSettings: object;
+    rosterPositions: string[];
+    createdBy: string;
+  }): Promise<League> {
+    return this.withTransaction(async (client) => {
+      // 1. Insert league
+      const leagueResult = await client.query(
+        `INSERT INTO leagues (name, sport, season, total_rosters, settings, scoring_settings, roster_positions, created_by)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+         RETURNING *`,
+        [
+          data.name,
+          data.sport,
+          data.season,
+          data.totalRosters,
+          JSON.stringify(data.settings),
+          JSON.stringify(data.scoringSettings),
+          data.rosterPositions,
+          data.createdBy,
+        ]
+      );
+      const league = League.fromDatabase(leagueResult.rows[0]);
+
+      // 2. Add creator as commissioner
+      await client.query(
+        `INSERT INTO league_members (league_id, user_id, role) VALUES ($1, $2, $3)`,
+        [league.id, data.createdBy, 'commissioner']
+      );
+
+      // 3. Create roster slots
+      await client.query(
+        `INSERT INTO rosters (roster_id, league_id)
+         SELECT s, $1 FROM generate_series(1, $2) AS s`,
+        [league.id, data.totalRosters]
+      );
+
+      // 4. Assign commissioner to roster 1
+      await client.query(
+        `UPDATE rosters SET owner_id = $1 WHERE league_id = $2 AND roster_id = $3`,
+        [data.createdBy, league.id, 1]
+      );
+
+      return league;
+    });
+  }
+
+  async acceptInviteTransaction(
+    leagueId: string,
+    userId: string,
+    inviteId: string,
+  ): Promise<LeagueMember> {
+    return this.withTransaction(async (client) => {
+      // 1. Add user as spectator
+      const memberResult = await client.query(
+        `WITH inserted AS (
+           INSERT INTO league_members (league_id, user_id, role)
+           VALUES ($1, $2, $3)
+           RETURNING *
+         )
+         SELECT inserted.*, u.username
+         FROM inserted
+         JOIN users u ON u.id = inserted.user_id`,
+        [leagueId, userId, 'spectator']
+      );
+
+      // 2. Mark invite as accepted
+      await client.query(
+        `UPDATE league_invites SET status = 'accepted', updated_at = NOW() WHERE id = $1`,
+        [inviteId]
+      );
+
+      return LeagueMember.fromDatabase(memberResult.rows[0]);
+    });
+  }
+
+  async removeMemberTransaction(leagueId: string, userId: string): Promise<void> {
+    return this.withTransaction(async (client) => {
+      await client.query(
+        `UPDATE rosters SET owner_id = NULL WHERE league_id = $1 AND owner_id = $2`,
+        [leagueId, userId]
+      );
+      await client.query(
+        `DELETE FROM league_members WHERE league_id = $1 AND user_id = $2`,
+        [leagueId, userId]
+      );
+    });
+  }
+
+  async assignRosterOwnerTransaction(
+    leagueId: string,
+    rosterId: number,
+    userId: string,
+  ): Promise<{ roster: Roster; member: LeagueMember }> {
+    return this.withTransaction(async (client) => {
+      // 1. Assign roster
+      const rosterResult = await client.query(
+        `UPDATE rosters SET owner_id = $1 WHERE league_id = $2 AND roster_id = $3 RETURNING *`,
+        [userId, leagueId, rosterId]
+      );
+      if (rosterResult.rows.length === 0) {
+        throw new Error('Roster not found');
+      }
+
+      // 2. Promote to member
+      await client.query(
+        `UPDATE league_members SET role = 'member' WHERE league_id = $1 AND user_id = $2 AND role = 'spectator'`,
+        [leagueId, userId]
+      );
+
+      // Re-fetch member with username
+      const memberResult = await client.query(
+        `SELECT lm.*, u.username FROM league_members lm JOIN users u ON u.id = lm.user_id
+         WHERE lm.league_id = $1 AND lm.user_id = $2`,
+        [leagueId, userId]
+      );
+
+      return {
+        roster: Roster.fromDatabase(rosterResult.rows[0]),
+        member: LeagueMember.fromDatabase(memberResult.rows[0]),
+      };
+    });
+  }
+
+  async unassignRosterOwnerTransaction(leagueId: string, userId: string): Promise<void> {
+    return this.withTransaction(async (client) => {
+      await client.query(
+        `UPDATE rosters SET owner_id = NULL WHERE league_id = $1 AND owner_id = $2`,
+        [leagueId, userId]
+      );
+      await client.query(
+        `UPDATE league_members SET role = 'spectator' WHERE league_id = $1 AND user_id = $2`,
+        [leagueId, userId]
+      );
+    });
   }
 }
