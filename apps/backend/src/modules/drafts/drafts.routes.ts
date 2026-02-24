@@ -1,10 +1,5 @@
 import { Router } from 'express';
-import { Pool } from 'pg';
 import { DraftController } from './drafts.controller';
-import { DraftService } from './drafts.service';
-import { DraftRepository } from './drafts.repository';
-import { LeagueRepository } from '../leagues/leagues.repository';
-import { PlayerRepository } from '../players/players.repository';
 import { authMiddleware } from '../../middleware/auth.middleware';
 import { asyncHandler } from '../../shared/async-handler';
 import { validate } from '../../shared/validate';
@@ -17,20 +12,11 @@ import {
   placeBidSchema,
 } from './drafts.schemas';
 
-function buildController(pool: Pool): DraftController {
-  const draftRepository = new DraftRepository(pool);
-  const leagueRepository = new LeagueRepository(pool);
-  const playerRepository = new PlayerRepository(pool);
-  const draftService = new DraftService(draftRepository, leagueRepository, playerRepository);
-  return new DraftController(draftService);
-}
-
 /**
  * League-scoped draft routes
  * Mounted at /api/leagues in server.ts (merged with league routes)
  */
-export function createDraftLeagueRoutes(pool: Pool): Router {
-  const controller = buildController(pool);
+export function createDraftLeagueRoutes(controller: DraftController): Router {
   const router = Router();
 
   router.use(authMiddleware);
@@ -48,8 +34,7 @@ export function createDraftLeagueRoutes(pool: Pool): Router {
  * Draft-scoped routes (direct access by draft ID)
  * Mounted at /api/drafts in server.ts
  */
-export function createDraftRoutes(pool: Pool): Router {
-  const controller = buildController(pool);
+export function createDraftRoutes(controller: DraftController): Router {
   const router = Router();
 
   router.use(authMiddleware);

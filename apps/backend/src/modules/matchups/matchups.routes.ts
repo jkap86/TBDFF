@@ -1,18 +1,9 @@
 import { Router } from 'express';
-import { Pool } from 'pg';
 import { MatchupController } from './matchups.controller';
-import { MatchupService } from './matchups.service';
-import { MatchupRepository } from './matchups.repository';
-import { LeagueRepository } from '../leagues/leagues.repository';
 import { authMiddleware } from '../../middleware/auth.middleware';
 import { asyncHandler } from '../../shared/async-handler';
 
-export function createMatchupRoutes(pool: Pool): Router {
-  const matchupRepository = new MatchupRepository(pool);
-  const leagueRepository = new LeagueRepository(pool);
-  const matchupService = new MatchupService(matchupRepository, leagueRepository);
-  const controller = new MatchupController(matchupService);
-
+export function createMatchupRoutes(controller: MatchupController): Router {
   const router = Router();
 
   router.use(authMiddleware);

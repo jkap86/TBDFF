@@ -1,8 +1,5 @@
 import { Router } from 'express';
-import { Pool } from 'pg';
 import { LeagueController } from './leagues.controller';
-import { LeagueService } from './leagues.service';
-import { LeagueRepository } from './leagues.repository';
 import { authMiddleware } from '../../middleware/auth.middleware';
 import { asyncHandler } from '../../shared/async-handler';
 
@@ -10,11 +7,7 @@ import { asyncHandler } from '../../shared/async-handler';
  * Invites routes (global scope, not under /leagues/:leagueId)
  * Mounted at /api/invites in server.ts
  */
-export function createInviteRoutes(pool: Pool): Router {
-  const leagueRepository = new LeagueRepository(pool);
-  const leagueService = new LeagueService(leagueRepository);
-  const controller = new LeagueController(leagueService);
-
+export function createInviteRoutes(controller: LeagueController): Router {
   const router = Router();
 
   // All invite routes require authentication

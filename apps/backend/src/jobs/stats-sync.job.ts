@@ -1,28 +1,8 @@
 import cron from 'node-cron';
-import { Pool } from 'pg';
-import { ScoringRepository } from '../modules/scoring/scoring.repository';
-import { PlayerRepository } from '../modules/players/players.repository';
-import { LeagueRepository } from '../modules/leagues/leagues.repository';
 import { ScoringService } from '../modules/scoring/scoring.service';
-import { SleeperApiClient } from '../integrations/sleeper/sleeper-api-client';
-import { SleeperStatsProvider } from '../integrations/sleeper/sleeper-stats-provider';
 
 export class StatsSyncJob {
-  private readonly scoringService: ScoringService;
-
-  constructor(pool: Pool) {
-    const scoringRepository = new ScoringRepository(pool);
-    const playerRepository = new PlayerRepository(pool);
-    const leagueRepository = new LeagueRepository(pool);
-    const sleeperApi = new SleeperApiClient();
-    const statsProvider = new SleeperStatsProvider(sleeperApi);
-    this.scoringService = new ScoringService(
-      scoringRepository,
-      playerRepository,
-      leagueRepository,
-      statsProvider,
-    );
-  }
+  constructor(private readonly scoringService: ScoringService) {}
 
   start(): void {
     // Stats: every 5 minutes

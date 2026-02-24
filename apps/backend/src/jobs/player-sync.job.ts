@@ -1,19 +1,8 @@
 import cron from 'node-cron';
-import { Pool } from 'pg';
-import { PlayerRepository } from '../modules/players/players.repository';
 import { PlayerService } from '../modules/players/players.service';
-import { SleeperApiClient } from '../integrations/sleeper/sleeper-api-client';
-import { SleeperPlayerProvider } from '../integrations/sleeper/sleeper-player-provider';
 
 export class PlayerSyncJob {
-  private readonly playerService: PlayerService;
-
-  constructor(pool: Pool) {
-    const playerRepository = new PlayerRepository(pool);
-    const sleeperApi = new SleeperApiClient();
-    const playerProvider = new SleeperPlayerProvider(sleeperApi);
-    this.playerService = new PlayerService(playerRepository, playerProvider);
-  }
+  constructor(private readonly playerService: PlayerService) {}
 
   start(): void {
     // Run every 12 hours at :00 minutes

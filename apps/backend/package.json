@@ -8,8 +8,10 @@
   },
   "scripts": {
     "dev": "nodemon",
+    "dev:worker": "nodemon --exec ts-node src/worker.ts",
     "build": "tsc",
     "start": "node dist/server.js",
+    "worker": "node dist/worker.js",
     "migrate": "ts-node src/migrate.ts"
   },
   "keywords": [],

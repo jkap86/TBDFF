@@ -4,6 +4,7 @@
   "scripts": {
     "dev": "pnpm build:shared && pnpm --parallel --filter @tbdff/shared --filter @tbdff/backend --filter @tbdff/web run dev",
     "dev:backend": "pnpm --filter @tbdff/backend dev",
+    "dev:worker": "pnpm --filter @tbdff/backend dev:worker",
     "dev:mobile": "pnpm --filter @tbdff/mobile start",
     "dev:web": "pnpm --filter @tbdff/web dev",
     "build:shared": "pnpm --filter @tbdff/shared build",

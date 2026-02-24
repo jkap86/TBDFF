@@ -1,9 +1,6 @@
 import { Router } from 'express';
-import { Pool } from 'pg';
 import rateLimit from 'express-rate-limit';
 import { AuthController } from './auth.controller';
-import { AuthService } from './auth.service';
-import { UserRepository } from './auth.repository';
 import { authMiddleware } from '../../middleware/auth.middleware';
 import { asyncHandler } from '../../shared/async-handler';
 import { validate } from '../../shared/validate';
@@ -25,11 +22,7 @@ const refreshLimiter = rateLimit({
   message: { error: { code: 'RATE_LIMITED', message: 'Too many refresh attempts, try again later' } },
 });
 
-export function createAuthRoutes(pool: Pool): Router {
-  const userRepository = new UserRepository(pool);
-  const authService = new AuthService(userRepository);
-  const controller = new AuthController(authService);
-
+export function createAuthRoutes(controller: AuthController): Router {
   const router = Router();
 
   router.post('/register', authLimiter, validate(registerSchema), asyncHandler(controller.register));
