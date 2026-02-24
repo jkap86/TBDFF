@@ -20,7 +20,7 @@ export function AuthBootstrap({ children }: { children: React.ReactNode }) {
   if (isLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center">
-        <div className="text-gray-500">Loading session...</div>
+        <div className="text-gray-500 dark:text-gray-400">Loading session...</div>
       </div>
     );
   }

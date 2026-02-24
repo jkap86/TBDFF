@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { AuthProvider } from '@/features/auth/context/AuthProvider';
+import { ThemeProvider } from '@/features/theme/ThemeProvider';
 import { DevPanel } from '@/features/dev/DevPanel';
 import './globals.css';
 
@@ -8,14 +9,28 @@ export const metadata: Metadata = {
   description: 'TBDFF Fantasy Football',
 };
 
+const themeScript = `
+  (function() {
+    var t = localStorage.getItem('theme');
+    if (t === 'dark' || (!t && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+      document.documentElement.classList.add('dark');
+    }
+  })();
+`;
+
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
-      <body className="bg-gray-900 text-white font-sans antialiased">
-        <AuthProvider>
-          {children}
-          <DevPanel />
-        </AuthProvider>
+    <html lang="en" suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: themeScript }} />
+      </head>
+      <body className="bg-white text-gray-900 dark:bg-gray-900 dark:text-white font-sans antialiased">
+        <ThemeProvider>
+          <AuthProvider>
+            {children}
+            <DevPanel />
+          </AuthProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

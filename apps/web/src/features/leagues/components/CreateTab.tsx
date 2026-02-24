@@ -46,16 +46,16 @@ export function CreateTab() {
   };
 
   return (
-    <div className="rounded-lg bg-white p-6 shadow">
-      <h2 className="mb-4 text-lg font-semibold text-gray-900">Create New League</h2>
+    <div className="rounded-lg bg-white dark:bg-gray-800 p-6 shadow">
+      <h2 className="mb-4 text-lg font-semibold text-gray-900 dark:text-white">Create New League</h2>
 
       {error && (
-        <div className="mb-4 rounded bg-red-50 p-3 text-sm text-red-600">{error}</div>
+        <div className="mb-4 rounded bg-red-50 dark:bg-red-900/30 p-3 text-sm text-red-600 dark:text-red-400">{error}</div>
       )}
 
       <form onSubmit={handleSubmit}>
         <div className="mb-4">
-          <label htmlFor="name" className="mb-1 block text-sm font-medium text-gray-700">
+          <label htmlFor="name" className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
             League Name
           </label>
           <input
@@ -63,7 +63,7 @@ export function CreateTab() {
             type="text"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            className="w-full rounded border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            className="w-full rounded border border-gray-300 dark:border-gray-600 px-3 py-2 dark:bg-gray-700 dark:text-white focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
             placeholder="My League"
             disabled={isSubmitting}
             required
@@ -71,7 +71,7 @@ export function CreateTab() {
         </div>
 
         <div className="mb-4">
-          <label htmlFor="season" className="mb-1 block text-sm font-medium text-gray-700">
+          <label htmlFor="season" className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
             Season
           </label>
           <input
@@ -79,7 +79,7 @@ export function CreateTab() {
             type="text"
             value={season}
             onChange={(e) => setSeason(e.target.value)}
-            className="w-full rounded border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            className="w-full rounded border border-gray-300 dark:border-gray-600 px-3 py-2 dark:bg-gray-700 dark:text-white focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
             placeholder="2024"
             pattern="^\d{4}$"
             disabled={isSubmitting}
@@ -96,22 +96,22 @@ export function CreateTab() {
               className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
               disabled={isSubmitting}
             />
-            <span className="text-sm font-medium text-gray-700">Public league</span>
+            <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Public league</span>
           </label>
-          <p className="mt-1 ml-7 text-xs text-gray-500">
+          <p className="mt-1 ml-7 text-xs text-gray-500 dark:text-gray-400">
             Anyone can browse and join public leagues
           </p>
         </div>
 
         <div className="mb-6">
-          <label htmlFor="totalRosters" className="mb-1 block text-sm font-medium text-gray-700">
+          <label htmlFor="totalRosters" className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
             Number of Teams
           </label>
           <select
             id="totalRosters"
             value={totalRosters}
             onChange={(e) => setTotalRosters(parseInt(e.target.value, 10))}
-            className="w-full rounded border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            className="w-full rounded border border-gray-300 dark:border-gray-600 px-3 py-2 dark:bg-gray-700 dark:text-white focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
             disabled={isSubmitting}
           >
             {[8, 10, 12, 14, 16].map((num) => (

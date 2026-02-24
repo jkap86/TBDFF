@@ -53,7 +53,7 @@ function MaxBidInput({ item, budget, onUpdateMaxBid }: {
 
   return (
     <div className="flex items-center gap-0.5">
-      <span className="text-xs text-gray-400">$</span>
+      <span className="text-xs text-gray-400 dark:text-gray-500">$</span>
       <input
         type="text"
         inputMode="numeric"
@@ -64,7 +64,7 @@ function MaxBidInput({ item, budget, onUpdateMaxBid }: {
         onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
         placeholder={defaultBid != null ? String(defaultBid) : '—'}
         title={defaultBid != null ? `Default: $${defaultBid} (80% of AAV $${item.auction_value})` : 'Set max bid'}
-        className="w-10 rounded border border-gray-200 px-1 py-0.5 text-center text-xs text-gray-700 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+        className="w-10 rounded border border-gray-200 dark:border-gray-600 px-1 py-0.5 text-center text-xs text-gray-700 dark:text-gray-300 dark:bg-gray-700 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
       />
     </div>
   );
@@ -97,30 +97,30 @@ export function DraftQueue({ queue, draftedPlayerIds, onReorder, onRemove, onUpd
       </div>
 
       {showBids && queue.length > 0 && (
-        <div className="border-b border-gray-100 px-3 py-1.5 text-xs text-gray-400">
+        <div className="border-b border-gray-100 dark:border-gray-700 px-3 py-1.5 text-xs text-gray-400 dark:text-gray-500">
           Set max auto-bid per player (blank = default 80% AAV)
         </div>
       )}
 
       {queue.length === 0 ? (
-        <div className="px-4 py-6 text-center text-sm text-gray-400">
+        <div className="px-4 py-6 text-center text-sm text-gray-400 dark:text-gray-500">
           No players queued. Use the Players tab to add players.
         </div>
       ) : (
-        <ul className="flex-1 divide-y divide-gray-100 overflow-y-auto">
+        <ul className="flex-1 divide-y divide-gray-100 dark:divide-gray-700 overflow-y-auto">
           {queue.map((item, index) => {
             const isDrafted = draftedPlayerIds.has(item.player_id);
             return (
               <li
                 key={item.player_id}
-                className={`flex items-center gap-2 px-3 py-2 ${isDrafted ? 'bg-gray-50 opacity-50' : ''}`}
+                className={`flex items-center gap-2 px-3 py-2 ${isDrafted ? 'bg-gray-50 dark:bg-gray-800 opacity-50' : ''}`}
               >
-                <span className="w-5 text-center text-xs font-medium text-gray-400">{index + 1}</span>
+                <span className="w-5 text-center text-xs font-medium text-gray-400 dark:text-gray-500">{index + 1}</span>
                 <div className={`flex-1 min-w-0 ${isDrafted ? 'line-through' : ''}`}>
-                  <div className="truncate text-sm font-medium text-gray-900">
+                  <div className="truncate text-sm font-medium text-gray-900 dark:text-white">
                     {item.full_name || item.player_id}
                   </div>
-                  <div className="text-xs text-gray-500">
+                  <div className="text-xs text-gray-500 dark:text-gray-400">
                     {item.position}{item.team ? ` - ${item.team}` : ''}
                   </div>
                 </div>
@@ -132,14 +132,14 @@ export function DraftQueue({ queue, draftedPlayerIds, onReorder, onRemove, onUpd
                     <button
                       onClick={() => handleMoveUp(index)}
                       disabled={index === 0}
-                      className="rounded p-0.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600 disabled:invisible"
+                      className="rounded p-0.5 text-gray-400 dark:text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-600 dark:hover:text-gray-300 disabled:invisible"
                     >
                       <ChevronUp className="h-3.5 w-3.5" />
                     </button>
                     <button
                       onClick={() => handleMoveDown(index)}
                       disabled={index >= queue.length - 1}
-                      className="rounded p-0.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600 disabled:invisible"
+                      className="rounded p-0.5 text-gray-400 dark:text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-600 dark:hover:text-gray-300 disabled:invisible"
                     >
                       <ChevronDown className="h-3.5 w-3.5" />
                     </button>
@@ -147,7 +147,7 @@ export function DraftQueue({ queue, draftedPlayerIds, onReorder, onRemove, onUpd
                 )}
                 <button
                   onClick={() => onRemove(item.player_id)}
-                  className="rounded p-0.5 text-gray-400 hover:bg-red-50 hover:text-red-500"
+                  className="rounded p-0.5 text-gray-400 dark:text-gray-500 hover:bg-red-50 dark:hover:bg-red-900/30 hover:text-red-500"
                 >
                   <X className="h-3.5 w-3.5" />
                 </button>

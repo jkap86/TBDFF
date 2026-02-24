@@ -147,16 +147,16 @@ export default function LeagueDetailPage() {
   if (isLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center">
-        <div className="text-gray-500">Loading league...</div>
+        <div className="text-gray-500 dark:text-gray-400">Loading league...</div>
       </div>
     );
   }
 
   if (error || !league) {
     return (
-      <div className="min-h-screen bg-gray-50 p-6">
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-6">
         <div className="mx-auto max-w-4xl">
-          <div className="rounded bg-red-50 p-4 text-red-600">{error || 'League not found'}</div>
+          <div className="rounded bg-red-50 dark:bg-red-900/30 p-4 text-red-600 dark:text-red-400">{error || 'League not found'}</div>
         </div>
       </div>
     );
@@ -195,17 +195,17 @@ export default function LeagueDetailPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-6">
       <div className="mx-auto max-w-4xl space-y-6">
         {/* League Header */}
-        <div className="rounded-lg bg-white p-6 shadow">
+        <div className="rounded-lg bg-white dark:bg-gray-800 p-6 shadow">
           <div className="mb-4 flex items-start justify-between">
             <div className="flex items-center gap-3">
-              <h1 className="text-3xl font-bold text-gray-900">{league.name}</h1>
+              <h1 className="text-3xl font-bold text-gray-900 dark:text-white">{league.name}</h1>
               {isCommissioner && (
                 <button
                   onClick={() => setIsSettingsOpen(true)}
-                  className="rounded p-2 text-gray-500 hover:bg-gray-100 hover:text-gray-700"
+                  className="rounded p-2 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-700 dark:hover:text-gray-300"
                   title="League Settings"
                 >
                   <Settings className="h-5 w-5" />
@@ -221,16 +221,16 @@ export default function LeagueDetailPage() {
 
           <div className="grid gap-4 sm:grid-cols-2">
             <div>
-              <p className="text-sm text-gray-500">Season</p>
-              <p className="text-lg font-medium text-gray-900">{league.season}</p>
+              <p className="text-sm text-gray-500 dark:text-gray-400">Season</p>
+              <p className="text-lg font-medium text-gray-900 dark:text-white">{league.season}</p>
             </div>
             <div>
-              <p className="text-sm text-gray-500">Teams</p>
-              <p className="text-lg font-medium text-gray-900">{league.total_rosters}</p>
+              <p className="text-sm text-gray-500 dark:text-gray-400">Teams</p>
+              <p className="text-lg font-medium text-gray-900 dark:text-white">{league.total_rosters}</p>
             </div>
             <div>
-              <p className="text-sm text-gray-500">League Type</p>
-              <p className="text-lg font-medium text-gray-900">
+              <p className="text-sm text-gray-500 dark:text-gray-400">League Type</p>
+              <p className="text-lg font-medium text-gray-900 dark:text-white">
                 {league.settings?.type === 0
                   ? 'Redraft'
                   : league.settings?.type === 1
@@ -239,8 +239,8 @@ export default function LeagueDetailPage() {
               </p>
             </div>
             <div>
-              <p className="text-sm text-gray-500">Scoring</p>
-              <p className="text-lg font-medium text-gray-900">
+              <p className="text-sm text-gray-500 dark:text-gray-400">Scoring</p>
+              <p className="text-lg font-medium text-gray-900 dark:text-white">
                 {league.scoring_settings?.rec === 1
                   ? 'PPR'
                   : league.scoring_settings?.rec === 0.5
@@ -252,9 +252,9 @@ export default function LeagueDetailPage() {
         </div>
 
         {/* Draft Card */}
-        <div className="rounded-lg bg-white p-6 shadow">
+        <div className="rounded-lg bg-white dark:bg-gray-800 p-6 shadow">
           <div className="mb-4 flex items-center justify-between">
-            <h2 className="text-xl font-bold text-gray-900">Draft</h2>
+            <h2 className="text-xl font-bold text-gray-900 dark:text-white">Draft</h2>
             {activeDraft && (
               <span className={`rounded-full px-3 py-1 text-sm font-medium ${draftStatusColors[activeDraft.status]}`}>
                 {draftStatusLabels[activeDraft.status]}
@@ -266,16 +266,16 @@ export default function LeagueDetailPage() {
             <div className="space-y-4">
               <div className="grid gap-4 sm:grid-cols-3">
                 <div>
-                  <p className="text-sm text-gray-500">Type</p>
-                  <p className="font-medium text-gray-900">{draftTypeLabels[activeDraft.type] || activeDraft.type}</p>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">Type</p>
+                  <p className="font-medium text-gray-900 dark:text-white">{draftTypeLabels[activeDraft.type] || activeDraft.type}</p>
                 </div>
                 <div>
-                  <p className="text-sm text-gray-500">Rounds</p>
-                  <p className="font-medium text-gray-900">{activeDraft.settings.rounds}</p>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">Rounds</p>
+                  <p className="font-medium text-gray-900 dark:text-white">{activeDraft.settings.rounds}</p>
                 </div>
                 <div>
-                  <p className="text-sm text-gray-500">Pick Timer</p>
-                  <p className="font-medium text-gray-900">{activeDraft.settings.pick_timer}s</p>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">Pick Timer</p>
+                  <p className="font-medium text-gray-900 dark:text-white">{activeDraft.settings.pick_timer}s</p>
                 </div>
               </div>
 
@@ -300,7 +300,7 @@ export default function LeagueDetailPage() {
             </div>
           ) : (
             <div className="text-center py-4">
-              <p className="mb-3 text-gray-500">No draft has been created yet.</p>
+              <p className="mb-3 text-gray-500 dark:text-gray-400">No draft has been created yet.</p>
               {isCommissioner && (
                 <button
                   onClick={handleCreateDraft}
@@ -316,9 +316,9 @@ export default function LeagueDetailPage() {
 
         {/* Matchups Card */}
         {(league.status === 'in_season' || league.status === 'complete') && (
-          <div className="rounded-lg bg-white p-6 shadow">
+          <div className="rounded-lg bg-white dark:bg-gray-800 p-6 shadow">
             <div className="mb-4 flex items-center justify-between">
-              <h2 className="text-xl font-bold text-gray-900">Matchups</h2>
+              <h2 className="text-xl font-bold text-gray-900 dark:text-white">Matchups</h2>
               {isCommissioner && league.status === 'in_season' && (
                 <button
                   onClick={handleGenerateMatchups}
@@ -347,7 +347,7 @@ export default function LeagueDetailPage() {
                         className={`rounded-full px-3 py-1 text-sm font-medium whitespace-nowrap ${
                           selectedWeek === week
                             ? 'bg-blue-600 text-white'
-                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                            : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
                         }`}
                       >
                         Wk {week}
@@ -385,13 +385,13 @@ export default function LeagueDetailPage() {
                         {Object.values(grouped).map((pair) => (
                           <div
                             key={pair[0].id}
-                            className="flex items-center justify-between rounded border border-gray-200 p-3"
+                            className="flex items-center justify-between rounded border border-gray-200 dark:border-gray-700 p-3"
                           >
-                            <span className="font-medium text-gray-900">
+                            <span className="font-medium text-gray-900 dark:text-white">
                               {getRosterLabel(pair[0].roster_id)}
                             </span>
                             <span className="text-sm text-gray-400">vs</span>
-                            <span className="font-medium text-gray-900">
+                            <span className="font-medium text-gray-900 dark:text-white">
                               {pair[1] ? getRosterLabel(pair[1].roster_id) : 'BYE'}
                             </span>
                           </div>
@@ -399,9 +399,9 @@ export default function LeagueDetailPage() {
                         {byes.map((bye) => (
                           <div
                             key={bye.id}
-                            className="flex items-center justify-between rounded border border-gray-200 bg-gray-50 p-3"
+                            className="flex items-center justify-between rounded border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 p-3"
                           >
-                            <span className="font-medium text-gray-900">
+                            <span className="font-medium text-gray-900 dark:text-white">
                               {getRosterLabel(bye.roster_id)}
                             </span>
                             <span className="text-sm italic text-gray-400">BYE</span>
@@ -413,7 +413,7 @@ export default function LeagueDetailPage() {
                 </div>
               </div>
             ) : (
-              <p className="py-4 text-center text-gray-500">
+              <p className="py-4 text-center text-gray-500 dark:text-gray-400">
                 {isCommissioner
                   ? 'No matchups generated yet. Click the button above to generate the schedule.'
                   : 'No matchups have been generated yet.'}
@@ -423,8 +423,8 @@ export default function LeagueDetailPage() {
         )}
 
         {/* Members List */}
-        <div className="rounded-lg bg-white p-6 shadow">
-          <h2 className="mb-4 text-xl font-bold text-gray-900">
+        <div className="rounded-lg bg-white dark:bg-gray-800 p-6 shadow">
+          <h2 className="mb-4 text-xl font-bold text-gray-900 dark:text-white">
             Members ({members.length}/{league.total_rosters})
           </h2>
 
@@ -432,12 +432,12 @@ export default function LeagueDetailPage() {
             {members.map((member) => (
               <div
                 key={member.id}
-                className="flex items-center justify-between rounded border border-gray-200 p-3"
+                className="flex items-center justify-between rounded border border-gray-200 dark:border-gray-700 p-3"
               >
                 <div>
-                  <p className="font-medium text-gray-900">{member.username}</p>
+                  <p className="font-medium text-gray-900 dark:text-white">{member.username}</p>
                   {member.display_name && (
-                    <p className="text-sm text-gray-500">{member.display_name}</p>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">{member.display_name}</p>
                   )}
                 </div>
                 <span

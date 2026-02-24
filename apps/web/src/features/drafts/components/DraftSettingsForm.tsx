@@ -117,26 +117,26 @@ export function DraftSettingsForm({ draft, onSave, readOnly }: DraftSettingsForm
     return (
       <div className="space-y-4">
         <div>
-          <h3 className="text-sm font-semibold text-gray-700 mb-2">Draft Format</h3>
+          <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Draft Format</h3>
           <div className="grid grid-cols-2 gap-x-6 gap-y-1 text-sm">
-            <div className="text-gray-500">Type</div>
-            <div className="font-medium text-gray-900">{DRAFT_TYPE_OPTIONS.find((o) => o.value === draft.type)?.label}</div>
-            <div className="text-gray-500">Rounds</div>
-            <div className="font-medium text-gray-900">{draft.settings.rounds}</div>
+            <div className="text-gray-500 dark:text-gray-400">Type</div>
+            <div className="font-medium text-gray-900 dark:text-white">{DRAFT_TYPE_OPTIONS.find((o) => o.value === draft.type)?.label}</div>
+            <div className="text-gray-500 dark:text-gray-400">Rounds</div>
+            <div className="font-medium text-gray-900 dark:text-white">{draft.settings.rounds}</div>
             {draft.type !== 'auction' && (
               <>
-                <div className="text-gray-500">Pick Timer</div>
-                <div className="font-medium text-gray-900">{formatTimer(draft.settings.pick_timer)}</div>
+                <div className="text-gray-500 dark:text-gray-400">Pick Timer</div>
+                <div className="font-medium text-gray-900 dark:text-white">{formatTimer(draft.settings.pick_timer)}</div>
               </>
             )}
             {draft.type === 'auction' && (
               <>
-                <div className="text-gray-500">Offering Timer</div>
-                <div className="font-medium text-gray-900">{formatTimer(draft.settings.offering_timer ?? 120)}</div>
-                <div className="text-gray-500">Bid Timer</div>
-                <div className="font-medium text-gray-900">{formatTimer(draft.settings.nomination_timer)}</div>
-                <div className="text-gray-500">Budget</div>
-                <div className="font-medium text-gray-900">${draft.settings.budget}</div>
+                <div className="text-gray-500 dark:text-gray-400">Offering Timer</div>
+                <div className="font-medium text-gray-900 dark:text-white">{formatTimer(draft.settings.offering_timer ?? 120)}</div>
+                <div className="text-gray-500 dark:text-gray-400">Bid Timer</div>
+                <div className="font-medium text-gray-900 dark:text-white">{formatTimer(draft.settings.nomination_timer)}</div>
+                <div className="text-gray-500 dark:text-gray-400">Budget</div>
+                <div className="font-medium text-gray-900 dark:text-white">${draft.settings.budget}</div>
               </>
             )}
           </div>
@@ -150,15 +150,15 @@ export function DraftSettingsForm({ draft, onSave, readOnly }: DraftSettingsForm
     <div className="space-y-5">
       {/* Draft Format */}
       <div>
-        <h3 className="text-sm font-semibold text-gray-700 mb-3">Draft Format</h3>
+        <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">Draft Format</h3>
         <div className="space-y-3">
           {/* Type */}
           <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1">Type</label>
+            <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Type</label>
             <select
               value={draftType}
               onChange={(e) => setDraftType(e.target.value as DraftType)}
-              className="rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              className="rounded-lg border border-gray-300 dark:border-gray-600 px-3 py-2 text-sm text-gray-900 dark:text-white dark:bg-gray-700 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
             >
               {DRAFT_TYPE_OPTIONS.map((opt) => (
                 <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -168,20 +168,20 @@ export function DraftSettingsForm({ draft, onSave, readOnly }: DraftSettingsForm
 
           {/* Rounds */}
           <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1">Rounds</label>
+            <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Rounds</label>
             <input
               type="number"
               value={rounds}
               onChange={(e) => setRounds(Math.max(1, Math.min(50, parseInt(e.target.value) || 1)))}
               min={1}
               max={50}
-              className="w-20 rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              className="w-20 rounded-lg border border-gray-300 dark:border-gray-600 px-3 py-2 text-sm text-gray-900 dark:text-white dark:bg-gray-700 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
             />
           </div>
 
           {/* Pick Timer (non-auction only) */}
           {!isAuction && <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1">Pick Timer</label>
+            <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Pick Timer</label>
             <div className="flex flex-wrap gap-1.5">
               {PICK_TIMER_PRESETS.map((preset) => (
                 <button
@@ -191,7 +191,7 @@ export function DraftSettingsForm({ draft, onSave, readOnly }: DraftSettingsForm
                   className={`rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors ${
                     pickTimer === preset.value
                       ? 'border-blue-300 bg-blue-100 text-blue-700'
-                      : 'border-gray-200 bg-gray-50 text-gray-600 hover:bg-gray-100'
+                      : 'border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
                   }`}
                 >
                   {preset.label}
@@ -209,9 +209,9 @@ export function DraftSettingsForm({ draft, onSave, readOnly }: DraftSettingsForm
                   placeholder="Custom"
                   min={0}
                   max={86400}
-                  className="w-20 rounded-lg border border-gray-300 px-2 py-1.5 text-xs text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  className="w-20 rounded-lg border border-gray-300 dark:border-gray-600 px-2 py-1.5 text-xs text-gray-900 dark:text-white dark:bg-gray-700 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                 />
-                <span className="text-xs text-gray-400">sec</span>
+                <span className="text-xs text-gray-400 dark:text-gray-500">sec</span>
               </div>
             </div>
           </div>}
@@ -219,7 +219,7 @@ export function DraftSettingsForm({ draft, onSave, readOnly }: DraftSettingsForm
           {/* Offering Timer (auction only) */}
           {isAuction && (
             <div>
-              <label className="block text-xs font-medium text-gray-500 mb-1">Offering Timer</label>
+              <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Offering Timer</label>
               <div className="flex flex-wrap gap-1.5">
                 {OFFERING_TIMER_PRESETS.map((preset) => (
                   <button
@@ -229,7 +229,7 @@ export function DraftSettingsForm({ draft, onSave, readOnly }: DraftSettingsForm
                     className={`rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors ${
                       offeringTimer === preset.value
                         ? 'border-blue-300 bg-blue-100 text-blue-700'
-                        : 'border-gray-200 bg-gray-50 text-gray-600 hover:bg-gray-100'
+                        : 'border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
                     }`}
                   >
                     {preset.label}
@@ -247,9 +247,9 @@ export function DraftSettingsForm({ draft, onSave, readOnly }: DraftSettingsForm
                     placeholder="Custom"
                     min={0}
                     max={86400}
-                    className="w-20 rounded-lg border border-gray-300 px-2 py-1.5 text-xs text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    className="w-20 rounded-lg border border-gray-300 dark:border-gray-600 px-2 py-1.5 text-xs text-gray-900 dark:text-white dark:bg-gray-700 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                   />
-                  <span className="text-xs text-gray-400">sec</span>
+                  <span className="text-xs text-gray-400 dark:text-gray-500">sec</span>
                 </div>
               </div>
             </div>
@@ -258,7 +258,7 @@ export function DraftSettingsForm({ draft, onSave, readOnly }: DraftSettingsForm
           {/* Bid Timer (auction only) */}
           {isAuction && (
             <div>
-              <label className="block text-xs font-medium text-gray-500 mb-1">Bid Timer</label>
+              <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Bid Timer</label>
               <div className="flex flex-wrap gap-1.5">
                 {NOMINATION_TIMER_PRESETS.map((preset) => (
                   <button
@@ -268,7 +268,7 @@ export function DraftSettingsForm({ draft, onSave, readOnly }: DraftSettingsForm
                     className={`rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors ${
                       nominationTimer === preset.value
                         ? 'border-blue-300 bg-blue-100 text-blue-700'
-                        : 'border-gray-200 bg-gray-50 text-gray-600 hover:bg-gray-100'
+                        : 'border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
                     }`}
                   >
                     {preset.label}
@@ -286,9 +286,9 @@ export function DraftSettingsForm({ draft, onSave, readOnly }: DraftSettingsForm
                     placeholder="Custom"
                     min={0}
                     max={86400}
-                    className="w-20 rounded-lg border border-gray-300 px-2 py-1.5 text-xs text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    className="w-20 rounded-lg border border-gray-300 dark:border-gray-600 px-2 py-1.5 text-xs text-gray-900 dark:text-white dark:bg-gray-700 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                   />
-                  <span className="text-xs text-gray-400">sec</span>
+                  <span className="text-xs text-gray-400 dark:text-gray-500">sec</span>
                 </div>
               </div>
             </div>
@@ -297,16 +297,16 @@ export function DraftSettingsForm({ draft, onSave, readOnly }: DraftSettingsForm
           {/* Budget (auction only) */}
           {isAuction && (
             <div>
-              <label className="block text-xs font-medium text-gray-500 mb-1">Auction Budget</label>
+              <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Auction Budget</label>
               <div className="flex items-center gap-1">
-                <span className="text-sm text-gray-500">$</span>
+                <span className="text-sm text-gray-500 dark:text-gray-400">$</span>
                 <input
                   type="number"
                   value={budget}
                   onChange={(e) => setBudget(Math.max(1, Math.min(9999, parseInt(e.target.value) || 1)))}
                   min={1}
                   max={9999}
-                  className="w-24 rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  className="w-24 rounded-lg border border-gray-300 dark:border-gray-600 px-3 py-2 text-sm text-gray-900 dark:text-white dark:bg-gray-700 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                 />
               </div>
             </div>
@@ -316,7 +316,7 @@ export function DraftSettingsForm({ draft, onSave, readOnly }: DraftSettingsForm
 
       {/* Error + Save */}
       {error && (
-        <p className="text-sm text-red-600">{error}</p>
+        <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
       )}
       <button
         type="button"

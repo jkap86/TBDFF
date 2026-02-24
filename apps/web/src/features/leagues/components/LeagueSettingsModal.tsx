@@ -206,16 +206,16 @@ export function LeagueSettingsModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-      <div className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-lg bg-white p-6 shadow-xl">
-        <h2 className="mb-4 text-xl font-bold text-gray-900">League Settings</h2>
+      <div className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-lg bg-white dark:bg-gray-800 p-6 shadow-xl">
+        <h2 className="mb-4 text-xl font-bold text-gray-900 dark:text-white">League Settings</h2>
 
         {error && (
-          <div className="mb-4 rounded bg-red-50 p-3 text-sm text-red-600">{error}</div>
+          <div className="mb-4 rounded bg-red-50 dark:bg-red-900/30 p-3 text-sm text-red-600 dark:text-red-400">{error}</div>
         )}
 
         <form onSubmit={handleSubmit}>
           <div className="mb-4">
-            <label htmlFor="name" className="mb-1 block text-sm font-medium text-gray-700">
+            <label htmlFor="name" className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
               League Name
             </label>
             <input
@@ -223,7 +223,7 @@ export function LeagueSettingsModal({
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="w-full rounded border border-gray-300 px-3 py-2 text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              className="w-full rounded border border-gray-300 dark:border-gray-600 px-3 py-2 text-gray-900 dark:text-white dark:bg-gray-700 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
               placeholder="My League"
               disabled={isSubmitting}
               maxLength={100}
@@ -231,14 +231,14 @@ export function LeagueSettingsModal({
           </div>
 
           <div className="mb-4">
-            <label htmlFor="totalRosters" className="mb-1 block text-sm font-medium text-gray-700">
+            <label htmlFor="totalRosters" className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
               Number of Teams
             </label>
             <select
               id="totalRosters"
               value={totalRosters}
               onChange={(e) => setTotalRosters(parseInt(e.target.value, 10))}
-              className="w-full rounded border border-gray-300 px-3 py-2 text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              className="w-full rounded border border-gray-300 dark:border-gray-600 px-3 py-2 text-gray-900 dark:text-white dark:bg-gray-700 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
               disabled={isSubmitting}
             >
               {[...Array(31)].map((_, i) => {
@@ -253,14 +253,14 @@ export function LeagueSettingsModal({
           </div>
 
           <div className="mb-4">
-            <label htmlFor="status" className="mb-1 block text-sm font-medium text-gray-700">
+            <label htmlFor="status" className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
               League Status
             </label>
             <select
               id="status"
               value={status}
               onChange={(e) => setStatus(e.target.value as LeagueStatus)}
-              className="w-full rounded border border-gray-300 px-3 py-2 text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              className="w-full rounded border border-gray-300 dark:border-gray-600 px-3 py-2 text-gray-900 dark:text-white dark:bg-gray-700 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
               disabled={isSubmitting}
             >
               <option value="pre_draft">Pre-Draft</option>
@@ -271,14 +271,14 @@ export function LeagueSettingsModal({
           </div>
 
           <div className="mb-4">
-            <label htmlFor="visibility" className="mb-1 block text-sm font-medium text-gray-700">
+            <label htmlFor="visibility" className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
               League Visibility
             </label>
             <select
               id="visibility"
               value={isPublic ? 'public' : 'private'}
               onChange={(e) => setIsPublic(e.target.value === 'public')}
-              className="w-full rounded border border-gray-300 px-3 py-2 text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              className="w-full rounded border border-gray-300 dark:border-gray-600 px-3 py-2 text-gray-900 dark:text-white dark:bg-gray-700 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
               disabled={isSubmitting}
             >
               <option value="public">Public - Anyone can find and join</option>
@@ -288,14 +288,14 @@ export function LeagueSettingsModal({
 
           {!isPublic && (
             <div className="mb-4">
-              <label htmlFor="invitePermission" className="mb-1 block text-sm font-medium text-gray-700">
+              <label htmlFor="invitePermission" className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
                 Who can send invites?
               </label>
               <select
                 id="invitePermission"
                 value={memberCanInvite ? 'anyone' : 'commissioner'}
                 onChange={(e) => setMemberCanInvite(e.target.value === 'anyone')}
-                className="w-full rounded border border-gray-300 px-3 py-2 text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                className="w-full rounded border border-gray-300 dark:border-gray-600 px-3 py-2 text-gray-900 dark:text-white dark:bg-gray-700 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                 disabled={isSubmitting}
               >
                 <option value="commissioner">Commissioner only</option>
@@ -306,9 +306,9 @@ export function LeagueSettingsModal({
 
           {/* Roster Assignments - Commissioner only */}
           {isOwner && (
-            <div className="mb-4 border-t border-gray-200 pt-4">
+            <div className="mb-4 border-t border-gray-200 dark:border-gray-700 pt-4">
               <div className="mb-3 flex items-center justify-between">
-                <h3 className="text-sm font-semibold text-gray-900">Roster Assignments</h3>
+                <h3 className="text-sm font-semibold text-gray-900 dark:text-white">Roster Assignments</h3>
                 {spectators.length > 0 && rosters.some((r) => !r.owner_id) && (
                   <button
                     type="button"
@@ -321,7 +321,7 @@ export function LeagueSettingsModal({
                 )}
               </div>
               {spectators.length > 0 && (
-                <p className="mb-2 text-xs text-gray-500">
+                <p className="mb-2 text-xs text-gray-500 dark:text-gray-400">
                   {spectators.length} spectator{spectators.length !== 1 ? 's' : ''} waiting for roster assignment
                 </p>
               )}
@@ -334,14 +334,14 @@ export function LeagueSettingsModal({
                     return (
                       <div
                         key={roster.roster_id}
-                        className="flex items-center gap-2 rounded border border-gray-300 bg-gray-50 p-2"
+                        className="flex items-center gap-2 rounded border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-900 p-2"
                       >
-                        <span className="w-16 shrink-0 text-xs font-bold text-gray-700">
+                        <span className="w-16 shrink-0 text-xs font-bold text-gray-700 dark:text-gray-300">
                           Roster {roster.roster_id}
                         </span>
                         {roster.owner_id ? (
                           <div className="flex flex-1 items-center justify-between">
-                            <span className="text-sm font-medium text-gray-900">
+                            <span className="text-sm font-medium text-gray-900 dark:text-white">
                               {getMemberUsername(roster.owner_id)}
                             </span>
                             {!isCommissionerRoster && (
@@ -349,7 +349,7 @@ export function LeagueSettingsModal({
                                 type="button"
                                 onClick={() => handleUnassign(roster.roster_id)}
                                 disabled={assigningRosterId === roster.roster_id || isAssigningAll}
-                                className="rounded px-2 py-1 text-xs text-red-600 hover:bg-red-50 disabled:opacity-50"
+                                className="rounded px-2 py-1 text-xs text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 disabled:opacity-50"
                               >
                                 {assigningRosterId === roster.roster_id ? '...' : 'Unassign'}
                               </button>
@@ -365,7 +365,7 @@ export function LeagueSettingsModal({
                                   [roster.roster_id]: e.target.value,
                                 }))
                               }
-                              className="flex-1 rounded border border-gray-300 bg-white px-2 py-1 text-sm text-gray-900 focus:border-blue-500 focus:outline-none"
+                              className="flex-1 rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-2 py-1 text-sm text-gray-900 dark:text-white focus:border-blue-500 focus:outline-none"
                               disabled={assigningRosterId === roster.roster_id || isAssigningAll}
                             >
                               <option value="">Select spectator...</option>
@@ -393,21 +393,21 @@ export function LeagueSettingsModal({
           )}
 
           {isOwner && (
-            <div className="mb-6 border-t border-gray-300 pt-6">
-              <h3 className="mb-2 text-sm font-semibold text-red-600">Danger Zone</h3>
+            <div className="mb-6 border-t border-gray-300 dark:border-gray-600 pt-6">
+              <h3 className="mb-2 text-sm font-semibold text-red-600 dark:text-red-400">Danger Zone</h3>
 
               {!showDeleteConfirmation ? (
                 <button
                   type="button"
                   onClick={() => setShowDeleteConfirmation(true)}
-                  className="w-full rounded border border-red-300 bg-white px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50 disabled:opacity-50"
+                  className="w-full rounded border border-red-300 bg-white dark:bg-gray-800 px-4 py-2 text-sm font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 disabled:opacity-50"
                   disabled={isSubmitting || isDeleting}
                 >
                   Delete League
                 </button>
               ) : (
                 <div className="space-y-3">
-                  <div className="rounded bg-red-50 p-3 text-sm text-red-800">
+                  <div className="rounded bg-red-50 dark:bg-red-900/30 p-3 text-sm text-red-800 dark:text-red-300">
                     <p className="font-medium">Are you sure you want to delete this league?</p>
                     <p className="mt-1">This action cannot be undone. All league data will be permanently deleted.</p>
                   </div>
@@ -415,7 +415,7 @@ export function LeagueSettingsModal({
                     <button
                       type="button"
                       onClick={() => setShowDeleteConfirmation(false)}
-                      className="flex-1 rounded border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                      className="flex-1 rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-50"
                       disabled={isDeleting}
                     >
                       Cancel
@@ -438,7 +438,7 @@ export function LeagueSettingsModal({
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 rounded bg-gray-200 px-4 py-2 font-medium text-gray-700 hover:bg-gray-300 disabled:opacity-50"
+              className="flex-1 rounded bg-gray-200 dark:bg-gray-700 px-4 py-2 font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600 disabled:opacity-50"
               disabled={isSubmitting || isDeleting}
             >
               Cancel

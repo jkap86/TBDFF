@@ -64,8 +64,8 @@ export function JoinTab() {
 
   if (isLoading) {
     return (
-      <div className="rounded-lg bg-white p-6 shadow">
-        <p className="text-center text-gray-500">Loading public leagues...</p>
+      <div className="rounded-lg bg-white dark:bg-gray-800 p-6 shadow">
+        <p className="text-center text-gray-500 dark:text-gray-400">Loading public leagues...</p>
       </div>
     );
   }
@@ -73,23 +73,23 @@ export function JoinTab() {
   return (
     <div className="space-y-4">
       {error && (
-        <div className="rounded bg-red-50 p-3 text-sm text-red-600">{error}</div>
+        <div className="rounded bg-red-50 dark:bg-red-900/30 p-3 text-sm text-red-600 dark:text-red-400">{error}</div>
       )}
 
       {leagues.length === 0 ? (
-        <div className="rounded-lg bg-white p-8 text-center shadow">
-          <p className="text-gray-500">No public leagues available right now.</p>
+        <div className="rounded-lg bg-white dark:bg-gray-800 p-8 text-center shadow">
+          <p className="text-gray-500 dark:text-gray-400">No public leagues available right now.</p>
         </div>
       ) : (
         <>
           {leagues.map((league) => (
             <div
               key={league.id}
-              className="flex items-center justify-between rounded-lg bg-white p-4 shadow"
+              className="flex items-center justify-between rounded-lg bg-white dark:bg-gray-800 p-4 shadow"
             >
               <div>
-                <h3 className="font-semibold text-gray-900">{league.name}</h3>
-                <div className="mt-1 flex gap-3 text-sm text-gray-500">
+                <h3 className="font-semibold text-gray-900 dark:text-white">{league.name}</h3>
+                <div className="mt-1 flex gap-3 text-sm text-gray-500 dark:text-gray-400">
                   <span>{league.season}</span>
                   <span>{league.member_count}/{league.total_rosters} teams</span>
                   <span>
@@ -122,17 +122,17 @@ export function JoinTab() {
               <button
                 onClick={() => setOffset(Math.max(0, offset - limit))}
                 disabled={offset === 0}
-                className="rounded px-3 py-1 text-sm text-gray-600 hover:bg-gray-100 disabled:opacity-50"
+                className="rounded px-3 py-1 text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-50"
               >
                 Previous
               </button>
-              <span className="text-sm text-gray-500">
+              <span className="text-sm text-gray-500 dark:text-gray-400">
                 Page {currentPage} of {totalPages}
               </span>
               <button
                 onClick={() => setOffset(offset + limit)}
                 disabled={offset + limit >= total}
-                className="rounded px-3 py-1 text-sm text-gray-600 hover:bg-gray-100 disabled:opacity-50"
+                className="rounded px-3 py-1 text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-50"
               >
                 Next
               </button>

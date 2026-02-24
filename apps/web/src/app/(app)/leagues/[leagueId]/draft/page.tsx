@@ -64,9 +64,9 @@ function NominationMaxBid({ nomination, queue, budget, onUpdateMaxBid }: {
   };
 
   return (
-    <div className="flex items-center gap-1 border-l border-gray-200 pl-2 ml-1">
-      <span className="text-xs text-gray-500 whitespace-nowrap">Auto-bid up to</span>
-      <span className="text-xs text-gray-400">$</span>
+    <div className="flex items-center gap-1 border-l border-gray-200 dark:border-gray-700 pl-2 ml-1">
+      <span className="text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap">Auto-bid up to</span>
+      <span className="text-xs text-gray-400 dark:text-gray-500">$</span>
       <input
         type="text"
         inputMode="numeric"
@@ -77,7 +77,7 @@ function NominationMaxBid({ nomination, queue, budget, onUpdateMaxBid }: {
         onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
         placeholder={defaultBid != null ? String(defaultBid) : '—'}
         title={defaultBid != null ? `Default: $${defaultBid} (80% of AAV $${aav})` : 'Set max auto-bid'}
-        className="w-14 rounded border border-gray-200 px-1 py-1 text-center text-sm text-gray-700 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+        className="w-14 rounded border border-gray-200 dark:border-gray-600 px-1 py-1 text-center text-sm text-gray-700 dark:text-gray-300 dark:bg-gray-700 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
       />
     </div>
   );
@@ -506,40 +506,40 @@ export default function DraftRoomPage() {
   if (isLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center">
-        <div className="text-gray-500">Loading draft...</div>
+        <div className="text-gray-500 dark:text-gray-400">Loading draft...</div>
       </div>
     );
   }
 
   if (error || !draft) {
     return (
-      <div className="min-h-screen bg-gray-50 p-6">
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-6">
         <div className="mx-auto max-w-6xl">
           <button
             onClick={() => router.push(`/leagues/${leagueId}`)}
-            className="mb-4 flex items-center gap-2 text-sm text-gray-500 hover:text-gray-700"
+            className="mb-4 flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300"
           >
             <ArrowLeft className="h-4 w-4" /> Back to League
           </button>
-          <div className="rounded bg-red-50 p-4 text-red-600">{error || 'Draft not found'}</div>
+          <div className="rounded bg-red-50 dark:bg-red-900/30 p-4 text-red-600 dark:text-red-400">{error || 'Draft not found'}</div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-4">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-4">
       <div className="mx-auto max-w-7xl space-y-4">
         {/* Header */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
             <button
               onClick={() => router.push(`/leagues/${leagueId}`)}
-              className="flex items-center gap-2 text-sm text-gray-500 hover:text-gray-700"
+              className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300"
             >
               <ArrowLeft className="h-4 w-4" /> Back
             </button>
-            <h1 className="text-2xl font-bold text-gray-900">Draft Room</h1>
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Draft Room</h1>
             <span className={`rounded-full px-3 py-1 text-sm font-medium ${
               draft.status === 'drafting'
                 ? 'bg-blue-100 text-blue-700'
@@ -550,20 +550,20 @@ export default function DraftRoomPage() {
               {draft.status === 'drafting' ? 'Live' : draft.status === 'complete' ? 'Complete' : 'Setup'}
             </span>
           </div>
-          <div className="text-sm text-gray-500">
+          <div className="text-sm text-gray-500 dark:text-gray-400">
             {draftTypeLabels[draft.type]} | {draft.settings.rounds} rounds | {isAuction ? `$${draft.settings.budget} budget | ${draft.settings.offering_timer ?? 120}s offer / ${draft.settings.nomination_timer}s bid` : `${draft.settings.pick_timer}s timer`}
           </div>
         </div>
 
         {/* Pre-Draft Setup */}
         {draft.status === 'pre_draft' && isCommissioner && (
-          <div className="rounded-lg bg-white p-6 shadow">
-            <h2 className="mb-4 text-lg font-bold text-gray-900">Draft Setup</h2>
+          <div className="rounded-lg bg-white dark:bg-gray-800 p-6 shadow">
+            <h2 className="mb-4 text-lg font-bold text-gray-900 dark:text-white">Draft Setup</h2>
             <div className="space-y-6">
               <DraftSettingsForm draft={draft} onSave={handleUpdateSettings} readOnly={false} />
 
-              <div className="border-t border-gray-200 pt-4">
-                <p className="mb-2 text-sm text-gray-600">
+              <div className="border-t border-gray-200 dark:border-gray-700 pt-4">
+                <p className="mb-2 text-sm text-gray-600 dark:text-gray-400">
                   Draft Order: {Object.keys(draft.draft_order).length > 0
                     ? `${Object.keys(draft.draft_order).length} slots assigned`
                     : 'Not set'}
@@ -574,7 +574,7 @@ export default function DraftRoomPage() {
                 >
                   {Object.keys(draft.draft_order).length > 0 ? 'Reset Draft Order' : 'Set Draft Order'}
                 </button>
-                <p className="mt-1 text-xs text-gray-400">
+                <p className="mt-1 text-xs text-gray-400 dark:text-gray-500">
                   Auto-assigns order based on roster slot assignments
                 </p>
               </div>
@@ -597,19 +597,19 @@ export default function DraftRoomPage() {
         {draft.status === 'drafting' && isAuction && (
           <>
             {/* Auction Controls */}
-            <div className="rounded-lg bg-white p-4 shadow">
+            <div className="rounded-lg bg-white dark:bg-gray-800 p-4 shadow">
               <div className="flex flex-wrap items-center gap-4">
                 {/* Timer */}
                 {timeRemaining !== null && (
                   <div className={`flex items-center gap-2 rounded-lg px-4 py-2 font-mono text-lg font-bold ${
                     timeRemaining <= 10
-                      ? 'bg-red-100 text-red-700'
+                      ? 'bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-400'
                       : timeRemaining <= 20
                         ? 'bg-yellow-100 text-yellow-700'
-                        : 'bg-gray-100 text-gray-700'
+                        : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300'
                   }`}>
                     {formatTime(timeRemaining)}
-                    <span className="text-xs font-normal">
+                    <span className="text-xs font-normal dark:text-gray-300">
                       {draft.metadata?.current_nomination ? 'Bidding' : 'Nominate'}
                     </span>
                   </div>
@@ -622,7 +622,7 @@ export default function DraftRoomPage() {
                     className={`rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
                       isAutoPick
                         ? 'bg-orange-100 text-orange-700 hover:bg-orange-200'
-                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                        : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600'
                     } disabled:opacity-50`}
                   >
                     {isTogglingAutoPick ? '...' : isAutoPick ? 'Auto: ON' : 'Auto: OFF'}
@@ -640,16 +640,16 @@ export default function DraftRoomPage() {
                       value={nominatePlayerId}
                       onChange={(e) => setNominatePlayerId(e.target.value)}
                       placeholder="Player ID"
-                      className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                      className="flex-1 rounded-lg border border-gray-300 dark:border-gray-600 px-3 py-2 text-sm text-gray-900 dark:text-white dark:bg-gray-700 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                     />
                     <div className="flex items-center gap-1">
-                      <span className="text-sm text-gray-500">$</span>
+                      <span className="text-sm text-gray-500 dark:text-gray-400">$</span>
                       <input
                         type="number"
                         value={nominateAmount}
                         onChange={(e) => setNominateAmount(Math.max(1, parseInt(e.target.value) || 1))}
                         min={1}
-                        className="w-20 rounded-lg border border-gray-300 px-2 py-2 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                        className="w-20 rounded-lg border border-gray-300 dark:border-gray-600 px-2 py-2 text-sm text-gray-900 dark:text-white dark:bg-gray-700 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                       />
                     </div>
                     <button
@@ -664,7 +664,7 @@ export default function DraftRoomPage() {
 
                 {/* Waiting for nomination */}
                 {!draft.metadata?.current_nomination && !isMyTurn && (
-                  <span className="text-sm text-gray-500">
+                  <span className="text-sm text-gray-500 dark:text-gray-400">
                     Waiting for nomination...
                   </span>
                 )}
@@ -672,7 +672,7 @@ export default function DraftRoomPage() {
                 {/* Bidding Controls (active nomination) */}
                 {draft.metadata?.current_nomination && userSlot !== undefined && (
                   <div className="flex flex-1 items-center gap-2">
-                    <span className="text-sm font-medium text-gray-700">
+                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
                       Current: <span className="text-green-700 font-bold">${draft.metadata.current_nomination.current_bid}</span>
                     </span>
                     <button
@@ -697,14 +697,14 @@ export default function DraftRoomPage() {
                       +$10
                     </button>
                     <div className="flex items-center gap-1">
-                      <span className="text-sm text-gray-500">$</span>
+                      <span className="text-sm text-gray-500 dark:text-gray-400">$</span>
                       <input
                         type="number"
                         value={bidAmount || ''}
                         onChange={(e) => setBidAmount(parseInt(e.target.value) || 0)}
                         placeholder="Custom"
                         min={1}
-                        className="w-20 rounded-lg border border-gray-300 px-2 py-2 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                        className="w-20 rounded-lg border border-gray-300 dark:border-gray-600 px-2 py-2 text-sm text-gray-900 dark:text-white dark:bg-gray-700 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                       />
                     </div>
                     <button
@@ -724,7 +724,7 @@ export default function DraftRoomPage() {
                 )}
               </div>
               {pickError && (
-                <p className="mt-2 text-sm text-red-600">{pickError}</p>
+                <p className="mt-2 text-sm text-red-600 dark:text-red-400">{pickError}</p>
               )}
             </div>
 
@@ -734,14 +734,14 @@ export default function DraftRoomPage() {
               </div>
               {userSlot !== undefined && (
                 <div className="w-80 shrink-0">
-                  <div className="rounded-lg bg-white shadow flex flex-col" style={{ height: 'calc(100vh - 200px)' }}>
-                    <div className="flex border-b border-gray-200">
+                  <div className="rounded-lg bg-white dark:bg-gray-800 shadow flex flex-col" style={{ height: 'calc(100vh - 200px)' }}>
+                    <div className="flex border-b border-gray-200 dark:border-gray-700">
                       <button
                         onClick={() => setSidebarTab('players')}
                         className={`flex-1 px-3 py-2.5 text-sm font-medium transition-colors ${
                           sidebarTab === 'players'
                             ? 'border-b-2 border-blue-600 text-blue-600'
-                            : 'text-gray-500 hover:text-gray-700'
+                            : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
                         }`}
                       >
                         Players
@@ -751,7 +751,7 @@ export default function DraftRoomPage() {
                         className={`flex-1 px-3 py-2.5 text-sm font-medium transition-colors ${
                           sidebarTab === 'queue'
                             ? 'border-b-2 border-blue-600 text-blue-600'
-                            : 'text-gray-500 hover:text-gray-700'
+                            : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
                         }`}
                       >
                         My Queue
@@ -789,16 +789,16 @@ export default function DraftRoomPage() {
         {draft.status === 'drafting' && !isAuction && (
           <>
             {/* Pick Input + Timer */}
-            <div className="rounded-lg bg-white p-4 shadow">
+            <div className="rounded-lg bg-white dark:bg-gray-800 p-4 shadow">
               <div className="flex items-center gap-4">
                 {/* Timer */}
                 {timeRemaining !== null && (
                   <div className={`flex items-center gap-2 rounded-lg px-4 py-2 font-mono text-lg font-bold ${
                     timeRemaining <= 30
-                      ? 'bg-red-100 text-red-700'
+                      ? 'bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-400'
                       : timeRemaining <= 60
                         ? 'bg-yellow-100 text-yellow-700'
-                        : 'bg-gray-100 text-gray-700'
+                        : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300'
                   }`}>
                     {formatTime(timeRemaining)}
                   </div>
@@ -811,7 +811,7 @@ export default function DraftRoomPage() {
                     className={`rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
                       isAutoPick
                         ? 'bg-orange-100 text-orange-700 hover:bg-orange-200'
-                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                        : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600'
                     } disabled:opacity-50`}
                   >
                     {isTogglingAutoPick ? '...' : isAutoPick ? 'Auto: ON' : 'Auto: OFF'}
@@ -828,7 +828,7 @@ export default function DraftRoomPage() {
                   </span>
                 )}
                 {nextPick && !isMyTurn && (
-                  <span className="text-sm text-gray-500">
+                  <span className="text-sm text-gray-500 dark:text-gray-400">
                     Waiting for pick #{nextPick.pick_no} (Round {nextPick.round})
                   </span>
                 )}
@@ -839,7 +839,7 @@ export default function DraftRoomPage() {
                       value={pickPlayerId}
                       onChange={(e) => setPickPlayerId(e.target.value)}
                       placeholder="Enter Player ID"
-                      className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                      className="flex-1 rounded-lg border border-gray-300 dark:border-gray-600 px-3 py-2 text-sm text-gray-900 dark:text-white dark:bg-gray-700 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                       onKeyDown={(e) => e.key === 'Enter' && handleMakePick()}
                     />
                     <button
@@ -853,7 +853,7 @@ export default function DraftRoomPage() {
                 )}
               </div>
               {pickError && (
-                <p className="mt-2 text-sm text-red-600">{pickError}</p>
+                <p className="mt-2 text-sm text-red-600 dark:text-red-400">{pickError}</p>
               )}
             </div>
 
@@ -863,14 +863,14 @@ export default function DraftRoomPage() {
               </div>
               {userSlot !== undefined && (
                 <div className="w-80 shrink-0">
-                  <div className="rounded-lg bg-white shadow flex flex-col" style={{ height: 'calc(100vh - 200px)' }}>
-                    <div className="flex border-b border-gray-200">
+                  <div className="rounded-lg bg-white dark:bg-gray-800 shadow flex flex-col" style={{ height: 'calc(100vh - 200px)' }}>
+                    <div className="flex border-b border-gray-200 dark:border-gray-700">
                       <button
                         onClick={() => setSidebarTab('players')}
                         className={`flex-1 px-3 py-2.5 text-sm font-medium transition-colors ${
                           sidebarTab === 'players'
                             ? 'border-b-2 border-blue-600 text-blue-600'
-                            : 'text-gray-500 hover:text-gray-700'
+                            : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
                         }`}
                       >
                         Players
@@ -880,7 +880,7 @@ export default function DraftRoomPage() {
                         className={`flex-1 px-3 py-2.5 text-sm font-medium transition-colors ${
                           sidebarTab === 'queue'
                             ? 'border-b-2 border-blue-600 text-blue-600'
-                            : 'text-gray-500 hover:text-gray-700'
+                            : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
                         }`}
                       >
                         My Queue
@@ -924,22 +924,22 @@ export default function DraftRoomPage() {
         {/* Pre-draft queue + settings */}
         {draft.status === 'pre_draft' && !isCommissioner && (
           <div className="space-y-4">
-            <div className="rounded-lg bg-white p-6 shadow">
-              <h2 className="mb-4 text-lg font-bold text-gray-900">Draft Settings</h2>
+            <div className="rounded-lg bg-white dark:bg-gray-800 p-6 shadow">
+              <h2 className="mb-4 text-lg font-bold text-gray-900 dark:text-white">Draft Settings</h2>
               <DraftSettingsForm draft={draft} onSave={async () => {}} readOnly={true} />
-              <p className="mt-4 text-center text-sm text-gray-400">
+              <p className="mt-4 text-center text-sm text-gray-400 dark:text-gray-500">
                 Waiting for the commissioner to start the draft.
               </p>
             </div>
             {userSlot !== undefined && (
-              <div className="rounded-lg bg-white shadow flex flex-col" style={{ height: 'calc(100vh - 400px)', minHeight: '400px' }}>
-                <div className="flex border-b border-gray-200">
+              <div className="rounded-lg bg-white dark:bg-gray-800 shadow flex flex-col" style={{ height: 'calc(100vh - 400px)', minHeight: '400px' }}>
+                <div className="flex border-b border-gray-200 dark:border-gray-700">
                   <button
                     onClick={() => setSidebarTab('players')}
                     className={`flex-1 px-3 py-2.5 text-sm font-medium transition-colors ${
                       sidebarTab === 'players'
                         ? 'border-b-2 border-blue-600 text-blue-600'
-                        : 'text-gray-500 hover:text-gray-700'
+                        : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
                     }`}
                   >
                     Players
@@ -949,7 +949,7 @@ export default function DraftRoomPage() {
                     className={`flex-1 px-3 py-2.5 text-sm font-medium transition-colors ${
                       sidebarTab === 'queue'
                         ? 'border-b-2 border-blue-600 text-blue-600'
-                        : 'text-gray-500 hover:text-gray-700'
+                        : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
                     }`}
                   >
                     My Queue
