@@ -67,7 +67,7 @@ export function DraftSettingsForm({ draft, onSave, readOnly }: DraftSettingsForm
 
     const settingsUpdates: Record<string, number> = {};
     if (rounds !== draft.settings.rounds) settingsUpdates.rounds = rounds;
-    if (pickTimer !== draft.settings.pick_timer) settingsUpdates.pick_timer = pickTimer;
+    if (!isAuction && pickTimer !== draft.settings.pick_timer) settingsUpdates.pick_timer = pickTimer;
     if (nominationTimer !== draft.settings.nomination_timer) settingsUpdates.nomination_timer = nominationTimer;
     if (budget !== draft.settings.budget) settingsUpdates.budget = budget;
 
@@ -111,8 +111,12 @@ export function DraftSettingsForm({ draft, onSave, readOnly }: DraftSettingsForm
             <div className="font-medium text-gray-900">{DRAFT_TYPE_OPTIONS.find((o) => o.value === draft.type)?.label}</div>
             <div className="text-gray-500">Rounds</div>
             <div className="font-medium text-gray-900">{draft.settings.rounds}</div>
-            <div className="text-gray-500">Pick Timer</div>
-            <div className="font-medium text-gray-900">{formatTimer(draft.settings.pick_timer)}</div>
+            {draft.type !== 'auction' && (
+              <>
+                <div className="text-gray-500">Pick Timer</div>
+                <div className="font-medium text-gray-900">{formatTimer(draft.settings.pick_timer)}</div>
+              </>
+            )}
             {draft.type === 'auction' && (
               <>
                 <div className="text-gray-500">Nomination Timer</div>
@@ -161,8 +165,8 @@ export function DraftSettingsForm({ draft, onSave, readOnly }: DraftSettingsForm
             />
           </div>
 
-          {/* Pick Timer */}
-          <div>
+          {/* Pick Timer (non-auction only) */}
+          {!isAuction && <div>
             <label className="block text-xs font-medium text-gray-500 mb-1">Pick Timer</label>
             <div className="flex flex-wrap gap-1.5">
               {PICK_TIMER_PRESETS.map((preset) => (
@@ -196,7 +200,7 @@ export function DraftSettingsForm({ draft, onSave, readOnly }: DraftSettingsForm
                 <span className="text-xs text-gray-400">sec</span>
               </div>
             </div>
-          </div>
+          </div>}
 
           {/* Nomination Timer (auction only) */}
           {isAuction && (
