@@ -6,6 +6,7 @@ export interface DraftSettings {
   rounds: number;
   pick_timer: number;
   nomination_timer: number;
+  offering_timer: number;
   reversal_round: number;
   player_type: number;
   cpu_autopick: number;
@@ -32,6 +33,7 @@ export const DEFAULT_DRAFT_SETTINGS: DraftSettings = {
   rounds: 15,
   pick_timer: 120,
   nomination_timer: 30,
+  offering_timer: 120,
   reversal_round: 0,
   player_type: 0,
   cpu_autopick: 0,

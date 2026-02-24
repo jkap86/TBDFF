@@ -405,7 +405,7 @@ export default function DraftRoomPage() {
             </span>
           </div>
           <div className="text-sm text-gray-500">
-            {draftTypeLabels[draft.type]} | {draft.settings.rounds} rounds | {isAuction ? `$${draft.settings.budget} budget` : `${draft.settings.pick_timer}s timer`}
+            {draftTypeLabels[draft.type]} | {draft.settings.rounds} rounds | {isAuction ? `$${draft.settings.budget} budget | ${draft.settings.offering_timer ?? 120}s offer / ${draft.settings.nomination_timer}s bid` : `${draft.settings.pick_timer}s timer`}
           </div>
         </div>
 

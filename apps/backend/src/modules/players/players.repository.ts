@@ -144,4 +144,19 @@ export class PlayerRepository {
       [playerId, provider, externalId]
     );
   }
+
+  /**
+   * Bulk-compute auction_value for all players with a search_rank.
+   * VBD formula: max(1, round(55 * e^(-0.022 * rank) + 0.5))
+   * Based on $200 budget, 12-team league. Top ~180 sum ≈ $2400.
+   */
+  async computeAuctionValues(): Promise<number> {
+    const result = await this.db.query(
+      `UPDATE players
+       SET auction_value = GREATEST(1, ROUND(55 * EXP(-0.022 * search_rank) + 0.5)::int)
+       WHERE search_rank IS NOT NULL
+       RETURNING id`
+    );
+    return result.rowCount ?? 0;
+  }
 }

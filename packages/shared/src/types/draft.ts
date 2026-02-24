@@ -9,6 +9,7 @@ export interface DraftSettings {
   rounds: number;
   pick_timer: number;
   nomination_timer: number;
+  offering_timer: number;
   reversal_round: number;
   player_type: number; // 0=all, 1=rookies only
   cpu_autopick: number;
@@ -129,4 +130,29 @@ export interface NominationResponse {
 export interface BidResponse {
   draft: Draft;
   won: DraftPick | null;
+}
+
+// Draft queue types
+export interface DraftQueueItem {
+  player_id: string;
+  rank: number;
+  full_name: string;
+  first_name: string | null;
+  last_name: string | null;
+  position: string | null;
+  team: string | null;
+  search_rank: number | null;
+  auction_value: number | null;
+}
+
+export interface SetDraftQueueRequest {
+  player_ids: string[];
+}
+
+export interface AddToQueueRequest {
+  player_id: string;
+}
+
+export interface DraftQueueResponse {
+  queue: DraftQueueItem[];
 }

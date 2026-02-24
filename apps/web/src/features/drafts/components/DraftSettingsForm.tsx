@@ -27,6 +27,13 @@ const NOMINATION_TIMER_PRESETS = [
   { label: '1m', value: 60 },
 ];
 
+const OFFERING_TIMER_PRESETS = [
+  { label: '30s', value: 30 },
+  { label: '1m', value: 60 },
+  { label: '2m', value: 120 },
+  { label: '5m', value: 300 },
+];
+
 interface DraftSettingsFormProps {
   draft: Draft;
   onSave: (updates: UpdateDraftRequest) => Promise<void>;
@@ -38,11 +45,13 @@ export function DraftSettingsForm({ draft, onSave, readOnly }: DraftSettingsForm
   const [rounds, setRounds] = useState(draft.settings.rounds);
   const [pickTimer, setPickTimer] = useState(draft.settings.pick_timer);
   const [nominationTimer, setNominationTimer] = useState(draft.settings.nomination_timer);
+  const [offeringTimer, setOfferingTimer] = useState(draft.settings.offering_timer ?? 120);
   const [budget, setBudget] = useState(draft.settings.budget);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [customTimer, setCustomTimer] = useState('');
   const [customNomTimer, setCustomNomTimer] = useState('');
+  const [customOfferingTimer, setCustomOfferingTimer] = useState('');
 
   // Reset form when draft changes
   useEffect(() => {
@@ -50,6 +59,7 @@ export function DraftSettingsForm({ draft, onSave, readOnly }: DraftSettingsForm
     setRounds(draft.settings.rounds);
     setPickTimer(draft.settings.pick_timer);
     setNominationTimer(draft.settings.nomination_timer);
+    setOfferingTimer(draft.settings.offering_timer ?? 120);
     setBudget(draft.settings.budget);
     setError(null);
   }, [draft]);
@@ -57,6 +67,7 @@ export function DraftSettingsForm({ draft, onSave, readOnly }: DraftSettingsForm
   const isAuction = draftType === 'auction';
   const isPresetTimer = PICK_TIMER_PRESETS.some((p) => p.value === pickTimer);
   const isPresetNomTimer = NOMINATION_TIMER_PRESETS.some((p) => p.value === nominationTimer);
+  const isPresetOfferingTimer = OFFERING_TIMER_PRESETS.some((p) => p.value === offeringTimer);
 
   const handleSave = async () => {
     const updates: UpdateDraftRequest = {};
@@ -69,6 +80,7 @@ export function DraftSettingsForm({ draft, onSave, readOnly }: DraftSettingsForm
     if (rounds !== draft.settings.rounds) settingsUpdates.rounds = rounds;
     if (!isAuction && pickTimer !== draft.settings.pick_timer) settingsUpdates.pick_timer = pickTimer;
     if (nominationTimer !== draft.settings.nomination_timer) settingsUpdates.nomination_timer = nominationTimer;
+    if (isAuction && offeringTimer !== (draft.settings.offering_timer ?? 120)) settingsUpdates.offering_timer = offeringTimer;
     if (budget !== draft.settings.budget) settingsUpdates.budget = budget;
 
     if (Object.keys(settingsUpdates).length > 0) {
@@ -119,7 +131,9 @@ export function DraftSettingsForm({ draft, onSave, readOnly }: DraftSettingsForm
             )}
             {draft.type === 'auction' && (
               <>
-                <div className="text-gray-500">Nomination Timer</div>
+                <div className="text-gray-500">Offering Timer</div>
+                <div className="font-medium text-gray-900">{formatTimer(draft.settings.offering_timer ?? 120)}</div>
+                <div className="text-gray-500">Bid Timer</div>
                 <div className="font-medium text-gray-900">{formatTimer(draft.settings.nomination_timer)}</div>
                 <div className="text-gray-500">Budget</div>
                 <div className="font-medium text-gray-900">${draft.settings.budget}</div>
@@ -202,10 +216,49 @@ export function DraftSettingsForm({ draft, onSave, readOnly }: DraftSettingsForm
             </div>
           </div>}
 
-          {/* Nomination Timer (auction only) */}
+          {/* Offering Timer (auction only) */}
           {isAuction && (
             <div>
-              <label className="block text-xs font-medium text-gray-500 mb-1">Nomination Timer</label>
+              <label className="block text-xs font-medium text-gray-500 mb-1">Offering Timer</label>
+              <div className="flex flex-wrap gap-1.5">
+                {OFFERING_TIMER_PRESETS.map((preset) => (
+                  <button
+                    key={preset.value}
+                    type="button"
+                    onClick={() => { setOfferingTimer(preset.value); setCustomOfferingTimer(''); }}
+                    className={`rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors ${
+                      offeringTimer === preset.value
+                        ? 'border-blue-300 bg-blue-100 text-blue-700'
+                        : 'border-gray-200 bg-gray-50 text-gray-600 hover:bg-gray-100'
+                    }`}
+                  >
+                    {preset.label}
+                  </button>
+                ))}
+                <div className="flex items-center gap-1">
+                  <input
+                    type="number"
+                    value={!isPresetOfferingTimer ? offeringTimer : customOfferingTimer}
+                    onChange={(e) => {
+                      const val = parseInt(e.target.value) || 0;
+                      setCustomOfferingTimer(e.target.value);
+                      setOfferingTimer(Math.max(0, Math.min(86400, val)));
+                    }}
+                    placeholder="Custom"
+                    min={0}
+                    max={86400}
+                    className="w-20 rounded-lg border border-gray-300 px-2 py-1.5 text-xs text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  />
+                  <span className="text-xs text-gray-400">sec</span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Bid Timer (auction only) */}
+          {isAuction && (
+            <div>
+              <label className="block text-xs font-medium text-gray-500 mb-1">Bid Timer</label>
               <div className="flex flex-wrap gap-1.5">
                 {NOMINATION_TIMER_PRESETS.map((preset) => (
                   <button

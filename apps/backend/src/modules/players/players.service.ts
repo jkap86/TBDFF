@@ -78,6 +78,9 @@ export class PlayerService {
       }
     }
 
+    // Recompute auction values from search_rank after all players synced
+    await this.playerRepository.computeAuctionValues();
+
     return { created, updated };
   }
 }

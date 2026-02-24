@@ -7,6 +7,7 @@ const draftSettingsPartialSchema = z.object({
   rounds: z.number().int().min(1).max(50).optional(),
   pick_timer: z.number().int().min(0).max(86400).optional(),
   nomination_timer: z.number().int().min(0).max(86400).optional(),
+  offering_timer: z.number().int().min(0).max(86400).optional(),
   reversal_round: z.number().int().min(0).optional(),
   player_type: z.number().int().min(0).max(1).optional(),
   cpu_autopick: z.number().int().min(0).max(1).optional(),

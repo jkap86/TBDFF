@@ -16,6 +16,7 @@ export class Player {
     public readonly age: number | null,
     public readonly jerseyNumber: number | null,
     public readonly searchRank: number | null,
+    public readonly auctionValue: number | null,
     public readonly createdAt: Date,
     public readonly updatedAt: Date
   ) {}
@@ -35,6 +36,7 @@ export class Player {
       row.age,
       row.jersey_number,
       row.search_rank ?? null,
+      row.auction_value ?? null,
       new Date(row.created_at),
       new Date(row.updated_at)
     );
@@ -55,6 +57,7 @@ export class Player {
       age: this.age,
       jersey_number: this.jerseyNumber,
       search_rank: this.searchRank,
+      auction_value: this.auctionValue,
       created_at: this.createdAt.toISOString(),
       updated_at: this.updatedAt.toISOString(),
     };

@@ -242,7 +242,7 @@ export class DraftService {
         auction_budgets: budgets,
         current_nomination: null,
         nomination_deadline: new Date(
-          Date.now() + draft.settings.nomination_timer * 1000
+          Date.now() + (draft.settings.offering_timer || draft.settings.nomination_timer) * 1000
         ).toISOString(),
       };
     }
@@ -602,7 +602,10 @@ export class DraftService {
     });
 
     if (!updated) throw new NotFoundException('Draft not found');
-    return updated;
+
+    // Process auto-bids from users on auto-pick
+    const afterAutoBids = await this.processAutoBids(draftId);
+    return afterAutoBids ?? updated;
   }
 
   async placeBid(
@@ -664,7 +667,10 @@ export class DraftService {
     });
 
     if (!updated) throw new NotFoundException('Draft not found');
-    return { draft: updated };
+
+    // Process auto-bids from users on auto-pick
+    const afterAutoBids = await this.processAutoBids(draftId);
+    return { draft: afterAutoBids ?? updated };
   }
 
   async resolveNomination(draftId: string): Promise<{ draft: Draft; won?: DraftPick }> {
@@ -716,7 +722,7 @@ export class DraftService {
     // Set up next nomination
     const refreshedDraft = await this.draftRepository.findById(draftId);
     const nominationDeadline = new Date(
-      Date.now() + draft.settings.nomination_timer * 1000
+      Date.now() + (draft.settings.offering_timer || draft.settings.nomination_timer) * 1000
     ).toISOString();
 
     await this.draftRepository.update(draftId, {
@@ -804,7 +810,9 @@ export class DraftService {
       lastPicked: new Date().toISOString(),
     });
 
-    return updated!;
+    // Process auto-bids from users on auto-pick
+    const afterAutoBids = await this.processAutoBids(draftId);
+    return afterAutoBids ?? updated!;
   }
 
   private async processAutoNomination(draftId: string): Promise<void> {
@@ -853,6 +861,9 @@ export class DraftService {
         },
         lastPicked: new Date().toISOString(),
       });
+
+      // Process auto-bids for the auto-nominated player
+      await this.processAutoBids(draftId);
     }
   }
 
@@ -890,5 +901,101 @@ export class DraftService {
       if (userSlot === slot) return userId;
     }
     return null;
+  }
+
+  /**
+   * Process auto-bids after a nomination or manual bid.
+   * Resolves multiple auto-bidders efficiently in one pass (second-price style).
+   */
+  private async processAutoBids(draftId: string): Promise<Draft | null> {
+    const draft = await this.draftRepository.findById(draftId);
+    if (!draft || draft.status !== 'drafting' || draft.type !== 'auction') return null;
+
+    const nomination = draft.metadata?.current_nomination;
+    if (!nomination) return null;
+
+    const autoPickUsers: string[] = draft.metadata?.auto_pick_users ?? [];
+    if (autoPickUsers.length === 0) return null;
+
+    const player = await this.playerRepository.findById(nomination.player_id);
+    if (!player || player.auctionValue === null) return null;
+
+    const draftBudget = draft.settings.budget;
+    const currentBid: number = nomination.current_bid;
+    const currentBidder: string = nomination.current_bidder;
+
+    // Build list of willing auto-bidders
+    const willing: Array<{ userId: string; rosterId: number; effectiveTarget: number }> = [];
+
+    for (const userId of autoPickUsers) {
+      if (userId === currentBidder) continue;
+
+      const rosterId = this.findRosterIdByUserId(draft, userId);
+      if (rosterId === null) continue;
+
+      // Scale to draft budget at 80%
+      const target = Math.floor(player.auctionValue * 0.8 * (draftBudget / 200));
+
+      // Compute max affordable (same logic as validateBudget)
+      const budgets: Record<string, number> = draft.metadata?.auction_budgets ?? {};
+      const budget = budgets[String(rosterId)] ?? 0;
+      const picksWon = await this.draftRepository.countPicksWonByRoster(draft.id, rosterId);
+      const totalSlots = draft.settings.rounds;
+      const remainingSlots = totalSlots - picksWon;
+      const reserveNeeded = Math.max(0, remainingSlots - 1);
+      const maxAffordable = budget - reserveNeeded;
+
+      const effectiveTarget = Math.min(target, maxAffordable);
+
+      if (effectiveTarget > currentBid) {
+        willing.push({ userId, rosterId, effectiveTarget });
+      }
+    }
+
+    if (willing.length === 0) return null;
+
+    // Sort descending by effective target
+    willing.sort((a, b) => b.effectiveTarget - a.effectiveTarget);
+
+    // Determine winning bid (second-price + 1 style)
+    let winningBid: number;
+    if (willing.length === 1) {
+      winningBid = currentBid + 1;
+    } else {
+      winningBid = Math.min(willing[0].effectiveTarget, willing[1].effectiveTarget + 1);
+    }
+
+    const winner = willing[0];
+
+    const newDeadline = new Date(
+      Date.now() + draft.settings.nomination_timer * 1000
+    ).toISOString();
+
+    const updatedNomination = {
+      ...nomination,
+      current_bid: winningBid,
+      current_bidder: winner.userId,
+      bidder_roster_id: winner.rosterId,
+      bid_deadline: newDeadline,
+      bid_history: [
+        ...nomination.bid_history,
+        {
+          user_id: winner.userId,
+          amount: winningBid,
+          timestamp: new Date().toISOString(),
+          auto_bid: true,
+        },
+      ],
+    };
+
+    const updated = await this.draftRepository.update(draftId, {
+      metadata: {
+        ...draft.metadata,
+        current_nomination: updatedNomination,
+      },
+      lastPicked: new Date().toISOString(),
+    });
+
+    return updated;
   }
 }
