@@ -986,12 +986,10 @@ export class DraftService {
     const currentBid: number = nomination.current_bid;
     const currentBidder: string = nomination.current_bidder;
 
-    // Build list of willing auto-bidders
-    const willing: Array<{ userId: string; rosterId: number; effectiveTarget: number }> = [];
+    // Build list of ALL auto-bidders and their targets (including current bidder)
+    const allAutoTargets: Array<{ userId: string; rosterId: number; effectiveTarget: number }> = [];
 
     for (const userId of autoPickUsers) {
-      if (userId === currentBidder) continue;
-
       const rosterId = this.findRosterIdByUserId(draft, userId);
       if (rosterId === null) continue;
 
@@ -1008,20 +1006,35 @@ export class DraftService {
       const maxAffordable = budget - reserveNeeded;
 
       const effectiveTarget = Math.min(target, maxAffordable);
-
-      if (effectiveTarget > currentBid) {
-        willing.push({ userId, rosterId, effectiveTarget });
+      if (effectiveTarget > 0) {
+        allAutoTargets.push({ userId, rosterId, effectiveTarget });
       }
     }
 
-    if (willing.length === 0) return null;
-
     // Sort descending by effective target
-    willing.sort((a, b) => b.effectiveTarget - a.effectiveTarget);
+    allAutoTargets.sort((a, b) => b.effectiveTarget - a.effectiveTarget);
 
-    // Incremental bid: $1 more than current, capped at effective target
-    const winner = willing[0];
-    const winningBid = Math.min(currentBid + 1, winner.effectiveTarget);
+    if (allAutoTargets.length === 0) return null;
+
+    const topBidder = allAutoTargets[0];
+
+    // If the highest-target auto-bidder is already winning, no action needed
+    if (topBidder.userId === currentBidder && topBidder.effectiveTarget >= currentBid) {
+      return null;
+    }
+
+    // If top bidder can't beat current bid, no action
+    if (topBidder.effectiveTarget <= currentBid) return null;
+
+    // Second-price: bid at max(currentBid, second-highest target) + 1, capped at own target
+    let secondPrice = currentBid;
+    if (allAutoTargets.length >= 2) {
+      const runnerUp = allAutoTargets[1];
+      secondPrice = Math.max(secondPrice, runnerUp.effectiveTarget);
+    }
+
+    const winner = topBidder;
+    const winningBid = Math.min(winner.effectiveTarget, secondPrice + 1);
 
     const newDeadline = new Date(
       Date.now() + draft.settings.nomination_timer * 1000

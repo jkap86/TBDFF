@@ -636,6 +636,7 @@ export default function DraftRoomPage() {
                     onReorder={handleReorderQueue}
                     onRemove={handleRemoveFromQueue}
                     onAdd={handleAddToQueue}
+                    accessToken={accessToken!}
                   />
                 </div>
               )}
@@ -727,6 +728,7 @@ export default function DraftRoomPage() {
                     onReorder={handleReorderQueue}
                     onRemove={handleRemoveFromQueue}
                     onAdd={handleAddToQueue}
+                    accessToken={accessToken!}
                   />
                 </div>
               )}
@@ -758,6 +760,7 @@ export default function DraftRoomPage() {
                 onReorder={handleReorderQueue}
                 onRemove={handleRemoveFromQueue}
                 onAdd={handleAddToQueue}
+                accessToken={accessToken!}
               />
             )}
           </div>
