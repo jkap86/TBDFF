@@ -3,10 +3,11 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { ArrowLeft } from 'lucide-react';
-import { draftApi, leagueApi, ApiError, type Draft, type DraftPick, type LeagueMember, type Roster } from '@/lib/api';
+import { draftApi, leagueApi, ApiError, type Draft, type DraftPick, type LeagueMember, type Roster, type UpdateDraftRequest } from '@/lib/api';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import { DraftBoard } from '@/features/drafts/components/DraftBoard';
 import { AuctionBoard } from '@/features/drafts/components/AuctionBoard';
+import { DraftSettingsForm } from '@/features/drafts/components/DraftSettingsForm';
 
 const draftTypeLabels: Record<string, string> = {
   snake: 'Snake',
@@ -209,6 +210,12 @@ export default function DraftRoomPage() {
     return `${m}:${s.toString().padStart(2, '0')}`;
   };
 
+  const handleUpdateSettings = async (updates: UpdateDraftRequest) => {
+    if (!draft || !accessToken) return;
+    const result = await draftApi.update(draft.id, updates, accessToken);
+    setDraft(result.draft);
+  };
+
   const handleSetOrder = async () => {
     if (!draft || !accessToken) return;
 
@@ -406,8 +413,10 @@ export default function DraftRoomPage() {
         {draft.status === 'pre_draft' && isCommissioner && (
           <div className="rounded-lg bg-white p-6 shadow">
             <h2 className="mb-4 text-lg font-bold text-gray-900">Draft Setup</h2>
-            <div className="space-y-4">
-              <div>
+            <div className="space-y-6">
+              <DraftSettingsForm draft={draft} onSave={handleUpdateSettings} readOnly={false} />
+
+              <div className="border-t border-gray-200 pt-4">
                 <p className="mb-2 text-sm text-gray-600">
                   Draft Order: {Object.keys(draft.draft_order).length > 0
                     ? `${Object.keys(draft.draft_order).length} slots assigned`
@@ -656,8 +665,12 @@ export default function DraftRoomPage() {
 
         {/* Pre-draft - no board yet */}
         {draft.status === 'pre_draft' && !isCommissioner && (
-          <div className="rounded-lg bg-white p-6 shadow text-center">
-            <p className="text-gray-500">Waiting for the commissioner to set up and start the draft.</p>
+          <div className="rounded-lg bg-white p-6 shadow">
+            <h2 className="mb-4 text-lg font-bold text-gray-900">Draft Settings</h2>
+            <DraftSettingsForm draft={draft} onSave={async () => {}} readOnly={true} />
+            <p className="mt-4 text-center text-sm text-gray-400">
+              Waiting for the commissioner to start the draft.
+            </p>
           </div>
         )}
       </div>
