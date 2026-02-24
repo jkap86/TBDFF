@@ -78,6 +78,7 @@ export type {
   DraftQueueItem,
   SetDraftQueueRequest,
   AddToQueueRequest,
+  UpdateQueueMaxBidRequest,
   DraftQueueResponse,
 } from './types/draft';
 export type {

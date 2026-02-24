@@ -136,6 +136,7 @@ export interface BidResponse {
 export interface DraftQueueItem {
   player_id: string;
   rank: number;
+  max_bid: number | null;
   full_name: string;
   first_name: string | null;
   last_name: string | null;
@@ -151,6 +152,11 @@ export interface SetDraftQueueRequest {
 
 export interface AddToQueueRequest {
   player_id: string;
+  max_bid?: number | null;
+}
+
+export interface UpdateQueueMaxBidRequest {
+  max_bid: number | null;
 }
 
 export interface DraftQueueResponse {

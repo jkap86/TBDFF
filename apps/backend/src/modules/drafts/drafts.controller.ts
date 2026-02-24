@@ -11,6 +11,7 @@ import {
   PlaceBidInput,
   SetDraftQueueInput,
   AddToQueueInput,
+  UpdateQueueMaxBidInput,
 } from './drafts.schemas';
 
 export class DraftController {
@@ -225,7 +226,18 @@ export class DraftController {
 
     const draftId = Array.isArray(req.params.draftId) ? req.params.draftId[0] : req.params.draftId;
     const body = req.body as AddToQueueInput;
-    const queue = await this.draftService.addToQueue(draftId, userId, body.player_id);
+    const queue = await this.draftService.addToQueue(draftId, userId, body.player_id, body.max_bid);
+    res.status(200).json({ queue });
+  };
+
+  updateQueueMaxBid = async (req: AuthRequest, res: Response): Promise<void> => {
+    const userId = req.user?.userId;
+    if (!userId) throw new InvalidCredentialsException();
+
+    const draftId = Array.isArray(req.params.draftId) ? req.params.draftId[0] : req.params.draftId;
+    const playerId = Array.isArray(req.params.playerId) ? req.params.playerId[0] : req.params.playerId;
+    const body = req.body as UpdateQueueMaxBidInput;
+    const queue = await this.draftService.updateQueueMaxBid(draftId, userId, playerId, body.max_bid);
     res.status(200).json({ queue });
   };
 

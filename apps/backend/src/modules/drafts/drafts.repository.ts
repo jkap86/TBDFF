@@ -348,7 +348,7 @@ export class DraftRepository {
 
   async getQueue(draftId: string, userId: string): Promise<any[]> {
     const result = await this.db.query(
-      `SELECT dq.player_id, dq.rank,
+      `SELECT dq.player_id, dq.rank, dq.max_bid,
               p.full_name, p.first_name, p.last_name,
               p.position, p.team, p.search_rank, p.auction_value
        FROM draft_queue dq
@@ -364,6 +364,17 @@ export class DraftRepository {
     const client = await this.db.connect();
     try {
       await client.query('BEGIN');
+
+      // Snapshot existing max_bid values before deleting
+      const existing = await client.query(
+        'SELECT player_id, max_bid FROM draft_queue WHERE draft_id = $1 AND user_id = $2',
+        [draftId, userId]
+      );
+      const maxBidMap = new Map<string, number | null>();
+      for (const row of existing.rows) {
+        maxBidMap.set(row.player_id, row.max_bid);
+      }
+
       await client.query(
         'DELETE FROM draft_queue WHERE draft_id = $1 AND user_id = $2',
         [draftId, userId]
@@ -375,13 +386,14 @@ export class DraftRepository {
         let paramIndex = 3;
 
         for (let i = 0; i < playerIds.length; i++) {
-          values.push(`($1, $2, $${paramIndex}, ${i + 1})`);
-          params.push(playerIds[i]);
-          paramIndex++;
+          const maxBid = maxBidMap.get(playerIds[i]) ?? null;
+          values.push(`($1, $2, $${paramIndex}, ${i + 1}, $${paramIndex + 1})`);
+          params.push(playerIds[i], maxBid);
+          paramIndex += 2;
         }
 
         await client.query(
-          `INSERT INTO draft_queue (draft_id, user_id, player_id, rank)
+          `INSERT INTO draft_queue (draft_id, user_id, player_id, rank, max_bid)
            VALUES ${values.join(', ')}`,
           params
         );
@@ -396,14 +408,14 @@ export class DraftRepository {
     }
   }
 
-  async addToQueue(draftId: string, userId: string, playerId: string): Promise<void> {
+  async addToQueue(draftId: string, userId: string, playerId: string, maxBid?: number | null): Promise<void> {
     await this.db.query(
-      `INSERT INTO draft_queue (draft_id, user_id, player_id, rank)
+      `INSERT INTO draft_queue (draft_id, user_id, player_id, rank, max_bid)
        VALUES ($1, $2, $3, COALESCE(
          (SELECT MAX(rank) FROM draft_queue WHERE draft_id = $1 AND user_id = $2), 0
-       ) + 1)
+       ) + 1, $4)
        ON CONFLICT (draft_id, user_id, player_id) DO NOTHING`,
-      [draftId, userId, playerId]
+      [draftId, userId, playerId, maxBid ?? null]
     );
   }
 
@@ -412,6 +424,32 @@ export class DraftRepository {
       'DELETE FROM draft_queue WHERE draft_id = $1 AND user_id = $2 AND player_id = $3',
       [draftId, userId, playerId]
     );
+  }
+
+  async updateQueueItemMaxBid(
+    draftId: string,
+    userId: string,
+    playerId: string,
+    maxBid: number | null,
+  ): Promise<void> {
+    await this.db.query(
+      `UPDATE draft_queue SET max_bid = $1
+       WHERE draft_id = $2 AND user_id = $3 AND player_id = $4`,
+      [maxBid, draftId, userId, playerId]
+    );
+  }
+
+  async getQueueItemForPlayer(
+    draftId: string,
+    userId: string,
+    playerId: string,
+  ): Promise<{ max_bid: number | null } | null> {
+    const result = await this.db.query(
+      `SELECT max_bid FROM draft_queue
+       WHERE draft_id = $1 AND user_id = $2 AND player_id = $3`,
+      [draftId, userId, playerId]
+    );
+    return result.rows.length > 0 ? result.rows[0] : null;
   }
 
   async findFirstAvailableFromQueue(draftId: string, userId: string): Promise<Player | null> {

@@ -556,7 +556,7 @@ export class DraftService {
     return this.draftRepository.getQueue(draftId, userId);
   }
 
-  async addToQueue(draftId: string, userId: string, playerId: string): Promise<any[]> {
+  async addToQueue(draftId: string, userId: string, playerId: string, maxBid?: number | null): Promise<any[]> {
     const draft = await this.draftRepository.findById(draftId);
     if (!draft) throw new NotFoundException('Draft not found');
     if (draft.status === 'complete') throw new ValidationException('Draft is already complete');
@@ -564,7 +564,19 @@ export class DraftService {
     const member = await this.leagueRepository.findMember(draft.leagueId, userId);
     if (!member) throw new ForbiddenException('You are not a member of this league');
 
-    await this.draftRepository.addToQueue(draftId, userId, playerId);
+    await this.draftRepository.addToQueue(draftId, userId, playerId, maxBid);
+    return this.draftRepository.getQueue(draftId, userId);
+  }
+
+  async updateQueueMaxBid(draftId: string, userId: string, playerId: string, maxBid: number | null): Promise<any[]> {
+    const draft = await this.draftRepository.findById(draftId);
+    if (!draft) throw new NotFoundException('Draft not found');
+    if (draft.status === 'complete') throw new ValidationException('Draft is already complete');
+
+    const member = await this.leagueRepository.findMember(draft.leagueId, userId);
+    if (!member) throw new ForbiddenException('You are not a member of this league');
+
+    await this.draftRepository.updateQueueItemMaxBid(draftId, userId, playerId, maxBid);
     return this.draftRepository.getQueue(draftId, userId);
   }
 
@@ -993,8 +1005,11 @@ export class DraftService {
       const rosterId = this.findRosterIdByUserId(draft, userId);
       if (rosterId === null) continue;
 
-      // Scale to draft budget at 80%
-      const target = Math.floor(auctionValue * 0.8 * (draftBudget / 200));
+      // Check if user has a custom max_bid for this player in their queue
+      const queueItem = await this.draftRepository.getQueueItemForPlayer(draftId, userId, nomination.player_id);
+      const target = queueItem?.max_bid != null
+        ? queueItem.max_bid
+        : Math.floor(auctionValue * 0.8 * (draftBudget / 200));
 
       // Compute max affordable (same logic as validateBudget)
       const budgets: Record<string, number> = draft.metadata?.auction_budgets ?? {};
@@ -1016,25 +1031,19 @@ export class DraftService {
 
     if (allAutoTargets.length === 0) return null;
 
-    const topBidder = allAutoTargets[0];
-
-    // If the highest-target auto-bidder is already winning, no action needed
-    if (topBidder.userId === currentBidder && topBidder.effectiveTarget >= currentBid) {
-      return null;
+    // Find the best auto-bidder who is NOT the current bidder and can beat the current bid
+    let bidder: typeof allAutoTargets[0] | null = null;
+    for (const entry of allAutoTargets) {
+      if (entry.userId !== currentBidder && entry.effectiveTarget > currentBid) {
+        bidder = entry;
+        break; // sorted desc, first match is best
+      }
     }
 
-    // If top bidder can't beat current bid, no action
-    if (topBidder.effectiveTarget <= currentBid) return null;
+    if (!bidder) return null;
 
-    // Second-price: bid at max(currentBid, second-highest target) + 1, capped at own target
-    let secondPrice = currentBid;
-    if (allAutoTargets.length >= 2) {
-      const runnerUp = allAutoTargets[1];
-      secondPrice = Math.max(secondPrice, runnerUp.effectiveTarget);
-    }
-
-    const winner = topBidder;
-    const winningBid = Math.min(winner.effectiveTarget, secondPrice + 1);
+    const winner = bidder;
+    const winningBid = currentBid + 1;
 
     const newDeadline = new Date(
       Date.now() + draft.settings.nomination_timer * 1000

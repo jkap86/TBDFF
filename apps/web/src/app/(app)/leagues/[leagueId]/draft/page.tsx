@@ -373,6 +373,16 @@ export default function DraftRoomPage() {
     }
   };
 
+  const handleUpdateMaxBid = async (playerId: string, maxBid: number | null) => {
+    if (!draft || !accessToken) return;
+    try {
+      const result = await draftApi.updateQueueMaxBid(draft.id, playerId, { max_bid: maxBid }, accessToken);
+      setQueue(result.queue);
+    } catch {
+      // Silently ignore
+    }
+  };
+
   const handleToggleAutoPick = async () => {
     if (!draft || !accessToken) return;
 
@@ -636,6 +646,9 @@ export default function DraftRoomPage() {
                     onReorder={handleReorderQueue}
                     onRemove={handleRemoveFromQueue}
                     onAdd={handleAddToQueue}
+                    onUpdateMaxBid={handleUpdateMaxBid}
+                    isAuction={draft.type === 'auction'}
+                    budget={draft.settings.budget}
                     accessToken={accessToken!}
                   />
                 </div>
@@ -728,6 +741,9 @@ export default function DraftRoomPage() {
                     onReorder={handleReorderQueue}
                     onRemove={handleRemoveFromQueue}
                     onAdd={handleAddToQueue}
+                    onUpdateMaxBid={handleUpdateMaxBid}
+                    isAuction={draft.type === 'auction'}
+                    budget={draft.settings.budget}
                     accessToken={accessToken!}
                   />
                 </div>
@@ -760,6 +776,9 @@ export default function DraftRoomPage() {
                 onReorder={handleReorderQueue}
                 onRemove={handleRemoveFromQueue}
                 onAdd={handleAddToQueue}
+                onUpdateMaxBid={handleUpdateMaxBid}
+                isAuction={draft.type === 'auction'}
+                budget={draft.settings.budget}
                 accessToken={accessToken!}
               />
             )}

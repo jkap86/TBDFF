@@ -12,6 +12,7 @@ import {
   placeBidSchema,
   setDraftQueueSchema,
   addToQueueSchema,
+  updateQueueMaxBidSchema,
 } from './drafts.schemas';
 
 /**
@@ -81,6 +82,7 @@ export function createDraftRoutes(controller: DraftController): Router {
   router.get('/:draftId/queue', asyncHandler(controller.getQueue));
   router.put('/:draftId/queue', validate(setDraftQueueSchema), asyncHandler(controller.setQueue));
   router.post('/:draftId/queue', validate(addToQueueSchema), asyncHandler(controller.addToQueue));
+  router.patch('/:draftId/queue/:playerId', validate(updateQueueMaxBidSchema), asyncHandler(controller.updateQueueMaxBid));
   router.delete('/:draftId/queue/:playerId', asyncHandler(controller.removeFromQueue));
 
   return router;

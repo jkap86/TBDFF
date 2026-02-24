@@ -80,6 +80,13 @@ export type SetDraftQueueInput = z.infer<typeof setDraftQueueSchema>;
 
 export const addToQueueSchema = z.object({
   player_id: z.string().min(1, 'Player ID is required'),
+  max_bid: z.number().int().min(0).nullable().optional(),
 }).strict();
 
 export type AddToQueueInput = z.infer<typeof addToQueueSchema>;
+
+export const updateQueueMaxBidSchema = z.object({
+  max_bid: z.number().int().min(0).nullable(),
+}).strict();
+
+export type UpdateQueueMaxBidInput = z.infer<typeof updateQueueMaxBidSchema>;

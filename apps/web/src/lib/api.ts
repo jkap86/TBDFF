@@ -8,7 +8,7 @@ initApiClient({ baseUrl: API_URL });
 
 export { apiClient, authApi, leagueApi, draftApi, matchupApi, scoringApi, playerApi, tokenManager, ApiError } from '@tbdff/shared';
 export type { User, AuthResponse, UserResponse, League, LeagueMember, CreateLeagueRequest, UpdateLeagueRequest, LeagueInvite, PublicLeague, PublicLeaguesResponse, Roster, RosterSettings, RosterListResponse } from '@tbdff/shared';
-export type { Draft, DraftPick, DraftType, DraftStatus, DraftSettings, CreateDraftRequest, UpdateDraftRequest, SetDraftOrderRequest, MakeDraftPickRequest, ToggleAutoPickResponse, NominateDraftPickRequest, PlaceBidRequest, NominationResponse, BidResponse, DraftQueueItem, SetDraftQueueRequest, AddToQueueRequest, DraftQueueResponse } from '@tbdff/shared';
+export type { Draft, DraftPick, DraftType, DraftStatus, DraftSettings, CreateDraftRequest, UpdateDraftRequest, SetDraftOrderRequest, MakeDraftPickRequest, ToggleAutoPickResponse, NominateDraftPickRequest, PlaceBidRequest, NominationResponse, BidResponse, DraftQueueItem, SetDraftQueueRequest, AddToQueueRequest, UpdateQueueMaxBidRequest, DraftQueueResponse } from '@tbdff/shared';
 export type { Player, PlayersListResponse } from '@tbdff/shared';
 export type { Matchup, MatchupListResponse } from '@tbdff/shared';
 export type { NflStateResponse, LeaguePlayerScore, LeagueScoresResponse, LeaguePlayerProjection, LeagueProjectionsResponse, GameInfo, GameScheduleResponse, PlayerGameStatus, LivePlayerScore, LiveRosterScore, LiveScoresResponse } from '@tbdff/shared';

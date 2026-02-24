@@ -8,6 +8,7 @@ import type {
   PlaceBidRequest,
   SetDraftQueueRequest,
   AddToQueueRequest,
+  UpdateQueueMaxBidRequest,
   DraftResponse,
   DraftListResponse,
   DraftPickResponse,
@@ -73,6 +74,9 @@ export const draftApi = {
 
   addToQueue: (draftId: string, body: AddToQueueRequest, token: string) =>
     apiClient.post<DraftQueueResponse>(`/drafts/${draftId}/queue`, body, token),
+
+  updateQueueMaxBid: (draftId: string, playerId: string, body: UpdateQueueMaxBidRequest, token: string) =>
+    apiClient.patch<DraftQueueResponse>(`/drafts/${draftId}/queue/${playerId}`, body, token),
 
   removeFromQueue: (draftId: string, playerId: string, token: string) =>
     apiClient.delete<DraftQueueResponse>(`/drafts/${draftId}/queue/${playerId}`, token),

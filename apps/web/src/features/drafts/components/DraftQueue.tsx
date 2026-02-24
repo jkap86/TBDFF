@@ -11,10 +11,69 @@ interface DraftQueueProps {
   onReorder: (playerIds: string[]) => void;
   onRemove: (playerId: string) => void;
   onAdd: (playerId: string) => void;
+  onUpdateMaxBid?: (playerId: string, maxBid: number | null) => void;
+  isAuction?: boolean;
+  budget?: number;
   accessToken: string;
 }
 
-export function DraftQueue({ queue, draftedPlayerIds, onReorder, onRemove, onAdd, accessToken }: DraftQueueProps) {
+function MaxBidInput({ item, budget, onUpdateMaxBid }: {
+  item: DraftQueueItem;
+  budget: number;
+  onUpdateMaxBid: (playerId: string, maxBid: number | null) => void;
+}) {
+  const defaultBid = item.auction_value != null
+    ? Math.floor(item.auction_value * 0.8 * (budget / 200))
+    : null;
+  const [value, setValue] = useState(item.max_bid != null ? String(item.max_bid) : '');
+  const [isFocused, setIsFocused] = useState(false);
+
+  // Sync when server state changes
+  useEffect(() => {
+    if (!isFocused) {
+      setValue(item.max_bid != null ? String(item.max_bid) : '');
+    }
+  }, [item.max_bid, isFocused]);
+
+  const commit = () => {
+    setIsFocused(false);
+    const trimmed = value.trim();
+    if (trimmed === '') {
+      // Clear to use default
+      if (item.max_bid != null) onUpdateMaxBid(item.player_id, null);
+      return;
+    }
+    const num = parseInt(trimmed, 10);
+    if (isNaN(num) || num < 0) {
+      // Reset to current
+      setValue(item.max_bid != null ? String(item.max_bid) : '');
+      return;
+    }
+    if (num !== item.max_bid) {
+      onUpdateMaxBid(item.player_id, num);
+    }
+  };
+
+  return (
+    <div className="flex items-center gap-0.5">
+      <span className="text-xs text-gray-400">$</span>
+      <input
+        type="text"
+        inputMode="numeric"
+        value={value}
+        onChange={(e) => setValue(e.target.value.replace(/[^0-9]/g, ''))}
+        onFocus={() => setIsFocused(true)}
+        onBlur={commit}
+        onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
+        placeholder={defaultBid != null ? String(defaultBid) : '—'}
+        title={defaultBid != null ? `Default: $${defaultBid} (80% of AAV $${item.auction_value})` : 'Set max bid'}
+        className="w-10 rounded border border-gray-200 px-1 py-0.5 text-center text-xs text-gray-700 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+      />
+    </div>
+  );
+}
+
+export function DraftQueue({ queue, draftedPlayerIds, onReorder, onRemove, onAdd, onUpdateMaxBid, isAuction, budget, accessToken }: DraftQueueProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<Player[]>([]);
   const [isSearching, setIsSearching] = useState(false);
@@ -85,6 +144,7 @@ export function DraftQueue({ queue, draftedPlayerIds, onReorder, onRemove, onAdd
   };
 
   const availableCount = queue.filter((q) => !draftedPlayerIds.has(q.player_id)).length;
+  const showBids = isAuction && onUpdateMaxBid && budget;
 
   return (
     <div className="rounded-lg bg-white shadow">
@@ -94,6 +154,12 @@ export function DraftQueue({ queue, draftedPlayerIds, onReorder, onRemove, onAdd
           {availableCount} available
         </span>
       </div>
+
+      {showBids && queue.length > 0 && (
+        <div className="border-b border-gray-100 px-3 py-1.5 text-xs text-gray-400">
+          Set max auto-bid per player (blank = default 80% AAV)
+        </div>
+      )}
 
       {queue.length === 0 ? (
         <div className="px-4 py-6 text-center text-sm text-gray-400">
@@ -117,6 +183,9 @@ export function DraftQueue({ queue, draftedPlayerIds, onReorder, onRemove, onAdd
                     {item.position}{item.team ? ` - ${item.team}` : ''}
                   </div>
                 </div>
+                {showBids && !isDrafted && (
+                  <MaxBidInput item={item} budget={budget} onUpdateMaxBid={onUpdateMaxBid} />
+                )}
                 {!isDrafted && (
                   <div className="flex items-center gap-0.5">
                     <button
