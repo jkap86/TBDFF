@@ -9,6 +9,7 @@ import { DraftBoard } from '@/features/drafts/components/DraftBoard';
 import { AuctionBoard } from '@/features/drafts/components/AuctionBoard';
 import { DraftSettingsForm } from '@/features/drafts/components/DraftSettingsForm';
 import { DraftQueue } from '@/features/drafts/components/DraftQueue';
+import { BestAvailablePlayers } from '@/features/drafts/components/BestAvailablePlayers';
 
 const draftTypeLabels: Record<string, string> = {
   snake: 'Snake',
@@ -103,6 +104,7 @@ export default function DraftRoomPage() {
 
   // Queue state
   const [queue, setQueue] = useState<DraftQueueItem[]>([]);
+  const [sidebarTab, setSidebarTab] = useState<'queue' | 'players'>('players');
 
   // Auction-specific state
   const [nominatePlayerId, setNominatePlayerId] = useState('');
@@ -731,18 +733,52 @@ export default function DraftRoomPage() {
                 <AuctionBoard draft={draft} picks={picks} members={members} currentUserId={user?.id} />
               </div>
               {userSlot !== undefined && (
-                <div className="w-72 shrink-0">
-                  <DraftQueue
-                    queue={queue}
-                    draftedPlayerIds={draftedPlayerIds}
-                    onReorder={handleReorderQueue}
-                    onRemove={handleRemoveFromQueue}
-                    onAdd={handleAddToQueue}
-                    onUpdateMaxBid={handleUpdateMaxBid}
-                    isAuction={draft.type === 'auction'}
-                    budget={draft.settings.budget}
-                    accessToken={accessToken!}
-                  />
+                <div className="w-80 shrink-0">
+                  <div className="rounded-lg bg-white shadow flex flex-col" style={{ height: 'calc(100vh - 200px)' }}>
+                    <div className="flex border-b border-gray-200">
+                      <button
+                        onClick={() => setSidebarTab('players')}
+                        className={`flex-1 px-3 py-2.5 text-sm font-medium transition-colors ${
+                          sidebarTab === 'players'
+                            ? 'border-b-2 border-blue-600 text-blue-600'
+                            : 'text-gray-500 hover:text-gray-700'
+                        }`}
+                      >
+                        Players
+                      </button>
+                      <button
+                        onClick={() => setSidebarTab('queue')}
+                        className={`flex-1 px-3 py-2.5 text-sm font-medium transition-colors ${
+                          sidebarTab === 'queue'
+                            ? 'border-b-2 border-blue-600 text-blue-600'
+                            : 'text-gray-500 hover:text-gray-700'
+                        }`}
+                      >
+                        My Queue
+                      </button>
+                    </div>
+                    <div className="flex-1 min-h-0">
+                      {sidebarTab === 'players' ? (
+                        <BestAvailablePlayers
+                          draftId={draft.id}
+                          draftedPlayerIds={draftedPlayerIds}
+                          queuedPlayerIds={new Set(queue.map((q) => q.player_id))}
+                          onAdd={handleAddToQueue}
+                          accessToken={accessToken!}
+                        />
+                      ) : (
+                        <DraftQueue
+                          queue={queue}
+                          draftedPlayerIds={draftedPlayerIds}
+                          onReorder={handleReorderQueue}
+                          onRemove={handleRemoveFromQueue}
+                          onUpdateMaxBid={handleUpdateMaxBid}
+                          isAuction={draft.type === 'auction'}
+                          budget={draft.settings.budget}
+                        />
+                      )}
+                    </div>
+                  </div>
                 </div>
               )}
             </div>
@@ -826,18 +862,52 @@ export default function DraftRoomPage() {
                 <DraftBoard draft={draft} picks={picks} members={members} currentUserId={user?.id} />
               </div>
               {userSlot !== undefined && (
-                <div className="w-72 shrink-0">
-                  <DraftQueue
-                    queue={queue}
-                    draftedPlayerIds={draftedPlayerIds}
-                    onReorder={handleReorderQueue}
-                    onRemove={handleRemoveFromQueue}
-                    onAdd={handleAddToQueue}
-                    onUpdateMaxBid={handleUpdateMaxBid}
-                    isAuction={draft.type === 'auction'}
-                    budget={draft.settings.budget}
-                    accessToken={accessToken!}
-                  />
+                <div className="w-80 shrink-0">
+                  <div className="rounded-lg bg-white shadow flex flex-col" style={{ height: 'calc(100vh - 200px)' }}>
+                    <div className="flex border-b border-gray-200">
+                      <button
+                        onClick={() => setSidebarTab('players')}
+                        className={`flex-1 px-3 py-2.5 text-sm font-medium transition-colors ${
+                          sidebarTab === 'players'
+                            ? 'border-b-2 border-blue-600 text-blue-600'
+                            : 'text-gray-500 hover:text-gray-700'
+                        }`}
+                      >
+                        Players
+                      </button>
+                      <button
+                        onClick={() => setSidebarTab('queue')}
+                        className={`flex-1 px-3 py-2.5 text-sm font-medium transition-colors ${
+                          sidebarTab === 'queue'
+                            ? 'border-b-2 border-blue-600 text-blue-600'
+                            : 'text-gray-500 hover:text-gray-700'
+                        }`}
+                      >
+                        My Queue
+                      </button>
+                    </div>
+                    <div className="flex-1 min-h-0">
+                      {sidebarTab === 'players' ? (
+                        <BestAvailablePlayers
+                          draftId={draft.id}
+                          draftedPlayerIds={draftedPlayerIds}
+                          queuedPlayerIds={new Set(queue.map((q) => q.player_id))}
+                          onAdd={handleAddToQueue}
+                          accessToken={accessToken!}
+                        />
+                      ) : (
+                        <DraftQueue
+                          queue={queue}
+                          draftedPlayerIds={draftedPlayerIds}
+                          onReorder={handleReorderQueue}
+                          onRemove={handleRemoveFromQueue}
+                          onUpdateMaxBid={handleUpdateMaxBid}
+                          isAuction={draft.type === 'auction'}
+                          budget={draft.settings.budget}
+                        />
+                      )}
+                    </div>
+                  </div>
                 </div>
               )}
             </div>
@@ -862,17 +932,51 @@ export default function DraftRoomPage() {
               </p>
             </div>
             {userSlot !== undefined && (
-              <DraftQueue
-                queue={queue}
-                draftedPlayerIds={draftedPlayerIds}
-                onReorder={handleReorderQueue}
-                onRemove={handleRemoveFromQueue}
-                onAdd={handleAddToQueue}
-                onUpdateMaxBid={handleUpdateMaxBid}
-                isAuction={draft.type === 'auction'}
-                budget={draft.settings.budget}
-                accessToken={accessToken!}
-              />
+              <div className="rounded-lg bg-white shadow flex flex-col" style={{ height: 'calc(100vh - 400px)', minHeight: '400px' }}>
+                <div className="flex border-b border-gray-200">
+                  <button
+                    onClick={() => setSidebarTab('players')}
+                    className={`flex-1 px-3 py-2.5 text-sm font-medium transition-colors ${
+                      sidebarTab === 'players'
+                        ? 'border-b-2 border-blue-600 text-blue-600'
+                        : 'text-gray-500 hover:text-gray-700'
+                    }`}
+                  >
+                    Players
+                  </button>
+                  <button
+                    onClick={() => setSidebarTab('queue')}
+                    className={`flex-1 px-3 py-2.5 text-sm font-medium transition-colors ${
+                      sidebarTab === 'queue'
+                        ? 'border-b-2 border-blue-600 text-blue-600'
+                        : 'text-gray-500 hover:text-gray-700'
+                    }`}
+                  >
+                    My Queue
+                  </button>
+                </div>
+                <div className="flex-1 min-h-0">
+                  {sidebarTab === 'players' ? (
+                    <BestAvailablePlayers
+                      draftId={draft.id}
+                      draftedPlayerIds={draftedPlayerIds}
+                      queuedPlayerIds={new Set(queue.map((q) => q.player_id))}
+                      onAdd={handleAddToQueue}
+                      accessToken={accessToken!}
+                    />
+                  ) : (
+                    <DraftQueue
+                      queue={queue}
+                      draftedPlayerIds={draftedPlayerIds}
+                      onReorder={handleReorderQueue}
+                      onRemove={handleRemoveFromQueue}
+                      onUpdateMaxBid={handleUpdateMaxBid}
+                      isAuction={draft.type === 'auction'}
+                      budget={draft.settings.budget}
+                    />
+                  )}
+                </div>
+              </div>
             )}
           </div>
         )}

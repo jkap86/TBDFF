@@ -162,3 +162,7 @@ export interface UpdateQueueMaxBidRequest {
 export interface DraftQueueResponse {
   queue: DraftQueueItem[];
 }
+
+export interface AvailablePlayersResponse {
+  players: import('./player').Player[];
+}

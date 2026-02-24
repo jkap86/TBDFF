@@ -235,6 +235,42 @@ export class DraftRepository {
     return result.rows.length > 0 ? Player.fromDatabase(result.rows[0]) : null;
   }
 
+  async findAvailablePlayers(
+    draftId: string,
+    options: { position?: string; query?: string; limit: number; offset: number }
+  ): Promise<Player[]> {
+    const params: unknown[] = [draftId];
+    const conditions = [
+      'p.active = true',
+      `p.position IN ('QB', 'RB', 'WR', 'TE', 'K', 'DEF')`,
+      `p.id::text NOT IN (
+        SELECT dp.player_id FROM draft_picks dp
+        WHERE dp.draft_id = $1 AND dp.player_id IS NOT NULL
+      )`,
+    ];
+
+    if (options.position) {
+      params.push(options.position);
+      conditions.push(`p.position = $${params.length}`);
+    }
+
+    if (options.query) {
+      params.push(`%${options.query}%`);
+      conditions.push(`(p.full_name ILIKE $${params.length} OR p.last_name ILIKE $${params.length})`);
+    }
+
+    params.push(options.limit, options.offset);
+
+    const result = await this.db.query(
+      `SELECT p.* FROM players p
+       WHERE ${conditions.join(' AND ')}
+       ORDER BY p.search_rank ASC NULLS LAST
+       LIMIT $${params.length - 1} OFFSET $${params.length}`,
+      params
+    );
+    return result.rows.map(Player.fromDatabase);
+  }
+
   async addAutoPickUser(draftId: string, userId: string): Promise<Draft | null> {
     const result = await this.db.query(
       `UPDATE drafts

@@ -2,6 +2,7 @@ import { DraftRepository } from './drafts.repository';
 import { LeagueRepository } from '../leagues/leagues.repository';
 import { PlayerRepository } from '../players/players.repository';
 import { Draft, DraftPick, DEFAULT_DRAFT_SETTINGS, DraftType } from './drafts.model';
+import { Player } from '../players/players.model';
 import {
   ValidationException,
   NotFoundException,
@@ -533,6 +534,25 @@ export class DraftService {
   }
 
   // ---- Draft Queue Methods ----
+
+  async getAvailablePlayers(
+    draftId: string,
+    userId: string,
+    options: { position?: string; query?: string; limit?: number; offset?: number }
+  ): Promise<Player[]> {
+    const draft = await this.draftRepository.findById(draftId);
+    if (!draft) throw new NotFoundException('Draft not found');
+
+    const member = await this.leagueRepository.findMember(draft.leagueId, userId);
+    if (!member) throw new ForbiddenException('You are not a member of this league');
+
+    return this.draftRepository.findAvailablePlayers(draftId, {
+      position: options.position,
+      query: options.query,
+      limit: Math.min(options.limit ?? 50, 200),
+      offset: options.offset ?? 0,
+    });
+  }
 
   async getQueue(draftId: string, userId: string): Promise<any[]> {
     const draft = await this.draftRepository.findById(draftId);

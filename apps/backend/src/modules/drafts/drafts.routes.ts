@@ -78,6 +78,9 @@ export function createDraftRoutes(controller: DraftController): Router {
   // Auction: Auto-nominate when nomination timer expires
   router.post('/:draftId/autonominate', asyncHandler(controller.autoNominate));
 
+  // Available players (best available, filterable)
+  router.get('/:draftId/available', asyncHandler(controller.getAvailablePlayers));
+
   // Queue management
   router.get('/:draftId/queue', asyncHandler(controller.getQueue));
   router.put('/:draftId/queue', validate(setDraftQueueSchema), asyncHandler(controller.setQueue));

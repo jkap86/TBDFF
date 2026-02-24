@@ -14,6 +14,8 @@ export interface Player {
   years_exp: number | null;
   age: number | null;
   jersey_number: number | null;
+  search_rank: number | null;
+  auction_value: number | null;
   created_at: string;
   updated_at: string;
 }

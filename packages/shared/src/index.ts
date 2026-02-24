@@ -80,6 +80,7 @@ export type {
   AddToQueueRequest,
   UpdateQueueMaxBidRequest,
   DraftQueueResponse,
+  AvailablePlayersResponse,
 } from './types/draft';
 export type {
   Matchup,

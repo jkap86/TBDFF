@@ -199,6 +199,28 @@ export class DraftController {
     res.status(200).json({ draft: draft.toSafeObject() });
   };
 
+  // ---- Available Players ----
+
+  getAvailablePlayers = async (req: AuthRequest, res: Response): Promise<void> => {
+    const userId = req.user?.userId;
+    if (!userId) throw new InvalidCredentialsException();
+
+    const draftId = Array.isArray(req.params.draftId) ? req.params.draftId[0] : req.params.draftId;
+    const position = req.query.position as string | undefined;
+    const query = req.query.q as string | undefined;
+    const limit = req.query.limit ? parseInt(req.query.limit as string, 10) : undefined;
+    const offset = req.query.offset ? parseInt(req.query.offset as string, 10) : undefined;
+
+    const players = await this.draftService.getAvailablePlayers(draftId, userId, {
+      position,
+      query,
+      limit,
+      offset,
+    });
+
+    res.status(200).json({ players: players.map((p) => p.toSafeObject()) });
+  };
+
   // ---- Queue ----
 
   getQueue = async (req: AuthRequest, res: Response): Promise<void> => {

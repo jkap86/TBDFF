@@ -17,6 +17,7 @@ import type {
   NominationResponse,
   BidResponse,
   DraftQueueResponse,
+  AvailablePlayersResponse,
 } from '../types/draft';
 
 export const draftApi = {
@@ -64,6 +65,17 @@ export const draftApi = {
 
   autoNominate: (draftId: string, token: string) =>
     apiClient.post<NominationResponse>(`/drafts/${draftId}/autonominate`, undefined, token),
+
+  // Available players
+  getAvailablePlayers: (draftId: string, token: string, params?: { position?: string; q?: string; limit?: number; offset?: number }) => {
+    const searchParams = new URLSearchParams();
+    if (params?.position) searchParams.set('position', params.position);
+    if (params?.q) searchParams.set('q', params.q);
+    if (params?.limit) searchParams.set('limit', params.limit.toString());
+    if (params?.offset) searchParams.set('offset', params.offset.toString());
+    const query = searchParams.toString() ? `?${searchParams.toString()}` : '';
+    return apiClient.get<AvailablePlayersResponse>(`/drafts/${draftId}/available${query}`, token);
+  },
 
   // Queue management
   getQueue: (draftId: string, token: string) =>
