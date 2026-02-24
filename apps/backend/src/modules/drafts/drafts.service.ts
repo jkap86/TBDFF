@@ -742,6 +742,14 @@ export class DraftService {
     const nomination = draft.metadata?.current_nomination;
     if (!nomination) throw new ValidationException('No active nomination');
 
+    // Guard: do not resolve if the bid deadline has not expired yet
+    if (nomination.bid_deadline) {
+      const deadline = new Date(nomination.bid_deadline).getTime();
+      if (Date.now() < deadline - 2000) {
+        throw new ValidationException('Bid deadline has not expired yet');
+      }
+    }
+
     const pickMetadata = {
       ...nomination.player_metadata,
       bid_history: nomination.bid_history,
@@ -1028,23 +1036,26 @@ export class DraftService {
       }
     }
 
-    // Sort descending by effective target
-    allAutoTargets.sort((a, b) => b.effectiveTarget - a.effectiveTarget);
-
     if (allAutoTargets.length === 0) return null;
 
-    // Find the best auto-bidder who is NOT the current bidder and can beat the current bid
-    let bidder: typeof allAutoTargets[0] | null = null;
-    for (const entry of allAutoTargets) {
-      if (entry.userId !== currentBidder && entry.effectiveTarget > currentBid) {
-        bidder = entry;
-        break; // sorted desc, first match is best
+    // Filter to eligible bidders: not the current bidder and can beat the current bid
+    const eligible = allAutoTargets.filter(
+      (entry) => entry.userId !== currentBidder && entry.effectiveTarget > currentBid
+    );
+
+    if (eligible.length === 0) return null;
+
+    // Round-robin: pick the eligible bidder with the fewest auto-bids so far,
+    // so all auto-pick teams participate rather than just the top 2.
+    const autoBidCounts: Record<string, number> = {};
+    for (const bid of nomination.bid_history) {
+      if (bid.auto_bid) {
+        autoBidCounts[bid.user_id] = (autoBidCounts[bid.user_id] || 0) + 1;
       }
     }
+    eligible.sort((a, b) => (autoBidCounts[a.userId] || 0) - (autoBidCounts[b.userId] || 0));
 
-    if (!bidder) return null;
-
-    const winner = bidder;
+    const winner = eligible[0];
     const winningBid = currentBid + 1;
 
     const newDeadline = new Date(

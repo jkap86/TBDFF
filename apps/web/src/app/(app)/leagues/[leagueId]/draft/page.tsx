@@ -217,7 +217,11 @@ export default function DraftRoomPage() {
 
     if (!deadline) { setTimeRemaining(null); return; }
 
-    autoPickTriggered.current = false;
+    // Only reset autoPickTriggered when the deadline is actually in the future.
+    // This prevents a race where stale timeRemaining=0 triggers resolve on a new nomination.
+    if (deadline > Date.now()) {
+      autoPickTriggered.current = false;
+    }
 
     const tickInterval = draft.type === 'auction' ? 250 : 1000;
     const tick = () => {
@@ -233,6 +237,15 @@ export default function DraftRoomPage() {
   // Auto-pick / auction resolve when timer expires
   useEffect(() => {
     if (timeRemaining !== 0 || !draft || !accessToken || autoPickTriggered.current) return;
+
+    // For auction drafts, verify the actual deadline has passed before acting.
+    // Guards against stale timeRemaining=0 racing with a newly created nomination.
+    if (draft.type === 'auction') {
+      const nom = draft.metadata?.current_nomination;
+      const deadlineStr = nom?.bid_deadline ?? draft.metadata?.nomination_deadline;
+      if (deadlineStr && new Date(deadlineStr).getTime() > Date.now() + 1000) return;
+    }
+
     autoPickTriggered.current = true;
 
     if (draft.type === 'auction') {
