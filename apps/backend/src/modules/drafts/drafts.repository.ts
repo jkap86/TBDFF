@@ -343,4 +343,93 @@ export class DraftRepository {
     const result = await this.db.query('DELETE FROM drafts WHERE id = $1', [id]);
     return (result.rowCount ?? 0) > 0;
   }
+
+  // ---- Draft Queue ----
+
+  async getQueue(draftId: string, userId: string): Promise<any[]> {
+    const result = await this.db.query(
+      `SELECT dq.player_id, dq.rank,
+              p.full_name, p.first_name, p.last_name,
+              p.position, p.team, p.search_rank, p.auction_value
+       FROM draft_queue dq
+       JOIN players p ON p.id::text = dq.player_id
+       WHERE dq.draft_id = $1 AND dq.user_id = $2
+       ORDER BY dq.rank ASC`,
+      [draftId, userId]
+    );
+    return result.rows;
+  }
+
+  async setQueue(draftId: string, userId: string, playerIds: string[]): Promise<void> {
+    const client = await this.db.connect();
+    try {
+      await client.query('BEGIN');
+      await client.query(
+        'DELETE FROM draft_queue WHERE draft_id = $1 AND user_id = $2',
+        [draftId, userId]
+      );
+
+      if (playerIds.length > 0) {
+        const values: string[] = [];
+        const params: any[] = [draftId, userId];
+        let paramIndex = 3;
+
+        for (let i = 0; i < playerIds.length; i++) {
+          values.push(`($1, $2, $${paramIndex}, ${i + 1})`);
+          params.push(playerIds[i]);
+          paramIndex++;
+        }
+
+        await client.query(
+          `INSERT INTO draft_queue (draft_id, user_id, player_id, rank)
+           VALUES ${values.join(', ')}`,
+          params
+        );
+      }
+
+      await client.query('COMMIT');
+    } catch (e) {
+      await client.query('ROLLBACK');
+      throw e;
+    } finally {
+      client.release();
+    }
+  }
+
+  async addToQueue(draftId: string, userId: string, playerId: string): Promise<void> {
+    await this.db.query(
+      `INSERT INTO draft_queue (draft_id, user_id, player_id, rank)
+       VALUES ($1, $2, $3, COALESCE(
+         (SELECT MAX(rank) FROM draft_queue WHERE draft_id = $1 AND user_id = $2), 0
+       ) + 1)
+       ON CONFLICT (draft_id, user_id, player_id) DO NOTHING`,
+      [draftId, userId, playerId]
+    );
+  }
+
+  async removeFromQueue(draftId: string, userId: string, playerId: string): Promise<void> {
+    await this.db.query(
+      'DELETE FROM draft_queue WHERE draft_id = $1 AND user_id = $2 AND player_id = $3',
+      [draftId, userId, playerId]
+    );
+  }
+
+  async findFirstAvailableFromQueue(draftId: string, userId: string): Promise<Player | null> {
+    const result = await this.db.query(
+      `SELECT p.* FROM draft_queue dq
+       JOIN players p ON p.id::text = dq.player_id
+       WHERE dq.draft_id = $1
+         AND dq.user_id = $2
+         AND p.active = true
+         AND p.position IN ('QB', 'RB', 'WR', 'TE', 'K', 'DEF')
+         AND dq.player_id NOT IN (
+           SELECT dp.player_id FROM draft_picks dp
+           WHERE dp.draft_id = $1 AND dp.player_id IS NOT NULL
+         )
+       ORDER BY dq.rank ASC
+       LIMIT 1`,
+      [draftId, userId]
+    );
+    return result.rows.length > 0 ? Player.fromDatabase(result.rows[0]) : null;
+  }
 }

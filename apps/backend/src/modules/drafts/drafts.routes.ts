@@ -10,6 +10,8 @@ import {
   makeDraftPickSchema,
   nominateDraftPickSchema,
   placeBidSchema,
+  setDraftQueueSchema,
+  addToQueueSchema,
 } from './drafts.schemas';
 
 /**
@@ -74,6 +76,12 @@ export function createDraftRoutes(controller: DraftController): Router {
 
   // Auction: Auto-nominate when nomination timer expires
   router.post('/:draftId/autonominate', asyncHandler(controller.autoNominate));
+
+  // Queue management
+  router.get('/:draftId/queue', asyncHandler(controller.getQueue));
+  router.put('/:draftId/queue', validate(setDraftQueueSchema), asyncHandler(controller.setQueue));
+  router.post('/:draftId/queue', validate(addToQueueSchema), asyncHandler(controller.addToQueue));
+  router.delete('/:draftId/queue/:playerId', asyncHandler(controller.removeFromQueue));
 
   return router;
 }

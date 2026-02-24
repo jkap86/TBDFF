@@ -9,6 +9,8 @@ import {
   MakeDraftPickInput,
   NominateDraftPickInput,
   PlaceBidInput,
+  SetDraftQueueInput,
+  AddToQueueInput,
 } from './drafts.schemas';
 
 export class DraftController {
@@ -194,5 +196,46 @@ export class DraftController {
     const draftId = Array.isArray(req.params.draftId) ? req.params.draftId[0] : req.params.draftId;
     const draft = await this.draftService.autoNominate(draftId, userId);
     res.status(200).json({ draft: draft.toSafeObject() });
+  };
+
+  // ---- Queue ----
+
+  getQueue = async (req: AuthRequest, res: Response): Promise<void> => {
+    const userId = req.user?.userId;
+    if (!userId) throw new InvalidCredentialsException();
+
+    const draftId = Array.isArray(req.params.draftId) ? req.params.draftId[0] : req.params.draftId;
+    const queue = await this.draftService.getQueue(draftId, userId);
+    res.status(200).json({ queue });
+  };
+
+  setQueue = async (req: AuthRequest, res: Response): Promise<void> => {
+    const userId = req.user?.userId;
+    if (!userId) throw new InvalidCredentialsException();
+
+    const draftId = Array.isArray(req.params.draftId) ? req.params.draftId[0] : req.params.draftId;
+    const body = req.body as SetDraftQueueInput;
+    const queue = await this.draftService.setQueue(draftId, userId, body.player_ids);
+    res.status(200).json({ queue });
+  };
+
+  addToQueue = async (req: AuthRequest, res: Response): Promise<void> => {
+    const userId = req.user?.userId;
+    if (!userId) throw new InvalidCredentialsException();
+
+    const draftId = Array.isArray(req.params.draftId) ? req.params.draftId[0] : req.params.draftId;
+    const body = req.body as AddToQueueInput;
+    const queue = await this.draftService.addToQueue(draftId, userId, body.player_id);
+    res.status(200).json({ queue });
+  };
+
+  removeFromQueue = async (req: AuthRequest, res: Response): Promise<void> => {
+    const userId = req.user?.userId;
+    if (!userId) throw new InvalidCredentialsException();
+
+    const draftId = Array.isArray(req.params.draftId) ? req.params.draftId[0] : req.params.draftId;
+    const playerId = Array.isArray(req.params.playerId) ? req.params.playerId[0] : req.params.playerId;
+    const queue = await this.draftService.removeFromQueue(draftId, userId, playerId);
+    res.status(200).json({ queue });
   };
 }

@@ -3,11 +3,12 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { ArrowLeft } from 'lucide-react';
-import { draftApi, leagueApi, ApiError, type Draft, type DraftPick, type LeagueMember, type Roster, type UpdateDraftRequest } from '@/lib/api';
+import { draftApi, leagueApi, ApiError, type Draft, type DraftPick, type DraftQueueItem, type LeagueMember, type Roster, type UpdateDraftRequest } from '@/lib/api';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import { DraftBoard } from '@/features/drafts/components/DraftBoard';
 import { AuctionBoard } from '@/features/drafts/components/AuctionBoard';
 import { DraftSettingsForm } from '@/features/drafts/components/DraftSettingsForm';
+import { DraftQueue } from '@/features/drafts/components/DraftQueue';
 
 const draftTypeLabels: Record<string, string> = {
   snake: 'Snake',
@@ -42,6 +43,9 @@ export default function DraftRoomPage() {
   const [timeRemaining, setTimeRemaining] = useState<number | null>(null);
   const [isTogglingAutoPick, setIsTogglingAutoPick] = useState(false);
   const autoPickTriggered = useRef(false);
+
+  // Queue state
+  const [queue, setQueue] = useState<DraftQueueItem[]>([]);
 
   // Auction-specific state
   const [nominatePlayerId, setNominatePlayerId] = useState('');
@@ -85,6 +89,16 @@ export default function DraftRoomPage() {
       if (draftResult.draft.status === 'drafting') {
         const picksResult = await draftApi.getPicks(activeDraft.id, accessToken);
         setPicks(picksResult.picks);
+      }
+
+      // Fetch queue if draft is not complete
+      if (draftResult.draft.status !== 'complete') {
+        try {
+          const queueResult = await draftApi.getQueue(activeDraft.id, accessToken);
+          setQueue(queueResult.queue);
+        } catch {
+          // Queue fetch is non-critical
+        }
       }
     } catch (err) {
       if (err instanceof ApiError) {
@@ -328,6 +342,37 @@ export default function DraftRoomPage() {
     }
   };
 
+  // Queue handlers
+  const handleReorderQueue = async (playerIds: string[]) => {
+    if (!draft || !accessToken) return;
+    try {
+      const result = await draftApi.setQueue(draft.id, { player_ids: playerIds }, accessToken);
+      setQueue(result.queue);
+    } catch {
+      // Silently ignore
+    }
+  };
+
+  const handleRemoveFromQueue = async (playerId: string) => {
+    if (!draft || !accessToken) return;
+    try {
+      const result = await draftApi.removeFromQueue(draft.id, playerId, accessToken);
+      setQueue(result.queue);
+    } catch {
+      // Silently ignore
+    }
+  };
+
+  const handleAddToQueue = async (playerId: string) => {
+    if (!draft || !accessToken) return;
+    try {
+      const result = await draftApi.addToQueue(draft.id, { player_id: playerId }, accessToken);
+      setQueue(result.queue);
+    } catch {
+      // Silently ignore
+    }
+  };
+
   const handleToggleAutoPick = async () => {
     if (!draft || !accessToken) return;
 
@@ -349,6 +394,9 @@ export default function DraftRoomPage() {
       setIsTogglingAutoPick(false);
     }
   };
+
+  // Compute drafted player IDs for queue display
+  const draftedPlayerIds = new Set(picks.filter((p) => p.player_id).map((p) => p.player_id!));
 
   // Check if it's the current user's turn
   const nextPick = picks.find((p) => !p.player_id);
@@ -576,7 +624,22 @@ export default function DraftRoomPage() {
               )}
             </div>
 
-            <AuctionBoard draft={draft} picks={picks} members={members} currentUserId={user?.id} />
+            <div className="flex gap-4">
+              <div className="flex-1 min-w-0">
+                <AuctionBoard draft={draft} picks={picks} members={members} currentUserId={user?.id} />
+              </div>
+              {userSlot !== undefined && (
+                <div className="w-72 shrink-0">
+                  <DraftQueue
+                    queue={queue}
+                    draftedPlayerIds={draftedPlayerIds}
+                    onReorder={handleReorderQueue}
+                    onRemove={handleRemoveFromQueue}
+                    onAdd={handleAddToQueue}
+                  />
+                </div>
+              )}
+            </div>
           </>
         )}
 
@@ -652,7 +715,22 @@ export default function DraftRoomPage() {
               )}
             </div>
 
-            <DraftBoard draft={draft} picks={picks} members={members} currentUserId={user?.id} />
+            <div className="flex gap-4">
+              <div className="flex-1 min-w-0">
+                <DraftBoard draft={draft} picks={picks} members={members} currentUserId={user?.id} />
+              </div>
+              {userSlot !== undefined && (
+                <div className="w-72 shrink-0">
+                  <DraftQueue
+                    queue={queue}
+                    draftedPlayerIds={draftedPlayerIds}
+                    onReorder={handleReorderQueue}
+                    onRemove={handleRemoveFromQueue}
+                    onAdd={handleAddToQueue}
+                  />
+                </div>
+              )}
+            </div>
           </>
         )}
 
@@ -663,14 +741,25 @@ export default function DraftRoomPage() {
             : <DraftBoard draft={draft} picks={picks} members={members} currentUserId={user?.id} />
         )}
 
-        {/* Pre-draft - no board yet */}
+        {/* Pre-draft queue + settings */}
         {draft.status === 'pre_draft' && !isCommissioner && (
-          <div className="rounded-lg bg-white p-6 shadow">
-            <h2 className="mb-4 text-lg font-bold text-gray-900">Draft Settings</h2>
-            <DraftSettingsForm draft={draft} onSave={async () => {}} readOnly={true} />
-            <p className="mt-4 text-center text-sm text-gray-400">
-              Waiting for the commissioner to start the draft.
-            </p>
+          <div className="space-y-4">
+            <div className="rounded-lg bg-white p-6 shadow">
+              <h2 className="mb-4 text-lg font-bold text-gray-900">Draft Settings</h2>
+              <DraftSettingsForm draft={draft} onSave={async () => {}} readOnly={true} />
+              <p className="mt-4 text-center text-sm text-gray-400">
+                Waiting for the commissioner to start the draft.
+              </p>
+            </div>
+            {userSlot !== undefined && (
+              <DraftQueue
+                queue={queue}
+                draftedPlayerIds={draftedPlayerIds}
+                onReorder={handleReorderQueue}
+                onRemove={handleRemoveFromQueue}
+                onAdd={handleAddToQueue}
+              />
+            )}
           </div>
         )}
       </div>

@@ -75,6 +75,10 @@ export type {
   PlaceBidRequest,
   NominationResponse,
   BidResponse,
+  DraftQueueItem,
+  SetDraftQueueRequest,
+  AddToQueueRequest,
+  DraftQueueResponse,
 } from './types/draft';
 export type {
   Matchup,

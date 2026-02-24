@@ -6,6 +6,8 @@ import type {
   MakeDraftPickRequest,
   NominateDraftPickRequest,
   PlaceBidRequest,
+  SetDraftQueueRequest,
+  AddToQueueRequest,
   DraftResponse,
   DraftListResponse,
   DraftPickResponse,
@@ -13,6 +15,7 @@ import type {
   ToggleAutoPickResponse,
   NominationResponse,
   BidResponse,
+  DraftQueueResponse,
 } from '../types/draft';
 
 export const draftApi = {
@@ -60,4 +63,17 @@ export const draftApi = {
 
   autoNominate: (draftId: string, token: string) =>
     apiClient.post<NominationResponse>(`/drafts/${draftId}/autonominate`, undefined, token),
+
+  // Queue management
+  getQueue: (draftId: string, token: string) =>
+    apiClient.get<DraftQueueResponse>(`/drafts/${draftId}/queue`, token),
+
+  setQueue: (draftId: string, body: SetDraftQueueRequest, token: string) =>
+    apiClient.put<DraftQueueResponse>(`/drafts/${draftId}/queue`, body, token),
+
+  addToQueue: (draftId: string, body: AddToQueueRequest, token: string) =>
+    apiClient.post<DraftQueueResponse>(`/drafts/${draftId}/queue`, body, token),
+
+  removeFromQueue: (draftId: string, playerId: string, token: string) =>
+    apiClient.delete<DraftQueueResponse>(`/drafts/${draftId}/queue/${playerId}`, token),
 };

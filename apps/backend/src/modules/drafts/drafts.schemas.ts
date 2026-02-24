@@ -70,3 +70,16 @@ export const placeBidSchema = z.object({
 }).strict();
 
 export type PlaceBidInput = z.infer<typeof placeBidSchema>;
+
+// Queue schemas
+export const setDraftQueueSchema = z.object({
+  player_ids: z.array(z.string().min(1)).max(500),
+}).strict();
+
+export type SetDraftQueueInput = z.infer<typeof setDraftQueueSchema>;
+
+export const addToQueueSchema = z.object({
+  player_id: z.string().min(1, 'Player ID is required'),
+}).strict();
+
+export type AddToQueueInput = z.infer<typeof addToQueueSchema>;
