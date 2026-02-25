@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft, Sun, Moon, User, LogOut } from 'lucide-react';
 import { useAuth } from '@/features/auth/hooks/useAuth';
@@ -9,6 +9,7 @@ import { useTheme } from '@/features/theme/useTheme';
 
 export function AppBar() {
   const router = useRouter();
+  const pathname = usePathname();
   const { user, logout } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const [isProfileOpen, setIsProfileOpen] = useState(false);
@@ -33,13 +34,25 @@ export function AppBar() {
   return (
     <header className="sticky top-0 z-40 border-b border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800">
       <div className="mx-auto flex h-14 max-w-7xl items-center justify-between px-4">
-        <button
-          onClick={() => router.back()}
-          className="rounded-lg p-2 text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
-          aria-label="Go back"
-        >
-          <ArrowLeft className="h-5 w-5" />
-        </button>
+        {pathname !== '/dashboard' && (
+          <button
+            onClick={() => {
+              if (pathname === '/leagues' || pathname === '/leagues/add') {
+                router.push('/dashboard');
+              } else if (pathname.match(/^\/leagues\/[^/]+\/draft/)) {
+                router.push(pathname.replace(/\/draft.*$/, ''));
+              } else if (pathname.match(/^\/leagues\/[^/]+/)) {
+                router.push('/leagues');
+              } else {
+                router.back();
+              }
+            }}
+            className="rounded-lg p-2 text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
+            aria-label="Go back"
+          >
+            <ArrowLeft className="h-5 w-5" />
+          </button>
+        )}
 
         <Link
           href="/dashboard"
