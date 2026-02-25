@@ -812,7 +812,11 @@ export class DraftService {
       pickMetadata,
     );
 
-    if (!pick) throw new ConflictException('Pick already resolved');
+    if (!pick) {
+      // Another client already resolved this nomination — return current state
+      const currentDraft = await this.draftRepository.findById(draftId);
+      return { draft: currentDraft! };
+    }
 
     await this.draftRepository.deductBudget(
       draftId,
@@ -1228,9 +1232,16 @@ export class DraftService {
       ],
     };
 
+    // Re-read draft to ensure nomination hasn't been resolved by a concurrent resolve call
+    const freshDraft = await this.draftRepository.findById(draftId);
+    if (!freshDraft?.metadata?.current_nomination ||
+        freshDraft.metadata.current_nomination.pick_id !== nomination.pick_id) {
+      return null;
+    }
+
     const updated = await this.draftRepository.update(draftId, {
       metadata: {
-        ...draft.metadata,
+        ...freshDraft.metadata,
         current_nomination: updatedNomination,
       },
       lastPicked: new Date().toISOString(),
