@@ -46,7 +46,11 @@ export function BestAvailablePlayers({
         setPlayers(result.players);
         setOffset(result.players.length);
       } else {
-        setPlayers((prev) => [...prev, ...result.players]);
+        setPlayers((prev) => {
+          const existingIds = new Set(prev.map((p) => p.id));
+          const newPlayers = result.players.filter((p) => !existingIds.has(p.id));
+          return [...prev, ...newPlayers];
+        });
         setOffset(currentOffset + result.players.length);
       }
       setHasMore(result.players.length === PAGE_SIZE);
