@@ -267,7 +267,17 @@ export default function DraftRoomPage() {
             setDraft(result.draft);
           }
         } catch {
-          // Another client already triggered; polling will catch up
+          // Another client already resolved; refresh state immediately
+          try {
+            const [draftResult, picksResult] = await Promise.all([
+              draftApi.getById(draft.id, accessToken),
+              draftApi.getPicks(draft.id, accessToken),
+            ]);
+            setDraft(draftResult.draft);
+            setPicks(picksResult.picks);
+          } catch {
+            // Polling will catch up
+          }
         }
       })();
     } else {
@@ -533,12 +543,6 @@ export default function DraftRoomPage() {
         {/* Header */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <button
-              onClick={() => router.push(`/leagues/${leagueId}`)}
-              className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300"
-            >
-              <ArrowLeft className="h-4 w-4" /> Back
-            </button>
             <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Draft Room</h1>
             <span className={`rounded-full px-3 py-1 text-sm font-medium ${
               draft.status === 'drafting'
