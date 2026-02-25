@@ -770,7 +770,7 @@ export class DraftService {
     const member = await this.leagueRepository.findMember(draft.leagueId, userId);
     if (!member) throw new ForbiddenException('Not a member of this league');
 
-    const nomination = draft.metadata?.current_nomination;
+    let nomination = draft.metadata?.current_nomination;
     if (!nomination) throw new ValidationException('No active nomination');
 
     // Guard: do not resolve if the bid deadline has not expired yet
@@ -778,6 +778,22 @@ export class DraftService {
       const deadline = new Date(nomination.bid_deadline).getTime();
       if (Date.now() < deadline) {
         throw new ValidationException('Bid deadline has not expired yet');
+      }
+    }
+
+    // Defensive: if winner's roster is full, find an eligible fallback team
+    const winnerPicksWon = await this.draftRepository.countPicksWonByRoster(
+      draftId,
+      nomination.bidder_roster_id,
+    );
+    if (winnerPicksWon >= this.getMaxPlayersPerTeam(draft)) {
+      const fallback = await this.findEligibleInitialBidder(draft, null);
+      if (fallback) {
+        nomination = {
+          ...nomination,
+          current_bidder: fallback.userId,
+          bidder_roster_id: fallback.rosterId,
+        };
       }
     }
 
@@ -883,16 +899,28 @@ export class DraftService {
       Date.now() + draft.settings.nomination_timer * 1000
     ).toISOString();
 
+    // If nominator's roster is full, find an eligible team for the initial bid
+    let initialBidderId = slotOwner || userId;
+    let initialBidderRosterId = nominatorRosterId;
+    const nominatorPicksWon = await this.draftRepository.countPicksWonByRoster(draftId, nominatorRosterId);
+    if (nominatorPicksWon >= this.getMaxPlayersPerTeam(draft)) {
+      const eligible = await this.findEligibleInitialBidder(draft, null);
+      if (eligible) {
+        initialBidderId = eligible.userId;
+        initialBidderRosterId = eligible.rosterId;
+      }
+    }
+
     const nomination: AuctionNomination = {
       pick_id: nextPick.id,
       player_id: bestPlayer.id,
       nominated_by: slotOwner || userId,
       current_bid: 1,
-      current_bidder: slotOwner || userId,
-      bidder_roster_id: nominatorRosterId,
+      current_bidder: initialBidderId,
+      bidder_roster_id: initialBidderRosterId,
       bid_deadline: bidDeadline,
       bid_history: [{
-        user_id: slotOwner || userId,
+        user_id: initialBidderId,
         amount: 1,
         timestamp: new Date().toISOString(),
       }],
@@ -941,15 +969,27 @@ export class DraftService {
         Date.now() + draft.settings.nomination_timer * 1000
       ).toISOString();
 
+      // If nominator's roster is full, find an eligible team for the initial bid
+      let initialBidderId = slotOwner;
+      let initialBidderRosterId = nominatorRosterId;
+      const nominatorPicksWon = await this.draftRepository.countPicksWonByRoster(draftId, nominatorRosterId);
+      if (nominatorPicksWon >= this.getMaxPlayersPerTeam(draft)) {
+        const eligible = await this.findEligibleInitialBidder(draft, null);
+        if (eligible) {
+          initialBidderId = eligible.userId;
+          initialBidderRosterId = eligible.rosterId;
+        }
+      }
+
       const nomination: AuctionNomination = {
         pick_id: nextPick.id,
         player_id: bestPlayer.id,
         nominated_by: slotOwner,
         current_bid: 1,
-        current_bidder: slotOwner,
-        bidder_roster_id: nominatorRosterId,
+        current_bidder: initialBidderId,
+        bidder_roster_id: initialBidderRosterId,
         bid_deadline: bidDeadline,
-        bid_history: [{ user_id: slotOwner, amount: 1, timestamp: new Date().toISOString() }],
+        bid_history: [{ user_id: initialBidderId, amount: 1, timestamp: new Date().toISOString() }],
         player_metadata: {
           first_name: bestPlayer.firstName,
           last_name: bestPlayer.lastName,
@@ -982,8 +1022,12 @@ export class DraftService {
     const currentBudget = budgets[String(rosterId)] ?? 0;
 
     const picksWon = await this.draftRepository.countPicksWonByRoster(draft.id, rosterId);
-    const totalSlots = draft.settings.rounds;
+    const totalSlots = this.getMaxPlayersPerTeam(draft);
     const remainingSlots = totalSlots - picksWon;
+
+    if (remainingSlots <= 0) {
+      throw new ValidationException('Your roster is full');
+    }
 
     // Must keep $1 per remaining unfilled slot (excluding the one being bid on)
     const reserveNeeded = Math.max(0, (remainingSlots - 1));
@@ -1005,6 +1049,40 @@ export class DraftService {
   private findUserBySlot(draftOrder: Record<string, number>, slot: number): string | null {
     for (const [userId, userSlot] of Object.entries(draftOrder)) {
       if (userSlot === slot) return userId;
+    }
+    return null;
+  }
+
+  private getMaxPlayersPerTeam(draft: Draft): number {
+    return draft.settings.max_players_per_team || draft.settings.rounds;
+  }
+
+  /**
+   * Find the first team with remaining roster slots and enough budget
+   * to place a minimum $1 bid. Used when the nominator's roster is full.
+   */
+  private async findEligibleInitialBidder(
+    draft: Draft,
+    excludeUserId: string | null,
+  ): Promise<{ userId: string; rosterId: number } | null> {
+    const budgets: Record<string, number> = draft.metadata?.auction_budgets ?? {};
+    const allRosterIds = Object.values(draft.slotToRosterId);
+    const picksWonMap = await this.draftRepository.countPicksWonByRosters(draft.id, allRosterIds);
+    const maxPlayers = this.getMaxPlayersPerTeam(draft);
+
+    for (const [slotStr, rosterId] of Object.entries(draft.slotToRosterId)) {
+      const userId = this.findUserBySlot(draft.draftOrder, Number(slotStr));
+      if (!userId || userId === excludeUserId) continue;
+
+      const picksWon = picksWonMap.get(rosterId) ?? 0;
+      if (picksWon >= maxPlayers) continue;
+
+      const budget = budgets[String(rosterId)] ?? 0;
+      const remainingSlots = maxPlayers - picksWon;
+      const reserveNeeded = Math.max(0, remainingSlots - 1);
+      if (budget - reserveNeeded >= 1) {
+        return { userId, rosterId };
+      }
     }
     return null;
   }
@@ -1093,8 +1171,11 @@ export class DraftService {
 
       const budget = budgets[String(rosterId)] ?? 0;
       const picksWon = picksWonMap.get(rosterId) ?? 0;
-      const totalSlots = draft.settings.rounds;
+      const totalSlots = this.getMaxPlayersPerTeam(draft);
       const remainingSlots = totalSlots - picksWon;
+
+      if (remainingSlots <= 0) continue;
+
       const reserveNeeded = Math.max(0, remainingSlots - 1);
       const maxAffordable = budget - reserveNeeded;
 

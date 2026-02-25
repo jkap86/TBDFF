@@ -28,6 +28,7 @@ export interface DraftSettings {
   slots_k: number;
   slots_bn: number;
   budget: number;
+  max_players_per_team: number;
   [key: string]: number;
 }
 

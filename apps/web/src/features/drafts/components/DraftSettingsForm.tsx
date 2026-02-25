@@ -47,6 +47,7 @@ export function DraftSettingsForm({ draft, onSave, readOnly }: DraftSettingsForm
   const [nominationTimer, setNominationTimer] = useState(draft.settings.nomination_timer);
   const [offeringTimer, setOfferingTimer] = useState(draft.settings.offering_timer ?? 120);
   const [budget, setBudget] = useState(draft.settings.budget);
+  const [maxPlayersPerTeam, setMaxPlayersPerTeam] = useState(draft.settings.max_players_per_team ?? 0);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [customTimer, setCustomTimer] = useState('');
@@ -61,6 +62,7 @@ export function DraftSettingsForm({ draft, onSave, readOnly }: DraftSettingsForm
     setNominationTimer(draft.settings.nomination_timer);
     setOfferingTimer(draft.settings.offering_timer ?? 120);
     setBudget(draft.settings.budget);
+    setMaxPlayersPerTeam(draft.settings.max_players_per_team ?? 0);
     setError(null);
   }, [draft]);
 
@@ -82,6 +84,7 @@ export function DraftSettingsForm({ draft, onSave, readOnly }: DraftSettingsForm
     if (nominationTimer !== draft.settings.nomination_timer) settingsUpdates.nomination_timer = nominationTimer;
     if (isAuction && offeringTimer !== (draft.settings.offering_timer ?? 120)) settingsUpdates.offering_timer = offeringTimer;
     if (budget !== draft.settings.budget) settingsUpdates.budget = budget;
+    if (isAuction && maxPlayersPerTeam !== (draft.settings.max_players_per_team ?? 0)) settingsUpdates.max_players_per_team = maxPlayersPerTeam;
 
     if (Object.keys(settingsUpdates).length > 0) {
       updates.settings = settingsUpdates;
@@ -131,6 +134,10 @@ export function DraftSettingsForm({ draft, onSave, readOnly }: DraftSettingsForm
             )}
             {draft.type === 'auction' && (
               <>
+                <div className="text-gray-500 dark:text-gray-400">Max Players / Team</div>
+                <div className="font-medium text-gray-900 dark:text-white">
+                  {draft.settings.max_players_per_team ? draft.settings.max_players_per_team : `${draft.settings.rounds} (same as rounds)`}
+                </div>
                 <div className="text-gray-500 dark:text-gray-400">Offering Timer</div>
                 <div className="font-medium text-gray-900 dark:text-white">{formatTimer(draft.settings.offering_timer ?? 120)}</div>
                 <div className="text-gray-500 dark:text-gray-400">Bid Timer</div>
@@ -178,6 +185,24 @@ export function DraftSettingsForm({ draft, onSave, readOnly }: DraftSettingsForm
               className="w-20 rounded-lg border border-gray-300 dark:border-gray-600 px-3 py-2 text-sm text-gray-900 dark:text-white dark:bg-gray-700 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
             />
           </div>
+
+          {/* Max Players Per Team (auction only) */}
+          {isAuction && (
+            <div>
+              <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Max Players / Team</label>
+              <div className="flex items-center gap-2">
+                <input
+                  type="number"
+                  value={maxPlayersPerTeam}
+                  onChange={(e) => setMaxPlayersPerTeam(Math.max(0, Math.min(50, parseInt(e.target.value) || 0)))}
+                  min={0}
+                  max={50}
+                  className="w-20 rounded-lg border border-gray-300 dark:border-gray-600 px-3 py-2 text-sm text-gray-900 dark:text-white dark:bg-gray-700 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                />
+                <span className="text-xs text-gray-400 dark:text-gray-500">0 = same as rounds</span>
+              </div>
+            </div>
+          )}
 
           {/* Pick Timer (non-auction only) */}
           {!isAuction && <div>

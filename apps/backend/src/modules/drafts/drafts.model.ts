@@ -61,6 +61,7 @@ export interface DraftSettings {
   slots_k: number;
   slots_bn: number;
   budget: number;
+  max_players_per_team: number;
   [key: string]: number;
 }
 
@@ -88,6 +89,7 @@ export const DEFAULT_DRAFT_SETTINGS: DraftSettings = {
   slots_k: 1,
   slots_bn: 5,
   budget: 200,
+  max_players_per_team: 0,
 };
 
 export class Draft {

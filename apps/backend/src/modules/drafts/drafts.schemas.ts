@@ -26,6 +26,7 @@ const draftSettingsPartialSchema = z.object({
   slots_k: z.number().int().min(0).max(10).optional(),
   slots_bn: z.number().int().min(0).max(20).optional(),
   budget: z.number().int().min(1).max(9999).optional(),
+  max_players_per_team: z.number().int().min(0).max(50).optional(),
 }).passthrough();
 
 export const createDraftSchema = z.object({
