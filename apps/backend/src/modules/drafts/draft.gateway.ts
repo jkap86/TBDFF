@@ -28,7 +28,11 @@ export class DraftGateway {
 
   /** Broadcast a draft state update to all clients in the draft's room */
   broadcast(draftId: string, event: string, data: DraftStateUpdate): void {
-    this.io.to(`draft:${draftId}`).emit(event, data);
+    this.io.to(`draft:${draftId}`).emit(event, {
+      draft: data.draft.toSafeObject(),
+      pick: data.pick?.toSafeObject(),
+      chained_picks: data.chained_picks?.map((p) => p.toSafeObject()),
+    });
   }
 }
 
