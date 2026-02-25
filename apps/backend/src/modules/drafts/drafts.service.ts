@@ -13,6 +13,10 @@ import {
 export class DraftService {
   /** Per-draft lock to prevent concurrent processAutoBids executions */
   private autoBidLocks = new Map<string, Promise<Draft | null>>();
+  /** Per-draft lock to prevent concurrent processAutoPickChain executions */
+  private autoPickChainLocks = new Map<string, Promise<DraftPick[]>>();
+  /** Pending setTimeout handles for scheduleAutoBids, keyed by draftId */
+  private pendingAutoBidTimeouts = new Map<string, ReturnType<typeof setTimeout>>();
 
   constructor(
     private readonly draftRepository: DraftRepository,
@@ -251,15 +255,12 @@ export class DraftService {
       };
     }
 
-    // Update draft status
-    const updated = await this.draftRepository.update(draftId, {
+    // Atomically update draft status to 'drafting' and league status in one transaction
+    const updated = await this.draftRepository.startDraftAtomic(draftId, draft.leagueId, {
       status: 'drafting',
       startTime: new Date().toISOString(),
       ...(Object.keys(metadata).length > 0 ? { metadata } : {}),
     });
-
-    // Update league status
-    await this.draftRepository.updateLeagueStatus(draft.leagueId, 'drafting');
 
     if (!updated) throw new NotFoundException('Draft not found');
     return updated;
@@ -353,14 +354,14 @@ export class DraftService {
       lastPicked: new Date().toISOString(),
     });
 
-    // Atomically complete draft if all picks are made
-    const completed = await this.draftRepository.completeIfAllPicked(draftId);
+    // Atomically complete draft + league in one transaction
+    const completed = await this.draftRepository.completeAndUpdateLeague(draftId, draft.leagueId);
     if (completed) {
-      await this.draftRepository.updateLeagueStatus(draft.leagueId, 'in_season');
+      this.cancelScheduledAutoBids(draftId);
     }
 
     // Process auto-pick chain for subsequent autopick users
-    const chainedPicks = completed ? [] : await this.processAutoPickChain(draftId);
+    const chainedPicks = completed ? [] : await this.scheduleAutoPickChain(draftId);
 
     return { pick, chainedPicks };
   }
@@ -434,14 +435,14 @@ export class DraftService {
     // Timeout triggers autopick mode for the timed-out user
     await this.draftRepository.addAutoPickUser(draftId, slotOwner);
 
-    // Atomically complete draft if all picks are made
-    const completed = await this.draftRepository.completeIfAllPicked(draftId);
+    // Atomically complete draft + league in one transaction
+    const completed = await this.draftRepository.completeAndUpdateLeague(draftId, draft.leagueId);
     if (completed) {
-      await this.draftRepository.updateLeagueStatus(draft.leagueId, 'in_season');
+      this.cancelScheduledAutoBids(draftId);
     }
 
     // Process auto-pick chain for subsequent autopick users
-    const chainedPicks = completed ? [] : await this.processAutoPickChain(draftId);
+    const chainedPicks = completed ? [] : await this.scheduleAutoPickChain(draftId);
 
     return { pick, chainedPicks };
   }
@@ -477,7 +478,7 @@ export class DraftService {
     await this.draftRepository.addAutoPickUser(draftId, userId);
 
     // If it's currently this user's turn, chain auto-picks starting now
-    const chainedPicks = await this.processAutoPickChain(draftId);
+    const chainedPicks = await this.scheduleAutoPickChain(draftId);
 
     const finalDraft = await this.draftRepository.findById(draftId);
     return { draft: finalDraft ?? draft, picks: chainedPicks };
@@ -526,14 +527,35 @@ export class DraftService {
 
       chainedPicks.push(pick);
 
-      const completed = await this.draftRepository.completeIfAllPicked(draftId);
+      const completed = await this.draftRepository.completeAndUpdateLeague(draftId, draft.leagueId);
       if (completed) {
-        await this.draftRepository.updateLeagueStatus(draft.leagueId, 'in_season');
+        this.cancelScheduledAutoBids(draftId);
         break;
       }
     }
 
     return chainedPicks;
+  }
+
+  /**
+   * Serialize processAutoPickChain calls per draft to prevent concurrent
+   * auto-pick chains from racing and creating duplicate picks.
+   */
+  private scheduleAutoPickChain(draftId: string): Promise<DraftPick[]> {
+    const existing = this.autoPickChainLocks.get(draftId);
+    const run = (existing ?? Promise.resolve([] as DraftPick[]))
+      .then(() => this.processAutoPickChain(draftId))
+      .catch((err) => {
+        console.error(`[DraftService] autoPickChain failed for draft ${draftId}:`, err);
+        return [] as DraftPick[];
+      });
+    this.autoPickChainLocks.set(draftId, run);
+    run.finally(() => {
+      if (this.autoPickChainLocks.get(draftId) === run) {
+        this.autoPickChainLocks.delete(draftId);
+      }
+    });
+    return run;
   }
 
   // ---- Draft Queue Methods ----
@@ -824,9 +846,9 @@ export class DraftService {
       nomination.current_bid,
     );
 
-    const completed = await this.draftRepository.completeIfAllPicked(draftId);
+    const completed = await this.draftRepository.completeAndUpdateLeague(draftId, draft.leagueId);
     if (completed) {
-      await this.draftRepository.updateLeagueStatus(draft.leagueId, 'in_season');
+      this.cancelScheduledAutoBids(draftId);
       const refreshedDraft = await this.draftRepository.findById(draftId);
       // Clear nomination state on completion
       await this.draftRepository.update(draftId, {
@@ -899,32 +921,28 @@ export class DraftService {
     if (!bestPlayer) throw new ValidationException('No available players');
 
     const nominatorRosterId = draft.slotToRosterId[String(nextPick.draftSlot)];
+
+    // If nominator's roster is full, skip auto-nominate — the offering timer will
+    // expire and resolveNomination will advance to the next pick slot naturally.
+    const nominatorPicksWon = await this.draftRepository.countPicksWonByRoster(draftId, nominatorRosterId);
+    if (nominatorPicksWon >= this.getMaxPlayersPerTeam(draft)) {
+      return draft;
+    }
+
     const bidDeadline = new Date(
       Date.now() + draft.settings.nomination_timer * 1000
     ).toISOString();
-
-    // If nominator's roster is full, find an eligible team for the initial bid
-    let initialBidderId = slotOwner || userId;
-    let initialBidderRosterId = nominatorRosterId;
-    const nominatorPicksWon = await this.draftRepository.countPicksWonByRoster(draftId, nominatorRosterId);
-    if (nominatorPicksWon >= this.getMaxPlayersPerTeam(draft)) {
-      const eligible = await this.findEligibleInitialBidder(draft, null);
-      if (eligible) {
-        initialBidderId = eligible.userId;
-        initialBidderRosterId = eligible.rosterId;
-      }
-    }
 
     const nomination: AuctionNomination = {
       pick_id: nextPick.id,
       player_id: bestPlayer.id,
       nominated_by: slotOwner || userId,
       current_bid: 1,
-      current_bidder: initialBidderId,
-      bidder_roster_id: initialBidderRosterId,
+      current_bidder: slotOwner || userId,
+      bidder_roster_id: nominatorRosterId,
       bid_deadline: bidDeadline,
       bid_history: [{
-        user_id: initialBidderId,
+        user_id: slotOwner || userId,
         amount: 1,
         timestamp: new Date().toISOString(),
       }],
@@ -969,31 +987,27 @@ export class DraftService {
       if (!bestPlayer) return;
 
       const nominatorRosterId = draft.slotToRosterId[String(nextPick.draftSlot)];
+
+      // If nominator's roster is full, skip auto-nominate — the offering timer will
+      // expire and resolveNomination will advance to the next pick slot naturally.
+      const nominatorPicksWon = await this.draftRepository.countPicksWonByRoster(draftId, nominatorRosterId);
+      if (nominatorPicksWon >= this.getMaxPlayersPerTeam(draft)) {
+        return;
+      }
+
       const bidDeadline = new Date(
         Date.now() + draft.settings.nomination_timer * 1000
       ).toISOString();
-
-      // If nominator's roster is full, find an eligible team for the initial bid
-      let initialBidderId = slotOwner;
-      let initialBidderRosterId = nominatorRosterId;
-      const nominatorPicksWon = await this.draftRepository.countPicksWonByRoster(draftId, nominatorRosterId);
-      if (nominatorPicksWon >= this.getMaxPlayersPerTeam(draft)) {
-        const eligible = await this.findEligibleInitialBidder(draft, null);
-        if (eligible) {
-          initialBidderId = eligible.userId;
-          initialBidderRosterId = eligible.rosterId;
-        }
-      }
 
       const nomination: AuctionNomination = {
         pick_id: nextPick.id,
         player_id: bestPlayer.id,
         nominated_by: slotOwner,
         current_bid: 1,
-        current_bidder: initialBidderId,
-        bidder_roster_id: initialBidderRosterId,
+        current_bidder: slotOwner,
+        bidder_roster_id: nominatorRosterId,
         bid_deadline: bidDeadline,
-        bid_history: [{ user_id: initialBidderId, amount: 1, timestamp: new Date().toISOString() }],
+        bid_history: [{ user_id: slotOwner, amount: 1, timestamp: new Date().toISOString() }],
         player_metadata: {
           first_name: bestPlayer.firstName,
           last_name: bestPlayer.lastName,
@@ -1092,12 +1106,29 @@ export class DraftService {
   }
 
   /**
+   * Cancel any pending scheduleAutoBids timeout for this draft.
+   * Called when a draft completes so the setTimeout never fires.
+   */
+  private cancelScheduledAutoBids(draftId: string): void {
+    const timeout = this.pendingAutoBidTimeouts.get(draftId);
+    if (timeout) {
+      clearTimeout(timeout);
+      this.pendingAutoBidTimeouts.delete(draftId);
+    }
+  }
+
+  /**
    * Schedule auto-bid processing with per-draft locking.
    * If a processAutoBids is already running for this draft, the new call
    * waits for it to finish then runs once more (coalescing multiple triggers).
+   * Cancels any existing pending timeout before scheduling a new one.
    */
   private scheduleAutoBids(draftId: string): void {
-    setTimeout(() => {
+    const existingTimeout = this.pendingAutoBidTimeouts.get(draftId);
+    if (existingTimeout) clearTimeout(existingTimeout);
+
+    const timeout = setTimeout(() => {
+      this.pendingAutoBidTimeouts.delete(draftId);
       const existing = this.autoBidLocks.get(draftId);
       const run = (existing ?? Promise.resolve(null))
         .then(() => this._processAutoBids(draftId))
@@ -1112,6 +1143,8 @@ export class DraftService {
         }
       });
     }, 3000);
+
+    this.pendingAutoBidTimeouts.set(draftId, timeout);
   }
 
   /**
@@ -1171,7 +1204,7 @@ export class DraftService {
       const queueItem = queueItemsMap.get(userId) ?? null;
       const target = queueItem?.max_bid != null
         ? queueItem.max_bid
-        : Math.floor(auctionValue * 0.8 * (draftBudget / 200));
+        : Math.floor(auctionValue * 0.8 * (draftBudget / 200) * (draft.settings.teams / 12));
 
       const budget = budgets[String(rosterId)] ?? 0;
       const picksWon = picksWonMap.get(rosterId) ?? 0;

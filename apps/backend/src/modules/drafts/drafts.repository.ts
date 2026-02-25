@@ -1,4 +1,4 @@
-import { Pool } from 'pg';
+import { Pool, PoolClient } from 'pg';
 import { Draft, DraftPick } from './drafts.model';
 import { Player } from '../players/players.model';
 
@@ -54,7 +54,7 @@ export class DraftRepository {
     return result.rows.length > 0 ? Draft.fromDatabase(result.rows[0]) : null;
   }
 
-  async update(id: string, data: Record<string, any>): Promise<Draft | null> {
+  private buildUpdateClauses(data: Record<string, any>): { fields: string[]; values: any[] } {
     const fields: string[] = [];
     const values: any[] = [];
     let paramIndex = 1;
@@ -82,14 +82,60 @@ export class DraftRepository {
       }
     }
 
+    return { fields, values };
+  }
+
+  async update(id: string, data: Record<string, any>): Promise<Draft | null> {
+    const { fields, values } = this.buildUpdateClauses(data);
+
     if (fields.length === 0) return this.findById(id);
 
     values.push(id);
     const result = await this.db.query(
-      `UPDATE drafts SET ${fields.join(', ')} WHERE id = $${paramIndex} RETURNING *`,
+      `UPDATE drafts SET ${fields.join(', ')} WHERE id = $${values.length} RETURNING *`,
       values
     );
     return result.rows.length > 0 ? Draft.fromDatabase(result.rows[0]) : null;
+  }
+
+  /**
+   * Atomically set draft status to 'drafting' and league status to 'drafting'
+   * in a single transaction to prevent them going out of sync.
+   */
+  async startDraftAtomic(
+    draftId: string,
+    leagueId: string,
+    data: Record<string, any>,
+  ): Promise<Draft | null> {
+    const { fields, values } = this.buildUpdateClauses(data);
+    const client: PoolClient = await this.db.connect();
+    try {
+      await client.query('BEGIN');
+      let draft: Draft | null = null;
+      if (fields.length > 0) {
+        const params = [...values, draftId];
+        const result = await client.query(
+          `UPDATE drafts SET ${fields.join(', ')} WHERE id = $${params.length} RETURNING *`,
+          params,
+        );
+        draft = result.rows.length > 0 ? Draft.fromDatabase(result.rows[0]) : null;
+      } else {
+        const result = await client.query('SELECT * FROM drafts WHERE id = $1', [draftId]);
+        draft = result.rows.length > 0 ? Draft.fromDatabase(result.rows[0]) : null;
+      }
+      if (!draft) {
+        await client.query('COMMIT');
+        return null;
+      }
+      await client.query('UPDATE leagues SET status = $1 WHERE id = $2', ['drafting', leagueId]);
+      await client.query('COMMIT');
+      return draft;
+    } catch (e) {
+      await client.query('ROLLBACK');
+      throw e;
+    } finally {
+      client.release();
+    }
   }
 
   async updateStatus(id: string, status: string): Promise<Draft | null> {
@@ -217,6 +263,37 @@ export class DraftRepository {
       [draftId]
     );
     return result.rows.length > 0 ? Draft.fromDatabase(result.rows[0]) : null;
+  }
+
+  /**
+   * Atomically mark the draft complete and update the league to 'in_season'
+   * in a single transaction to prevent them going out of sync.
+   * Returns the completed draft, or null if not all picks have been made.
+   */
+  async completeAndUpdateLeague(draftId: string, leagueId: string): Promise<Draft | null> {
+    const client: PoolClient = await this.db.connect();
+    try {
+      await client.query('BEGIN');
+      const result = await client.query(
+        `UPDATE drafts SET status = 'complete'
+         WHERE id = $1 AND status = 'drafting'
+           AND (SELECT COUNT(*) FROM draft_picks WHERE draft_id = $1 AND player_id IS NULL) = 0
+         RETURNING *`,
+        [draftId],
+      );
+      if (result.rows.length === 0) {
+        await client.query('COMMIT');
+        return null;
+      }
+      await client.query(`UPDATE leagues SET status = 'in_season' WHERE id = $1`, [leagueId]);
+      await client.query('COMMIT');
+      return Draft.fromDatabase(result.rows[0]);
+    } catch (e) {
+      await client.query('ROLLBACK');
+      throw e;
+    } finally {
+      client.release();
+    }
   }
 
   async findBestAvailable(draftId: string): Promise<Player | null> {
