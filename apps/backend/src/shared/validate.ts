@@ -9,7 +9,14 @@ export function validate(schema: z.ZodType, source: 'body' | 'query' | 'params' 
       const message = result.error.issues.map((e) => e.message).join(', ');
       return next(new ValidationException(message));
     }
-    req[source] = result.data;
+    if (source === 'query') {
+      // req.query is a getter on IncomingMessage — mutate in place
+      const q = req.query as Record<string, unknown>;
+      for (const key of Object.keys(q)) delete q[key];
+      Object.assign(q, result.data);
+    } else {
+      req[source] = result.data;
+    }
     next();
   };
 }
