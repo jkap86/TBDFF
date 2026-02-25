@@ -15,7 +15,7 @@ export function LeagueChat({ leagueId }: Props) {
 
   if (isLoading) {
     return (
-      <div className="flex h-96 items-center justify-center">
+      <div className="flex h-full items-center justify-center">
         <p className="text-sm text-gray-400">Loading chat...</p>
       </div>
     );
@@ -23,14 +23,14 @@ export function LeagueChat({ leagueId }: Props) {
 
   if (error) {
     return (
-      <div className="flex h-96 items-center justify-center p-4">
+      <div className="flex h-full items-center justify-center p-4">
         <p className="text-sm text-red-500">{error}</p>
       </div>
     );
   }
 
   return (
-    <div className="flex h-96 flex-col">
+    <div className="flex h-full flex-col">
       <div className="flex-1 overflow-hidden">
         <MessageList
           messages={messages}
