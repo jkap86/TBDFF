@@ -904,30 +904,52 @@ export class DraftService {
       }
     }
 
-    const nextPick = await this.draftRepository.findNextPick(draftId);
+    let nextPick = await this.draftRepository.findNextPick(draftId);
     if (!nextPick) throw new ValidationException('All nominations complete');
 
-    // Enable auto-pick for the timed-out nominator
-    const slotOwner = this.findUserBySlot(draft.draftOrder, nextPick.draftSlot);
-    if (slotOwner) {
-      await this.draftRepository.addAutoPickUser(draftId, slotOwner);
+    // Enable auto-pick for the timed-out nominator (the original slot owner who missed their turn)
+    const originalSlotOwner = this.findUserBySlot(draft.draftOrder, nextPick.draftSlot);
+    if (originalSlotOwner) {
+      await this.draftRepository.addAutoPickUser(draftId, originalSlotOwner);
     }
 
-    // Try the user's queue first, fall back to best available
+    // Forfeit nomination slots for full-roster teams until an eligible nominator is found
+    let nominatorRosterId = draft.slotToRosterId[String(nextPick.draftSlot)];
+    let nominatorPicksWon = await this.draftRepository.countPicksWonByRoster(draftId, nominatorRosterId);
+
+    while (nominatorPicksWon >= this.getMaxPlayersPerTeam(draft)) {
+      await this.draftRepository.forfeitPick(nextPick.id);
+
+      nextPick = await this.draftRepository.findNextPick(draftId);
+      if (!nextPick) {
+        // All remaining nomination slots forfeited — complete the draft
+        const completed = await this.draftRepository.completeAndUpdateLeague(draftId, draft.leagueId);
+        if (completed) {
+          this.cancelScheduledAutoBids(draftId);
+          const refreshedDraft = await this.draftRepository.findById(draftId);
+          await this.draftRepository.update(draftId, {
+            metadata: {
+              ...refreshedDraft!.metadata,
+              current_nomination: null,
+              nomination_deadline: null,
+            },
+          });
+        }
+        return (await this.draftRepository.findById(draftId))!;
+      }
+
+      nominatorRosterId = draft.slotToRosterId[String(nextPick.draftSlot)];
+      nominatorPicksWon = await this.draftRepository.countPicksWonByRoster(draftId, nominatorRosterId);
+    }
+
+    const slotOwner = this.findUserBySlot(draft.draftOrder, nextPick.draftSlot);
+
+    // Try the eligible nominator's queue first, fall back to best available
     const queuedPlayer = slotOwner
       ? await this.draftRepository.findFirstAvailableFromQueue(draftId, slotOwner)
       : null;
     const bestPlayer = queuedPlayer ?? await this.draftRepository.findBestAvailable(draftId);
     if (!bestPlayer) throw new ValidationException('No available players');
-
-    const nominatorRosterId = draft.slotToRosterId[String(nextPick.draftSlot)];
-
-    // If nominator's roster is full, skip auto-nominate — the offering timer will
-    // expire and resolveNomination will advance to the next pick slot naturally.
-    const nominatorPicksWon = await this.draftRepository.countPicksWonByRoster(draftId, nominatorRosterId);
-    if (nominatorPicksWon >= this.getMaxPlayersPerTeam(draft)) {
-      return draft;
-    }
 
     const bidDeadline = new Date(
       Date.now() + draft.settings.nomination_timer * 1000

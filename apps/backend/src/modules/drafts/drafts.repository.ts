@@ -222,7 +222,9 @@ export class DraftRepository {
       `SELECT dp.*, u.username
        FROM draft_picks dp
        LEFT JOIN users u ON u.id = dp.picked_by
-       WHERE dp.draft_id = $1 AND dp.player_id IS NULL
+       WHERE dp.draft_id = $1
+         AND dp.player_id IS NULL
+         AND (dp.metadata->>'forfeited' IS DISTINCT FROM 'true')
        ORDER BY dp.pick_no ASC
        LIMIT 1`,
       [draftId]
@@ -258,7 +260,10 @@ export class DraftRepository {
     const result = await this.db.query(
       `UPDATE drafts SET status = 'complete'
        WHERE id = $1 AND status = 'drafting'
-       AND (SELECT COUNT(*) FROM draft_picks WHERE draft_id = $1 AND player_id IS NULL) = 0
+       AND (SELECT COUNT(*) FROM draft_picks
+            WHERE draft_id = $1
+              AND player_id IS NULL
+              AND (metadata->>'forfeited' IS DISTINCT FROM 'true')) = 0
        RETURNING *`,
       [draftId]
     );
@@ -277,7 +282,10 @@ export class DraftRepository {
       const result = await client.query(
         `UPDATE drafts SET status = 'complete'
          WHERE id = $1 AND status = 'drafting'
-           AND (SELECT COUNT(*) FROM draft_picks WHERE draft_id = $1 AND player_id IS NULL) = 0
+           AND (SELECT COUNT(*) FROM draft_picks
+                WHERE draft_id = $1
+                  AND player_id IS NULL
+                  AND (metadata->>'forfeited' IS DISTINCT FROM 'true')) = 0
          RETURNING *`,
         [draftId],
       );
@@ -404,6 +412,15 @@ export class DraftRepository {
       [playerId, pickedBy, rosterId, amount, JSON.stringify(metadata), pickId]
     );
     return result.rows.length > 0 ? DraftPick.fromDatabase(result.rows[0]) : null;
+  }
+
+  async forfeitPick(pickId: string): Promise<void> {
+    await this.db.query(
+      `UPDATE draft_picks
+       SET metadata = COALESCE(metadata, '{}'::jsonb) || '{"forfeited": true}'::jsonb
+       WHERE id = $1 AND player_id IS NULL`,
+      [pickId],
+    );
   }
 
   async initializeAuctionBudgets(
