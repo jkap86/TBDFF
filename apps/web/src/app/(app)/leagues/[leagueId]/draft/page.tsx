@@ -206,6 +206,10 @@ export default function DraftRoomPage() {
           }
           return updated;
         });
+        // Refresh queue so drafted players are immediately reflected
+        if (accessToken) {
+          draftApi.getQueue(draft.id, accessToken).then((res) => setQueue(res.queue)).catch(() => {});
+        }
       }
     };
 
@@ -215,7 +219,7 @@ export default function DraftRoomPage() {
       socket.off('draft:state_updated', handleStateUpdate);
       socket.emit('draft:leave', draft.id);
     };
-  }, [socket, draft?.id, draft?.status]);
+  }, [socket, draft?.id, draft?.status, accessToken]);
 
   // Fallback polling (reduced frequency since socket handles real-time updates)
   useEffect(() => {

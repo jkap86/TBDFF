@@ -124,6 +124,11 @@ export function DraftQueue({ queue, draftedPlayerIds, onReorder, onRemove, onUpd
                     {item.position}{item.team ? ` - ${item.team}` : ''}
                   </div>
                 </div>
+                {isDrafted && (
+                  <span className="shrink-0 rounded bg-gray-200 dark:bg-gray-700 px-1.5 py-0.5 text-[10px] font-medium text-gray-500 dark:text-gray-400">
+                    Drafted
+                  </span>
+                )}
                 {showBids && !isDrafted && (
                   <MaxBidInput item={item} budget={budget} onUpdateMaxBid={onUpdateMaxBid} />
                 )}

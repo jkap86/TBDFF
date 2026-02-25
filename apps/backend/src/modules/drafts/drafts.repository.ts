@@ -638,9 +638,9 @@ export class DraftRepository {
          AND dq.user_id = $2
          AND p.active = true
          AND p.position IN ('QB', 'RB', 'WR', 'TE', 'K', 'DEF')
-         AND dq.player_id NOT IN (
-           SELECT dp.player_id FROM draft_picks dp
-           WHERE dp.draft_id = $1 AND dp.player_id IS NOT NULL
+         AND NOT EXISTS (
+           SELECT 1 FROM draft_picks dp
+           WHERE dp.draft_id = $1 AND dp.player_id = dq.player_id
          )
        ORDER BY dq.rank ASC
        LIMIT 1`,

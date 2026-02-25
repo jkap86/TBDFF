@@ -473,14 +473,20 @@ export class DraftService {
     }
 
     // Determine the user who owns the current slot
-    const slotOwner = this.findUserBySlot(draft.draftOrder, nextPick.draftSlot) ?? userId;
+    const slotOwner = this.findUserBySlot(draft.draftOrder, nextPick.draftSlot);
+    if (!slotOwner) {
+      throw new ValidationException('Could not determine slot owner for auto-pick');
+    }
 
     // Try the user's queue first, fall back to best available
+    console.log(`[auto-pick] draft=${draftId} slot=${nextPick.draftSlot} slotOwner=${slotOwner} triggeredBy=${userId}`);
     const queuedPlayer = await this.draftRepository.findFirstAvailableFromQueue(draftId, slotOwner);
+    console.log(`[auto-pick] queueResult=${queuedPlayer ? `${queuedPlayer.fullName} (${queuedPlayer.id})` : 'null (no queued player)'}`);
     const bestPlayer = queuedPlayer ?? (await this.draftRepository.findBestAvailable(draftId));
     if (!bestPlayer) {
       throw new ValidationException('No available players to auto-pick');
     }
+    console.log(`[auto-pick] finalPick=${bestPlayer.fullName} (${bestPlayer.id}) source=${queuedPlayer ? 'queue' : 'BPA'}`);
 
     // Make the pick using the selected player
     const pickMetadata = {
@@ -1221,7 +1227,7 @@ export class DraftService {
 
   private findUserBySlot(draftOrder: Record<string, number>, slot: number): string | null {
     for (const [userId, userSlot] of Object.entries(draftOrder)) {
-      if (userSlot === slot) return userId;
+      if (Number(userSlot) === Number(slot)) return userId;
     }
     return null;
   }
