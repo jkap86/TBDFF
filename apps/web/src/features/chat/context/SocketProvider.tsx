@@ -22,6 +22,7 @@ interface ClientToServerEvents {
   'chat:join_league': (leagueId: string) => void;
   'chat:leave_league': (leagueId: string) => void;
   'chat:join_dm': (conversationId: string) => void;
+  'chat:leave_dm': (conversationId: string) => void;
   'chat:send': (payload: { type: 'league' | 'dm'; roomId: string; content: string }) => void;
 }
 
@@ -33,6 +34,7 @@ interface SocketContextValue {
   joinLeague: (leagueId: string) => void;
   leaveLeague: (leagueId: string) => void;
   joinDM: (conversationId: string) => void;
+  leaveDM: (conversationId: string) => void;
   sendMessage: (type: 'league' | 'dm', roomId: string, content: string) => void;
 }
 
@@ -100,6 +102,10 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
     socketRef.current?.emit('chat:join_dm', conversationId);
   }, []);
 
+  const leaveDM = useCallback((conversationId: string) => {
+    socketRef.current?.emit('chat:leave_dm', conversationId);
+  }, []);
+
   const sendMessage = useCallback(
     (type: 'league' | 'dm', roomId: string, content: string) => {
       socketRef.current?.emit('chat:send', { type, roomId, content });
@@ -115,6 +121,7 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
         joinLeague,
         leaveLeague,
         joinDM,
+        leaveDM,
         sendMessage,
       }}
     >

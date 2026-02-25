@@ -2,11 +2,13 @@
 
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { Settings } from 'lucide-react';
+import { Settings, MessageSquare } from 'lucide-react';
 import { leagueApi, draftApi, matchupApi, ApiError, type League, type LeagueMember, type Roster, type UpdateLeagueRequest, type Draft, type Matchup } from '@/lib/api';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import { LeagueSettingsModal } from '@/features/leagues/components/LeagueSettingsModal';
 import { LeagueChat } from '@/features/chat/components/LeagueChat';
+import { useConversations } from '@/features/chat/hooks/useConversations';
+import { useDMPanel } from '@/features/chat/context/DMPanelContext';
 
 const draftTypeLabels: Record<string, string> = {
   snake: 'Snake',
@@ -32,6 +34,8 @@ export default function LeagueDetailPage() {
   const [isCreatingDraft, setIsCreatingDraft] = useState(false);
   const [isGeneratingMatchups, setIsGeneratingMatchups] = useState(false);
   const [selectedWeek, setSelectedWeek] = useState(1);
+  const { startConversation } = useConversations();
+  const { openConversation } = useDMPanel();
 
   useEffect(() => {
     const fetchData = async () => {
@@ -134,6 +138,15 @@ export default function LeagueDetailPage() {
       }
     } finally {
       setIsGeneratingMatchups(false);
+    }
+  };
+
+  const handleStartDM = async (memberId: string) => {
+    try {
+      const conversation = await startConversation(memberId);
+      openConversation(conversation);
+    } catch {
+      // Non-fatal — user may already have the panel open
     }
   };
 
@@ -449,11 +462,22 @@ export default function LeagueDetailPage() {
                     <p className="text-sm text-gray-500 dark:text-gray-400">{member.display_name}</p>
                   )}
                 </div>
-                <span
-                  className={`rounded-full px-2 py-1 text-xs font-medium uppercase ${roleColors[member.role]}`}
-                >
-                  {member.role}
-                </span>
+                <div className="flex items-center gap-2">
+                  {member.user_id !== user?.id && (
+                    <button
+                      onClick={() => handleStartDM(member.user_id)}
+                      className="rounded p-1.5 text-gray-400 hover:bg-gray-100 hover:text-blue-600 dark:hover:bg-gray-700 dark:hover:text-blue-400"
+                      title={`Message ${member.username}`}
+                    >
+                      <MessageSquare className="h-4 w-4" />
+                    </button>
+                  )}
+                  <span
+                    className={`rounded-full px-2 py-1 text-xs font-medium uppercase ${roleColors[member.role]}`}
+                  >
+                    {member.role}
+                  </span>
+                </div>
               </div>
             ))}
           </div>

@@ -53,21 +53,17 @@ export class ChatRepository {
     content: string;
   }): Promise<Message> {
     const result = await this.db.query(
-      `INSERT INTO messages (sender_id, league_id, conversation_id, content)
-       VALUES ($1, $2, $3, $4)
-       RETURNING *`,
+      `WITH ins AS (
+         INSERT INTO messages (sender_id, league_id, conversation_id, content)
+         VALUES ($1, $2, $3, $4)
+         RETURNING *
+       )
+       SELECT ins.*, u.display_username AS sender_username
+       FROM ins
+       JOIN users u ON u.id = ins.sender_id`,
       [data.senderId, data.leagueId ?? null, data.conversationId ?? null, data.content],
     );
-
-    // Fetch with sender username joined
-    const row = await this.db.query(
-      `SELECT m.*, u.display_username AS sender_username
-       FROM messages m
-       JOIN users u ON u.id = m.sender_id
-       WHERE m.id = $1`,
-      [result.rows[0].id],
-    );
-    return Message.fromDatabase(row.rows[0]);
+    return Message.fromDatabase(result.rows[0]);
   }
 
   async findOrCreateConversation(userAId: string, userBId: string): Promise<Conversation> {
@@ -75,24 +71,33 @@ export class ChatRepository {
     const least = [userAId, userBId].sort()[0];
     const greatest = [userAId, userBId].sort()[1];
 
-    await this.db.query(
-      `INSERT INTO conversations (user_a_id, user_b_id)
-       VALUES ($1, $2)
-       ON CONFLICT DO NOTHING`,
-      [least, greatest],
-    );
-
     const result = await this.db.query(
-      `SELECT c.*,
-              CASE WHEN c.user_a_id = $1 THEN ub.display_username ELSE ua.display_username END AS other_username,
-              (SELECT content FROM messages WHERE conversation_id = c.id ORDER BY created_at DESC LIMIT 1) AS last_message,
-              (SELECT created_at FROM messages WHERE conversation_id = c.id ORDER BY created_at DESC LIMIT 1) AS last_message_at
-       FROM conversations c
+      `WITH ins AS (
+         INSERT INTO conversations (user_a_id, user_b_id)
+         VALUES ($1, $2)
+         ON CONFLICT DO NOTHING
+         RETURNING *
+       )
+       SELECT c.*,
+              CASE WHEN c.user_a_id = $3 THEN ub.display_username ELSE ua.display_username END AS other_username,
+              lm.content AS last_message,
+              lm.created_at AS last_message_at
+       FROM (
+         SELECT * FROM ins
+         UNION ALL
+         SELECT * FROM conversations
+         WHERE user_a_id = $1 AND user_b_id = $2
+         LIMIT 1
+       ) c
        JOIN users ua ON ua.id = c.user_a_id
        JOIN users ub ON ub.id = c.user_b_id
-       WHERE (c.user_a_id = $1 AND c.user_b_id = $2)
-          OR (c.user_a_id = $2 AND c.user_b_id = $1)`,
-      [userAId, userBId],
+       LEFT JOIN LATERAL (
+         SELECT content, created_at FROM messages
+         WHERE conversation_id = c.id
+         ORDER BY created_at DESC LIMIT 1
+       ) lm ON true
+       LIMIT 1`,
+      [least, greatest, userAId],
     );
     return Conversation.fromDatabase(result.rows[0]);
   }
@@ -114,13 +119,18 @@ export class ChatRepository {
     const result = await this.db.query(
       `SELECT c.*,
               CASE WHEN c.user_a_id = $1 THEN ub.display_username ELSE ua.display_username END AS other_username,
-              (SELECT content FROM messages WHERE conversation_id = c.id ORDER BY created_at DESC LIMIT 1) AS last_message,
-              (SELECT created_at FROM messages WHERE conversation_id = c.id ORDER BY created_at DESC LIMIT 1) AS last_message_at
+              lm.content AS last_message,
+              lm.created_at AS last_message_at
        FROM conversations c
        JOIN users ua ON ua.id = c.user_a_id
        JOIN users ub ON ub.id = c.user_b_id
+       LEFT JOIN LATERAL (
+         SELECT content, created_at FROM messages
+         WHERE conversation_id = c.id
+         ORDER BY created_at DESC LIMIT 1
+       ) lm ON true
        WHERE c.user_a_id = $1 OR c.user_b_id = $1
-       ORDER BY last_message_at DESC NULLS LAST`,
+       ORDER BY lm.created_at DESC NULLS LAST`,
       [userId],
     );
     return result.rows.map(Conversation.fromDatabase);

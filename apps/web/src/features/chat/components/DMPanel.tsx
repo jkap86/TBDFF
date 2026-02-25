@@ -1,15 +1,13 @@
 'use client';
 
-import { useState } from 'react';
 import { ChevronLeft, MessageSquare, X } from 'lucide-react';
 import { useConversations } from '../hooks/useConversations';
+import { useDMPanel } from '../context/DMPanelContext';
 import { ConversationList } from './ConversationList';
 import { DMConversation } from './DMConversation';
-import type { Conversation } from '@tbdff/shared';
 
 export function DMPanel() {
-  const [isOpen, setIsOpen] = useState(false);
-  const [activeConversation, setActiveConversation] = useState<Conversation | null>(null);
+  const { isOpen, activeConversation, openPanel, closePanel, setActiveConversation } = useDMPanel();
   const { conversations, isLoading } = useConversations();
 
   const handleSelect = (conversationId: string) => {
@@ -19,16 +17,19 @@ export function DMPanel() {
 
   const handleBack = () => setActiveConversation(null);
 
-  const handleClose = () => {
-    setIsOpen(false);
-    setActiveConversation(null);
+  const handleToggle = () => {
+    if (isOpen) {
+      closePanel();
+    } else {
+      openPanel();
+    }
   };
 
   return (
     <>
       {/* Floating trigger button */}
       <button
-        onClick={() => setIsOpen((v) => !v)}
+        onClick={handleToggle}
         aria-label="Open messages"
         className="fixed bottom-6 right-6 z-50 flex h-12 w-12 items-center justify-center rounded-full bg-blue-600 text-white shadow-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
       >
@@ -60,7 +61,7 @@ export function DMPanel() {
               <span className="text-sm font-semibold text-gray-900 dark:text-white">Messages</span>
             )}
             <button
-              onClick={handleClose}
+              onClick={closePanel}
               className="rounded p-0.5 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
               aria-label="Close messages"
             >

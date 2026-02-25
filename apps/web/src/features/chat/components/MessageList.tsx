@@ -11,11 +11,44 @@ interface Props {
 }
 
 export function MessageList({ messages, currentUserId, onLoadMore, hasMore }: Props) {
+  const containerRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const prevFirstMsgIdRef = useRef<string | null>(null);
+  const wasAtBottomRef = useRef(true);
+
+  // Track whether user is near the bottom before messages change
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+    const handleScroll = () => {
+      const threshold = 80;
+      wasAtBottomRef.current =
+        container.scrollTop + container.clientHeight >= container.scrollHeight - threshold;
+    };
+    container.addEventListener('scroll', handleScroll, { passive: true });
+    return () => container.removeEventListener('scroll', handleScroll);
+  }, []);
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages.length]);
+    if (messages.length === 0) {
+      prevFirstMsgIdRef.current = null;
+      return;
+    }
+
+    const firstMsgId = messages[0].id;
+    const prevFirstId = prevFirstMsgIdRef.current;
+    prevFirstMsgIdRef.current = firstMsgId;
+
+    // If the first message ID changed, older messages were prepended — don't scroll
+    if (prevFirstId !== null && firstMsgId !== prevFirstId) {
+      return;
+    }
+
+    // New message appended (or initial load) — scroll to bottom if user was already there
+    if (wasAtBottomRef.current) {
+      bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [messages]);
 
   if (messages.length === 0) {
     return (
@@ -26,7 +59,7 @@ export function MessageList({ messages, currentUserId, onLoadMore, hasMore }: Pr
   }
 
   return (
-    <div className="flex flex-col gap-1 overflow-y-auto p-3">
+    <div ref={containerRef} className="flex flex-col gap-1 overflow-y-auto p-3">
       {hasMore && (
         <button
           onClick={onLoadMore}

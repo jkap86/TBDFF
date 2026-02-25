@@ -8,16 +8,19 @@ import { useSocket } from '../context/SocketProvider';
 
 export function useDMChat(conversationId: string) {
   const { accessToken } = useAuth();
-  const { socket, joinDM, sendMessage } = useSocket();
+  const { socket, joinDM, leaveDM, sendMessage } = useSocket();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [hasMore, setHasMore] = useState(false);
 
-  // Join the DM room on mount
+  // Join the DM room on mount, leave on unmount
   useEffect(() => {
     joinDM(conversationId);
-  }, [conversationId, joinDM]);
+    return () => {
+      leaveDM(conversationId);
+    };
+  }, [conversationId, joinDM, leaveDM]);
 
   // Listen for incoming messages in this conversation
   useEffect(() => {

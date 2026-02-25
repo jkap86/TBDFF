@@ -14,12 +14,27 @@ interface ClientToServerEvents {
   'chat:join_league': (leagueId: string) => void;
   'chat:leave_league': (leagueId: string) => void;
   'chat:join_dm': (conversationId: string) => void;
+  'chat:leave_dm': (conversationId: string) => void;
   'chat:send': (payload: { type: 'league' | 'dm'; roomId: string; content: string }) => void;
 }
 
 interface SocketData {
   userId: string;
   username: string;
+}
+
+const RATE_LIMIT_WINDOW_MS = 10_000;
+const RATE_LIMIT_MAX = 10;
+const rateLimitMap = new Map<string, number[]>();
+
+function isRateLimited(userId: string): boolean {
+  const now = Date.now();
+  const timestamps = rateLimitMap.get(userId) ?? [];
+  const recent = timestamps.filter((t) => now - t < RATE_LIMIT_WINDOW_MS);
+  rateLimitMap.set(userId, recent);
+  if (recent.length >= RATE_LIMIT_MAX) return true;
+  recent.push(now);
+  return false;
 }
 
 export function createChatGateway(
@@ -110,11 +125,21 @@ export function createChatGateway(
       }
     });
 
+    // Client leaves a DM room (e.g. navigates away)
+    socket.on('chat:leave_dm', (conversationId) => {
+      socket.leave(`dm:${conversationId}`);
+    });
+
     // Client sends a message
     socket.on('chat:send', async (payload) => {
       try {
         if (!payload || typeof payload.content !== 'string' || !payload.roomId) {
           socket.emit('chat:error', { message: 'Invalid message payload' });
+          return;
+        }
+
+        if (isRateLimited(userId)) {
+          socket.emit('chat:error', { message: 'You are sending messages too fast. Please slow down.' });
           return;
         }
 
