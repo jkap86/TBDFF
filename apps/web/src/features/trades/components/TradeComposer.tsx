@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { X } from 'lucide-react';
-import type { LeagueMember, Roster, ProposeTradeRequest } from '@/lib/api';
+import type { LeagueMember, Player, Roster, ProposeTradeRequest } from '@/lib/api';
 
 interface TradeComposerProps {
   isOpen: boolean;
@@ -10,10 +10,17 @@ interface TradeComposerProps {
   members: LeagueMember[];
   rosters: Roster[];
   currentUserId: string;
+  playerMap: Record<string, Player>;
   onSubmit: (data: ProposeTradeRequest) => Promise<unknown>;
 }
 
-export function TradeComposer({ isOpen, onClose, members, rosters, currentUserId, onSubmit }: TradeComposerProps) {
+function playerLabel(pid: string, playerMap: Record<string, Player>): string {
+  const p = playerMap[pid];
+  if (!p) return pid;
+  return `${p.full_name} (${p.position ?? 'N/A'})`;
+}
+
+export function TradeComposer({ isOpen, onClose, members, rosters, currentUserId, playerMap, onSubmit }: TradeComposerProps) {
   const [selectedPartner, setSelectedPartner] = useState('');
   const [message, setMessage] = useState('');
   const [myPlayers, setMyPlayers] = useState<string[]>([]);
@@ -27,7 +34,7 @@ export function TradeComposer({ isOpen, onClose, members, rosters, currentUserId
 
   const handleSubmit = async () => {
     if (!selectedPartner || !myRoster || !partnerRoster) return;
-    if (myPlayers.length === 0 && theirPlayers.length === 0) return;
+    if (myPlayers.length === 0 || theirPlayers.length === 0) return;
 
     const items: ProposeTradeRequest['items'] = [
       ...myPlayers.map((pid) => ({
@@ -116,7 +123,7 @@ export function TradeComposer({ isOpen, onClose, members, rosters, currentUserId
                       onChange={() => togglePlayer(pid, myPlayers, setMyPlayers)}
                       className="rounded"
                     />
-                    <span className="text-sm text-gray-700 dark:text-gray-300">{pid}</span>
+                    <span className="text-sm text-gray-700 dark:text-gray-300">{playerLabel(pid, playerMap)}</span>
                   </label>
                 ))}
                 {myRoster.players.length === 0 && (
@@ -136,7 +143,7 @@ export function TradeComposer({ isOpen, onClose, members, rosters, currentUserId
                       onChange={() => togglePlayer(pid, theirPlayers, setTheirPlayers)}
                       className="rounded"
                     />
-                    <span className="text-sm text-gray-700 dark:text-gray-300">{pid}</span>
+                    <span className="text-sm text-gray-700 dark:text-gray-300">{playerLabel(pid, playerMap)}</span>
                   </label>
                 ))}
                 {partnerRoster.players.length === 0 && (
@@ -170,7 +177,7 @@ export function TradeComposer({ isOpen, onClose, members, rosters, currentUserId
           </button>
           <button
             onClick={handleSubmit}
-            disabled={isSubmitting || !selectedPartner || (myPlayers.length === 0 && theirPlayers.length === 0)}
+            disabled={isSubmitting || !selectedPartner || myPlayers.length === 0 || theirPlayers.length === 0}
             className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
           >
             {isSubmitting ? 'Sending...' : 'Propose Trade'}

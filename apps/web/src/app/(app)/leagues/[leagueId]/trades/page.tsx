@@ -3,8 +3,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { ArrowLeft, Plus } from 'lucide-react';
-import { leagueApi, ApiError } from '@/lib/api';
-import type { LeagueMember, Roster, TradeProposal } from '@/lib/api';
+import { leagueApi, playerApi, ApiError } from '@/lib/api';
+import type { LeagueMember, Player, Roster, TradeProposal } from '@/lib/api';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import { useTrades } from '@/features/trades/hooks/useTrades';
 import { useTradeSocket } from '@/features/trades/hooks/useTradeSocket';
@@ -19,8 +19,10 @@ export default function TradesPage() {
 
   const [members, setMembers] = useState<LeagueMember[]>([]);
   const [rosters, setRosters] = useState<Roster[]>([]);
+  const [playerMap, setPlayerMap] = useState<Record<string, Player>>({});
   const [isComposerOpen, setIsComposerOpen] = useState(false);
   const [statusFilter, setStatusFilter] = useState<string | undefined>(undefined);
+  const [confirmAction, setConfirmAction] = useState<{ label: string; tradeId: string; action: (id: string) => Promise<any> } | null>(null);
 
   const {
     trades,
@@ -43,6 +45,23 @@ export default function TradesPage() {
     ]).then(([membersResult, rostersResult]) => {
       setMembers(membersResult.members);
       setRosters(rostersResult.rosters);
+
+      // Fetch player data for all rostered players
+      const allPlayerIds = new Set<string>();
+      for (const r of rostersResult.rosters) {
+        for (const pid of r.players) allPlayerIds.add(pid);
+      }
+      Promise.all(
+        Array.from(allPlayerIds).map((pid) =>
+          playerApi.getById(pid, accessToken).then((res) => res.player).catch(() => null),
+        ),
+      ).then((players) => {
+        const map: Record<string, Player> = {};
+        for (const p of players) {
+          if (p) map[p.id] = p;
+        }
+        setPlayerMap(map);
+      });
     }).catch(() => {});
   }, [leagueId, accessToken]);
 
@@ -72,9 +91,14 @@ export default function TradesPage() {
   const handleAction = async (action: (id: string) => Promise<any>, tradeId: string) => {
     try {
       await action(tradeId);
+      setConfirmAction(null);
     } catch (err) {
       console.error('Trade action failed:', err);
     }
+  };
+
+  const confirmAndAct = (label: string, action: (id: string) => Promise<any>, tradeId: string) => {
+    setConfirmAction({ label, tradeId, action });
   };
 
   return (
@@ -138,11 +162,11 @@ export default function TradesPage() {
                 trade={trade}
                 currentUserId={user?.id ?? ''}
                 isCommissioner={isCommissioner}
-                onAccept={(id) => handleAction(acceptTrade, id)}
-                onDecline={(id) => handleAction(declineTrade, id)}
-                onWithdraw={(id) => handleAction(withdrawTrade, id)}
-                onVeto={(id) => handleAction(vetoTrade, id)}
-                onPush={(id) => handleAction(pushTrade, id)}
+                onAccept={(id) => confirmAndAct('Accept', acceptTrade, id)}
+                onDecline={(id) => confirmAndAct('Decline', declineTrade, id)}
+                onWithdraw={(id) => confirmAndAct('Withdraw', withdrawTrade, id)}
+                onVeto={(id) => confirmAndAct('Veto', vetoTrade, id)}
+                onPush={(id) => confirmAndAct('Push Through', pushTrade, id)}
               />
             ))}
           </div>
@@ -156,8 +180,35 @@ export default function TradesPage() {
         members={members}
         rosters={rosters}
         currentUserId={user?.id ?? ''}
+        playerMap={playerMap}
         onSubmit={proposeTrade}
       />
+
+      {/* Confirmation Dialog */}
+      {confirmAction && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="rounded-lg bg-white dark:bg-gray-800 p-6 shadow-xl max-w-sm w-full">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">Confirm Action</h3>
+            <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+              Are you sure you want to <strong>{confirmAction.label.toLowerCase()}</strong> this trade? This action cannot be undone.
+            </p>
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => setConfirmAction(null)}
+                className="rounded-lg px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => handleAction(confirmAction.action, confirmAction.tradeId)}
+                className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+              >
+                {confirmAction.label}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

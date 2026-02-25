@@ -208,8 +208,40 @@ export class TransactionRepository {
     return result.rows.length > 0;
   }
 
-  async cleanExpiredWaivers(): Promise<void> {
-    await this.db.query('DELETE FROM player_waivers WHERE waiver_expires <= NOW()');
+  async cleanExpiredWaivers(client?: PoolClient): Promise<void> {
+    const conn = client ?? this.db;
+    await conn.query('DELETE FROM player_waivers WHERE waiver_expires <= NOW()');
+  }
+
+  async rotateWaiverPriority(client: PoolClient, leagueId: string, winnerRosterId: number): Promise<void> {
+    // Get the winner's current priority
+    const result = await client.query(
+      `SELECT (settings->>'waiver_position')::int AS waiver_position FROM rosters WHERE league_id = $1 AND roster_id = $2`,
+      [leagueId, winnerRosterId],
+    );
+    if (result.rows.length === 0) return;
+    const winnerPriority = result.rows[0].waiver_position ?? 0;
+
+    // Move everyone with a worse (higher number) priority up by 1
+    await client.query(
+      `UPDATE rosters SET settings = jsonb_set(settings, '{waiver_position}', to_jsonb(((settings->>'waiver_position')::int) - 1))
+       WHERE league_id = $1 AND (settings->>'waiver_position')::int > $2`,
+      [leagueId, winnerPriority],
+    );
+
+    // Get max priority (last position)
+    const maxResult = await client.query(
+      `SELECT MAX((settings->>'waiver_position')::int) AS max_priority FROM rosters WHERE league_id = $1`,
+      [leagueId],
+    );
+    const lastPriority = (maxResult.rows[0].max_priority ?? 0) + 1;
+
+    // Set winner to last priority
+    await client.query(
+      `UPDATE rosters SET settings = jsonb_set(settings, '{waiver_position}', to_jsonb($1::int))
+       WHERE league_id = $2 AND roster_id = $3`,
+      [lastPriority, leagueId, winnerRosterId],
+    );
   }
 
   // ---- Roster helpers ----

@@ -33,6 +33,9 @@ export class TransactionService {
     if (!league) throw new NotFoundException('League not found');
 
     if (league.settings.disable_adds) throw new ValidationException('Adds are disabled for this league');
+    if (league.status === 'complete' && !league.settings.offseason_adds) {
+      throw new ValidationException('Adds are not allowed during the offseason');
+    }
 
     const roster = await this.leagueRepo.findRosterByOwner(leagueId, userId);
     if (!roster) throw new ValidationException('You do not own a roster in this league');
@@ -332,6 +335,12 @@ export class TransactionService {
           });
 
           await this.txRepo.updateClaimStatus(client, claim.id, 'successful', tx.id);
+
+          // Rotate waiver priority: winner drops to last
+          if (league.settings.waiver_type !== 2) {
+            await this.txRepo.rotateWaiverPriority(client, leagueId, claim.rosterId);
+          }
+
           winner = claim;
           processedRosters.add(claim.rosterId);
           break;
@@ -345,8 +354,8 @@ export class TransactionService {
         }
       }
 
-      // Clean expired player waivers
-      await this.txRepo.cleanExpiredWaivers();
+      // Clean expired player waivers (within transaction)
+      await this.txRepo.cleanExpiredWaivers(client);
     });
 
     this.gateway?.broadcastToLeague(leagueId, 'waiver:processed', { league_id: leagueId });
@@ -368,8 +377,8 @@ export class TransactionService {
     // Move to next waiver day
     const currentDay = processAt.getDay();
     let daysUntilProcess = dayOfWeek - currentDay;
-    if (daysUntilProcess <= 0) daysUntilProcess += 7;
     if (daysUntilProcess === 0 && now >= processAt) daysUntilProcess = 7;
+    else if (daysUntilProcess <= 0) daysUntilProcess += 7;
 
     processAt.setDate(processAt.getDate() + daysUntilProcess);
 

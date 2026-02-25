@@ -50,6 +50,10 @@ export class TradeService {
     const league = await this.leagueRepo.findById(leagueId);
     if (!league) throw new NotFoundException('League not found');
 
+    if (league.settings.trade_deadline && league.settings.leg > league.settings.trade_deadline) {
+      throw new ValidationException('Trade deadline has passed');
+    }
+
     // Validate items have both sides
     const hasBothSides =
       request.items.some((i) => i.side === 'proposer') &&
@@ -128,6 +132,26 @@ export class TradeService {
     const receiverRoster = await this.leagueRepo.findRosterByOwner(trade.leagueId, trade.proposedTo);
     if (!proposerRoster || !receiverRoster) throw new ValidationException('Both users must own a roster');
 
+    // Validate roster sizes after trade
+    const league = await this.leagueRepo.findById(trade.leagueId);
+    if (league) {
+      const maxRosterSize = league.rosterPositions.length;
+      let proposerDelta = 0;
+      let receiverDelta = 0;
+      for (const item of trade.items) {
+        if (item.itemType === 'player') {
+          if (item.side === 'proposer') { proposerDelta--; receiverDelta++; }
+          else { receiverDelta--; proposerDelta++; }
+        }
+      }
+      if (proposerRoster.players.length + proposerDelta > maxRosterSize) {
+        throw new ValidationException('Trade would exceed roster size limit for proposer');
+      }
+      if (receiverRoster.players.length + receiverDelta > maxRosterSize) {
+        throw new ValidationException('Trade would exceed roster size limit for receiver');
+      }
+    }
+
     return this.tradeRepo.withTransaction(async (client) => {
       const adds: Record<string, number> = {};
       const drops: Record<string, number> = {};
@@ -174,25 +198,20 @@ export class TradeService {
         }
 
         if (item.itemType === 'faab' && item.faabAmount) {
-          if (item.side === 'proposer') {
-            await client.query(
-              'UPDATE rosters SET waiver_budget = waiver_budget - $1 WHERE league_id = $2 AND owner_id = $3 AND waiver_budget >= $1',
-              [item.faabAmount, trade.leagueId, trade.proposedBy],
-            );
-            await client.query(
-              'UPDATE rosters SET waiver_budget = waiver_budget + $1 WHERE league_id = $2 AND owner_id = $3',
-              [item.faabAmount, trade.leagueId, trade.proposedTo],
-            );
-          } else {
-            await client.query(
-              'UPDATE rosters SET waiver_budget = waiver_budget - $1 WHERE league_id = $2 AND owner_id = $3 AND waiver_budget >= $1',
-              [item.faabAmount, trade.leagueId, trade.proposedTo],
-            );
-            await client.query(
-              'UPDATE rosters SET waiver_budget = waiver_budget + $1 WHERE league_id = $2 AND owner_id = $3',
-              [item.faabAmount, trade.leagueId, trade.proposedBy],
-            );
+          const sender = item.side === 'proposer' ? trade.proposedBy : trade.proposedTo;
+          const receiver = item.side === 'proposer' ? trade.proposedTo : trade.proposedBy;
+
+          const deductResult = await client.query(
+            'UPDATE rosters SET waiver_budget = waiver_budget - $1 WHERE league_id = $2 AND owner_id = $3 AND waiver_budget >= $1',
+            [item.faabAmount, trade.leagueId, sender],
+          );
+          if ((deductResult.rowCount ?? 0) === 0) {
+            throw new ValidationException('Insufficient FAAB budget for trade');
           }
+          await client.query(
+            'UPDATE rosters SET waiver_budget = waiver_budget + $1 WHERE league_id = $2 AND owner_id = $3',
+            [item.faabAmount, trade.leagueId, receiver],
+          );
         }
       }
 
@@ -262,6 +281,20 @@ export class TradeService {
     if (!original) throw new NotFoundException('Trade not found');
     if (original.proposedTo !== userId) throw new ForbiddenException('Only the receiver can counter this trade');
     if (original.status !== 'pending') throw new ValidationException('Trade is not in pending status');
+
+    // Validate player ownership (counter swaps proposer/receiver)
+    const counterProposerRoster = await this.leagueRepo.findRosterByOwner(original.leagueId, userId);
+    const counterReceiverRoster = await this.leagueRepo.findRosterByOwner(original.leagueId, original.proposedBy);
+    if (!counterProposerRoster || !counterReceiverRoster) throw new ValidationException('Both users must own a roster');
+
+    for (const item of request.items) {
+      if (item.item_type === 'player' && item.player_id) {
+        const roster = item.side === 'proposer' ? counterProposerRoster : counterReceiverRoster;
+        if (!roster.players.includes(item.player_id)) {
+          throw new ValidationException(`Player ${item.player_id} is not on the expected roster`);
+        }
+      }
+    }
 
     return this.tradeRepo.withTransaction(async (client) => {
       // Mark original as countered

@@ -11,6 +11,8 @@ if (!config.ENABLE_JOBS) {
 
 container.jobs.playerSyncJob.start();
 container.jobs.statsSyncJob.start();
+container.jobs.waiverProcessJob.start();
+container.jobs.tradeReviewJob.start();
 console.log('TBDFF Worker started — background jobs running');
 
 // Graceful shutdown
@@ -22,6 +24,8 @@ const gracefulShutdown = () => {
 
   container.jobs.playerSyncJob.stop();
   container.jobs.statsSyncJob.stop();
+  container.jobs.waiverProcessJob.stop();
+  container.jobs.tradeReviewJob.stop();
 
   container.pool.removeAllListeners();
   container.pool.end().then(() => {
