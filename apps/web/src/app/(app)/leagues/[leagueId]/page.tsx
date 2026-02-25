@@ -338,7 +338,7 @@ export default function LeagueDetailPage() {
               <div className="space-y-2">
                 {completedDrafts.map((draft) => (
                   <div
-                    key={draft.draft_id}
+                    key={draft.id}
                     className="flex items-center justify-between rounded border border-gray-200 dark:border-gray-700 p-3"
                   >
                     <div className="flex items-center gap-3">
