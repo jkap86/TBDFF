@@ -156,6 +156,7 @@ export default function LeagueDetailPage() {
 
   // Find the active draft (pre_draft or drafting)
   const activeDraft = drafts.find((d) => d.status === 'pre_draft' || d.status === 'drafting');
+  const completedDrafts = drafts.filter((d) => d.status === 'complete');
 
   if (isLoading) {
     return (
@@ -313,7 +314,12 @@ export default function LeagueDetailPage() {
             </div>
           ) : (
             <div className="text-center py-4">
-              <p className="mb-3 text-gray-500 dark:text-gray-400">No draft has been created yet.</p>
+              {completedDrafts.length === 0 && (
+                <p className="mb-3 text-gray-500 dark:text-gray-400">No draft has been created yet.</p>
+              )}
+              {completedDrafts.length > 0 && (
+                <p className="mb-3 text-gray-500 dark:text-gray-400">No active draft.</p>
+              )}
               {isCommissioner && (
                 <button
                   onClick={handleCreateDraft}
@@ -323,6 +329,42 @@ export default function LeagueDetailPage() {
                   {isCreatingDraft ? 'Creating...' : 'Create Draft'}
                 </button>
               )}
+            </div>
+          )}
+
+          {completedDrafts.length > 0 && (
+            <div className="mt-4 border-t border-gray-200 dark:border-gray-700 pt-4">
+              <h3 className="mb-3 text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Completed Drafts</h3>
+              <div className="space-y-2">
+                {completedDrafts.map((draft) => (
+                  <div
+                    key={draft.draft_id}
+                    className="flex items-center justify-between rounded border border-gray-200 dark:border-gray-700 p-3"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div>
+                        <p className="font-medium text-gray-900 dark:text-white">
+                          {draftTypeLabels[draft.type] || draft.type} &middot; {draft.season}
+                        </p>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">
+                          {draft.settings.rounds} rounds
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <span className={`rounded-full px-2 py-1 text-xs font-medium ${draftStatusColors.complete}`}>
+                        Complete
+                      </span>
+                      <button
+                        onClick={() => router.push(`/leagues/${leagueId}/draft`)}
+                        className="rounded-lg bg-gray-100 dark:bg-gray-700 px-3 py-1.5 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
+                      >
+                        View Results
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
         </div>
