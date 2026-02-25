@@ -561,7 +561,7 @@ export default function DraftRoomPage() {
 
   // Check if it's the current user's turn
   const nextPick = picks.find((p) => !p.player_id);
-  const userSlot = user?.id && draft ? draft.draft_order[user.id] : undefined;
+  const userSlot = user?.id && draft?.draft_order ? draft.draft_order[user.id] : undefined;
   const isMyTurn = nextPick && userSlot !== undefined && nextPick.draft_slot === userSlot;
   const currentMember = members.find((m) => m.user_id === user?.id);
   const isCommissioner = currentMember?.role === 'commissioner';
@@ -621,22 +621,22 @@ export default function DraftRoomPage() {
 
               <div className="border-t border-gray-200 dark:border-gray-700 pt-4">
                 <p className="mb-2 text-sm text-gray-600 dark:text-gray-400">
-                  Draft Order: {Object.keys(draft.draft_order).length > 0
-                    ? `${Object.keys(draft.draft_order).length} slots assigned`
+                  Draft Order: {Object.keys(draft.draft_order ?? {}).length > 0
+                    ? `${Object.keys(draft.draft_order ?? {}).length} slots assigned`
                     : 'Not set'}
                 </p>
                 <button
                   onClick={handleSetOrder}
                   className="rounded-lg bg-gray-600 px-4 py-2 text-sm font-medium text-white hover:bg-gray-700"
                 >
-                  {Object.keys(draft.draft_order).length > 0 ? 'Reset Draft Order' : 'Set Draft Order'}
+                  {Object.keys(draft.draft_order ?? {}).length > 0 ? 'Reset Draft Order' : 'Set Draft Order'}
                 </button>
                 <p className="mt-1 text-xs text-gray-400 dark:text-gray-500">
                   Auto-assigns order based on roster slot assignments
                 </p>
               </div>
 
-              {Object.keys(draft.draft_order).length > 0 && (
+              {Object.keys(draft.draft_order ?? {}).length > 0 && (
                 <div>
                   <button
                     onClick={handleStartDraft}
