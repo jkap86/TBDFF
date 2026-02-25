@@ -13,6 +13,7 @@ import { PlayerRepository } from './modules/players/players.repository';
 import { ScoringRepository } from './modules/scoring/scoring.repository';
 import { DraftRepository } from './modules/drafts/drafts.repository';
 import { MatchupRepository } from './modules/matchups/matchups.repository';
+import { ChatRepository } from './modules/chat/chat.repository';
 
 // Services
 import { AuthService } from './modules/auth/auth.service';
@@ -21,6 +22,7 @@ import { PlayerService } from './modules/players/players.service';
 import { ScoringService } from './modules/scoring/scoring.service';
 import { DraftService } from './modules/drafts/drafts.service';
 import { MatchupService } from './modules/matchups/matchups.service';
+import { ChatService } from './modules/chat/chat.service';
 
 // Controllers
 import { AuthController } from './modules/auth/auth.controller';
@@ -29,6 +31,7 @@ import { PlayerController } from './modules/players/players.controller';
 import { ScoringController } from './modules/scoring/scoring.controller';
 import { DraftController } from './modules/drafts/drafts.controller';
 import { MatchupController } from './modules/matchups/matchups.controller';
+import { ChatController } from './modules/chat/chat.controller';
 
 // Jobs
 import { PlayerSyncJob } from './jobs/player-sync.job';
@@ -65,6 +68,7 @@ export function createContainer() {
   const scoringRepository = new ScoringRepository(pool);
   const draftRepository = new DraftRepository(pool);
   const matchupRepository = new MatchupRepository(pool);
+  const chatRepository = new ChatRepository(pool);
 
   // Services
   const authService = new AuthService(userRepository);
@@ -78,6 +82,7 @@ export function createContainer() {
   );
   const draftService = new DraftService(draftRepository, leagueRepository, playerRepository);
   const matchupService = new MatchupService(matchupRepository, leagueRepository);
+  const chatService = new ChatService(chatRepository);
 
   // Controllers
   const authController = new AuthController(authService);
@@ -86,6 +91,7 @@ export function createContainer() {
   const scoringController = new ScoringController(scoringService);
   const draftController = new DraftController(draftService);
   const matchupController = new MatchupController(matchupService);
+  const chatController = new ChatController(chatService);
 
   // Jobs
   const playerSyncJob = new PlayerSyncJob(playerService);
@@ -93,6 +99,9 @@ export function createContainer() {
 
   return {
     pool,
+    services: {
+      chatService,
+    },
     controllers: {
       authController,
       leagueController,
@@ -100,6 +109,7 @@ export function createContainer() {
       scoringController,
       draftController,
       matchupController,
+      chatController,
     },
     jobs: {
       playerSyncJob,

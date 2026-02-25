@@ -7,6 +7,7 @@ import { createPlayerRoutes } from '../modules/players/players.routes';
 import { createDraftRoutes, createDraftLeagueRoutes } from '../modules/drafts/drafts.routes';
 import { createMatchupRoutes } from '../modules/matchups/matchups.routes';
 import { createScoringRoutes, createLeagueScoringRoutes } from '../modules/scoring/scoring.routes';
+import { createLeagueChatRoutes, createConversationRoutes } from '../modules/chat/chat.routes';
 
 export function registerRoutes(app: Express, container: Container): void {
   const { controllers, pool } = container;
@@ -51,4 +52,6 @@ export function registerRoutes(app: Express, container: Container): void {
   app.use('/api/leagues', createMatchupRoutes(controllers.matchupController));
   app.use('/api/scoring', createScoringRoutes(controllers.scoringController));
   app.use('/api/leagues', createLeagueScoringRoutes(controllers.scoringController));
+  app.use('/api/leagues', createLeagueChatRoutes(controllers.chatController));
+  app.use('/api/conversations', createConversationRoutes(controllers.chatController));
 }

@@ -6,6 +6,7 @@ import { Settings } from 'lucide-react';
 import { leagueApi, draftApi, matchupApi, ApiError, type League, type LeagueMember, type Roster, type UpdateLeagueRequest, type Draft, type Matchup } from '@/lib/api';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import { LeagueSettingsModal } from '@/features/leagues/components/LeagueSettingsModal';
+import { LeagueChat } from '@/features/chat/components/LeagueChat';
 
 const draftTypeLabels: Record<string, string> = {
   snake: 'Snake',
@@ -421,6 +422,14 @@ export default function LeagueDetailPage() {
             )}
           </div>
         )}
+
+        {/* League Chat */}
+        <div className="rounded-lg bg-white dark:bg-gray-800 shadow">
+          <div className="border-b border-gray-200 px-6 py-4 dark:border-gray-700">
+            <h2 className="text-xl font-bold text-gray-900 dark:text-white">League Chat</h2>
+          </div>
+          <LeagueChat leagueId={leagueId} />
+        </div>
 
         {/* Members List */}
         <div className="rounded-lg bg-white dark:bg-gray-800 p-6 shadow">

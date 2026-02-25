@@ -20,6 +20,9 @@ export { matchupApi } from './matchups/matchup-api';
 // Scoring
 export { scoringApi } from './scoring/scoring-api';
 
+// Chat
+export { chatApi } from './chat/chat-api';
+
 // Types
 export type { User, AuthResponse, UserResponse } from './types/auth';
 export type {
@@ -99,3 +102,13 @@ export type {
   LiveRosterScore,
   LiveScoresResponse,
 } from './types/scoring';
+export type {
+  ChatMessage,
+  Conversation,
+  MessageListResponse,
+  ConversationResponse,
+  ConversationListResponse,
+  ChatSendPayload,
+  ChatJoinedEvent,
+  ChatErrorEvent,
+} from './types/chat';

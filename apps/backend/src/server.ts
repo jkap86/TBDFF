@@ -2,10 +2,14 @@ import { createServer } from 'http';
 import { config } from './config';
 import { createContainer } from './container';
 import { createApp } from './app';
+import { createChatGateway } from './modules/chat/chat.gateway';
 
 const container = createContainer();
 const app = createApp(container);
 const server = createServer(app);
+
+// Attach Socket.IO after HTTP server creation
+const io = createChatGateway(server, container.services.chatService);
 
 server.listen(config.PORT, '0.0.0.0', () => {
   console.log(`TBDFF Backend started on port ${config.PORT}`);
@@ -18,6 +22,8 @@ const gracefulShutdown = () => {
   if (isShuttingDown) return;
   isShuttingDown = true;
   console.log('Shutting down gracefully...');
+
+  io.close();
 
   server.close(async () => {
     console.log('HTTP server closed');
