@@ -446,6 +446,8 @@ export class DraftRepository {
     rosterId: number,
     amount: number,
   ): Promise<Draft | null> {
+    // The WHERE clause makes check-and-deduct atomic: returns null if budget is insufficient,
+    // preventing concurrent bids from overdrafting.
     const result = await this.db.query(
       `UPDATE drafts
        SET metadata = jsonb_set(
@@ -454,10 +456,18 @@ export class DraftRepository {
          to_jsonb((metadata->'auction_budgets'->>$2::text)::int - $3)
        )
        WHERE id = $1
+         AND (metadata->'auction_budgets'->>$2::text)::int >= $3
        RETURNING *`,
       [draftId, String(rosterId), amount]
     );
     return result.rows.length > 0 ? Draft.fromDatabase(result.rows[0]) : null;
+  }
+
+  async findActiveDraftingAuctions(): Promise<Draft[]> {
+    const result = await this.db.query(
+      `SELECT * FROM drafts WHERE status = 'drafting' AND type = 'auction'`,
+    );
+    return result.rows.map(Draft.fromDatabase);
   }
 
   async countPicksWonByRoster(draftId: string, rosterId: number): Promise<number> {

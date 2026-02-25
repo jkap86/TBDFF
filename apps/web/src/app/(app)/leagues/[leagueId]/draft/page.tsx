@@ -3,8 +3,10 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { ArrowLeft } from 'lucide-react';
+import { toast } from 'sonner';
 import { draftApi, leagueApi, ApiError, type Draft, type DraftPick, type DraftQueueItem, type LeagueMember, type Roster, type UpdateDraftRequest } from '@/lib/api';
 import { useAuth } from '@/features/auth/hooks/useAuth';
+import { useSocket } from '@/features/chat/context/SocketProvider';
 import { DraftBoard } from '@/features/drafts/components/DraftBoard';
 import { AuctionBoard } from '@/features/drafts/components/AuctionBoard';
 import { DraftSettingsForm } from '@/features/drafts/components/DraftSettingsForm';
@@ -88,6 +90,7 @@ export default function DraftRoomPage() {
   const router = useRouter();
   const leagueId = params.leagueId as string;
   const { accessToken, user } = useAuth();
+  const { socket } = useSocket();
 
   const [draft, setDraft] = useState<Draft | null>(null);
   const [picks, setPicks] = useState<DraftPick[]>([]);
@@ -101,6 +104,8 @@ export default function DraftRoomPage() {
   const [timeRemaining, setTimeRemaining] = useState<number | null>(null);
   const [isTogglingAutoPick, setIsTogglingAutoPick] = useState(false);
   const autoPickTriggered = useRef(false);
+  /** Approximate difference (ms) between server clock and client clock: serverMs - clientMs */
+  const clockOffsetRef = useRef(0);
 
   // Queue state
   const [queue, setQueue] = useState<DraftQueueItem[]>([]);
@@ -144,6 +149,12 @@ export default function DraftRoomPage() {
       setMembers(membersResult.members);
       setRosters(rostersResult.rosters);
 
+      // Compute clock offset from server's updated_at timestamp so the timer stays in sync
+      const serverTs = new Date(draftResult.draft.updated_at).getTime();
+      if (!isNaN(serverTs)) {
+        clockOffsetRef.current = serverTs - Date.now();
+      }
+
       // Only fetch picks if the draft has started
       if (draftResult.draft.status === 'drafting') {
         const picksResult = await draftApi.getPicks(activeDraft.id, accessToken);
@@ -174,7 +185,39 @@ export default function DraftRoomPage() {
     fetchDraftData();
   }, [fetchDraftData]);
 
-  // Poll for updates when drafting
+  // Subscribe to real-time draft updates via socket
+  useEffect(() => {
+    if (!socket || !draft?.id || draft.status !== 'drafting') return;
+
+    socket.emit('draft:join', draft.id);
+
+    const handleStateUpdate = (data: { draft: Draft; pick?: DraftPick; chained_picks?: DraftPick[] }) => {
+      setDraft(data.draft);
+      // Update clock offset whenever we get a server timestamp
+      const serverTs = new Date(data.draft.updated_at).getTime();
+      if (!isNaN(serverTs)) {
+        clockOffsetRef.current = serverTs - Date.now();
+      }
+      if (data.pick) {
+        setPicks((prev) => {
+          let updated = prev.map((p) => (p.id === data.pick!.id ? data.pick! : p));
+          if (data.chained_picks?.length) {
+            updated = applyChainedPicks(updated, data.chained_picks);
+          }
+          return updated;
+        });
+      }
+    };
+
+    socket.on('draft:state_updated', handleStateUpdate);
+
+    return () => {
+      socket.off('draft:state_updated', handleStateUpdate);
+      socket.emit('draft:leave', draft.id);
+    };
+  }, [socket, draft?.id, draft?.status]);
+
+  // Fallback polling (reduced frequency since socket handles real-time updates)
   useEffect(() => {
     if (!draft || draft.status !== 'drafting' || !accessToken) return;
 
@@ -187,12 +230,12 @@ export default function DraftRoomPage() {
         setDraft(draftResult.draft);
         setPicks(picksResult.picks);
       } catch {
-        // Silently ignore polling errors
+        // Silently ignore polling errors — socket handles primary updates
       }
-    }, draft.type === 'auction' ? 2000 : 5000);
+    }, 10000); // 10s fallback (down from 2-5s) since socket delivers real-time updates
 
     return () => clearInterval(interval);
-  }, [draft, accessToken]);
+  }, [draft?.id, draft?.status, accessToken]);
 
   // Countdown timer
   useEffect(() => {
@@ -221,13 +264,15 @@ export default function DraftRoomPage() {
 
     // Only reset autoPickTriggered when the deadline is actually in the future.
     // This prevents a race where stale timeRemaining=0 triggers resolve on a new nomination.
-    if (deadline > Date.now()) {
+    const clientNow = () => Date.now() + clockOffsetRef.current;
+    if (deadline > clientNow()) {
       autoPickTriggered.current = false;
     }
 
     const tickInterval = draft.type === 'auction' ? 250 : 1000;
     const tick = () => {
-      const remaining = Math.max(0, Math.ceil((deadline! - Date.now()) / 1000));
+      // Apply clock offset so timer stays in sync with the server clock
+      const remaining = Math.max(0, Math.ceil((deadline! - clientNow()) / 1000));
       setTimeRemaining(remaining);
     };
 
@@ -242,10 +287,11 @@ export default function DraftRoomPage() {
 
     // For auction drafts, verify the actual deadline has passed before acting.
     // Guards against stale timeRemaining=0 racing with a newly created nomination.
+    const adjustedNow = Date.now() + clockOffsetRef.current;
     if (draft.type === 'auction') {
       const nom = draft.metadata?.current_nomination;
       const deadlineStr = nom?.bid_deadline ?? draft.metadata?.nomination_deadline;
-      if (deadlineStr && new Date(deadlineStr).getTime() > Date.now() + 1000) return;
+      if (deadlineStr && new Date(deadlineStr).getTime() > adjustedNow + 1000) return;
     }
 
     autoPickTriggered.current = true;
@@ -266,8 +312,8 @@ export default function DraftRoomPage() {
             const result = await draftApi.autoNominate(draft.id, accessToken);
             setDraft(result.draft);
           }
-        } catch {
-          // Another client already resolved; refresh state immediately
+        } catch (err) {
+          // Another client already resolved — refresh immediately (this is expected, not an error)
           try {
             const [draftResult, picksResult] = await Promise.all([
               draftApi.getById(draft.id, accessToken),
@@ -276,7 +322,11 @@ export default function DraftRoomPage() {
             setDraft(draftResult.draft);
             setPicks(picksResult.picks);
           } catch {
-            // Polling will catch up
+            // Socket/polling will catch up
+          }
+          // Only show a toast for unexpected errors, not for benign "already resolved" conflicts
+          if (err instanceof ApiError && !err.message.includes('already')) {
+            toast.error(err.message);
           }
         }
       })();
@@ -293,8 +343,11 @@ export default function DraftRoomPage() {
           });
           const draftResult = await draftApi.getById(draft.id, accessToken);
           setDraft(draftResult.draft);
-        } catch {
-          // Another client may have already triggered auto-pick; polling will catch up
+        } catch (err) {
+          // Another client may have already triggered auto-pick; this is expected
+          if (err instanceof ApiError && !err.message.includes('already')) {
+            toast.error(err.message);
+          }
         }
       })();
     }
@@ -430,8 +483,8 @@ export default function DraftRoomPage() {
     try {
       const result = await draftApi.setQueue(draft.id, { player_ids: playerIds }, accessToken);
       setQueue(result.queue);
-    } catch {
-      // Silently ignore
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : 'Failed to reorder queue');
     }
   };
 
@@ -440,8 +493,8 @@ export default function DraftRoomPage() {
     try {
       const result = await draftApi.removeFromQueue(draft.id, playerId, accessToken);
       setQueue(result.queue);
-    } catch {
-      // Silently ignore
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : 'Failed to remove from queue');
     }
   };
 
@@ -450,8 +503,8 @@ export default function DraftRoomPage() {
     try {
       const result = await draftApi.addToQueue(draft.id, { player_id: playerId }, accessToken);
       setQueue(result.queue);
-    } catch {
-      // Silently ignore
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : 'Failed to add to queue');
     }
   };
 
@@ -460,8 +513,8 @@ export default function DraftRoomPage() {
     try {
       const result = await draftApi.updateQueueMaxBid(draft.id, playerId, { max_bid: maxBid }, accessToken);
       setQueue(result.queue);
-    } catch {
-      // Silently ignore
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : 'Failed to update max bid');
     }
   };
 
@@ -476,8 +529,8 @@ export default function DraftRoomPage() {
         const result = await draftApi.addToQueue(draft.id, { player_id: playerId, max_bid: maxBid }, accessToken);
         setQueue(result.queue);
       }
-    } catch {
-      // Silently ignore
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : 'Failed to update auto-bid');
     }
   };
 

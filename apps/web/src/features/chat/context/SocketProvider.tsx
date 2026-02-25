@@ -10,12 +10,19 @@ import {
 } from 'react';
 import { io, Socket } from 'socket.io-client';
 import { useAuth } from '@/features/auth/hooks/useAuth';
-import type { ChatMessage, ChatJoinedEvent, ChatErrorEvent } from '@tbdff/shared';
+import type { ChatMessage, ChatJoinedEvent, ChatErrorEvent, Draft, DraftPick } from '@tbdff/shared';
+
+interface DraftStateUpdate {
+  draft: Draft;
+  pick?: DraftPick;
+  chained_picks?: DraftPick[];
+}
 
 interface ServerToClientEvents {
   'chat:message': (message: ChatMessage) => void;
   'chat:error': (error: ChatErrorEvent) => void;
   'chat:joined': (data: ChatJoinedEvent) => void;
+  'draft:state_updated': (data: DraftStateUpdate) => void;
 }
 
 interface ClientToServerEvents {
@@ -24,6 +31,8 @@ interface ClientToServerEvents {
   'chat:join_dm': (conversationId: string) => void;
   'chat:leave_dm': (conversationId: string) => void;
   'chat:send': (payload: { type: 'league' | 'dm'; roomId: string; content: string }) => void;
+  'draft:join': (draftId: string) => void;
+  'draft:leave': (draftId: string) => void;
 }
 
 type AppSocket = Socket<ServerToClientEvents, ClientToServerEvents>;

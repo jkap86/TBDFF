@@ -101,6 +101,7 @@ export function createContainer() {
     pool,
     services: {
       chatService,
+      draftService,
     },
     controllers: {
       authController,

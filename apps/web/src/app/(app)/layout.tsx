@@ -1,3 +1,4 @@
+import { Toaster } from 'sonner';
 import { AuthBootstrap } from '@/features/auth/components/AuthBootstrap';
 import { AppBar } from '@/components/AppBar';
 import { SocketProvider } from '@/features/chat/context/SocketProvider';
@@ -12,6 +13,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           <AppBar />
           <main>{children}</main>
           <DMPanel />
+          <Toaster position="bottom-right" richColors />
         </DMPanelProvider>
       </SocketProvider>
     </AuthBootstrap>

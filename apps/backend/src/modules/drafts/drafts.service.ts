@@ -1,7 +1,16 @@
+import cron from 'node-cron';
 import { DraftRepository } from './drafts.repository';
 import { LeagueRepository } from '../leagues/leagues.repository';
 import { PlayerRepository } from '../players/players.repository';
-import { Draft, DraftPick, DraftMetadata, AuctionNomination, DEFAULT_DRAFT_SETTINGS, DraftType } from './drafts.model';
+import { DraftGateway } from './draft.gateway';
+import {
+  Draft,
+  DraftPick,
+  DraftMetadata,
+  AuctionNomination,
+  DEFAULT_DRAFT_SETTINGS,
+  DraftType,
+} from './drafts.model';
 import { Player } from '../players/players.model';
 import {
   ValidationException,
@@ -17,12 +26,61 @@ export class DraftService {
   private autoPickChainLocks = new Map<string, Promise<DraftPick[]>>();
   /** Pending setTimeout handles for scheduleAutoBids, keyed by draftId */
   private pendingAutoBidTimeouts = new Map<string, ReturnType<typeof setTimeout>>();
+  /** Optional WebSocket gateway for broadcasting draft state changes */
+  private draftGateway?: DraftGateway;
 
   constructor(
     private readonly draftRepository: DraftRepository,
     private readonly leagueRepository: LeagueRepository,
     private readonly playerRepository: PlayerRepository,
   ) {}
+
+  /** Inject the draft gateway after socket.io setup (avoids circular dependency at construction time) */
+  setGateway(gateway: DraftGateway): void {
+    this.draftGateway = gateway;
+  }
+
+  /**
+   * Reschedule auto-bids for any active auction drafts that have an unresolved
+   * nomination. Called on startup to recover state lost when the process restarted.
+   */
+  async recoverActiveAuctions(): Promise<void> {
+    try {
+      const drafts = await this.draftRepository.findActiveDraftingAuctions();
+      for (const draft of drafts) {
+        if (draft.metadata?.current_nomination) {
+          console.log(`[DraftService] Recovering auto-bids for draft ${draft.id}`);
+          this.scheduleAutoBids(draft.id);
+        }
+      }
+    } catch (err) {
+      console.error('[DraftService] recoverActiveAuctions failed:', err);
+    }
+    this.startRecoveryJob();
+  }
+
+  /**
+   * Cron job that runs every 30 seconds to catch any active auction nominations
+   * whose auto-bid timeout was lost (e.g. after a partial restart or edge case).
+   */
+  private startRecoveryJob(): void {
+    cron.schedule('*/30 * * * * *', async () => {
+      try {
+        const drafts = await this.draftRepository.findActiveDraftingAuctions();
+        for (const draft of drafts) {
+          if (
+            draft.metadata?.current_nomination &&
+            !this.pendingAutoBidTimeouts.has(draft.id) &&
+            !this.autoBidLocks.has(draft.id)
+          ) {
+            this.scheduleAutoBids(draft.id);
+          }
+        }
+      } catch (err) {
+        console.error('[DraftService] recovery cron failed:', err);
+      }
+    });
+  }
 
   async createDraft(
     leagueId: string,
@@ -159,9 +217,7 @@ export class DraftService {
     const slots = Object.values(draftOrder);
 
     if (slots.length !== league.totalRosters) {
-      throw new ValidationException(
-        `Draft order must have exactly ${league.totalRosters} slots`
-      );
+      throw new ValidationException(`Draft order must have exactly ${league.totalRosters} slots`);
     }
 
     // Validate slot values are unique sequential 1..N
@@ -178,7 +234,7 @@ export class DraftService {
     // Validate slotToRosterId keys cover 1..N
     if (Object.keys(slotToRosterId).length !== league.totalRosters) {
       throw new ValidationException(
-        `Slot to roster mapping must have exactly ${league.totalRosters} entries`
+        `Slot to roster mapping must have exactly ${league.totalRosters} entries`,
       );
     }
     for (let i = 1; i <= league.totalRosters; i++) {
@@ -250,7 +306,7 @@ export class DraftService {
         auction_budgets: budgets,
         current_nomination: null,
         nomination_deadline: new Date(
-          Date.now() + (draft.settings.offering_timer || draft.settings.nomination_timer) * 1000
+          Date.now() + (draft.settings.offering_timer || draft.settings.nomination_timer) * 1000,
         ).toISOString(),
       };
     }
@@ -323,9 +379,10 @@ export class DraftService {
     }
 
     // Determine who is picking (the owner of the current slot)
-    const pickingUserId = isCommissioner && nextPick.draftSlot !== userSlot
-      ? this.findUserBySlot(draft.draftOrder, nextPick.draftSlot) ?? userId
-      : userId;
+    const pickingUserId =
+      isCommissioner && nextPick.draftSlot !== userSlot
+        ? (this.findUserBySlot(draft.draftOrder, nextPick.draftSlot) ?? userId)
+        : userId;
 
     // Look up player for metadata
     const player = await this.playerRepository.findById(playerId);
@@ -363,10 +420,22 @@ export class DraftService {
     // Process auto-pick chain for subsequent autopick users
     const chainedPicks = completed ? [] : await this.scheduleAutoPickChain(draftId);
 
+    const finalDraft = await this.draftRepository.findById(draftId);
+    if (finalDraft) {
+      this.draftGateway?.broadcast(draftId, 'draft:state_updated', {
+        draft: finalDraft,
+        pick,
+        chained_picks: chainedPicks,
+      });
+    }
+
     return { pick, chainedPicks };
   }
 
-  async autoPick(draftId: string, userId: string): Promise<{ pick: DraftPick; chainedPicks: DraftPick[] }> {
+  async autoPick(
+    draftId: string,
+    userId: string,
+  ): Promise<{ pick: DraftPick; chainedPicks: DraftPick[] }> {
     const draft = await this.draftRepository.findById(draftId);
     if (!draft) throw new NotFoundException('Draft not found');
 
@@ -403,7 +472,7 @@ export class DraftService {
 
     // Try the user's queue first, fall back to best available
     const queuedPlayer = await this.draftRepository.findFirstAvailableFromQueue(draftId, slotOwner);
-    const bestPlayer = queuedPlayer ?? await this.draftRepository.findBestAvailable(draftId);
+    const bestPlayer = queuedPlayer ?? (await this.draftRepository.findBestAvailable(draftId));
     if (!bestPlayer) {
       throw new ValidationException('No available players to auto-pick');
     }
@@ -444,6 +513,15 @@ export class DraftService {
     // Process auto-pick chain for subsequent autopick users
     const chainedPicks = completed ? [] : await this.scheduleAutoPickChain(draftId);
 
+    const finalDraft = await this.draftRepository.findById(draftId);
+    if (finalDraft) {
+      this.draftGateway?.broadcast(draftId, 'draft:state_updated', {
+        draft: finalDraft,
+        pick,
+        chained_picks: chainedPicks,
+      });
+    }
+
     return { pick, chainedPicks };
   }
 
@@ -470,7 +548,9 @@ export class DraftService {
     const isCurrentlyOn = autoPickUsers.includes(userId);
 
     if (isCurrentlyOn) {
-      const updatedDraft = await this.draftRepository.removeAutoPickUser(draftId, userId) ?? draft;
+      const updatedDraft =
+        (await this.draftRepository.removeAutoPickUser(draftId, userId)) ?? draft;
+      this.draftGateway?.broadcast(draftId, 'draft:state_updated', { draft: updatedDraft });
       return { draft: updatedDraft, picks: [] };
     }
 
@@ -481,6 +561,12 @@ export class DraftService {
     const chainedPicks = await this.scheduleAutoPickChain(draftId);
 
     const finalDraft = await this.draftRepository.findById(draftId);
+    if (finalDraft) {
+      this.draftGateway?.broadcast(draftId, 'draft:state_updated', {
+        draft: finalDraft,
+        chained_picks: chainedPicks,
+      });
+    }
     return { draft: finalDraft ?? draft, picks: chainedPicks };
   }
 
@@ -499,8 +585,11 @@ export class DraftService {
       const slotOwner = this.findUserBySlot(draft.draftOrder, nextPick.draftSlot);
       if (!slotOwner || !autoPickUsers.includes(slotOwner)) break;
 
-      const queuedPlayer = await this.draftRepository.findFirstAvailableFromQueue(draftId, slotOwner);
-      const bestPlayer = queuedPlayer ?? await this.draftRepository.findBestAvailable(draftId);
+      const queuedPlayer = await this.draftRepository.findFirstAvailableFromQueue(
+        draftId,
+        slotOwner,
+      );
+      const bestPlayer = queuedPlayer ?? (await this.draftRepository.findBestAvailable(draftId));
       if (!bestPlayer) break;
 
       const pickMetadata = {
@@ -563,7 +652,7 @@ export class DraftService {
   async getAvailablePlayers(
     draftId: string,
     userId: string,
-    options: { position?: string; query?: string; limit?: number; offset?: number }
+    options: { position?: string; query?: string; limit?: number; offset?: number },
   ): Promise<Player[]> {
     const draft = await this.draftRepository.findById(draftId);
     if (!draft) throw new NotFoundException('Draft not found');
@@ -601,7 +690,12 @@ export class DraftService {
     return this.draftRepository.getQueue(draftId, userId);
   }
 
-  async addToQueue(draftId: string, userId: string, playerId: string, maxBid?: number | null): Promise<any[]> {
+  async addToQueue(
+    draftId: string,
+    userId: string,
+    playerId: string,
+    maxBid?: number | null,
+  ): Promise<any[]> {
     const draft = await this.draftRepository.findById(draftId);
     if (!draft) throw new NotFoundException('Draft not found');
     if (draft.status === 'complete') throw new ValidationException('Draft is already complete');
@@ -613,7 +707,12 @@ export class DraftService {
     return this.draftRepository.getQueue(draftId, userId);
   }
 
-  async updateQueueMaxBid(draftId: string, userId: string, playerId: string, maxBid: number | null): Promise<any[]> {
+  async updateQueueMaxBid(
+    draftId: string,
+    userId: string,
+    playerId: string,
+    maxBid: number | null,
+  ): Promise<any[]> {
     const draft = await this.draftRepository.findById(draftId);
     if (!draft) throw new NotFoundException('Draft not found');
     if (draft.status === 'complete') throw new ValidationException('Draft is already complete');
@@ -690,9 +789,7 @@ export class DraftService {
       auction_value: player.auctionValue ?? null,
     };
 
-    const bidDeadline = new Date(
-      Date.now() + draft.settings.nomination_timer * 1000
-    ).toISOString();
+    const bidDeadline = new Date(Date.now() + draft.settings.nomination_timer * 1000).toISOString();
 
     const nomination: AuctionNomination = {
       pick_id: nextPick.id,
@@ -718,6 +815,7 @@ export class DraftService {
     if (!updated) throw new NotFoundException('Draft not found');
 
     this.scheduleAutoBids(draftId);
+    this.draftGateway?.broadcast(draftId, 'draft:state_updated', { draft: updated });
     return updated;
   }
 
@@ -755,9 +853,7 @@ export class DraftService {
 
     await this.validateBudget(draft, bidderRosterId, amount);
 
-    const newDeadline = new Date(
-      Date.now() + draft.settings.nomination_timer * 1000
-    ).toISOString();
+    const newDeadline = new Date(Date.now() + draft.settings.nomination_timer * 1000).toISOString();
 
     const updatedNomination = {
       ...nomination,
@@ -782,10 +878,14 @@ export class DraftService {
     if (!updated) throw new NotFoundException('Draft not found');
 
     this.scheduleAutoBids(draftId);
+    this.draftGateway?.broadcast(draftId, 'draft:state_updated', { draft: updated });
     return { draft: updated };
   }
 
-  async resolveNomination(draftId: string, userId: string): Promise<{ draft: Draft; won?: DraftPick }> {
+  async resolveNomination(
+    draftId: string,
+    userId: string,
+  ): Promise<{ draft: Draft; won?: DraftPick }> {
     const draft = await this.draftRepository.findById(draftId);
     if (!draft) throw new NotFoundException('Draft not found');
 
@@ -840,11 +940,18 @@ export class DraftService {
       return { draft: currentDraft! };
     }
 
-    await this.draftRepository.deductBudget(
+    const afterDeduct = await this.draftRepository.deductBudget(
       draftId,
       nomination.bidder_roster_id,
       nomination.current_bid,
     );
+    if (!afterDeduct) {
+      // Atomic check failed — budget was insufficient at deduction time (concurrent bid race).
+      // The pick was already recorded; log and continue so the draft doesn't freeze.
+      console.error(
+        `[DraftService] deductBudget returned null for draft ${draftId} roster ${nomination.bidder_roster_id} amount ${nomination.current_bid} — possible concurrent bid race`,
+      );
+    }
 
     const completed = await this.draftRepository.completeAndUpdateLeague(draftId, draft.leagueId);
     if (completed) {
@@ -859,13 +966,16 @@ export class DraftService {
         },
       });
       const finalDraft = await this.draftRepository.findById(draftId);
+      if (finalDraft) {
+        this.draftGateway?.broadcast(draftId, 'draft:state_updated', { draft: finalDraft, pick });
+      }
       return { draft: finalDraft!, won: pick };
     }
 
     // Set up next nomination
     const refreshedDraft = await this.draftRepository.findById(draftId);
     const nominationDeadline = new Date(
-      Date.now() + (draft.settings.offering_timer || draft.settings.nomination_timer) * 1000
+      Date.now() + (draft.settings.offering_timer || draft.settings.nomination_timer) * 1000,
     ).toISOString();
 
     await this.draftRepository.update(draftId, {
@@ -881,6 +991,9 @@ export class DraftService {
     await this.processAutoNomination(draftId);
 
     const finalDraft = await this.draftRepository.findById(draftId);
+    if (finalDraft) {
+      this.draftGateway?.broadcast(draftId, 'draft:state_updated', { draft: finalDraft, pick });
+    }
     return { draft: finalDraft!, won: pick };
   }
 
@@ -915,7 +1028,10 @@ export class DraftService {
 
     // Forfeit nomination slots for full-roster teams until an eligible nominator is found
     let nominatorRosterId = draft.slotToRosterId[String(nextPick.draftSlot)];
-    let nominatorPicksWon = await this.draftRepository.countPicksWonByRoster(draftId, nominatorRosterId);
+    let nominatorPicksWon = await this.draftRepository.countPicksWonByRoster(
+      draftId,
+      nominatorRosterId,
+    );
 
     while (nominatorPicksWon >= this.getMaxPlayersPerTeam(draft)) {
       await this.draftRepository.forfeitPick(nextPick.id);
@@ -923,7 +1039,10 @@ export class DraftService {
       nextPick = await this.draftRepository.findNextPick(draftId);
       if (!nextPick) {
         // All remaining nomination slots forfeited — complete the draft
-        const completed = await this.draftRepository.completeAndUpdateLeague(draftId, draft.leagueId);
+        const completed = await this.draftRepository.completeAndUpdateLeague(
+          draftId,
+          draft.leagueId,
+        );
         if (completed) {
           this.cancelScheduledAutoBids(draftId);
           const refreshedDraft = await this.draftRepository.findById(draftId);
@@ -939,7 +1058,10 @@ export class DraftService {
       }
 
       nominatorRosterId = draft.slotToRosterId[String(nextPick.draftSlot)];
-      nominatorPicksWon = await this.draftRepository.countPicksWonByRoster(draftId, nominatorRosterId);
+      nominatorPicksWon = await this.draftRepository.countPicksWonByRoster(
+        draftId,
+        nominatorRosterId,
+      );
     }
 
     const slotOwner = this.findUserBySlot(draft.draftOrder, nextPick.draftSlot);
@@ -948,12 +1070,10 @@ export class DraftService {
     const queuedPlayer = slotOwner
       ? await this.draftRepository.findFirstAvailableFromQueue(draftId, slotOwner)
       : null;
-    const bestPlayer = queuedPlayer ?? await this.draftRepository.findBestAvailable(draftId);
+    const bestPlayer = queuedPlayer ?? (await this.draftRepository.findBestAvailable(draftId));
     if (!bestPlayer) throw new ValidationException('No available players');
 
-    const bidDeadline = new Date(
-      Date.now() + draft.settings.nomination_timer * 1000
-    ).toISOString();
+    const bidDeadline = new Date(Date.now() + draft.settings.nomination_timer * 1000).toISOString();
 
     const nomination: AuctionNomination = {
       pick_id: nextPick.id,
@@ -963,11 +1083,13 @@ export class DraftService {
       current_bidder: slotOwner || userId,
       bidder_roster_id: nominatorRosterId,
       bid_deadline: bidDeadline,
-      bid_history: [{
-        user_id: slotOwner || userId,
-        amount: 1,
-        timestamp: new Date().toISOString(),
-      }],
+      bid_history: [
+        {
+          user_id: slotOwner || userId,
+          amount: 1,
+          timestamp: new Date().toISOString(),
+        },
+      ],
       player_metadata: {
         first_name: bestPlayer.firstName,
         last_name: bestPlayer.lastName,
@@ -989,6 +1111,7 @@ export class DraftService {
     });
 
     this.scheduleAutoBids(draftId);
+    this.draftGateway?.broadcast(draftId, 'draft:state_updated', { draft: updated! });
     return updated!;
   }
 
@@ -1004,21 +1127,27 @@ export class DraftService {
     const slotOwner = this.findUserBySlot(draft.draftOrder, nextPick.draftSlot);
 
     if (slotOwner && autoPickUsers.includes(slotOwner)) {
-      const queuedPlayer = await this.draftRepository.findFirstAvailableFromQueue(draftId, slotOwner);
-      const bestPlayer = queuedPlayer ?? await this.draftRepository.findBestAvailable(draftId);
+      const queuedPlayer = await this.draftRepository.findFirstAvailableFromQueue(
+        draftId,
+        slotOwner,
+      );
+      const bestPlayer = queuedPlayer ?? (await this.draftRepository.findBestAvailable(draftId));
       if (!bestPlayer) return;
 
       const nominatorRosterId = draft.slotToRosterId[String(nextPick.draftSlot)];
 
       // If nominator's roster is full, skip auto-nominate — the offering timer will
       // expire and resolveNomination will advance to the next pick slot naturally.
-      const nominatorPicksWon = await this.draftRepository.countPicksWonByRoster(draftId, nominatorRosterId);
+      const nominatorPicksWon = await this.draftRepository.countPicksWonByRoster(
+        draftId,
+        nominatorRosterId,
+      );
       if (nominatorPicksWon >= this.getMaxPlayersPerTeam(draft)) {
         return;
       }
 
       const bidDeadline = new Date(
-        Date.now() + draft.settings.nomination_timer * 1000
+        Date.now() + draft.settings.nomination_timer * 1000,
       ).toISOString();
 
       const nomination: AuctionNomination = {
@@ -1040,7 +1169,7 @@ export class DraftService {
         },
       };
 
-      await this.draftRepository.update(draftId, {
+      const autoNomUpdated = await this.draftRepository.update(draftId, {
         metadata: {
           ...draft.metadata,
           current_nomination: nomination,
@@ -1050,14 +1179,13 @@ export class DraftService {
       });
 
       this.scheduleAutoBids(draftId);
+      if (autoNomUpdated) {
+        this.draftGateway?.broadcast(draftId, 'draft:state_updated', { draft: autoNomUpdated });
+      }
     }
   }
 
-  private async validateBudget(
-    draft: Draft,
-    rosterId: number,
-    bidAmount: number,
-  ): Promise<void> {
+  private async validateBudget(draft: Draft, rosterId: number, bidAmount: number): Promise<void> {
     const budgets: Record<string, number> = draft.metadata?.auction_budgets ?? {};
     const currentBudget = budgets[String(rosterId)] ?? 0;
 
@@ -1070,12 +1198,12 @@ export class DraftService {
     }
 
     // Must keep $1 per remaining unfilled slot (excluding the one being bid on)
-    const reserveNeeded = Math.max(0, (remainingSlots - 1));
+    const reserveNeeded = Math.max(0, remainingSlots - 1);
     const maxBid = currentBudget - reserveNeeded;
 
     if (bidAmount > maxBid) {
       throw new ValidationException(
-        `Bid exceeds budget. Max bid: $${maxBid} (budget: $${currentBudget}, must reserve $${reserveNeeded})`
+        `Bid exceeds budget. Max bid: $${maxBid} (budget: $${currentBudget}, must reserve $${reserveNeeded})`,
       );
     }
   }
@@ -1187,8 +1315,9 @@ export class DraftService {
     if (!player) return null;
 
     // Use stored auction value, or compute on-the-fly from search_rank (same VBD formula as computeAuctionValues)
-    const auctionValue = player.auctionValue
-      ?? (player.searchRank !== null
+    const auctionValue =
+      player.auctionValue ??
+      (player.searchRank !== null
         ? Math.max(1, Math.round(55 * Math.exp(-0.022 * player.searchRank) + 0.5))
         : null);
     if (auctionValue === null) return null;
@@ -1224,9 +1353,10 @@ export class DraftService {
 
     for (const { userId, rosterId } of userRosterPairs) {
       const queueItem = queueItemsMap.get(userId) ?? null;
-      const target = queueItem?.max_bid != null
-        ? queueItem.max_bid
-        : Math.floor(auctionValue * 0.8 * (draftBudget / 200) * (draft.settings.teams / 12));
+      const target =
+        queueItem?.max_bid != null
+          ? queueItem.max_bid
+          : Math.floor(auctionValue * 0.8 * (draftBudget / 200) * (draft.settings.teams / 12));
 
       const budget = budgets[String(rosterId)] ?? 0;
       const picksWon = picksWonMap.get(rosterId) ?? 0;
@@ -1248,7 +1378,7 @@ export class DraftService {
 
     // Filter to eligible bidders: not the current bidder and can beat the current bid
     const eligible = allAutoTargets.filter(
-      (entry) => entry.userId !== currentBidder && entry.effectiveTarget > currentBid
+      (entry) => entry.userId !== currentBidder && entry.effectiveTarget > currentBid,
     );
 
     if (eligible.length === 0) return null;
@@ -1266,9 +1396,7 @@ export class DraftService {
     const winner = eligible[0];
     const winningBid = currentBid + 1;
 
-    const newDeadline = new Date(
-      Date.now() + draft.settings.nomination_timer * 1000
-    ).toISOString();
+    const newDeadline = new Date(Date.now() + draft.settings.nomination_timer * 1000).toISOString();
 
     const updatedNomination = {
       ...nomination,
@@ -1289,8 +1417,10 @@ export class DraftService {
 
     // Re-read draft to ensure nomination hasn't been resolved by a concurrent resolve call
     const freshDraft = await this.draftRepository.findById(draftId);
-    if (!freshDraft?.metadata?.current_nomination ||
-        freshDraft.metadata.current_nomination.pick_id !== nomination.pick_id) {
+    if (
+      !freshDraft?.metadata?.current_nomination ||
+      freshDraft.metadata.current_nomination.pick_id !== nomination.pick_id
+    ) {
       return null;
     }
 
@@ -1303,6 +1433,10 @@ export class DraftService {
     });
 
     this.scheduleAutoBids(draftId);
+
+    if (updated) {
+      this.draftGateway?.broadcast(draftId, 'draft:state_updated', { draft: updated });
+    }
 
     return updated;
   }
