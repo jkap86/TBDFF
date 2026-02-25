@@ -1,6 +1,42 @@
 export type DraftType = 'snake' | 'linear' | '3rr' | 'auction';
 export type DraftStatus = 'pre_draft' | 'drafting' | 'complete';
 
+export interface BidHistoryEntry {
+  user_id: string;
+  amount: number;
+  timestamp: string;
+  auto_bid?: boolean;
+}
+
+export interface NominationPlayerMetadata {
+  first_name?: string | null;
+  last_name?: string | null;
+  full_name?: string;
+  position?: string | null;
+  team?: string | null;
+  auction_value?: number | null;
+}
+
+export interface AuctionNomination {
+  pick_id: string;
+  player_id: string;
+  nominated_by: string;
+  current_bid: number;
+  current_bidder: string;
+  bidder_roster_id: number;
+  bid_deadline: string;
+  bid_history: BidHistoryEntry[];
+  player_metadata: NominationPlayerMetadata;
+}
+
+export interface DraftMetadata {
+  auto_pick_users?: string[];
+  auction_budgets?: Record<string, number>;
+  current_nomination?: AuctionNomination | null;
+  nomination_deadline?: string | null;
+  [key: string]: unknown;
+}
+
 export interface DraftSettings {
   teams: number;
   rounds: number;
@@ -67,7 +103,7 @@ export class Draft {
     public readonly draftOrder: Record<string, number>,
     public readonly slotToRosterId: Record<string, number>,
     public readonly settings: DraftSettings,
-    public readonly metadata: Record<string, any>,
+    public readonly metadata: DraftMetadata,
     public readonly createdBy: string,
     public readonly createdAt: Date,
     public readonly updatedAt: Date,

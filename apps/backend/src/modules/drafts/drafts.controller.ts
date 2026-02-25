@@ -183,7 +183,7 @@ export class DraftController {
     if (!userId) throw new InvalidCredentialsException();
 
     const draftId = Array.isArray(req.params.draftId) ? req.params.draftId[0] : req.params.draftId;
-    const result = await this.draftService.resolveNomination(draftId);
+    const result = await this.draftService.resolveNomination(draftId, userId);
     res.status(200).json({
       draft: result.draft.toSafeObject(),
       won: result.won?.toSafeObject() ?? null,

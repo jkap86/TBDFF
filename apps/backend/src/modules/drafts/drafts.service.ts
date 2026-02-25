@@ -1,7 +1,7 @@
 import { DraftRepository } from './drafts.repository';
 import { LeagueRepository } from '../leagues/leagues.repository';
 import { PlayerRepository } from '../players/players.repository';
-import { Draft, DraftPick, DEFAULT_DRAFT_SETTINGS, DraftType } from './drafts.model';
+import { Draft, DraftPick, DraftMetadata, AuctionNomination, DEFAULT_DRAFT_SETTINGS, DraftType } from './drafts.model';
 import { Player } from '../players/players.model';
 import {
   ValidationException,
@@ -11,6 +11,9 @@ import {
 } from '../../shared/exceptions';
 
 export class DraftService {
+  /** Per-draft lock to prevent concurrent processAutoBids executions */
+  private autoBidLocks = new Map<string, Promise<Draft | null>>();
+
   constructor(
     private readonly draftRepository: DraftRepository,
     private readonly leagueRepository: LeagueRepository,
@@ -94,7 +97,7 @@ export class DraftService {
       type?: DraftType;
       startTime?: string | null;
       settings?: Record<string, number>;
-      metadata?: Record<string, any>;
+      metadata?: DraftMetadata;
     },
   ): Promise<Draft> {
     const draft = await this.draftRepository.findById(draftId);
@@ -232,7 +235,7 @@ export class DraftService {
     );
 
     // Initialize auction budgets if auction type
-    let metadata: Record<string, any> = {};
+    let metadata: DraftMetadata = {};
     if (draft.type === 'auction') {
       const budgets: Record<string, number> = {};
       for (let slot = 1; slot <= draft.settings.teams; slot++) {
@@ -654,15 +657,22 @@ export class DraftService {
     await this.validateBudget(draft, nominatorRosterId, amount);
 
     const player = await this.playerRepository.findById(playerId);
-    const playerMeta = player
-      ? { first_name: player.firstName, last_name: player.lastName, full_name: player.fullName, position: player.position, team: player.team, auction_value: player.auctionValue ?? null }
-      : {};
+    if (!player) throw new ValidationException('Player not found');
+
+    const playerMeta = {
+      first_name: player.firstName,
+      last_name: player.lastName,
+      full_name: player.fullName,
+      position: player.position,
+      team: player.team,
+      auction_value: player.auctionValue ?? null,
+    };
 
     const bidDeadline = new Date(
       Date.now() + draft.settings.nomination_timer * 1000
     ).toISOString();
 
-    const nomination = {
+    const nomination: AuctionNomination = {
       pick_id: nextPick.id,
       player_id: playerId,
       nominated_by: userId,
@@ -685,8 +695,7 @@ export class DraftService {
 
     if (!updated) throw new NotFoundException('Draft not found');
 
-    // Schedule auto-bids after a 3s delay to give all users time to bid
-    setTimeout(() => { this.processAutoBids(draftId).catch(() => {}); }, 3000);
+    this.scheduleAutoBids(draftId);
     return updated;
   }
 
@@ -708,7 +717,7 @@ export class DraftService {
 
     const deadline = new Date(nomination.bid_deadline).getTime();
     if (Date.now() > deadline) {
-      return this.resolveNomination(draftId);
+      return this.resolveNomination(draftId, userId);
     }
 
     if (amount <= nomination.current_bid) {
@@ -750,14 +759,16 @@ export class DraftService {
 
     if (!updated) throw new NotFoundException('Draft not found');
 
-    // Schedule auto-bids after a 3s delay to give all users time to bid
-    setTimeout(() => { this.processAutoBids(draftId).catch(() => {}); }, 3000);
+    this.scheduleAutoBids(draftId);
     return { draft: updated };
   }
 
-  async resolveNomination(draftId: string): Promise<{ draft: Draft; won?: DraftPick }> {
+  async resolveNomination(draftId: string, userId: string): Promise<{ draft: Draft; won?: DraftPick }> {
     const draft = await this.draftRepository.findById(draftId);
     if (!draft) throw new NotFoundException('Draft not found');
+
+    const member = await this.leagueRepository.findMember(draft.leagueId, userId);
+    if (!member) throw new ForbiddenException('Not a member of this league');
 
     const nomination = draft.metadata?.current_nomination;
     if (!nomination) throw new ValidationException('No active nomination');
@@ -765,7 +776,7 @@ export class DraftService {
     // Guard: do not resolve if the bid deadline has not expired yet
     if (nomination.bid_deadline) {
       const deadline = new Date(nomination.bid_deadline).getTime();
-      if (Date.now() < deadline - 2000) {
+      if (Date.now() < deadline) {
         throw new ValidationException('Bid deadline has not expired yet');
       }
     }
@@ -872,7 +883,7 @@ export class DraftService {
       Date.now() + draft.settings.nomination_timer * 1000
     ).toISOString();
 
-    const nomination = {
+    const nomination: AuctionNomination = {
       pick_id: nextPick.id,
       player_id: bestPlayer.id,
       nominated_by: slotOwner || userId,
@@ -905,8 +916,7 @@ export class DraftService {
       lastPicked: new Date().toISOString(),
     });
 
-    // Schedule auto-bids after a 3s delay to give all users time to bid
-    setTimeout(() => { this.processAutoBids(draftId).catch(() => {}); }, 3000);
+    this.scheduleAutoBids(draftId);
     return updated!;
   }
 
@@ -931,7 +941,7 @@ export class DraftService {
         Date.now() + draft.settings.nomination_timer * 1000
       ).toISOString();
 
-      const nomination = {
+      const nomination: AuctionNomination = {
         pick_id: nextPick.id,
         player_id: bestPlayer.id,
         nominated_by: slotOwner,
@@ -959,8 +969,7 @@ export class DraftService {
         lastPicked: new Date().toISOString(),
       });
 
-      // Schedule auto-bids after a 3s delay to give all users time to bid
-      setTimeout(() => { this.processAutoBids(draftId).catch(() => {}); }, 3000);
+      this.scheduleAutoBids(draftId);
     }
   }
 
@@ -1001,10 +1010,33 @@ export class DraftService {
   }
 
   /**
+   * Schedule auto-bid processing with per-draft locking.
+   * If a processAutoBids is already running for this draft, the new call
+   * waits for it to finish then runs once more (coalescing multiple triggers).
+   */
+  private scheduleAutoBids(draftId: string): void {
+    setTimeout(() => {
+      const existing = this.autoBidLocks.get(draftId);
+      const run = (existing ?? Promise.resolve(null))
+        .then(() => this._processAutoBids(draftId))
+        .catch((err) => {
+          console.error(`[DraftService] processAutoBids failed for draft ${draftId}:`, err);
+          return null;
+        });
+      this.autoBidLocks.set(draftId, run);
+      run.finally(() => {
+        if (this.autoBidLocks.get(draftId) === run) {
+          this.autoBidLocks.delete(draftId);
+        }
+      });
+    }, 3000);
+  }
+
+  /**
    * Process auto-bids after a nomination or manual bid.
    * Resolves multiple auto-bidders efficiently in one pass (second-price style).
    */
-  private async processAutoBids(draftId: string): Promise<Draft | null> {
+  private async _processAutoBids(draftId: string): Promise<Draft | null> {
     const draft = await this.draftRepository.findById(draftId);
     if (!draft || draft.status !== 'drafting' || draft.type !== 'auction') return null;
 
@@ -1029,22 +1061,38 @@ export class DraftService {
     const currentBidder: string = nomination.current_bidder;
 
     // Build list of ALL auto-bidders and their targets (including current bidder)
-    const allAutoTargets: Array<{ userId: string; rosterId: number; effectiveTarget: number }> = [];
-
+    // Batch-fetch queue items and roster pick counts to avoid N+2 queries per bidder
+    const userRosterPairs: Array<{ userId: string; rosterId: number }> = [];
     for (const userId of autoPickUsers) {
       const rosterId = this.findRosterIdByUserId(draft, userId);
-      if (rosterId === null) continue;
+      if (rosterId !== null) userRosterPairs.push({ userId, rosterId });
+    }
 
-      // Check if user has a custom max_bid for this player in their queue
-      const queueItem = await this.draftRepository.getQueueItemForPlayer(draftId, userId, nomination.player_id);
+    if (userRosterPairs.length === 0) return null;
+
+    const [queueItemsMap, picksWonMap] = await Promise.all([
+      this.draftRepository.getQueueItemsForPlayerByUsers(
+        draftId,
+        userRosterPairs.map((p) => p.userId),
+        nomination.player_id,
+      ),
+      this.draftRepository.countPicksWonByRosters(
+        draftId,
+        userRosterPairs.map((p) => p.rosterId),
+      ),
+    ]);
+
+    const allAutoTargets: Array<{ userId: string; rosterId: number; effectiveTarget: number }> = [];
+    const budgets: Record<string, number> = draft.metadata?.auction_budgets ?? {};
+
+    for (const { userId, rosterId } of userRosterPairs) {
+      const queueItem = queueItemsMap.get(userId) ?? null;
       const target = queueItem?.max_bid != null
         ? queueItem.max_bid
         : Math.floor(auctionValue * 0.8 * (draftBudget / 200));
 
-      // Compute max affordable (same logic as validateBudget)
-      const budgets: Record<string, number> = draft.metadata?.auction_budgets ?? {};
       const budget = budgets[String(rosterId)] ?? 0;
-      const picksWon = await this.draftRepository.countPicksWonByRoster(draft.id, rosterId);
+      const picksWon = picksWonMap.get(rosterId) ?? 0;
       const totalSlots = draft.settings.rounds;
       const remainingSlots = totalSlots - picksWon;
       const reserveNeeded = Math.max(0, remainingSlots - 1);
@@ -1107,8 +1155,7 @@ export class DraftService {
       lastPicked: new Date().toISOString(),
     });
 
-    // Schedule next auto-bid check after 3 seconds to allow real users to bid
-    setTimeout(() => { this.processAutoBids(draftId).catch(() => {}); }, 3000);
+    this.scheduleAutoBids(draftId);
 
     return updated;
   }

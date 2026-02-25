@@ -31,6 +31,34 @@ export interface DraftSettings {
   [key: string]: number;
 }
 
+// Auction nomination metadata
+export interface BidHistoryEntry {
+  user_id: string;
+  amount: number;
+  timestamp: string;
+  auto_bid?: boolean;
+}
+
+export interface AuctionNomination {
+  pick_id: string;
+  player_id: string;
+  nominated_by: string;
+  current_bid: number;
+  current_bidder: string;
+  bidder_roster_id: number;
+  bid_deadline: string;
+  bid_history: BidHistoryEntry[];
+  player_metadata: Record<string, unknown>;
+}
+
+export interface DraftMetadata {
+  auto_pick_users?: string[];
+  auction_budgets?: Record<string, number>;
+  current_nomination?: AuctionNomination | null;
+  nomination_deadline?: string | null;
+  [key: string]: unknown;
+}
+
 // Draft entity
 export interface Draft {
   id: string;
@@ -44,7 +72,7 @@ export interface Draft {
   draft_order: Record<string, number>; // user_id -> draft_slot
   slot_to_roster_id: Record<string, number>; // draft_slot -> roster_id
   settings: DraftSettings;
-  metadata: Record<string, any>;
+  metadata: DraftMetadata;
   created_by: string;
   created_at: string;
   updated_at: string;

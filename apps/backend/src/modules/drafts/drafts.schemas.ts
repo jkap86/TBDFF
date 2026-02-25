@@ -5,9 +5,9 @@ const draftTypeEnum = z.enum(['snake', 'linear', '3rr', 'auction']);
 const draftSettingsPartialSchema = z.object({
   teams: z.number().int().min(2).max(32).optional(),
   rounds: z.number().int().min(1).max(50).optional(),
-  pick_timer: z.number().int().min(0).max(86400).optional(),
-  nomination_timer: z.number().int().min(0).max(86400).optional(),
-  offering_timer: z.number().int().min(0).max(86400).optional(),
+  pick_timer: z.number().int().min(5).max(86400).optional(),
+  nomination_timer: z.number().int().min(5).max(86400).optional(),
+  offering_timer: z.number().int().min(5).max(86400).optional(),
   reversal_round: z.number().int().min(0).optional(),
   player_type: z.number().int().min(0).max(1).optional(),
   cpu_autopick: z.number().int().min(0).max(1).optional(),

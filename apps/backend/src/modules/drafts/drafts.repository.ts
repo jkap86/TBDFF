@@ -488,6 +488,44 @@ export class DraftRepository {
     return result.rows.length > 0 ? result.rows[0] : null;
   }
 
+  async getQueueItemsForPlayerByUsers(
+    draftId: string,
+    userIds: string[],
+    playerId: string,
+  ): Promise<Map<string, { max_bid: number | null }>> {
+    if (userIds.length === 0) return new Map();
+    const placeholders = userIds.map((_, i) => `$${i + 3}`).join(', ');
+    const result = await this.db.query(
+      `SELECT user_id, max_bid FROM draft_queue
+       WHERE draft_id = $1 AND player_id = $2 AND user_id IN (${placeholders})`,
+      [draftId, playerId, ...userIds]
+    );
+    const map = new Map<string, { max_bid: number | null }>();
+    for (const row of result.rows) {
+      map.set(row.user_id, { max_bid: row.max_bid });
+    }
+    return map;
+  }
+
+  async countPicksWonByRosters(
+    draftId: string,
+    rosterIds: number[],
+  ): Promise<Map<number, number>> {
+    if (rosterIds.length === 0) return new Map();
+    const placeholders = rosterIds.map((_, i) => `$${i + 2}`).join(', ');
+    const result = await this.db.query(
+      `SELECT roster_id, COUNT(*) as cnt FROM draft_picks
+       WHERE draft_id = $1 AND roster_id IN (${placeholders}) AND player_id IS NOT NULL
+       GROUP BY roster_id`,
+      [draftId, ...rosterIds]
+    );
+    const map = new Map<number, number>();
+    for (const row of result.rows) {
+      map.set(row.roster_id, parseInt(row.cnt, 10));
+    }
+    return map;
+  }
+
   async findFirstAvailableFromQueue(draftId: string, userId: string): Promise<Player | null> {
     const result = await this.db.query(
       `SELECT p.* FROM draft_queue dq
