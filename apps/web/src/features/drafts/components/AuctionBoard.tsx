@@ -17,8 +17,8 @@ export function AuctionBoard({ draft, picks, members, currentUserId }: AuctionBo
   // Build roster_id -> team name and roster_id -> userId mappings
   const rosterToUser: Record<number, string> = {};
   const rosterToUserId: Record<number, string> = {};
-  for (const [userId, slot] of Object.entries(draft.draft_order) as [string, number][]) {
-    const rosterId = draft.slot_to_roster_id[String(slot)];
+  for (const [userId, slot] of Object.entries(draft.draft_order ?? {}) as [string, number][]) {
+    const rosterId = (draft.slot_to_roster_id ?? {})[String(slot)];
     const member = members.find((m) => m.user_id === userId);
     rosterToUser[rosterId] = member?.display_name || member?.username || `Team ${rosterId}`;
     rosterToUserId[rosterId] = userId;
