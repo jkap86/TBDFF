@@ -23,7 +23,7 @@ export default function LoginPage() {
     try {
       await login(username, password);
       const next = searchParams.get('next');
-      router.replace(next || '/dashboard');
+      router.replace(next && next.startsWith('/') ? next : '/dashboard');
     } catch (err: any) {
       setError(err.message || 'Login failed');
     } finally {

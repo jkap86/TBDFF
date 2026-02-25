@@ -18,6 +18,9 @@ export const errorHandler = (
   }
 
   console.error(`[${req.method}] ${req.path} - Unexpected error:`, err.message);
+  if (process.env.NODE_ENV !== 'production') {
+    console.error(err.stack);
+  }
 
   return res.status(500).json({
     error: {

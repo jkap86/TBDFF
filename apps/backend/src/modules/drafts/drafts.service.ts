@@ -18,6 +18,7 @@ import {
   ForbiddenException,
   ConflictException,
 } from '../../shared/exceptions';
+import { config } from '../../config';
 
 export class DraftService {
   /** Per-draft lock to prevent concurrent processAutoBids executions */
@@ -45,6 +46,10 @@ export class DraftService {
    * nomination. Called on startup to recover state lost when the process restarted.
    */
   async recoverActiveAuctions(): Promise<void> {
+    if (!config.ENABLE_DRAFT_RECOVERY) {
+      console.log('[DraftService] Draft recovery disabled via ENABLE_DRAFT_RECOVERY');
+      return;
+    }
     try {
       const drafts = await this.draftRepository.findActiveDraftingAuctions();
       for (const draft of drafts) {

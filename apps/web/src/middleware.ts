@@ -11,6 +11,9 @@ export function middleware(request: NextRequest) {
 
   if (!isProtected) return NextResponse.next();
 
+  // tbdff_session is a UX-only gate — it is NOT authentication.
+  // It merely prevents unauthenticated users from seeing a flash of protected pages.
+  // Real auth is handled by JWT Bearer tokens validated on the backend.
   const sessionCookie = request.cookies.get('tbdff_session');
 
   if (!sessionCookie) {

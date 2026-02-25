@@ -157,6 +157,10 @@ export function createChatGateway(
         socket.emit('chat:error', { message });
       }
     });
+
+    socket.on('disconnect', () => {
+      rateLimitMap.delete(userId);
+    });
   });
 
   return io;

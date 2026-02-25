@@ -24,4 +24,5 @@ export const config = {
     'http://localhost:8081',
   ],
   ENABLE_JOBS: parseBoolean(process.env.ENABLE_JOBS, true),
+  ENABLE_DRAFT_RECOVERY: parseBoolean(process.env.ENABLE_DRAFT_RECOVERY, true),
 } as const;

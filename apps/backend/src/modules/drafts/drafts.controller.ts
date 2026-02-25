@@ -206,10 +206,12 @@ export class DraftController {
     if (!userId) throw new InvalidCredentialsException();
 
     const draftId = Array.isArray(req.params.draftId) ? req.params.draftId[0] : req.params.draftId;
-    const position = req.query.position as string | undefined;
-    const query = req.query.q as string | undefined;
-    const limit = req.query.limit ? parseInt(req.query.limit as string, 10) : undefined;
-    const offset = req.query.offset ? parseInt(req.query.offset as string, 10) : undefined;
+    const { position, q: query, limit, offset } = req.query as {
+      position?: string;
+      q?: string;
+      limit?: number;
+      offset?: number;
+    };
 
     const players = await this.draftService.getAvailablePlayers(draftId, userId, {
       position,

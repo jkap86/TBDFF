@@ -3,6 +3,9 @@
 import { createContext, useState, useEffect, useCallback, type ReactNode } from 'react';
 import { authApi, tokenManager } from '@/lib/api';
 import { storage } from '@/lib/storage';
+// Note: setSessionCookie/clearSessionCookie manage a UX-only presence flag (tbdff_session).
+// This cookie is NOT httpOnly and is trivially forgeable — it only controls client-side
+// redirects in middleware.ts. Actual authentication uses JWT tokens via Authorization header.
 import { setSessionCookie, clearSessionCookie } from '@/lib/cookie';
 import type { User } from '@tbdff/shared';
 
@@ -83,6 +86,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [accessToken]);
 
   // Register refresh/logout handlers so the API client can auto-refresh on 401
+  // Handlers read from storage (not closed-over state), so empty deps is correct.
   useEffect(() => {
     tokenManager.setHandlers(
       async () => {
