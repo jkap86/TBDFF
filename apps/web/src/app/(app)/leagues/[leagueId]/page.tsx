@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { Settings, MessageSquare } from 'lucide-react';
+import { Settings, MessageSquare, ArrowLeftRight, ClipboardList, Activity } from 'lucide-react';
 import { leagueApi, draftApi, matchupApi, ApiError, type League, type LeagueMember, type Roster, type UpdateLeagueRequest, type Draft, type Matchup } from '@/lib/api';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import { LeagueSettingsModal } from '@/features/leagues/components/LeagueSettingsModal';
@@ -432,6 +432,44 @@ export default function LeagueDetailPage() {
                   : 'No matchups have been generated yet.'}
               </p>
             )}
+          </div>
+        )}
+
+        {/* Roster Management Cards */}
+        {(league.status === 'in_season' || league.status === 'complete') && (
+          <div className="grid gap-4 sm:grid-cols-3">
+            <button
+              onClick={() => router.push(`/leagues/${leagueId}/trades`)}
+              className="rounded-lg bg-white dark:bg-gray-800 p-6 shadow hover:shadow-md transition-shadow text-left"
+            >
+              <div className="flex items-center gap-3 mb-2">
+                <ArrowLeftRight className="h-5 w-5 text-blue-600" />
+                <h3 className="text-lg font-bold text-gray-900 dark:text-white">Trades</h3>
+              </div>
+              <p className="text-sm text-gray-500 dark:text-gray-400">Propose and manage trades with other teams</p>
+            </button>
+
+            <button
+              onClick={() => router.push(`/leagues/${leagueId}/waivers`)}
+              className="rounded-lg bg-white dark:bg-gray-800 p-6 shadow hover:shadow-md transition-shadow text-left"
+            >
+              <div className="flex items-center gap-3 mb-2">
+                <ClipboardList className="h-5 w-5 text-purple-600" />
+                <h3 className="text-lg font-bold text-gray-900 dark:text-white">Waivers</h3>
+              </div>
+              <p className="text-sm text-gray-500 dark:text-gray-400">Add free agents and manage waiver claims</p>
+            </button>
+
+            <button
+              onClick={() => router.push(`/leagues/${leagueId}/transactions`)}
+              className="rounded-lg bg-white dark:bg-gray-800 p-6 shadow hover:shadow-md transition-shadow text-left"
+            >
+              <div className="flex items-center gap-3 mb-2">
+                <Activity className="h-5 w-5 text-green-600" />
+                <h3 className="text-lg font-bold text-gray-900 dark:text-white">Activity</h3>
+              </div>
+              <p className="text-sm text-gray-500 dark:text-gray-400">View all trades, waivers, and roster moves</p>
+            </button>
           </div>
         )}
 

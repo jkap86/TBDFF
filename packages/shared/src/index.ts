@@ -23,6 +23,12 @@ export { scoringApi } from './scoring/scoring-api';
 // Chat
 export { chatApi } from './chat/chat-api';
 
+// Trades
+export { tradeApi } from './trades/trade-api';
+
+// Transactions
+export { transactionApi } from './transactions/transaction-api';
+
 // Types
 export type { User, AuthResponse, UserResponse } from './types/auth';
 export type {
@@ -112,3 +118,31 @@ export type {
   ChatJoinedEvent,
   ChatErrorEvent,
 } from './types/chat';
+export type {
+  TradeProposal,
+  TradeItem,
+  TradeStatus,
+  TradeItemSide,
+  TradeItemType,
+  FutureDraftPick,
+  ProposeTradeRequest,
+  CounterTradeRequest,
+  TradeProposalResponse,
+  TradeListResponse,
+  FutureDraftPickListResponse,
+} from './types/trade';
+export type {
+  Transaction,
+  TransactionType,
+  TransactionStatus,
+  WaiverClaim,
+  WaiverClaimStatus,
+  AddPlayerRequest,
+  DropPlayerRequest,
+  PlaceWaiverClaimRequest,
+  UpdateWaiverClaimRequest,
+  TransactionListResponse,
+  TransactionResponse,
+  WaiverClaimResponse,
+  WaiverClaimListResponse,
+} from './types/transaction';

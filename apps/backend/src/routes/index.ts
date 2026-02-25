@@ -8,6 +8,8 @@ import { createDraftRoutes, createDraftLeagueRoutes } from '../modules/drafts/dr
 import { createMatchupRoutes } from '../modules/matchups/matchups.routes';
 import { createScoringRoutes, createLeagueScoringRoutes } from '../modules/scoring/scoring.routes';
 import { createLeagueChatRoutes, createConversationRoutes } from '../modules/chat/chat.routes';
+import { createTradeRoutes, createLeagueTradeRoutes } from '../modules/trades/trades.routes';
+import { createLeagueTransactionRoutes } from '../modules/transactions/transactions.routes';
 
 export function registerRoutes(app: Express, container: Container): void {
   const { controllers, pool } = container;
@@ -54,4 +56,7 @@ export function registerRoutes(app: Express, container: Container): void {
   app.use('/api/leagues', createLeagueScoringRoutes(controllers.scoringController));
   app.use('/api/leagues', createLeagueChatRoutes(controllers.chatController));
   app.use('/api/conversations', createConversationRoutes(controllers.chatController));
+  app.use('/api/trades', createTradeRoutes(controllers.tradeController));
+  app.use('/api/leagues', createLeagueTradeRoutes(controllers.tradeController));
+  app.use('/api/leagues', createLeagueTransactionRoutes(controllers.transactionController));
 }

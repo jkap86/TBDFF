@@ -253,6 +253,7 @@ export interface Roster {
   taxi: string[];
   settings: RosterSettings;
   metadata: Record<string, any>;
+  waiver_budget: number;
   created_at: string;
   updated_at: string;
 }

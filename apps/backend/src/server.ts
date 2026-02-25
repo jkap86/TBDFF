@@ -4,6 +4,7 @@ import { createContainer } from './container';
 import { createApp } from './app';
 import { createChatGateway } from './modules/chat/chat.gateway';
 import { createDraftGateway } from './modules/drafts/draft.gateway';
+import { createTransactionsGateway } from './modules/transactions/transactions.gateway';
 
 const container = createContainer();
 const app = createApp(container);
@@ -15,6 +16,11 @@ const io = createChatGateway(server, container.services.chatService);
 // Attach draft gateway on the same socket.io server and inject into service
 const draftGateway = createDraftGateway(io);
 container.services.draftService.setGateway(draftGateway);
+
+// Attach transactions gateway and inject into services
+const transactionsGateway = createTransactionsGateway(io);
+container.services.tradeService.setGateway(transactionsGateway);
+container.services.transactionService.setGateway(transactionsGateway);
 
 // Recover any active auction auto-bids that were lost on previous restart
 container.services.draftService.recoverActiveAuctions();

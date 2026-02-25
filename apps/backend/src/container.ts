@@ -14,6 +14,8 @@ import { ScoringRepository } from './modules/scoring/scoring.repository';
 import { DraftRepository } from './modules/drafts/drafts.repository';
 import { MatchupRepository } from './modules/matchups/matchups.repository';
 import { ChatRepository } from './modules/chat/chat.repository';
+import { TradeRepository } from './modules/trades/trades.repository';
+import { TransactionRepository } from './modules/transactions/transactions.repository';
 
 // Services
 import { AuthService } from './modules/auth/auth.service';
@@ -23,6 +25,8 @@ import { ScoringService } from './modules/scoring/scoring.service';
 import { DraftService } from './modules/drafts/drafts.service';
 import { MatchupService } from './modules/matchups/matchups.service';
 import { ChatService } from './modules/chat/chat.service';
+import { TradeService } from './modules/trades/trades.service';
+import { TransactionService } from './modules/transactions/transactions.service';
 
 // Controllers
 import { AuthController } from './modules/auth/auth.controller';
@@ -32,10 +36,14 @@ import { ScoringController } from './modules/scoring/scoring.controller';
 import { DraftController } from './modules/drafts/drafts.controller';
 import { MatchupController } from './modules/matchups/matchups.controller';
 import { ChatController } from './modules/chat/chat.controller';
+import { TradeController } from './modules/trades/trades.controller';
+import { TransactionController } from './modules/transactions/transactions.controller';
 
 // Jobs
 import { PlayerSyncJob } from './jobs/player-sync.job';
 import { StatsSyncJob } from './jobs/stats-sync.job';
+import { WaiverProcessJob } from './jobs/waiver-process.job';
+import { TradeReviewJob } from './jobs/trade-review.job';
 
 function createPool(): Pool {
   const pool = new Pool({
@@ -69,6 +77,8 @@ export function createContainer() {
   const draftRepository = new DraftRepository(pool);
   const matchupRepository = new MatchupRepository(pool);
   const chatRepository = new ChatRepository(pool);
+  const tradeRepository = new TradeRepository(pool);
+  const transactionRepository = new TransactionRepository(pool);
 
   // Services
   const authService = new AuthService(userRepository);
@@ -83,6 +93,8 @@ export function createContainer() {
   const draftService = new DraftService(draftRepository, leagueRepository, playerRepository);
   const matchupService = new MatchupService(matchupRepository, leagueRepository);
   const chatService = new ChatService(chatRepository);
+  const tradeService = new TradeService(tradeRepository, leagueRepository);
+  const transactionService = new TransactionService(transactionRepository, leagueRepository);
 
   // Controllers
   const authController = new AuthController(authService);
@@ -92,16 +104,22 @@ export function createContainer() {
   const draftController = new DraftController(draftService);
   const matchupController = new MatchupController(matchupService);
   const chatController = new ChatController(chatService);
+  const tradeController = new TradeController(tradeService);
+  const transactionController = new TransactionController(transactionService);
 
   // Jobs
   const playerSyncJob = new PlayerSyncJob(playerService);
   const statsSyncJob = new StatsSyncJob(scoringService);
+  const waiverProcessJob = new WaiverProcessJob(transactionService);
+  const tradeReviewJob = new TradeReviewJob(tradeService);
 
   return {
     pool,
     services: {
       chatService,
       draftService,
+      tradeService,
+      transactionService,
     },
     controllers: {
       authController,
@@ -111,10 +129,14 @@ export function createContainer() {
       draftController,
       matchupController,
       chatController,
+      tradeController,
+      transactionController,
     },
     jobs: {
       playerSyncJob,
       statsSyncJob,
+      waiverProcessJob,
+      tradeReviewJob,
     },
   };
 }

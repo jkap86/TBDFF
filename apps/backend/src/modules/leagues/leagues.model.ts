@@ -378,6 +378,7 @@ export class Roster {
     public readonly metadata: Record<string, any>,
     public readonly createdAt: Date,
     public readonly updatedAt: Date,
+    public readonly waiverBudget: number = 100,
   ) {}
 
   static fromDatabase(row: any): Roster {
@@ -394,6 +395,7 @@ export class Roster {
       row.metadata ?? {},
       row.created_at,
       row.updated_at,
+      row.waiver_budget ?? 100,
     );
   }
 
@@ -411,6 +413,7 @@ export class Roster {
       metadata: this.metadata,
       created_at: this.createdAt,
       updated_at: this.updatedAt,
+      waiver_budget: this.waiverBudget,
     };
   }
 }

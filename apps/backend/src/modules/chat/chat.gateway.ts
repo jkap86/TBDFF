@@ -74,6 +74,9 @@ export function createChatGateway(
   io.on('connection', async (socket) => {
     const { userId } = socket.data;
 
+    // Join personal notification room for trade/waiver alerts
+    socket.join(`user:${userId}`);
+
     // Auto-join all DM rooms for this user on connect
     try {
       const conversationIds = await chatService.getUserConversationIds(userId);
