@@ -180,6 +180,31 @@ export class TradeRepository {
     return result.rows.map(FutureDraftPick.fromDatabase);
   }
 
+  async findFuturePickById(id: string): Promise<FutureDraftPick | null> {
+    const result = await this.db.query(
+      `SELECT fp.*,
+              u1.username AS original_owner_username,
+              u2.username AS current_owner_username
+       FROM future_draft_picks fp
+       JOIN users u1 ON u1.id = fp.original_owner_id
+       JOIN users u2 ON u2.id = fp.current_owner_id
+       WHERE fp.id = $1`,
+      [id],
+    );
+    return result.rows.length > 0 ? FutureDraftPick.fromDatabase(result.rows[0]) : null;
+  }
+
+  async isDraftStartedForPick(futurePickId: string): Promise<boolean> {
+    const result = await this.db.query(
+      `SELECT 1 FROM drafts d
+       JOIN future_draft_picks fp ON fp.league_id = d.league_id AND fp.season = d.season
+       WHERE fp.id = $1 AND d.status IN ('drafting', 'complete')
+       LIMIT 1`,
+      [futurePickId],
+    );
+    return result.rows.length > 0;
+  }
+
   async transferDraftPick(client: PoolClient, pickId: string, newOwnerId: string, newRosterId: number): Promise<void> {
     await client.query(
       'UPDATE future_draft_picks SET current_owner_id = $1, roster_id = $2 WHERE id = $3',

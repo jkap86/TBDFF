@@ -26,6 +26,7 @@ export default function TradesPage() {
 
   const {
     trades,
+    futurePicks,
     isLoading,
     error,
     fetchTrades,
@@ -162,6 +163,7 @@ export default function TradesPage() {
                 trade={trade}
                 currentUserId={user?.id ?? ''}
                 isCommissioner={isCommissioner}
+                futurePicks={futurePicks}
                 onAccept={(id) => confirmAndAct('Accept', acceptTrade, id)}
                 onDecline={(id) => confirmAndAct('Decline', declineTrade, id)}
                 onWithdraw={(id) => confirmAndAct('Withdraw', withdrawTrade, id)}
@@ -181,6 +183,7 @@ export default function TradesPage() {
         rosters={rosters}
         currentUserId={user?.id ?? ''}
         playerMap={playerMap}
+        futurePicks={futurePicks}
         onSubmit={proposeTrade}
       />
 

@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { X } from 'lucide-react';
-import type { LeagueMember, Player, Roster, ProposeTradeRequest } from '@/lib/api';
+import type { LeagueMember, Player, Roster, ProposeTradeRequest, FutureDraftPick } from '@/lib/api';
 
 interface TradeComposerProps {
   isOpen: boolean;
@@ -11,6 +11,7 @@ interface TradeComposerProps {
   rosters: Roster[];
   currentUserId: string;
   playerMap: Record<string, Player>;
+  futurePicks: FutureDraftPick[];
   onSubmit: (data: ProposeTradeRequest) => Promise<unknown>;
 }
 
@@ -20,21 +21,37 @@ function playerLabel(pid: string, playerMap: Record<string, Player>): string {
   return `${p.full_name} (${p.position ?? 'N/A'})`;
 }
 
-export function TradeComposer({ isOpen, onClose, members, rosters, currentUserId, playerMap, onSubmit }: TradeComposerProps) {
+function pickLabel(pick: FutureDraftPick, currentUserId: string): string {
+  const base = `${pick.season} Round ${pick.round}`;
+  if (pick.original_owner_id !== pick.current_owner_id) {
+    const ownerName = pick.original_owner_username ?? 'Unknown';
+    return `${base} (${ownerName}'s pick)`;
+  }
+  return base;
+}
+
+export function TradeComposer({ isOpen, onClose, members, rosters, currentUserId, playerMap, futurePicks, onSubmit }: TradeComposerProps) {
   const [selectedPartner, setSelectedPartner] = useState('');
   const [message, setMessage] = useState('');
   const [myPlayers, setMyPlayers] = useState<string[]>([]);
   const [theirPlayers, setTheirPlayers] = useState<string[]>([]);
+  const [myPicks, setMyPicks] = useState<string[]>([]);
+  const [theirPicks, setTheirPicks] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const otherMembers = members.filter((m) => m.user_id !== currentUserId);
   const myRoster = rosters.find((r) => r.owner_id === currentUserId);
   const partnerRoster = rosters.find((r) => r.owner_id === selectedPartner);
+  const myFuturePicks = futurePicks.filter((p) => p.current_owner_id === currentUserId);
+  const theirFuturePicks = futurePicks.filter((p) => p.current_owner_id === selectedPartner);
+
+  const hasMyItems = myPlayers.length > 0 || myPicks.length > 0;
+  const hasTheirItems = theirPlayers.length > 0 || theirPicks.length > 0;
 
   const handleSubmit = async () => {
     if (!selectedPartner || !myRoster || !partnerRoster) return;
-    if (myPlayers.length === 0 || theirPlayers.length === 0) return;
+    if (!hasMyItems || !hasTheirItems) return;
 
     const items: ProposeTradeRequest['items'] = [
       ...myPlayers.map((pid) => ({
@@ -47,6 +64,18 @@ export function TradeComposer({ isOpen, onClose, members, rosters, currentUserId
         side: 'receiver' as const,
         item_type: 'player' as const,
         player_id: pid,
+        roster_id: partnerRoster.roster_id,
+      })),
+      ...myPicks.map((pickId) => ({
+        side: 'proposer' as const,
+        item_type: 'draft_pick' as const,
+        draft_pick_id: pickId,
+        roster_id: myRoster.roster_id,
+      })),
+      ...theirPicks.map((pickId) => ({
+        side: 'receiver' as const,
+        item_type: 'draft_pick' as const,
+        draft_pick_id: pickId,
         roster_id: partnerRoster.roster_id,
       })),
     ];
@@ -64,6 +93,8 @@ export function TradeComposer({ isOpen, onClose, members, rosters, currentUserId
       setMessage('');
       setMyPlayers([]);
       setTheirPlayers([]);
+      setMyPicks([]);
+      setTheirPicks([]);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to propose trade');
     } finally {
@@ -99,6 +130,7 @@ export function TradeComposer({ isOpen, onClose, members, rosters, currentUserId
             onChange={(e) => {
               setSelectedPartner(e.target.value);
               setTheirPlayers([]);
+              setTheirPicks([]);
             }}
             className="w-full rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-gray-900 dark:text-white"
           >
@@ -130,6 +162,24 @@ export function TradeComposer({ isOpen, onClose, members, rosters, currentUserId
                   <p className="text-xs text-gray-400">No players on roster</p>
                 )}
               </div>
+              {myFuturePicks.length > 0 && (
+                <>
+                  <h4 className="text-xs font-medium text-gray-500 dark:text-gray-400 mt-3 mb-1">Draft Picks</h4>
+                  <div className="max-h-32 overflow-y-auto space-y-1 border border-gray-200 dark:border-gray-600 rounded p-2">
+                    {myFuturePicks.map((pick) => (
+                      <label key={pick.id} className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 p-1 rounded">
+                        <input
+                          type="checkbox"
+                          checked={myPicks.includes(pick.id)}
+                          onChange={() => togglePlayer(pick.id, myPicks, setMyPicks)}
+                          className="rounded"
+                        />
+                        <span className="text-sm text-gray-700 dark:text-gray-300">{pickLabel(pick, currentUserId)}</span>
+                      </label>
+                    ))}
+                  </div>
+                </>
+              )}
             </div>
 
             <div>
@@ -150,6 +200,24 @@ export function TradeComposer({ isOpen, onClose, members, rosters, currentUserId
                   <p className="text-xs text-gray-400">No players on roster</p>
                 )}
               </div>
+              {theirFuturePicks.length > 0 && (
+                <>
+                  <h4 className="text-xs font-medium text-gray-500 dark:text-gray-400 mt-3 mb-1">Draft Picks</h4>
+                  <div className="max-h-32 overflow-y-auto space-y-1 border border-gray-200 dark:border-gray-600 rounded p-2">
+                    {theirFuturePicks.map((pick) => (
+                      <label key={pick.id} className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 p-1 rounded">
+                        <input
+                          type="checkbox"
+                          checked={theirPicks.includes(pick.id)}
+                          onChange={() => togglePlayer(pick.id, theirPicks, setTheirPicks)}
+                          className="rounded"
+                        />
+                        <span className="text-sm text-gray-700 dark:text-gray-300">{pickLabel(pick, currentUserId)}</span>
+                      </label>
+                    ))}
+                  </div>
+                </>
+              )}
             </div>
           </div>
         )}
@@ -177,7 +245,7 @@ export function TradeComposer({ isOpen, onClose, members, rosters, currentUserId
           </button>
           <button
             onClick={handleSubmit}
-            disabled={isSubmitting || !selectedPartner || myPlayers.length === 0 || theirPlayers.length === 0}
+            disabled={isSubmitting || !selectedPartner || !hasMyItems || !hasTheirItems}
             className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
           >
             {isSubmitting ? 'Sending...' : 'Propose Trade'}

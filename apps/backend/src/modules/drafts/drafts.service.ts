@@ -79,6 +79,20 @@ export class DraftService {
     // Link draft to league
     await this.draftRepository.linkDraftToLeague(draft.id, leagueId);
 
+    // Seed future draft picks for trading
+    const rosters = await this.leagueRepository.findRostersByLeagueId(leagueId);
+    const ownedRosters = rosters
+      .filter((r) => r.ownerId)
+      .map((r) => ({ rosterId: r.rosterId, ownerId: r.ownerId! }));
+    if (ownedRosters.length > 0) {
+      await this.draftRepository.createFutureDraftPicks(
+        leagueId,
+        league.season,
+        settings.rounds,
+        ownedRosters,
+      );
+    }
+
     return draft;
   }
 
@@ -237,6 +251,26 @@ export class DraftService {
       throw new ValidationException('Slot to roster mapping must be set before starting');
     }
 
+    // Build pick overrides from traded future picks
+    const futurePicks = await this.draftRepository.findFutureDraftPicksByLeagueSeason(
+      draft.leagueId,
+      draft.season,
+    );
+    const pickOverrides = new Map<string, number>();
+    // Build a reverse map: userId -> draft slot
+    const userToSlot: Record<string, number> = {};
+    for (const [uid, slot] of Object.entries(draft.draftOrder)) {
+      userToSlot[uid] = slot;
+    }
+    for (const fp of futurePicks) {
+      if (fp.originalOwnerId !== fp.currentOwnerId) {
+        const originalSlot = userToSlot[fp.originalOwnerId];
+        if (originalSlot !== undefined) {
+          pickOverrides.set(`${fp.round}:${originalSlot}`, fp.rosterId);
+        }
+      }
+    }
+
     // Generate all pick slots
     await this.draftRepository.createPicks(
       draftId,
@@ -245,6 +279,7 @@ export class DraftService {
       draft.type,
       draft.draftOrder,
       draft.slotToRosterId,
+      pickOverrides.size > 0 ? pickOverrides : undefined,
     );
 
     // Initialize auction budgets if auction type

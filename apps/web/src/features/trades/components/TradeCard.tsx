@@ -1,6 +1,6 @@
 'use client';
 
-import type { TradeProposal, TradeItem } from '@/lib/api';
+import type { TradeProposal, TradeItem, FutureDraftPick } from '@/lib/api';
 
 const statusColors: Record<string, string> = {
   pending: 'bg-yellow-100 text-yellow-700',
@@ -18,6 +18,7 @@ interface TradeCardProps {
   trade: TradeProposal;
   currentUserId: string;
   isCommissioner: boolean;
+  futurePicks?: FutureDraftPick[];
   onAccept?: (tradeId: string) => void;
   onDecline?: (tradeId: string) => void;
   onWithdraw?: (tradeId: string) => void;
@@ -30,6 +31,7 @@ export function TradeCard({
   trade,
   currentUserId,
   isCommissioner,
+  futurePicks,
   onAccept,
   onDecline,
   onWithdraw,
@@ -45,7 +47,17 @@ export function TradeCard({
 
   const formatItem = (item: TradeItem) => {
     if (item.item_type === 'player') return item.player_id ?? 'Unknown Player';
-    if (item.item_type === 'draft_pick') return `Draft Pick`;
+    if (item.item_type === 'draft_pick') {
+      const pick = futurePicks?.find((p) => p.id === item.draft_pick_id);
+      if (pick) {
+        const base = `${pick.season} Rd ${pick.round} Pick`;
+        if (pick.original_owner_id !== pick.current_owner_id) {
+          return `${base} (${pick.original_owner_username ?? 'Unknown'}'s)`;
+        }
+        return base;
+      }
+      return 'Draft Pick';
+    }
     if (item.item_type === 'faab') return `$${item.faab_amount} FAAB`;
     return 'Unknown';
   };

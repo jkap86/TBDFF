@@ -72,6 +72,16 @@ export class TradeService {
           throw new ValidationException(`Player ${item.player_id} is not on the expected roster`);
         }
       }
+      if (item.item_type === 'draft_pick' && item.draft_pick_id) {
+        const pick = await this.tradeRepo.findFuturePickById(item.draft_pick_id);
+        if (!pick) throw new ValidationException('Draft pick not found');
+        const expectedOwner = item.side === 'proposer' ? userId : request.proposed_to;
+        if (pick.currentOwnerId !== expectedOwner) {
+          throw new ValidationException('Draft pick is not owned by the expected user');
+        }
+        const started = await this.tradeRepo.isDraftStartedForPick(item.draft_pick_id);
+        if (started) throw new ValidationException('Cannot trade a pick for a draft that has already started');
+      }
     }
 
     return this.tradeRepo.withTransaction(async (client) => {
@@ -176,6 +186,20 @@ export class TradeService {
           const players = item.side === 'proposer' ? lockedProposerPlayers : lockedReceiverPlayers;
           if (!players.includes(item.playerId)) {
             throw new ValidationException(`Player ${item.playerId} is no longer on the expected roster`);
+          }
+        }
+        if (item.itemType === 'draft_pick' && item.draftPickId) {
+          // Lock the future pick row and re-validate ownership
+          const lockResult = await client.query(
+            'SELECT current_owner_id FROM future_draft_picks WHERE id = $1 FOR UPDATE',
+            [item.draftPickId],
+          );
+          if (lockResult.rows.length === 0) {
+            throw new ValidationException('Draft pick no longer exists');
+          }
+          const expectedOwner = item.side === 'proposer' ? trade.proposedBy : trade.proposedTo;
+          if (lockResult.rows[0].current_owner_id !== expectedOwner) {
+            throw new ValidationException('Draft pick ownership has changed since trade was proposed');
           }
         }
       }
@@ -320,6 +344,16 @@ export class TradeService {
         if (!roster.players.includes(item.player_id)) {
           throw new ValidationException(`Player ${item.player_id} is not on the expected roster`);
         }
+      }
+      if (item.item_type === 'draft_pick' && item.draft_pick_id) {
+        const pick = await this.tradeRepo.findFuturePickById(item.draft_pick_id);
+        if (!pick) throw new ValidationException('Draft pick not found');
+        const expectedOwner = item.side === 'proposer' ? userId : original.proposedBy;
+        if (pick.currentOwnerId !== expectedOwner) {
+          throw new ValidationException('Draft pick is not owned by the expected user');
+        }
+        const started = await this.tradeRepo.isDraftStartedForPick(item.draft_pick_id);
+        if (started) throw new ValidationException('Cannot trade a pick for a draft that has already started');
       }
     }
 

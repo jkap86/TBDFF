@@ -160,9 +160,57 @@ export class DraftRepository {
     );
   }
 
+  // ---- Future Draft Picks ----
+
+  async createFutureDraftPicks(
+    leagueId: string,
+    season: string,
+    rounds: number,
+    rosters: Array<{ rosterId: number; ownerId: string }>,
+  ): Promise<void> {
+    if (rosters.length === 0) return;
+
+    const values: string[] = [];
+    const params: any[] = [];
+    let idx = 1;
+
+    for (const roster of rosters) {
+      for (let round = 1; round <= rounds; round++) {
+        values.push(`($${idx}, $${idx + 1}, $${idx + 2}, $${idx + 3}, $${idx + 4}, $${idx + 5})`);
+        params.push(leagueId, season, round, roster.ownerId, roster.ownerId, roster.rosterId);
+        idx += 6;
+      }
+    }
+
+    await this.db.query(
+      `INSERT INTO future_draft_picks (league_id, season, round, original_owner_id, current_owner_id, roster_id)
+       VALUES ${values.join(', ')}
+       ON CONFLICT (league_id, season, round, original_owner_id) DO NOTHING`,
+      params,
+    );
+  }
+
+  async findFutureDraftPicksByLeagueSeason(
+    leagueId: string,
+    season: string,
+  ): Promise<Array<{ round: number; originalOwnerId: string; currentOwnerId: string; rosterId: number }>> {
+    const result = await this.db.query(
+      `SELECT round, original_owner_id, current_owner_id, roster_id
+       FROM future_draft_picks
+       WHERE league_id = $1 AND season = $2`,
+      [leagueId, season],
+    );
+    return result.rows.map((r: any) => ({
+      round: r.round,
+      originalOwnerId: r.original_owner_id,
+      currentOwnerId: r.current_owner_id,
+      rosterId: r.roster_id,
+    }));
+  }
+
   // ---- Draft Picks ----
 
-  async createPicks(draftId: string, rounds: number, teams: number, draftType: string, draftOrder: Record<string, number>, slotToRosterId: Record<string, number>): Promise<DraftPick[]> {
+  async createPicks(draftId: string, rounds: number, teams: number, draftType: string, draftOrder: Record<string, number>, slotToRosterId: Record<string, number>, pickOverrides?: Map<string, number>): Promise<DraftPick[]> {
     // Generate all pick slots based on draft type and order
     const pickValues: string[] = [];
     const params: any[] = [draftId];
@@ -188,7 +236,7 @@ export class DraftRepository {
         }
 
         const overallPick = (round - 1) * teams + pickInRound;
-        const rosterId = slotToRosterId[String(draftSlot)] ?? draftSlot;
+        const rosterId = pickOverrides?.get(`${round}:${draftSlot}`) ?? slotToRosterId[String(draftSlot)] ?? draftSlot;
 
         pickValues.push(`($1, $${paramIndex}, $${paramIndex + 1}, $${paramIndex + 2}, $${paramIndex + 3})`);
         params.push(rosterId, round, overallPick, draftSlot);
