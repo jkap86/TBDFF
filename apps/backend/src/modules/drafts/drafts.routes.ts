@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { DraftController } from './drafts.controller';
 import { authMiddleware } from '../../middleware/auth.middleware';
+import { strictLimiter } from '../../middleware/rate-limit.middleware';
 import { asyncHandler } from '../../shared/async-handler';
 import { validate } from '../../shared/validate';
 import {
@@ -59,7 +60,7 @@ export function createDraftRoutes(controller: DraftController): Router {
   router.get('/:draftId/picks', asyncHandler(controller.getPicks));
 
   // Make a pick
-  router.post('/:draftId/picks', validate(makeDraftPickSchema), asyncHandler(controller.makePick));
+  router.post('/:draftId/picks', strictLimiter, validate(makeDraftPickSchema), asyncHandler(controller.makePick));
 
   // Auto-pick best available (timer expired or commissioner override)
   router.post('/:draftId/autopick', asyncHandler(controller.autoPick));
@@ -71,7 +72,7 @@ export function createDraftRoutes(controller: DraftController): Router {
   router.post('/:draftId/nominate', validate(nominateDraftPickSchema), asyncHandler(controller.nominate));
 
   // Auction: Place a bid on current nomination
-  router.post('/:draftId/bid', validate(placeBidSchema), asyncHandler(controller.bid));
+  router.post('/:draftId/bid', strictLimiter, validate(placeBidSchema), asyncHandler(controller.bid));
 
   // Auction: Resolve expired nomination (timer triggered by client)
   router.post('/:draftId/resolve', asyncHandler(controller.resolveNomination));

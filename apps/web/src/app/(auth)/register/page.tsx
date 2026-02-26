@@ -49,8 +49,8 @@ export default function RegisterPage() {
       await register(username, email, password);
       const next = searchParams.get('next');
       router.replace(next && next.startsWith('/') ? next : '/dashboard');
-    } catch (err: any) {
-      setError(err.message || 'Registration failed');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Registration failed');
     } finally {
       setIsSubmitting(false);
     }

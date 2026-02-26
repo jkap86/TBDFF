@@ -37,9 +37,12 @@ interface ClientToServerEvents {
 
 type AppSocket = Socket<ServerToClientEvents, ClientToServerEvents>;
 
+export type ConnectionStatus = 'disconnected' | 'connecting' | 'connected';
+
 interface SocketContextValue {
   socket: AppSocket | null;
   isConnected: boolean;
+  connectionStatus: ConnectionStatus;
   joinLeague: (leagueId: string) => void;
   leaveLeague: (leagueId: string) => void;
   joinDM: (conversationId: string) => void;
@@ -59,6 +62,7 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
   const { accessToken, isAuthenticated } = useAuth();
   const socketRef = useRef<AppSocket | null>(null);
   const [isConnected, setIsConnected] = useState(false);
+  const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>('disconnected');
 
   useEffect(() => {
     if (!isAuthenticated || !accessToken) {
@@ -66,6 +70,7 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
         socketRef.current.disconnect();
         socketRef.current = null;
         setIsConnected(false);
+        setConnectionStatus('disconnected');
       }
       return;
     }
@@ -75,6 +80,8 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
       socketRef.current.disconnect();
     }
 
+    setConnectionStatus('connecting');
+
     const socket: AppSocket = io(getSocketUrl(), {
       auth: { token: accessToken },
       path: '/socket.io',
@@ -82,9 +89,16 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
       autoConnect: true,
     });
 
-    socket.on('connect', () => setIsConnected(true));
-    socket.on('disconnect', () => setIsConnected(false));
+    socket.on('connect', () => {
+      setIsConnected(true);
+      setConnectionStatus('connected');
+    });
+    socket.on('disconnect', () => {
+      setIsConnected(false);
+      setConnectionStatus('disconnected');
+    });
     socket.on('connect_error', (err) => {
+      setConnectionStatus('disconnected');
       if (process.env.NODE_ENV === 'development') {
         console.error('[Socket] Connection error:', err.message);
       }
@@ -96,6 +110,7 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
       socket.disconnect();
       socketRef.current = null;
       setIsConnected(false);
+      setConnectionStatus('disconnected');
     };
   }, [isAuthenticated, accessToken]);
 
@@ -127,6 +142,7 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
       value={{
         socket: socketRef.current,
         isConnected,
+        connectionStatus,
         joinLeague,
         leaveLeague,
         joinDM,

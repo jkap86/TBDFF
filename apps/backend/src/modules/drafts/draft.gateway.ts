@@ -1,5 +1,7 @@
 import { Server as SocketServer } from 'socket.io';
 import { Draft, DraftPick } from './drafts.model';
+import { DraftRepository } from './drafts.repository';
+import { ChatService } from '../chat/chat.service';
 
 export interface DraftStateUpdate {
   draft: Draft;
@@ -8,13 +10,30 @@ export interface DraftStateUpdate {
 }
 
 export class DraftGateway {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  constructor(private readonly io: SocketServer<any, any, any, any>) {
+  constructor(
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    private readonly io: SocketServer<any, any, any, any>,
+    private readonly draftRepo: DraftRepository,
+    private readonly chatService: ChatService,
+  ) {
     // Register draft room join/leave handlers on every new connection
     this.io.on('connection', (socket) => {
-      socket.on('draft:join', (draftId: string) => {
-        if (typeof draftId === 'string' && draftId) {
+      socket.on('draft:join', async (draftId: string) => {
+        if (typeof draftId !== 'string' || !draftId) return;
+
+        try {
+          const draft = await this.draftRepo.findById(draftId);
+          if (!draft) return;
+
+          const isMember = await this.chatService.validateLeagueMembership(
+            draft.leagueId,
+            socket.data.userId,
+          );
+          if (!isMember) return;
+
           socket.join(`draft:${draftId}`);
+        } catch {
+          // Silently reject — user won't receive draft events
         }
       });
 
@@ -36,7 +55,11 @@ export class DraftGateway {
   }
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function createDraftGateway(io: SocketServer<any, any, any, any>): DraftGateway {
-  return new DraftGateway(io);
+export function createDraftGateway(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  io: SocketServer<any, any, any, any>,
+  draftRepo: DraftRepository,
+  chatService: ChatService,
+): DraftGateway {
+  return new DraftGateway(io, draftRepo, chatService);
 }

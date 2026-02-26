@@ -153,6 +153,33 @@ export class TradeService {
     }
 
     return this.tradeRepo.withTransaction(async (client) => {
+      // Lock both roster rows to prevent concurrent modifications (trades, waivers, add/drops)
+      await client.query(
+        'SELECT id FROM rosters WHERE league_id = $1 AND owner_id IN ($2, $3) ORDER BY id FOR UPDATE',
+        [trade.leagueId, trade.proposedBy, trade.proposedTo],
+      );
+
+      // Re-validate player ownership under lock
+      const lockedProposerResult = await client.query(
+        'SELECT players FROM rosters WHERE league_id = $1 AND owner_id = $2',
+        [trade.leagueId, trade.proposedBy],
+      );
+      const lockedReceiverResult = await client.query(
+        'SELECT players FROM rosters WHERE league_id = $1 AND owner_id = $2',
+        [trade.leagueId, trade.proposedTo],
+      );
+      const lockedProposerPlayers: string[] = lockedProposerResult.rows[0]?.players ?? [];
+      const lockedReceiverPlayers: string[] = lockedReceiverResult.rows[0]?.players ?? [];
+
+      for (const item of trade.items) {
+        if (item.itemType === 'player' && item.playerId) {
+          const players = item.side === 'proposer' ? lockedProposerPlayers : lockedReceiverPlayers;
+          if (!players.includes(item.playerId)) {
+            throw new ValidationException(`Player ${item.playerId} is no longer on the expected roster`);
+          }
+        }
+      }
+
       const adds: Record<string, number> = {};
       const drops: Record<string, number> = {};
       const playerIds: string[] = [];

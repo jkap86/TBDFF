@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { AuthProvider } from '@/features/auth/context/AuthProvider';
 import { ThemeProvider } from '@/features/theme/ThemeProvider';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { DevPanel } from '@/features/dev/DevPanel';
 import './globals.css';
 
@@ -27,7 +28,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className="bg-white text-gray-900 dark:bg-gray-900 dark:text-white font-sans antialiased">
         <ThemeProvider>
           <AuthProvider>
-            {children}
+            <ErrorBoundary>
+              {children}
+            </ErrorBoundary>
             <DevPanel />
           </AuthProvider>
         </ThemeProvider>

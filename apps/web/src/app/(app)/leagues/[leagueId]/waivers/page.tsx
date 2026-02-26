@@ -55,8 +55,8 @@ export default function WaiversPage() {
         const result = await leagueApi.getRosters(leagueId, accessToken);
         setRosters(result.rosters);
       }
-    } catch (err: any) {
-      setAddError(err.message || 'Failed to add player');
+    } catch (err: unknown) {
+      setAddError(err instanceof Error ? err.message : 'Failed to add player');
     }
   };
 
@@ -68,8 +68,8 @@ export default function WaiversPage() {
         const result = await leagueApi.getRosters(leagueId, accessToken);
         setRosters(result.rosters);
       }
-    } catch (err: any) {
-      setAddError(err.message || 'Failed to drop player');
+    } catch (err: unknown) {
+      setAddError(err instanceof Error ? err.message : 'Failed to drop player');
     }
   };
 

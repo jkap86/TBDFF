@@ -24,8 +24,8 @@ export default function LoginPage() {
       await login(username, password);
       const next = searchParams.get('next');
       router.replace(next && next.startsWith('/') ? next : '/dashboard');
-    } catch (err: any) {
-      setError(err.message || 'Login failed');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Login failed');
     } finally {
       setIsSubmitting(false);
     }

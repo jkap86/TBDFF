@@ -115,6 +115,9 @@ export function createContainer() {
 
   return {
     pool,
+    repositories: {
+      draftRepository,
+    },
     services: {
       chatService,
       draftService,

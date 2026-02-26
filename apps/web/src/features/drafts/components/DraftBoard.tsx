@@ -1,5 +1,6 @@
 'use client';
 
+import { useMemo } from 'react';
 import type { Draft, DraftPick, LeagueMember } from '@/lib/api';
 
 interface DraftBoardProps {
@@ -14,16 +15,23 @@ export function DraftBoard({ draft, picks, members, currentUserId }: DraftBoardP
   const teams = settings.teams;
   const rounds = settings.rounds;
 
-  // Build a grid: picks[round][slot]
-  const grid: (DraftPick | null)[][] = [];
-  for (let r = 1; r <= rounds; r++) {
-    const row: (DraftPick | null)[] = [];
-    for (let s = 1; s <= teams; s++) {
-      const pick = picks.find((p) => p.round === r && p.draft_slot === s);
-      row.push(pick ?? null);
+  // Build a grid: picks[round][slot] using a Map for O(1) lookups
+  const grid = useMemo(() => {
+    const pickMap = new Map<string, DraftPick>();
+    for (const p of picks) {
+      pickMap.set(`${p.round}-${p.draft_slot}`, p);
     }
-    grid.push(row);
-  }
+
+    const result: (DraftPick | null)[][] = [];
+    for (let r = 1; r <= rounds; r++) {
+      const row: (DraftPick | null)[] = [];
+      for (let s = 1; s <= teams; s++) {
+        row.push(pickMap.get(`${r}-${s}`) ?? null);
+      }
+      result.push(row);
+    }
+    return result;
+  }, [picks, rounds, teams]);
 
   // Find which slot the current user has
   const userSlot = currentUserId ? draft_order[currentUserId] : undefined;
@@ -54,7 +62,7 @@ export function DraftBoard({ draft, picks, members, currentUserId }: DraftBoardP
               <th
                 key={slot}
                 className={`border border-gray-300 dark:border-gray-600 px-3 py-2 text-xs font-medium ${
-                  slot === userSlot ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400'
+                  slot === userSlot ? 'bg-blue-100 dark:bg-blue-900/40 text-blue-800 dark:text-blue-300' : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400'
                 }`}
               >
                 <div className="flex items-center justify-center gap-1">
@@ -83,10 +91,10 @@ export function DraftBoard({ draft, picks, members, currentUserId }: DraftBoardP
                     key={sIdx}
                     className={`border border-gray-300 dark:border-gray-600 px-2 py-1.5 text-center text-xs ${
                       isNextPick
-                        ? 'bg-yellow-100 ring-2 ring-inset ring-yellow-400'
+                        ? 'bg-yellow-100 dark:bg-yellow-900/30 ring-2 ring-inset ring-yellow-400 dark:ring-yellow-600'
                         : isFilled
                           ? isUserPick
-                            ? 'bg-blue-50'
+                            ? 'bg-blue-50 dark:bg-blue-900/20'
                             : 'bg-white dark:bg-gray-800'
                           : 'bg-gray-50 dark:bg-gray-800'
                     }`}

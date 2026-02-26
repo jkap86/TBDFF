@@ -52,8 +52,8 @@ export default function RegisterScreen({ navigation }: Props) {
     setLoading(true);
     try {
       await register(username.trim(), email.trim(), password);
-    } catch (err: any) {
-      setError(err.message || 'Registration failed');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Registration failed');
     } finally {
       setLoading(false);
     }

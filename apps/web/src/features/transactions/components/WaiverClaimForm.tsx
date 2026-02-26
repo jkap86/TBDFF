@@ -26,8 +26,8 @@ export function WaiverClaimForm({ playerId, roster, waiverType, onSubmit, onCanc
         drop_player_id: dropPlayerId || undefined,
         faab_amount: waiverType === 2 ? faabAmount : undefined,
       });
-    } catch (err: any) {
-      setError(err.message || 'Failed to place claim');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to place claim');
     } finally {
       setIsSubmitting(false);
     }

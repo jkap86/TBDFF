@@ -15,6 +15,10 @@ import {
   ForbiddenException,
   ConflictException,
 } from '../../shared/exceptions';
+import {
+  leagueSettingsFullSchema,
+  scoringSettingsFullSchema,
+} from './leagues.schemas';
 
 export class LeagueService {
   constructor(private readonly leagueRepository: LeagueRepository) {}
@@ -132,10 +136,22 @@ export class LeagueService {
     if (data.totalRosters !== undefined) updateData.totalRosters = data.totalRosters;
     if (data.avatar !== undefined) updateData.avatar = data.avatar;
     if (data.settings !== undefined) {
-      updateData.settings = { ...league.settings, ...data.settings };
+      const merged = { ...league.settings, ...data.settings };
+      const result = leagueSettingsFullSchema.safeParse(merged);
+      if (!result.success) {
+        const msg = result.error.issues.map((i) => `${i.path.join('.')}: ${i.message}`).join('; ');
+        throw new ValidationException(`Invalid settings: ${msg}`);
+      }
+      updateData.settings = merged;
     }
     if (data.scoringSettings !== undefined) {
-      updateData.scoringSettings = { ...league.scoringSettings, ...data.scoringSettings };
+      const merged = { ...league.scoringSettings, ...data.scoringSettings };
+      const result = scoringSettingsFullSchema.safeParse(merged);
+      if (!result.success) {
+        const msg = result.error.issues.map((i) => `${i.path.join('.')}: ${i.message}`).join('; ');
+        throw new ValidationException(`Invalid scoring settings: ${msg}`);
+      }
+      updateData.scoringSettings = merged;
     }
     if (data.rosterPositions !== undefined) updateData.rosterPositions = data.rosterPositions;
 

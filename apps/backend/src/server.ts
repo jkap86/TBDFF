@@ -14,7 +14,11 @@ const server = createServer(app);
 const io = createChatGateway(server, container.services.chatService);
 
 // Attach draft gateway on the same socket.io server and inject into service
-const draftGateway = createDraftGateway(io);
+const draftGateway = createDraftGateway(
+  io,
+  container.repositories.draftRepository,
+  container.services.chatService,
+);
 container.services.draftService.setGateway(draftGateway);
 
 // Attach transactions gateway and inject into services

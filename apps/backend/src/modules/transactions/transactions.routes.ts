@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { TransactionController } from './transactions.controller';
 import { authMiddleware } from '../../middleware/auth.middleware';
+import { strictLimiter } from '../../middleware/rate-limit.middleware';
 import { asyncHandler } from '../../shared/async-handler';
 import { validate } from '../../shared/validate';
 import {
@@ -23,12 +24,12 @@ export function createLeagueTransactionRoutes(controller: TransactionController)
   router.get('/:leagueId/transactions', validate(transactionListQuerySchema, 'query'), asyncHandler(controller.list));
 
   // Add/Drop
-  router.post('/:leagueId/add', validate(addPlayerSchema), asyncHandler(controller.addPlayer));
-  router.post('/:leagueId/drop', validate(dropPlayerSchema), asyncHandler(controller.dropPlayer));
+  router.post('/:leagueId/add', strictLimiter, validate(addPlayerSchema), asyncHandler(controller.addPlayer));
+  router.post('/:leagueId/drop', strictLimiter, validate(dropPlayerSchema), asyncHandler(controller.dropPlayer));
 
   // Waivers
   router.get('/:leagueId/waivers', asyncHandler(controller.getWaiverClaims));
-  router.post('/:leagueId/waivers', validate(placeWaiverClaimSchema), asyncHandler(controller.placeWaiverClaim));
+  router.post('/:leagueId/waivers', strictLimiter, validate(placeWaiverClaimSchema), asyncHandler(controller.placeWaiverClaim));
   router.put('/:leagueId/waivers/:claimId', validate(updateWaiverClaimSchema), asyncHandler(controller.updateWaiverClaim));
   router.delete('/:leagueId/waivers/:claimId', asyncHandler(controller.cancelWaiverClaim));
 

@@ -58,6 +58,12 @@ const leagueSettingsPartialSchema = z.object({
 }).strict();
 
 /**
+ * Full LeagueSettings schema for validating merged settings objects.
+ * All fields required — used after merging partial updates with existing settings.
+ */
+export const leagueSettingsFullSchema = leagueSettingsPartialSchema.required();
+
+/**
  * Partial LeagueScoringSettings schema
  * All fields are optional to support partial updates
  * Uses passthrough to allow additional custom scoring rules
@@ -118,6 +124,12 @@ const scoringSettingsPartialSchema = z.object({
   def_st_ff: z.number().optional(),
   def_st_fum_rec: z.number().optional(),
 }).passthrough(); // Allow additional custom scoring keys
+
+/**
+ * Full scoring settings schema for validating merged scoring objects.
+ * Uses passthrough to allow additional custom scoring keys.
+ */
+export const scoringSettingsFullSchema = scoringSettingsPartialSchema.required();
 
 /**
  * Schema for updating league settings as commissioner/owner.

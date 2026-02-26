@@ -64,8 +64,8 @@ export function TradeComposer({ isOpen, onClose, members, rosters, currentUserId
       setMessage('');
       setMyPlayers([]);
       setTheirPlayers([]);
-    } catch (err: any) {
-      setError(err.message || 'Failed to propose trade');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to propose trade');
     } finally {
       setIsSubmitting(false);
     }
