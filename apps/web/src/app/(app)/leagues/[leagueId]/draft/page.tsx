@@ -127,11 +127,11 @@ export default function DraftRoomPage() {
     if (!accessToken) return;
 
     try {
-      // First get the league's drafts to find the active one
+      // First get the league's drafts to find the active one, falling back to the most recent completed draft
       const draftsResult = await draftApi.getByLeague(leagueId, accessToken);
       const activeDraft = draftsResult.drafts.find(
         (d: Draft) => d.status === 'pre_draft' || d.status === 'drafting'
-      );
+      ) ?? draftsResult.drafts.find((d: Draft) => d.status === 'complete');
 
       if (!activeDraft) {
         setError('No active draft found');
@@ -155,8 +155,8 @@ export default function DraftRoomPage() {
         clockOffsetRef.current = serverTs - Date.now();
       }
 
-      // Only fetch picks if the draft has started
-      if (draftResult.draft.status === 'drafting') {
+      // Fetch picks if the draft has started or is complete
+      if (draftResult.draft.status === 'drafting' || draftResult.draft.status === 'complete') {
         const picksResult = await draftApi.getPicks(activeDraft.id, accessToken);
         setPicks(picksResult.picks);
       }
