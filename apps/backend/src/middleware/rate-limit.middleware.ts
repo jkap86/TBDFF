@@ -19,7 +19,7 @@ export const ipMutationLimiter = rateLimit({
   legacyHeaders: false,
   keyGenerator: (req) => normalizeIp(req.ip),
   skip: (req) => req.method === 'GET' || req.method === 'HEAD' || req.method === 'OPTIONS',
-  validate: { ipKeyGenerator: false } as Partial<Options['validate']>,
+  validate: { keyGeneratorIpFallback: false } as Partial<Options['validate']>,
   message: {
     error: { code: 'RATE_LIMITED', message: 'Too many requests, please slow down' },
   },
@@ -40,7 +40,7 @@ export const userMutationLimiter = rateLimit({
     return `user:${authReq.user?.userId ?? normalizeIp(req.ip)}`;
   },
   skip: (req) => req.method === 'GET' || req.method === 'HEAD' || req.method === 'OPTIONS',
-  validate: { ipKeyGenerator: false } as Partial<Options['validate']>,
+  validate: { keyGeneratorIpFallback: false } as Partial<Options['validate']>,
   message: {
     error: { code: 'RATE_LIMITED', message: 'Too many requests, please slow down' },
   },
@@ -59,7 +59,7 @@ export const strictLimiter = rateLimit({
     const authReq = req as AuthRequest;
     return `strict:${authReq.user?.userId ?? normalizeIp(req.ip)}`;
   },
-  validate: { ipKeyGenerator: false } as Partial<Options['validate']>,
+  validate: { keyGeneratorIpFallback: false } as Partial<Options['validate']>,
   message: {
     error: { code: 'RATE_LIMITED', message: 'Too many requests, please slow down' },
   },
