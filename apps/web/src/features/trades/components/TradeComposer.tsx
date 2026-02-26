@@ -23,7 +23,10 @@ function playerLabel(pid: string, playerMap: Record<string, Player>): string {
 }
 
 function pickLabel(pick: FutureDraftPick, currentUserId: string): string {
-  const base = `${pick.season} Round ${pick.round}`;
+  let base = `${pick.season} Round ${pick.round}`;
+  if (pick.pick_number) {
+    base += ` Pick ${pick.pick_number}`;
+  }
   if (pick.original_owner_id !== pick.current_owner_id) {
     const ownerName = pick.original_owner_username ?? 'Unknown';
     return `${base} (${ownerName}'s pick)`;

@@ -102,6 +102,8 @@ export class TradeItem {
 }
 
 export class FutureDraftPick {
+  public pickNumber?: number;
+
   constructor(
     public readonly id: string,
     public readonly leagueId: string,
@@ -148,6 +150,7 @@ export class FutureDraftPick {
       updated_at: this.updatedAt,
       original_owner_username: this.originalOwnerUsername,
       current_owner_username: this.currentOwnerUsername,
+      pick_number: this.pickNumber,
     };
   }
 }

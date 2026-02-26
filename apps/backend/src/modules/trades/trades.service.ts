@@ -2,6 +2,7 @@ import { PoolClient } from 'pg';
 import { TradeRepository } from './trades.repository';
 import { TradeProposal, FutureDraftPick } from './trades.model';
 import { LeagueRepository } from '../leagues/leagues.repository';
+import { DraftRepository } from '../drafts/drafts.repository';
 import { TransactionsGateway } from '../transactions/transactions.gateway';
 import {
   NotFoundException,
@@ -15,6 +16,7 @@ export class TradeService {
   constructor(
     private readonly tradeRepo: TradeRepository,
     private readonly leagueRepo: LeagueRepository,
+    private readonly draftRepo: DraftRepository,
   ) {}
 
   setGateway(gw: TransactionsGateway): void {
@@ -450,13 +452,46 @@ export class TradeService {
     const member = await this.leagueRepo.findMember(leagueId, userId);
     if (!member) throw new ForbiddenException('You are not a member of this league');
 
-    return this.tradeRepo.findFuturePicksByLeague(leagueId);
+    const picks = await this.tradeRepo.findFuturePicksByLeague(leagueId);
+    return this.enrichPickNumbers(leagueId, picks);
   }
 
   async getUserFuturePicks(leagueId: string, requesterId: string, targetUserId: string): Promise<FutureDraftPick[]> {
     const member = await this.leagueRepo.findMember(leagueId, requesterId);
     if (!member) throw new ForbiddenException('You are not a member of this league');
 
-    return this.tradeRepo.findFuturePicksByUser(leagueId, targetUserId);
+    const picks = await this.tradeRepo.findFuturePicksByUser(leagueId, targetUserId);
+    return this.enrichPickNumbers(leagueId, picks);
   }
+
+  private async enrichPickNumbers(leagueId: string, picks: FutureDraftPick[]): Promise<FutureDraftPick[]> {
+    if (picks.length === 0) return picks;
+
+    const draft = await this.draftRepo.findActiveDraftByLeagueId(leagueId);
+    if (!draft || Object.keys(draft.draftOrder).length === 0) return picks;
+
+    const teams = draft.settings.teams;
+
+    for (const pick of picks) {
+      const slot = draft.draftOrder[pick.originalOwnerId];
+      if (slot !== undefined) {
+        pick.pickNumber = computePickInRound(slot, pick.round, teams, draft.type);
+      }
+    }
+
+    return picks;
+  }
+}
+
+function computePickInRound(slot: number, round: number, teams: number, draftType: string): number {
+  if (draftType === 'snake') {
+    return round % 2 === 1 ? slot : teams - slot + 1;
+  } else if (draftType === '3rr') {
+    if (round <= 2) {
+      return round % 2 === 1 ? slot : teams - slot + 1;
+    } else {
+      return round % 2 === 0 ? slot : teams - slot + 1;
+    }
+  }
+  return slot; // linear
 }

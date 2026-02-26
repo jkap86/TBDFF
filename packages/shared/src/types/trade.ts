@@ -44,6 +44,7 @@ export interface FutureDraftPick {
   updated_at: string;
   original_owner_username?: string;
   current_owner_username?: string;
+  pick_number?: number;
 }
 
 export interface ProposeTradeRequest {

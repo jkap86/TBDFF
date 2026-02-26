@@ -50,7 +50,12 @@ export function TradeCard({
     if (item.item_type === 'draft_pick') {
       const pick = futurePicks?.find((p) => p.id === item.draft_pick_id);
       if (pick) {
-        const base = `${pick.season} Rd ${pick.round} Pick`;
+        let base = `${pick.season} Rd ${pick.round}`;
+        if (pick.pick_number) {
+          base += ` Pick ${pick.pick_number}`;
+        } else {
+          base += ' Pick';
+        }
         if (pick.original_owner_id !== pick.current_owner_id) {
           return `${base} (${pick.original_owner_username ?? 'Unknown'}'s)`;
         }
