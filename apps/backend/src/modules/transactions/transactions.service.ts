@@ -301,21 +301,23 @@ export class TransactionService {
             continue;
           }
 
-          // For FAAB leagues, check budget
-          if (league.settings.waiver_type === 2 && claim.faabAmount > 0) {
-            const deducted = await this.txRepo.deductFaab(client, leagueId, claim.userId, claim.faabAmount);
-            if (!deducted) {
-              await this.txRepo.updateClaimStatus(client, claim.id, 'failed');
-              continue;
-            }
-          }
-
-          // Execute the claim (safe against duplicates)
+          // Add player first — if it fails (player already rostered), no FAAB is touched
           const added = await this.txRepo.addPlayerToRoster(client, leagueId, claim.userId, playerId);
           if (!added) {
             // Player already on this roster — treat as invalid
             await this.txRepo.updateClaimStatus(client, claim.id, 'invalid');
             continue;
+          }
+
+          // For FAAB leagues, deduct budget after successful add
+          if (league.settings.waiver_type === 2 && claim.faabAmount > 0) {
+            const deducted = await this.txRepo.deductFaab(client, leagueId, claim.userId, claim.faabAmount);
+            if (!deducted) {
+              // Undo the roster add since FAAB is insufficient
+              await this.txRepo.removePlayerFromRoster(client, leagueId, claim.userId, playerId);
+              await this.txRepo.updateClaimStatus(client, claim.id, 'failed');
+              continue;
+            }
           }
 
           if (claim.dropPlayerId) {

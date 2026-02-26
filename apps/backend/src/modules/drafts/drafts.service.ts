@@ -391,7 +391,14 @@ export class DraftService {
       pickMetadata,
     );
 
-    if (!pick) throw new ConflictException('Pick was already made');
+    if (!pick) {
+      // Distinguish idempotent retry (same player) from true conflict (different player)
+      const existingPick = await this.draftRepository.findPickById(nextPick.id);
+      if (existingPick?.playerId === playerId) {
+        return { pick: existingPick, chainedPicks: [] };
+      }
+      throw new ConflictException('Pick was already made');
+    }
 
     // Update last_picked timestamp
     await this.draftRepository.update(draftId, {

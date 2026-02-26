@@ -122,4 +122,44 @@ describe('TransactionService.processLeagueWaivers', () => {
       capturedClient, 'claim-1', 'successful', 'tx-1',
     );
   });
+
+  it('does not deduct FAAB when addPlayerToRoster returns false', async () => {
+    leagueRepo.findById.mockResolvedValue({
+      id: 'league-1',
+      settings: { waiver_type: 2, waiver_clear_days: 2 },
+      rosterPositions: Array(15).fill('BN'),
+    });
+    const claim = makeClaim({ faabAmount: 10 });
+    txRepo.findPendingClaimsByLeague.mockResolvedValue([claim]);
+    txRepo.addPlayerToRoster.mockResolvedValue(false);
+
+    await service.processLeagueWaivers('league-1');
+
+    expect(txRepo.deductFaab).not.toHaveBeenCalled();
+    expect(txRepo.updateClaimStatus).toHaveBeenCalledWith(
+      capturedClient, 'claim-1', 'invalid',
+    );
+  });
+
+  it('rolls back roster add when FAAB deduction fails', async () => {
+    leagueRepo.findById.mockResolvedValue({
+      id: 'league-1',
+      settings: { waiver_type: 2, waiver_clear_days: 2 },
+      rosterPositions: Array(15).fill('BN'),
+    });
+    const claim = makeClaim({ faabAmount: 50 });
+    txRepo.findPendingClaimsByLeague.mockResolvedValue([claim]);
+    txRepo.addPlayerToRoster.mockResolvedValue(true);
+    txRepo.deductFaab.mockResolvedValue(false);
+
+    await service.processLeagueWaivers('league-1');
+
+    expect(txRepo.removePlayerFromRoster).toHaveBeenCalledWith(
+      capturedClient, 'league-1', 'user-a', 'player-1',
+    );
+    expect(txRepo.updateClaimStatus).toHaveBeenCalledWith(
+      capturedClient, 'claim-1', 'failed',
+    );
+    expect(txRepo.createTransaction).not.toHaveBeenCalled();
+  });
 });

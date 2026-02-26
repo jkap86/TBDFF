@@ -17,6 +17,18 @@ import {
 import { config } from '../../config';
 import { findUserBySlot, findRosterIdByUserId, getMaxPlayersPerTeam } from './draft-helpers';
 
+/**
+ * Manages auction draft logic: nominations, bidding, auto-bids, and resolution.
+ *
+ * **Single-instance limitation:** In-memory timers (pendingAutoBidTimeouts, autoBidLocks)
+ * only exist on the current process. If multiple backend instances run concurrently,
+ * each maintains its own timers independently — only one instance should run auction
+ * drafts at a time. TODO: For multi-instance support, move timer coordination to
+ * a shared store (e.g. Redis pub/sub or pg_notify).
+ *
+ * **Recovery:** On startup, `recoverActiveAuctions()` re-schedules auto-bid timers for
+ * any in-progress nominations, and a 30-second cron job catches any that slip through.
+ */
 export class AuctionService {
   /** Per-draft lock to prevent concurrent processAutoBids executions */
   private autoBidLocks = new Map<string, Promise<Draft | null>>();
@@ -49,7 +61,7 @@ export class AuctionService {
       const drafts = await this.draftRepository.findActiveDraftingAuctions();
       for (const draft of drafts) {
         if (draft.metadata?.current_nomination) {
-          console.log(`[AuctionService] Recovering auto-bids for draft ${draft.id}`);
+          console.log(`[AuctionService] Recovering nomination timer for draft ${draft.id}, pick ${draft.metadata.current_nomination.pick_id}`);
           this.scheduleAutoBids(draft.id);
         }
       }
@@ -301,7 +313,9 @@ export class AuctionService {
         nominated_by: nomination.nominated_by,
       };
 
-      // Atomic pick: WHERE player_id IS NULL prevents double-resolve
+      // Atomic pick: the repo's WHERE player_id IS NULL clause ensures that
+      // concurrent resolveNomination calls are idempotent — only the first
+      // caller writes the pick; subsequent callers get null and return early.
       const resolvedPick = await this.draftRepository.makeAuctionPick(
         nomination.pick_id,
         nomination.player_id,
@@ -649,6 +663,10 @@ export class AuctionService {
    * If a processAutoBids is already running for this draft, the new call
    * waits for it to finish then runs once more (coalescing multiple triggers).
    * Cancels any existing pending timeout before scheduling a new one.
+   *
+   * **Single-instance only:** The setTimeout handle lives in this process's memory.
+   * If the process restarts, recoverActiveAuctions + the 30s cron job will
+   * re-schedule any lost timers on the next tick.
    */
   scheduleAutoBids(draftId: string): void {
     const existingTimeout = this.pendingAutoBidTimeouts.get(draftId);

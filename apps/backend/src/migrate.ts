@@ -75,7 +75,12 @@ async function migrate() {
     console.log('Migrations complete.');
   } finally {
     // Always release the advisory lock and clean up, even on error or process exit.
+    // releaseLock uses pg_advisory_unlock to explicitly free the session-level lock.
+    // The .catch(() => {}) prevents unlock errors from masking the original error.
+    // lockClient.release() also implicitly frees all session-level advisory locks
+    // held by this connection as a safety net.
     await releaseLock(lockClient).catch(() => {});
+    console.log('Migration lock released.');
     lockClient.release();
     await pool.end();
   }

@@ -222,10 +222,13 @@ export class TradeService {
               'UPDATE rosters SET players = array_remove(players, $1) WHERE league_id = $2 AND owner_id = $3',
               [item.playerId, trade.leagueId, trade.proposedBy],
             );
-            await client.query(
-              'UPDATE rosters SET players = array_append(players, $1) WHERE league_id = $2 AND owner_id = $3',
+            const addResult = await client.query(
+              'UPDATE rosters SET players = array_append(players, $1) WHERE league_id = $2 AND owner_id = $3 AND NOT ($1 = ANY(players))',
               [item.playerId, trade.leagueId, trade.proposedTo],
             );
+            if ((addResult.rowCount ?? 0) === 0) {
+              throw new ValidationException(`Player ${item.playerId} is already on the destination roster`);
+            }
             drops[item.playerId] = proposerRoster.rosterId;
             adds[item.playerId] = receiverRoster.rosterId;
           } else {
@@ -234,10 +237,13 @@ export class TradeService {
               'UPDATE rosters SET players = array_remove(players, $1) WHERE league_id = $2 AND owner_id = $3',
               [item.playerId, trade.leagueId, trade.proposedTo],
             );
-            await client.query(
-              'UPDATE rosters SET players = array_append(players, $1) WHERE league_id = $2 AND owner_id = $3',
+            const addResult = await client.query(
+              'UPDATE rosters SET players = array_append(players, $1) WHERE league_id = $2 AND owner_id = $3 AND NOT ($1 = ANY(players))',
               [item.playerId, trade.leagueId, trade.proposedBy],
             );
+            if ((addResult.rowCount ?? 0) === 0) {
+              throw new ValidationException(`Player ${item.playerId} is already on the destination roster`);
+            }
             drops[item.playerId] = receiverRoster.rosterId;
             adds[item.playerId] = proposerRoster.rosterId;
           }

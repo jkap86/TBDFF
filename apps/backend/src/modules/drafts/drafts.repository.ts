@@ -298,6 +298,17 @@ export class DraftRepository {
     return result.rows.length > 0 ? DraftPick.fromDatabase(result.rows[0]) : null;
   }
 
+  async findPickById(pickId: string): Promise<DraftPick | null> {
+    const result = await this.db.query(
+      `SELECT dp.*, u.username
+       FROM draft_picks dp
+       LEFT JOIN users u ON u.id = dp.picked_by
+       WHERE dp.id = $1`,
+      [pickId],
+    );
+    return result.rows.length > 0 ? DraftPick.fromDatabase(result.rows[0]) : null;
+  }
+
   async isPlayerPicked(draftId: string, playerId: string): Promise<boolean> {
     const result = await this.db.query(
       'SELECT 1 FROM draft_picks WHERE draft_id = $1 AND player_id = $2 LIMIT 1',
