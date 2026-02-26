@@ -294,6 +294,20 @@ export class DraftRepository {
         return null;
       }
       await client.query(`UPDATE leagues SET status = 'in_season' WHERE id = $1`, [leagueId]);
+      await client.query(
+        `UPDATE rosters r
+         SET players = r.players || sub.new_players
+         FROM (
+           SELECT dp.roster_id, array_agg(dp.player_id ORDER BY dp.pick_no) AS new_players
+           FROM draft_picks dp
+           WHERE dp.draft_id = $1
+             AND dp.player_id IS NOT NULL
+           GROUP BY dp.roster_id
+         ) sub
+         WHERE r.league_id = $2
+           AND r.roster_id = sub.roster_id`,
+        [draftId, leagueId],
+      );
       await client.query('COMMIT');
       return Draft.fromDatabase(result.rows[0]);
     } catch (e) {
