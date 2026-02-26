@@ -2,7 +2,6 @@
 
 import { createContext, useState, useEffect, useCallback, type ReactNode } from 'react';
 import { authApi, tokenManager } from '@/lib/api';
-import { storage } from '@/lib/storage';
 // Note: setSessionCookie/clearSessionCookie manage a UX-only presence flag (tbdff_session).
 // This cookie is NOT httpOnly and is trivially forgeable — it only controls client-side
 // redirects in middleware.ts. Actual authentication uses JWT tokens via Authorization header.
@@ -21,31 +20,30 @@ export interface AuthContextType {
 
 export const AuthContext = createContext<AuthContextType | null>(null);
 
-const REFRESH_TOKEN_KEY = 'refreshToken';
-
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [accessToken, setAccessToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Restore session from stored refresh token on mount
+  // Restore session from httpOnly refresh cookie on mount
   useEffect(() => {
     const restoreSession = async () => {
       try {
-        const storedRefreshToken = await storage.getItem(REFRESH_TOKEN_KEY);
-        if (!storedRefreshToken) {
-          setIsLoading(false);
-          return;
+        // One-time migration: if old localStorage token exists, use it then delete it
+        const legacyToken = localStorage.getItem('refreshToken');
+        let result;
+        if (legacyToken) {
+          localStorage.removeItem('refreshToken');
+          result = await authApi.refresh(legacyToken);
+        } else {
+          result = await authApi.refresh();
         }
 
-        const result = await authApi.refresh(storedRefreshToken);
         setUser(result.user);
         setAccessToken(result.token);
-        await storage.setItem(REFRESH_TOKEN_KEY, result.refreshToken);
         setSessionCookie();
       } catch {
-        // Refresh failed — clear stored token and cookie
-        await storage.deleteItem(REFRESH_TOKEN_KEY);
+        // Refresh failed — clear session cookie
         clearSessionCookie();
       } finally {
         setIsLoading(false);
@@ -59,7 +57,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const result = await authApi.login(username, password);
     setUser(result.user);
     setAccessToken(result.token);
-    await storage.setItem(REFRESH_TOKEN_KEY, result.refreshToken);
     setSessionCookie();
   }, []);
 
@@ -67,7 +64,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const result = await authApi.register(username, email, password);
     setUser(result.user);
     setAccessToken(result.token);
-    await storage.setItem(REFRESH_TOKEN_KEY, result.refreshToken);
     setSessionCookie();
   }, []);
 
@@ -81,23 +77,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
     setUser(null);
     setAccessToken(null);
-    await storage.deleteItem(REFRESH_TOKEN_KEY);
     clearSessionCookie();
   }, [accessToken]);
 
   // Register refresh/logout handlers so the API client can auto-refresh on 401
-  // Handlers read from storage (not closed-over state), so empty deps is correct.
   useEffect(() => {
     tokenManager.setHandlers(
       async () => {
-        const storedRefreshToken = await storage.getItem(REFRESH_TOKEN_KEY);
-        if (!storedRefreshToken) return null;
-
         try {
-          const result = await authApi.refresh(storedRefreshToken);
+          const result = await authApi.refresh();
           setUser(result.user);
           setAccessToken(result.token);
-          await storage.setItem(REFRESH_TOKEN_KEY, result.refreshToken);
           setSessionCookie();
           return result.token;
         } catch {
@@ -107,7 +97,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       async () => {
         setUser(null);
         setAccessToken(null);
-        await storage.deleteItem(REFRESH_TOKEN_KEY);
         clearSessionCookie();
       }
     );

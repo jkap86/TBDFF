@@ -1,6 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
+import cookieParser from 'cookie-parser';
 import { config } from './config';
 import { Container } from './container';
 import { registerRoutes } from './routes';
@@ -24,6 +25,7 @@ export function createApp(container: Container) {
     credentials: true,
   }));
   app.use(express.json({ limit: '1mb' }));
+  app.use(cookieParser());
 
   // Rate limit all mutation endpoints (POST/PUT/PATCH/DELETE)
   app.use('/api', mutationLimiter);

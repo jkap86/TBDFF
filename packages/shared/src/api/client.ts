@@ -42,6 +42,7 @@ async function request<T>(
   const response = await fetch(`${baseUrl}${path}`, {
     method,
     headers,
+    credentials: 'include',
     body: body ? JSON.stringify(body) : undefined,
   });
 

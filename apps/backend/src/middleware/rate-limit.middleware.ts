@@ -3,18 +3,15 @@ import { AuthRequest } from './auth.middleware';
 
 /**
  * General rate limiter for mutation endpoints (POST/PUT/PATCH/DELETE).
- * Keyed by authenticated user ID when available, otherwise by IP.
- * 60 requests per minute per user.
+ * Applied globally before auth, so keyed by IP address.
+ * 60 requests per minute per IP.
  */
 export const mutationLimiter = rateLimit({
   windowMs: 60 * 1000,
   max: 60,
   standardHeaders: true,
   legacyHeaders: false,
-  keyGenerator: (req) => {
-    const authReq = req as AuthRequest;
-    return authReq.user?.userId ?? ipKeyGenerator(req.ip ?? '');
-  },
+  keyGenerator: (req) => ipKeyGenerator(req.ip ?? ''),
   skip: (req) => req.method === 'GET' || req.method === 'HEAD' || req.method === 'OPTIONS',
   message: {
     error: { code: 'RATE_LIMITED', message: 'Too many requests, please slow down' },

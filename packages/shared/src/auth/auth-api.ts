@@ -8,8 +8,8 @@ export const authApi = {
   login: (username: string, password: string) =>
     apiClient.post<AuthResponse>('/auth/login', { username, password }),
 
-  refresh: (refreshToken: string) =>
-    apiClient.post<AuthResponse>('/auth/refresh', { refreshToken }),
+  refresh: (refreshToken?: string) =>
+    apiClient.post<AuthResponse>('/auth/refresh', refreshToken ? { refreshToken } : undefined),
 
   me: (token: string) =>
     apiClient.get<UserResponse>('/auth/me', token),
