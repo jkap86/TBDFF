@@ -1,6 +1,7 @@
 import { Response } from 'express';
 import { AuthRequest } from '../../middleware/auth.middleware';
 import { DraftService } from './drafts.service';
+import { AuctionService } from './auction.service';
 import { InvalidCredentialsException } from '../../shared/exceptions';
 import {
   CreateDraftInput,
@@ -15,7 +16,10 @@ import {
 } from './drafts.schemas';
 
 export class DraftController {
-  constructor(private readonly draftService: DraftService) {}
+  constructor(
+    private readonly draftService: DraftService,
+    private readonly auctionService: AuctionService,
+  ) {}
 
   // ---- League-scoped ----
 
@@ -160,7 +164,7 @@ export class DraftController {
     const draftId = Array.isArray(req.params.draftId) ? req.params.draftId[0] : req.params.draftId;
     const body = req.body as NominateDraftPickInput;
 
-    const draft = await this.draftService.nominate(draftId, userId, body.player_id, body.amount);
+    const draft = await this.auctionService.nominate(draftId, userId, body.player_id, body.amount);
     res.status(200).json({ draft: draft.toSafeObject() });
   };
 
@@ -171,7 +175,7 @@ export class DraftController {
     const draftId = Array.isArray(req.params.draftId) ? req.params.draftId[0] : req.params.draftId;
     const body = req.body as PlaceBidInput;
 
-    const result = await this.draftService.placeBid(draftId, userId, body.amount);
+    const result = await this.auctionService.placeBid(draftId, userId, body.amount);
     res.status(200).json({
       draft: result.draft.toSafeObject(),
       won: result.won?.toSafeObject() ?? null,
@@ -183,7 +187,7 @@ export class DraftController {
     if (!userId) throw new InvalidCredentialsException();
 
     const draftId = Array.isArray(req.params.draftId) ? req.params.draftId[0] : req.params.draftId;
-    const result = await this.draftService.resolveNomination(draftId, userId);
+    const result = await this.auctionService.resolveNomination(draftId, userId);
     res.status(200).json({
       draft: result.draft.toSafeObject(),
       won: result.won?.toSafeObject() ?? null,
@@ -195,7 +199,7 @@ export class DraftController {
     if (!userId) throw new InvalidCredentialsException();
 
     const draftId = Array.isArray(req.params.draftId) ? req.params.draftId[0] : req.params.draftId;
-    const draft = await this.draftService.autoNominate(draftId, userId);
+    const draft = await this.auctionService.autoNominate(draftId, userId);
     res.status(200).json({ draft: draft.toSafeObject() });
   };
 

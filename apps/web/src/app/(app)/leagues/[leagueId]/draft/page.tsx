@@ -1,17 +1,14 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { ArrowLeft } from 'lucide-react';
-import { toast } from 'sonner';
-import { draftApi, leagueApi, ApiError, type Draft, type DraftPick, type DraftQueueItem, type LeagueMember, type Roster, type UpdateDraftRequest } from '@/lib/api';
-import { useAuth } from '@/features/auth/hooks/useAuth';
-import { useSocket } from '@/features/chat/context/SocketProvider';
+import { useDraftRoom } from '@/features/drafts/hooks/useDraftRoom';
 import { DraftBoard } from '@/features/drafts/components/DraftBoard';
 import { AuctionBoard } from '@/features/drafts/components/AuctionBoard';
 import { DraftSettingsForm } from '@/features/drafts/components/DraftSettingsForm';
-import { DraftQueue } from '@/features/drafts/components/DraftQueue';
-import { BestAvailablePlayers } from '@/features/drafts/components/BestAvailablePlayers';
+import { DraftSidebar } from '@/features/drafts/components/DraftSidebar';
+import { DraftControls } from '@/features/drafts/components/DraftControls';
+import { AuctionControls } from '@/features/drafts/components/AuctionControls';
 
 const draftTypeLabels: Record<string, string> = {
   snake: 'Snake',
@@ -20,555 +17,13 @@ const draftTypeLabels: Record<string, string> = {
   auction: 'Auction',
 };
 
-function applyChainedPicks(prev: DraftPick[], chainedPicks: DraftPick[]): DraftPick[] {
-  let updated = prev;
-  for (const cp of chainedPicks) {
-    updated = updated.map((p) => (p.id === cp.id ? cp : p));
-  }
-  return updated;
-}
-
-function NominationMaxBid({ nomination, queue, budget, onUpdateMaxBid }: {
-  nomination: { player_id: string; player_metadata?: { auction_value?: number | null } };
-  queue: DraftQueueItem[];
-  budget: number;
-  onUpdateMaxBid: (playerId: string, maxBid: number | null) => void;
-}) {
-  const queueItem = queue.find((q) => q.player_id === nomination.player_id);
-  const currentMaxBid = queueItem?.max_bid ?? null;
-  const aav = nomination.player_metadata?.auction_value ?? queueItem?.auction_value ?? null;
-  const defaultBid = aav != null ? Math.floor(aav * 0.8 * (budget / 200)) : null;
-
-  const [value, setValue] = useState(currentMaxBid != null ? String(currentMaxBid) : '');
-  const [isFocused, setIsFocused] = useState(false);
-
-  useEffect(() => {
-    if (!isFocused) {
-      setValue(currentMaxBid != null ? String(currentMaxBid) : '');
-    }
-  }, [currentMaxBid, isFocused]);
-
-  const commit = () => {
-    setIsFocused(false);
-    const trimmed = value.trim();
-    if (trimmed === '') {
-      if (currentMaxBid != null) onUpdateMaxBid(nomination.player_id, null);
-      return;
-    }
-    const num = parseInt(trimmed, 10);
-    if (isNaN(num) || num < 0) {
-      setValue(currentMaxBid != null ? String(currentMaxBid) : '');
-      return;
-    }
-    if (num !== currentMaxBid) {
-      onUpdateMaxBid(nomination.player_id, num);
-    }
-  };
-
-  return (
-    <div className="flex items-center gap-1 border-l border-gray-200 dark:border-gray-700 pl-2 ml-1">
-      <span className="text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap">Auto-bid up to</span>
-      <span className="text-xs text-gray-400 dark:text-gray-500">$</span>
-      <input
-        type="text"
-        inputMode="numeric"
-        value={value}
-        onChange={(e) => setValue(e.target.value.replace(/[^0-9]/g, ''))}
-        onFocus={() => setIsFocused(true)}
-        onBlur={commit}
-        onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
-        placeholder={defaultBid != null ? String(defaultBid) : '—'}
-        title={defaultBid != null ? `Default: $${defaultBid} (80% of AAV $${aav})` : 'Set max auto-bid'}
-        className="w-14 rounded border border-gray-200 dark:border-gray-600 px-1 py-1 text-center text-sm text-gray-700 dark:text-gray-300 dark:bg-gray-700 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-      />
-    </div>
-  );
-}
-
 export default function DraftRoomPage() {
   const params = useParams();
   const router = useRouter();
   const leagueId = params.leagueId as string;
-  const { accessToken, user } = useAuth();
-  const { socket } = useSocket();
 
-  const [draft, setDraft] = useState<Draft | null>(null);
-  const [picks, setPicks] = useState<DraftPick[]>([]);
-  const [members, setMembers] = useState<LeagueMember[]>([]);
-  const [rosters, setRosters] = useState<Roster[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [pickPlayerId, setPickPlayerId] = useState('');
-  const [isPicking, setIsPicking] = useState(false);
-  const [pickError, setPickError] = useState<string | null>(null);
-  const [timeRemaining, setTimeRemaining] = useState<number | null>(null);
-  const [isTogglingAutoPick, setIsTogglingAutoPick] = useState(false);
-  const autoPickTriggered = useRef(false);
-  /** Approximate difference (ms) between server clock and client clock: serverMs - clientMs */
-  const clockOffsetRef = useRef(0);
-
-  // Queue state
-  const [queue, setQueue] = useState<DraftQueueItem[]>([]);
-  const [sidebarTab, setSidebarTab] = useState<'queue' | 'players'>('players');
-
-  // Auction-specific state
-  const [nominatePlayerId, setNominatePlayerId] = useState('');
-  const [nominateAmount, setNominateAmount] = useState(1);
-  const [bidAmount, setBidAmount] = useState(0);
-  const [isNominating, setIsNominating] = useState(false);
-  const [isBidding, setIsBidding] = useState(false);
-  const isAuction = draft?.type === 'auction';
-
-  // Derive autopick status from draft metadata
-  const autoPickUsers: string[] = draft?.metadata?.auto_pick_users ?? [];
-  const isAutoPick = user?.id ? autoPickUsers.includes(user.id) : false;
-
-  const fetchDraftData = useCallback(async () => {
-    if (!accessToken) return;
-
-    try {
-      // First get the league's drafts to find the active one, falling back to the most recent completed draft
-      const draftsResult = await draftApi.getByLeague(leagueId, accessToken);
-      const activeDraft = draftsResult.drafts.find(
-        (d: Draft) => d.status === 'pre_draft' || d.status === 'drafting'
-      ) ?? draftsResult.drafts.find((d: Draft) => d.status === 'complete');
-
-      if (!activeDraft) {
-        setError('No active draft found');
-        setIsLoading(false);
-        return;
-      }
-
-      const [draftResult, membersResult, rostersResult] = await Promise.all([
-        draftApi.getById(activeDraft.id, accessToken),
-        leagueApi.getMembers(leagueId, accessToken),
-        leagueApi.getRosters(leagueId, accessToken),
-      ]);
-
-      setDraft(draftResult.draft);
-      setMembers(membersResult.members);
-      setRosters(rostersResult.rosters);
-
-      // Compute clock offset from server's updated_at timestamp so the timer stays in sync
-      const serverTs = new Date(draftResult.draft.updated_at).getTime();
-      if (!isNaN(serverTs)) {
-        clockOffsetRef.current = serverTs - Date.now();
-      }
-
-      // Fetch picks if the draft has started or is complete
-      if (draftResult.draft.status === 'drafting' || draftResult.draft.status === 'complete') {
-        const picksResult = await draftApi.getPicks(activeDraft.id, accessToken);
-        setPicks(picksResult.picks);
-      }
-
-      // Fetch queue if draft is not complete
-      if (draftResult.draft.status !== 'complete') {
-        try {
-          const queueResult = await draftApi.getQueue(activeDraft.id, accessToken);
-          setQueue(queueResult.queue);
-        } catch {
-          // Queue fetch is non-critical
-        }
-      }
-    } catch (err) {
-      if (err instanceof ApiError) {
-        setError(err.message);
-      } else {
-        setError('Failed to load draft');
-      }
-    } finally {
-      setIsLoading(false);
-    }
-  }, [leagueId, accessToken]);
-
-  useEffect(() => {
-    fetchDraftData();
-  }, [fetchDraftData]);
-
-  // Subscribe to real-time draft updates via socket
-  useEffect(() => {
-    if (!socket || !draft?.id || draft.status !== 'drafting') return;
-
-    socket.emit('draft:join', draft.id);
-
-    const handleStateUpdate = (data: { draft: Draft; pick?: DraftPick; chained_picks?: DraftPick[] }) => {
-      setDraft(data.draft);
-      // Update clock offset whenever we get a server timestamp
-      const serverTs = new Date(data.draft.updated_at).getTime();
-      if (!isNaN(serverTs)) {
-        clockOffsetRef.current = serverTs - Date.now();
-      }
-      if (data.pick) {
-        setPicks((prev) => {
-          let updated = prev.map((p) => (p.id === data.pick!.id ? data.pick! : p));
-          if (data.chained_picks?.length) {
-            updated = applyChainedPicks(updated, data.chained_picks);
-          }
-          return updated;
-        });
-        // Refresh queue so drafted players are immediately reflected
-        if (accessToken) {
-          draftApi.getQueue(draft.id, accessToken).then((res) => setQueue(res.queue)).catch(() => {});
-        }
-      }
-    };
-
-    socket.on('draft:state_updated', handleStateUpdate);
-
-    return () => {
-      socket.off('draft:state_updated', handleStateUpdate);
-      socket.emit('draft:leave', draft.id);
-    };
-  }, [socket, draft?.id, draft?.status, accessToken]);
-
-  // Fallback polling (reduced frequency since socket handles real-time updates)
-  useEffect(() => {
-    if (!draft || draft.status !== 'drafting' || !accessToken) return;
-
-    const interval = setInterval(async () => {
-      try {
-        const [draftResult, picksResult] = await Promise.all([
-          draftApi.getById(draft.id, accessToken),
-          draftApi.getPicks(draft.id, accessToken),
-        ]);
-        setDraft(draftResult.draft);
-        setPicks(picksResult.picks);
-      } catch {
-        // Silently ignore polling errors — socket handles primary updates
-      }
-    }, 10000); // 10s fallback (down from 2-5s) since socket delivers real-time updates
-
-    return () => clearInterval(interval);
-  }, [draft?.id, draft?.status, accessToken]);
-
-  // Countdown timer
-  useEffect(() => {
-    if (!draft || draft.status !== 'drafting') {
-      setTimeRemaining(null);
-      return;
-    }
-
-    let deadline: number | null = null;
-
-    if (draft.type === 'auction') {
-      const nomination = draft.metadata?.current_nomination;
-      if (nomination?.bid_deadline) {
-        deadline = new Date(nomination.bid_deadline).getTime();
-      } else if (draft.metadata?.nomination_deadline) {
-        deadline = new Date(draft.metadata.nomination_deadline).getTime();
-      }
-    } else {
-      if (!draft.settings.pick_timer) { setTimeRemaining(null); return; }
-      const referenceTime = draft.last_picked || draft.start_time;
-      if (!referenceTime) { setTimeRemaining(null); return; }
-      deadline = new Date(referenceTime).getTime() + draft.settings.pick_timer * 1000;
-    }
-
-    if (!deadline) { setTimeRemaining(null); return; }
-
-    // Only reset autoPickTriggered when the deadline is actually in the future.
-    // This prevents a race where stale timeRemaining=0 triggers resolve on a new nomination.
-    const clientNow = () => Date.now() + clockOffsetRef.current;
-    if (deadline > clientNow()) {
-      autoPickTriggered.current = false;
-    }
-
-    const tickInterval = draft.type === 'auction' ? 250 : 1000;
-    const tick = () => {
-      // Apply clock offset so timer stays in sync with the server clock
-      const remaining = Math.max(0, Math.ceil((deadline! - clientNow()) / 1000));
-      setTimeRemaining(remaining);
-    };
-
-    tick();
-    const interval = setInterval(tick, tickInterval);
-    return () => clearInterval(interval);
-  }, [draft?.status, draft?.type, draft?.last_picked, draft?.start_time, draft?.settings?.pick_timer, draft?.metadata?.current_nomination?.bid_deadline, draft?.metadata?.nomination_deadline]);
-
-  // Auto-pick / auction resolve when timer expires
-  useEffect(() => {
-    if (timeRemaining !== 0 || !draft || !accessToken || autoPickTriggered.current) return;
-
-    // For auction drafts, verify the actual deadline has passed before acting.
-    // Guards against stale timeRemaining=0 racing with a newly created nomination.
-    const adjustedNow = Date.now() + clockOffsetRef.current;
-    if (draft.type === 'auction') {
-      const nom = draft.metadata?.current_nomination;
-      const deadlineStr = nom?.bid_deadline ?? draft.metadata?.nomination_deadline;
-      if (deadlineStr && new Date(deadlineStr).getTime() > adjustedNow + 1000) return;
-    }
-
-    autoPickTriggered.current = true;
-
-    if (draft.type === 'auction') {
-      const nomination = draft.metadata?.current_nomination;
-      (async () => {
-        try {
-          if (nomination) {
-            // Bidding timer expired — resolve nomination
-            const result = await draftApi.resolve(draft.id, accessToken);
-            setDraft(result.draft);
-            if (result.won) {
-              setPicks((prev) => prev.map((p) => (p.id === result.won!.id ? result.won! : p)));
-            }
-          } else {
-            // Nomination timer expired — auto-nominate
-            const result = await draftApi.autoNominate(draft.id, accessToken);
-            setDraft(result.draft);
-          }
-        } catch (err) {
-          // Another client already resolved — refresh immediately (this is expected, not an error)
-          try {
-            const [draftResult, picksResult] = await Promise.all([
-              draftApi.getById(draft.id, accessToken),
-              draftApi.getPicks(draft.id, accessToken),
-            ]);
-            setDraft(draftResult.draft);
-            setPicks(picksResult.picks);
-          } catch {
-            // Socket/polling will catch up
-          }
-          // Only show a toast for unexpected errors, not for benign "already resolved" conflicts
-          if (err instanceof ApiError && !err.message.includes('already')) {
-            toast.error(err.message);
-          }
-        }
-      })();
-    } else {
-      (async () => {
-        try {
-          const result = await draftApi.autoPick(draft.id, accessToken);
-          setPicks((prev) => {
-            let updated = prev.map((p) => (p.id === result.pick.id ? result.pick : p));
-            if (result.chained_picks?.length) {
-              updated = applyChainedPicks(updated, result.chained_picks);
-            }
-            return updated;
-          });
-          const draftResult = await draftApi.getById(draft.id, accessToken);
-          setDraft(draftResult.draft);
-        } catch (err) {
-          // Another client may have already triggered auto-pick; this is expected
-          if (err instanceof ApiError && !err.message.includes('already')) {
-            toast.error(err.message);
-          }
-        }
-      })();
-    }
-  }, [timeRemaining, draft, accessToken]);
-
-  const formatTime = (seconds: number) => {
-    const m = Math.floor(seconds / 60);
-    const s = seconds % 60;
-    return `${m}:${s.toString().padStart(2, '0')}`;
-  };
-
-  const handleUpdateSettings = async (updates: UpdateDraftRequest) => {
-    if (!draft || !accessToken) return;
-    const result = await draftApi.update(draft.id, updates, accessToken);
-    setDraft(result.draft);
-  };
-
-  const handleSetOrder = async () => {
-    if (!draft || !accessToken) return;
-
-    try {
-      // Auto-generate order: assign slots based on roster assignments
-      const assignedRosters = rosters
-        .filter((r) => r.owner_id)
-        .sort((a, b) => a.roster_id - b.roster_id);
-
-      const draftOrder: Record<string, number> = {};
-      const slotToRosterId: Record<string, number> = {};
-
-      assignedRosters.forEach((roster, index) => {
-        const slot = index + 1;
-        draftOrder[roster.owner_id!] = slot;
-        slotToRosterId[String(slot)] = roster.roster_id;
-      });
-
-      const result = await draftApi.setOrder(draft.id, { draft_order: draftOrder, slot_to_roster_id: slotToRosterId }, accessToken);
-      setDraft(result.draft);
-    } catch (err) {
-      if (err instanceof ApiError) {
-        setError(err.message);
-      }
-    }
-  };
-
-  const handleStartDraft = async () => {
-    if (!draft || !accessToken) return;
-
-    try {
-      const result = await draftApi.start(draft.id, accessToken);
-      setDraft(result.draft);
-      // Fetch picks after starting
-      const picksResult = await draftApi.getPicks(result.draft.id, accessToken);
-      setPicks(picksResult.picks);
-    } catch (err) {
-      if (err instanceof ApiError) {
-        setError(err.message);
-      }
-    }
-  };
-
-  const handleMakePick = async () => {
-    if (!draft || !accessToken || !pickPlayerId.trim()) return;
-
-    try {
-      setIsPicking(true);
-      setPickError(null);
-      const result = await draftApi.makePick(draft.id, { player_id: pickPlayerId.trim() }, accessToken);
-      setPicks((prev) => {
-        let updated = prev.map((p) => (p.id === result.pick.id ? result.pick : p));
-        if (result.chained_picks?.length) {
-          updated = applyChainedPicks(updated, result.chained_picks);
-        }
-        return updated;
-      });
-      setPickPlayerId('');
-
-      // Refresh draft state
-      const draftResult = await draftApi.getById(draft.id, accessToken);
-      setDraft(draftResult.draft);
-    } catch (err) {
-      if (err instanceof ApiError) {
-        setPickError(err.message);
-      } else {
-        setPickError('Failed to make pick');
-      }
-    } finally {
-      setIsPicking(false);
-    }
-  };
-
-  // Auction handlers
-  const handleNominate = async () => {
-    if (!draft || !accessToken || !nominatePlayerId.trim()) return;
-    try {
-      setIsNominating(true);
-      setPickError(null);
-      const result = await draftApi.nominate(draft.id, { player_id: nominatePlayerId.trim(), amount: nominateAmount }, accessToken);
-      setDraft(result.draft);
-      setNominatePlayerId('');
-      setNominateAmount(1);
-    } catch (err) {
-      if (err instanceof ApiError) setPickError(err.message);
-      else setPickError('Failed to nominate');
-    } finally {
-      setIsNominating(false);
-    }
-  };
-
-  const handleBid = async (amount?: number) => {
-    if (!draft || !accessToken) return;
-    const bidAmt = amount ?? bidAmount;
-    if (bidAmt < 1) return;
-    try {
-      setIsBidding(true);
-      setPickError(null);
-      const result = await draftApi.bid(draft.id, { amount: bidAmt }, accessToken);
-      setDraft(result.draft);
-      if (result.won) {
-        setPicks((prev) => prev.map((p) => (p.id === result.won!.id ? result.won! : p)));
-      }
-      setBidAmount(0);
-    } catch (err) {
-      if (err instanceof ApiError) setPickError(err.message);
-      else setPickError('Failed to place bid');
-    } finally {
-      setIsBidding(false);
-    }
-  };
-
-  // Queue handlers
-  const handleReorderQueue = async (playerIds: string[]) => {
-    if (!draft || !accessToken) return;
-    try {
-      const result = await draftApi.setQueue(draft.id, { player_ids: playerIds }, accessToken);
-      setQueue(result.queue);
-    } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : 'Failed to reorder queue');
-    }
-  };
-
-  const handleRemoveFromQueue = async (playerId: string) => {
-    if (!draft || !accessToken) return;
-    try {
-      const result = await draftApi.removeFromQueue(draft.id, playerId, accessToken);
-      setQueue(result.queue);
-    } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : 'Failed to remove from queue');
-    }
-  };
-
-  const handleAddToQueue = async (playerId: string) => {
-    if (!draft || !accessToken) return;
-    try {
-      const result = await draftApi.addToQueue(draft.id, { player_id: playerId }, accessToken);
-      setQueue(result.queue);
-    } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : 'Failed to add to queue');
-    }
-  };
-
-  const handleUpdateMaxBid = async (playerId: string, maxBid: number | null) => {
-    if (!draft || !accessToken) return;
-    try {
-      const result = await draftApi.updateQueueMaxBid(draft.id, playerId, { max_bid: maxBid }, accessToken);
-      setQueue(result.queue);
-    } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : 'Failed to update max bid');
-    }
-  };
-
-  const handleNominationMaxBid = async (playerId: string, maxBid: number | null) => {
-    if (!draft || !accessToken) return;
-    const inQueue = queue.some((q) => q.player_id === playerId);
-    try {
-      if (inQueue) {
-        const result = await draftApi.updateQueueMaxBid(draft.id, playerId, { max_bid: maxBid }, accessToken);
-        setQueue(result.queue);
-      } else {
-        const result = await draftApi.addToQueue(draft.id, { player_id: playerId, max_bid: maxBid }, accessToken);
-        setQueue(result.queue);
-      }
-    } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : 'Failed to update auto-bid');
-    }
-  };
-
-  const handleToggleAutoPick = async () => {
-    if (!draft || !accessToken) return;
-
-    try {
-      setIsTogglingAutoPick(true);
-      setPickError(null);
-      const result = await draftApi.toggleAutoPick(draft.id, accessToken);
-      setDraft(result.draft);
-
-      // Apply any chained picks that were made
-      if (result.picks.length > 0) {
-        setPicks((prev) => applyChainedPicks(prev, result.picks));
-      }
-    } catch (err) {
-      if (err instanceof ApiError) {
-        setPickError(err.message);
-      }
-    } finally {
-      setIsTogglingAutoPick(false);
-    }
-  };
-
-  // Compute drafted player IDs for queue display
-  const draftedPlayerIds = new Set(picks.filter((p) => p.player_id).map((p) => p.player_id!));
-
-  // Check if it's the current user's turn
-  const nextPick = picks.find((p) => !p.player_id);
-  const userSlot = user?.id && draft?.draft_order ? draft.draft_order[user.id] : undefined;
-  const isMyTurn = nextPick && userSlot !== undefined && nextPick.draft_slot === userSlot;
-  const currentMember = members.find((m) => m.user_id === user?.id);
-  const isCommissioner = currentMember?.role === 'commissioner';
+  const room = useDraftRoom(leagueId);
+  const { draft, picks, members, rosters, queue, isLoading, error, user, accessToken } = room;
 
   if (isLoading) {
     return (
@@ -594,6 +49,21 @@ export default function DraftRoomPage() {
     );
   }
 
+  const sidebarProps = {
+    draftId: draft.id,
+    draftedPlayerIds: room.draftedPlayerIds,
+    queue,
+    sidebarTab: room.sidebarTab,
+    onTabChange: room.setSidebarTab,
+    onAdd: room.handleAddToQueue,
+    onReorder: room.handleReorderQueue,
+    onRemove: room.handleRemoveFromQueue,
+    onUpdateMaxBid: room.handleUpdateMaxBid,
+    accessToken: accessToken!,
+    isAuction: room.isAuction,
+    budget: draft.settings.budget,
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-4">
       <div className="mx-auto max-w-7xl space-y-4">
@@ -612,16 +82,16 @@ export default function DraftRoomPage() {
             </span>
           </div>
           <div className="text-sm text-gray-500 dark:text-gray-400">
-            {draftTypeLabels[draft.type]} | {draft.settings.rounds} rounds | {isAuction ? `$${draft.settings.budget} budget | ${draft.settings.offering_timer ?? 120}s offer / ${draft.settings.nomination_timer}s bid` : `${draft.settings.pick_timer}s timer`}
+            {draftTypeLabels[draft.type]} | {draft.settings.rounds} rounds | {room.isAuction ? `$${draft.settings.budget} budget | ${draft.settings.offering_timer ?? 120}s offer / ${draft.settings.nomination_timer}s bid` : `${draft.settings.pick_timer}s timer`}
           </div>
         </div>
 
         {/* Pre-Draft Setup */}
-        {draft.status === 'pre_draft' && isCommissioner && (
+        {draft.status === 'pre_draft' && room.isCommissioner && (
           <div className="rounded-lg bg-white dark:bg-gray-800 p-6 shadow">
             <h2 className="mb-4 text-lg font-bold text-gray-900 dark:text-white">Draft Setup</h2>
             <div className="space-y-6">
-              <DraftSettingsForm draft={draft} onSave={handleUpdateSettings} readOnly={false} />
+              <DraftSettingsForm draft={draft} onSave={room.handleUpdateSettings} readOnly={false} />
 
               <div className="border-t border-gray-200 dark:border-gray-700 pt-4">
                 <p className="mb-2 text-sm text-gray-600 dark:text-gray-400">
@@ -630,7 +100,7 @@ export default function DraftRoomPage() {
                     : 'Not set'}
                 </p>
                 <button
-                  onClick={handleSetOrder}
+                  onClick={room.handleSetOrder}
                   className="rounded-lg bg-gray-600 px-4 py-2 text-sm font-medium text-white hover:bg-gray-700"
                 >
                   {Object.keys(draft.draft_order ?? {}).length > 0 ? 'Reset Draft Order' : 'Set Draft Order'}
@@ -643,7 +113,7 @@ export default function DraftRoomPage() {
               {Object.keys(draft.draft_order ?? {}).length > 0 && (
                 <div>
                   <button
-                    onClick={handleStartDraft}
+                    onClick={room.handleStartDraft}
                     className="rounded-lg bg-blue-600 px-6 py-2 text-sm font-medium text-white hover:bg-blue-700"
                   >
                     Start Draft
@@ -654,192 +124,40 @@ export default function DraftRoomPage() {
           </div>
         )}
 
-        {/* Draft Board */}
-        {draft.status === 'drafting' && isAuction && (
+        {/* Auction Draft Board */}
+        {draft.status === 'drafting' && room.isAuction && (
           <>
-            {/* Auction Controls */}
-            <div className="rounded-lg bg-white dark:bg-gray-800 p-4 shadow">
-              <div className="flex flex-wrap items-center gap-4">
-                {/* Timer */}
-                {timeRemaining !== null && (
-                  <div className={`flex items-center gap-2 rounded-lg px-4 py-2 font-mono text-lg font-bold ${
-                    timeRemaining <= 10
-                      ? 'bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-400'
-                      : timeRemaining <= 20
-                        ? 'bg-yellow-100 text-yellow-700'
-                        : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300'
-                  }`}>
-                    {formatTime(timeRemaining)}
-                    <span className="text-xs font-normal dark:text-gray-300">
-                      {draft.metadata?.current_nomination ? 'Bidding' : 'Nominate'}
-                    </span>
-                  </div>
-                )}
-                {/* Autopick Toggle */}
-                {userSlot !== undefined && (
-                  <button
-                    onClick={handleToggleAutoPick}
-                    disabled={isTogglingAutoPick}
-                    className={`rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
-                      isAutoPick
-                        ? 'bg-orange-100 text-orange-700 hover:bg-orange-200'
-                        : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600'
-                    } disabled:opacity-50`}
-                  >
-                    {isTogglingAutoPick ? '...' : isAutoPick ? 'Auto: ON' : 'Auto: OFF'}
-                  </button>
-                )}
-
-                {/* Nomination Input (no active nomination, user's turn) */}
-                {!draft.metadata?.current_nomination && isMyTurn && !isAutoPick && (
-                  <div className="flex flex-1 items-center gap-2">
-                    <span className="rounded-full bg-green-100 px-3 py-1 text-sm font-medium text-green-700">
-                      Your Nomination!
-                    </span>
-                    <input
-                      type="text"
-                      value={nominatePlayerId}
-                      onChange={(e) => setNominatePlayerId(e.target.value)}
-                      placeholder="Player ID"
-                      className="flex-1 rounded-lg border border-gray-300 dark:border-gray-600 px-3 py-2 text-sm text-gray-900 dark:text-white dark:bg-gray-700 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                    />
-                    <div className="flex items-center gap-1">
-                      <span className="text-sm text-gray-500 dark:text-gray-400">$</span>
-                      <input
-                        type="number"
-                        value={nominateAmount}
-                        onChange={(e) => setNominateAmount(Math.max(1, parseInt(e.target.value) || 1))}
-                        min={1}
-                        className="w-20 rounded-lg border border-gray-300 dark:border-gray-600 px-2 py-2 text-sm text-gray-900 dark:text-white dark:bg-gray-700 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                      />
-                    </div>
-                    <button
-                      onClick={handleNominate}
-                      disabled={isNominating || !nominatePlayerId.trim()}
-                      className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
-                    >
-                      {isNominating ? 'Nominating...' : 'Nominate'}
-                    </button>
-                  </div>
-                )}
-
-                {/* Waiting for nomination */}
-                {!draft.metadata?.current_nomination && !isMyTurn && (
-                  <span className="text-sm text-gray-500 dark:text-gray-400">
-                    Waiting for nomination...
-                  </span>
-                )}
-
-                {/* Bidding Controls (active nomination) */}
-                {draft.metadata?.current_nomination && userSlot !== undefined && (
-                  <div className="flex flex-1 items-center gap-2">
-                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                      Current: <span className="text-green-700 font-bold">${draft.metadata.current_nomination.current_bid}</span>
-                    </span>
-                    <button
-                      onClick={() => handleBid(draft.metadata.current_nomination.current_bid + 1)}
-                      disabled={isBidding}
-                      className="rounded-lg bg-green-600 px-3 py-2 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-50"
-                    >
-                      +$1
-                    </button>
-                    <button
-                      onClick={() => handleBid(draft.metadata.current_nomination.current_bid + 5)}
-                      disabled={isBidding}
-                      className="rounded-lg bg-green-600 px-3 py-2 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-50"
-                    >
-                      +$5
-                    </button>
-                    <button
-                      onClick={() => handleBid(draft.metadata.current_nomination.current_bid + 10)}
-                      disabled={isBidding}
-                      className="rounded-lg bg-green-600 px-3 py-2 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-50"
-                    >
-                      +$10
-                    </button>
-                    <div className="flex items-center gap-1">
-                      <span className="text-sm text-gray-500 dark:text-gray-400">$</span>
-                      <input
-                        type="number"
-                        value={bidAmount || ''}
-                        onChange={(e) => setBidAmount(parseInt(e.target.value) || 0)}
-                        placeholder="Custom"
-                        min={1}
-                        className="w-20 rounded-lg border border-gray-300 dark:border-gray-600 px-2 py-2 text-sm text-gray-900 dark:text-white dark:bg-gray-700 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                      />
-                    </div>
-                    <button
-                      onClick={() => handleBid()}
-                      disabled={isBidding || bidAmount < 1}
-                      className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
-                    >
-                      {isBidding ? 'Bidding...' : 'Bid'}
-                    </button>
-                    <NominationMaxBid
-                      nomination={draft.metadata.current_nomination}
-                      queue={queue}
-                      budget={draft.settings.budget}
-                      onUpdateMaxBid={handleNominationMaxBid}
-                    />
-                  </div>
-                )}
-              </div>
-              {pickError && (
-                <p className="mt-2 text-sm text-red-600 dark:text-red-400">{pickError}</p>
-              )}
-            </div>
+            <AuctionControls
+              draft={draft}
+              timeRemaining={room.timeRemaining}
+              formatTime={room.formatTime}
+              userSlot={room.userSlot}
+              isMyTurn={!!room.isMyTurn}
+              isAutoPick={room.isAutoPick}
+              isTogglingAutoPick={room.isTogglingAutoPick}
+              nominatePlayerId={room.nominatePlayerId}
+              setNominatePlayerId={room.setNominatePlayerId}
+              nominateAmount={room.nominateAmount}
+              setNominateAmount={room.setNominateAmount}
+              isNominating={room.isNominating}
+              bidAmount={room.bidAmount}
+              setBidAmount={room.setBidAmount}
+              isBidding={room.isBidding}
+              pickError={room.pickError}
+              queue={queue}
+              onNominate={room.handleNominate}
+              onBid={room.handleBid}
+              onToggleAutoPick={room.handleToggleAutoPick}
+              onNominationMaxBid={room.handleNominationMaxBid}
+            />
 
             <div className="flex gap-4">
               <div className="flex-1 min-w-0">
                 <AuctionBoard draft={draft} picks={picks} members={members} currentUserId={user?.id} />
               </div>
-              {userSlot !== undefined && (
+              {room.userSlot !== undefined && (
                 <div className="w-80 shrink-0">
-                  <div className="rounded-lg bg-white dark:bg-gray-800 shadow flex flex-col" style={{ height: 'calc(100vh - 200px)' }}>
-                    <div className="flex border-b border-gray-200 dark:border-gray-700">
-                      <button
-                        onClick={() => setSidebarTab('players')}
-                        className={`flex-1 px-3 py-2.5 text-sm font-medium transition-colors ${
-                          sidebarTab === 'players'
-                            ? 'border-b-2 border-blue-600 text-blue-600'
-                            : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
-                        }`}
-                      >
-                        Players
-                      </button>
-                      <button
-                        onClick={() => setSidebarTab('queue')}
-                        className={`flex-1 px-3 py-2.5 text-sm font-medium transition-colors ${
-                          sidebarTab === 'queue'
-                            ? 'border-b-2 border-blue-600 text-blue-600'
-                            : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
-                        }`}
-                      >
-                        My Queue
-                      </button>
-                    </div>
-                    <div className="flex-1 min-h-0">
-                      {sidebarTab === 'players' ? (
-                        <BestAvailablePlayers
-                          draftId={draft.id}
-                          draftedPlayerIds={draftedPlayerIds}
-                          queuedPlayerIds={new Set(queue.map((q) => q.player_id))}
-                          onAdd={handleAddToQueue}
-                          accessToken={accessToken!}
-                        />
-                      ) : (
-                        <DraftQueue
-                          queue={queue}
-                          draftedPlayerIds={draftedPlayerIds}
-                          onReorder={handleReorderQueue}
-                          onRemove={handleRemoveFromQueue}
-                          onUpdateMaxBid={handleUpdateMaxBid}
-                          isAuction={draft.type === 'auction'}
-                          budget={draft.settings.budget}
-                        />
-                      )}
-                    </div>
-                  </div>
+                  <DraftSidebar {...sidebarProps} />
                 </div>
               )}
             </div>
@@ -847,128 +165,32 @@ export default function DraftRoomPage() {
         )}
 
         {/* Standard Draft Board (snake/linear/3rr) */}
-        {draft.status === 'drafting' && !isAuction && (
+        {draft.status === 'drafting' && !room.isAuction && (
           <>
-            {/* Pick Input + Timer */}
-            <div className="rounded-lg bg-white dark:bg-gray-800 p-4 shadow">
-              <div className="flex items-center gap-4">
-                {/* Timer */}
-                {timeRemaining !== null && (
-                  <div className={`flex items-center gap-2 rounded-lg px-4 py-2 font-mono text-lg font-bold ${
-                    timeRemaining <= 30
-                      ? 'bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-400'
-                      : timeRemaining <= 60
-                        ? 'bg-yellow-100 text-yellow-700'
-                        : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300'
-                  }`}>
-                    {formatTime(timeRemaining)}
-                  </div>
-                )}
-                {/* Autopick Toggle */}
-                {userSlot !== undefined && (
-                  <button
-                    onClick={handleToggleAutoPick}
-                    disabled={isTogglingAutoPick}
-                    className={`rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
-                      isAutoPick
-                        ? 'bg-orange-100 text-orange-700 hover:bg-orange-200'
-                        : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600'
-                    } disabled:opacity-50`}
-                  >
-                    {isTogglingAutoPick ? '...' : isAutoPick ? 'Auto: ON' : 'Auto: OFF'}
-                  </button>
-                )}
-                {isMyTurn && !isAutoPick && (
-                  <span className="rounded-full bg-green-100 px-3 py-1 text-sm font-medium text-green-700">
-                    Your Pick!
-                  </span>
-                )}
-                {isMyTurn && isAutoPick && (
-                  <span className="rounded-full bg-orange-100 px-3 py-1 text-sm font-medium text-orange-700">
-                    Auto-picking...
-                  </span>
-                )}
-                {nextPick && !isMyTurn && (
-                  <span className="text-sm text-gray-500 dark:text-gray-400">
-                    Waiting for pick #{nextPick.pick_no} (Round {nextPick.round})
-                  </span>
-                )}
-                {((isMyTurn && !isAutoPick) || isCommissioner) && (
-                  <div className="flex flex-1 items-center gap-2">
-                    <input
-                      type="text"
-                      value={pickPlayerId}
-                      onChange={(e) => setPickPlayerId(e.target.value)}
-                      placeholder="Enter Player ID"
-                      className="flex-1 rounded-lg border border-gray-300 dark:border-gray-600 px-3 py-2 text-sm text-gray-900 dark:text-white dark:bg-gray-700 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                      onKeyDown={(e) => e.key === 'Enter' && handleMakePick()}
-                    />
-                    <button
-                      onClick={handleMakePick}
-                      disabled={isPicking || !pickPlayerId.trim()}
-                      className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
-                    >
-                      {isPicking ? 'Picking...' : 'Pick'}
-                    </button>
-                  </div>
-                )}
-              </div>
-              {pickError && (
-                <p className="mt-2 text-sm text-red-600 dark:text-red-400">{pickError}</p>
-              )}
-            </div>
+            <DraftControls
+              timeRemaining={room.timeRemaining}
+              formatTime={room.formatTime}
+              userSlot={room.userSlot}
+              isMyTurn={!!room.isMyTurn}
+              isAutoPick={room.isAutoPick}
+              isTogglingAutoPick={room.isTogglingAutoPick}
+              isCommissioner={!!room.isCommissioner}
+              nextPick={room.nextPick}
+              pickPlayerId={room.pickPlayerId}
+              setPickPlayerId={room.setPickPlayerId}
+              isPicking={room.isPicking}
+              pickError={room.pickError}
+              onMakePick={room.handleMakePick}
+              onToggleAutoPick={room.handleToggleAutoPick}
+            />
 
             <div className="flex gap-4">
               <div className="flex-1 min-w-0">
                 <DraftBoard draft={draft} picks={picks} members={members} currentUserId={user?.id} />
               </div>
-              {userSlot !== undefined && (
+              {room.userSlot !== undefined && (
                 <div className="w-80 shrink-0">
-                  <div className="rounded-lg bg-white dark:bg-gray-800 shadow flex flex-col" style={{ height: 'calc(100vh - 200px)' }}>
-                    <div className="flex border-b border-gray-200 dark:border-gray-700">
-                      <button
-                        onClick={() => setSidebarTab('players')}
-                        className={`flex-1 px-3 py-2.5 text-sm font-medium transition-colors ${
-                          sidebarTab === 'players'
-                            ? 'border-b-2 border-blue-600 text-blue-600'
-                            : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
-                        }`}
-                      >
-                        Players
-                      </button>
-                      <button
-                        onClick={() => setSidebarTab('queue')}
-                        className={`flex-1 px-3 py-2.5 text-sm font-medium transition-colors ${
-                          sidebarTab === 'queue'
-                            ? 'border-b-2 border-blue-600 text-blue-600'
-                            : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
-                        }`}
-                      >
-                        My Queue
-                      </button>
-                    </div>
-                    <div className="flex-1 min-h-0">
-                      {sidebarTab === 'players' ? (
-                        <BestAvailablePlayers
-                          draftId={draft.id}
-                          draftedPlayerIds={draftedPlayerIds}
-                          queuedPlayerIds={new Set(queue.map((q) => q.player_id))}
-                          onAdd={handleAddToQueue}
-                          accessToken={accessToken!}
-                        />
-                      ) : (
-                        <DraftQueue
-                          queue={queue}
-                          draftedPlayerIds={draftedPlayerIds}
-                          onReorder={handleReorderQueue}
-                          onRemove={handleRemoveFromQueue}
-                          onUpdateMaxBid={handleUpdateMaxBid}
-                          isAuction={draft.type === 'auction'}
-                          budget={draft.settings.budget}
-                        />
-                      )}
-                    </div>
-                  </div>
+                  <DraftSidebar {...sidebarProps} />
                 </div>
               )}
             </div>
@@ -977,13 +199,13 @@ export default function DraftRoomPage() {
 
         {/* Complete State */}
         {draft.status === 'complete' && picks.length > 0 && (
-          isAuction
+          room.isAuction
             ? <AuctionBoard draft={draft} picks={picks} members={members} currentUserId={user?.id} />
             : <DraftBoard draft={draft} picks={picks} members={members} currentUserId={user?.id} />
         )}
 
         {/* Pre-draft queue + settings */}
-        {draft.status === 'pre_draft' && !isCommissioner && (
+        {draft.status === 'pre_draft' && !room.isCommissioner && (
           <div className="space-y-4">
             <div className="rounded-lg bg-white dark:bg-gray-800 p-6 shadow">
               <h2 className="mb-4 text-lg font-bold text-gray-900 dark:text-white">Draft Settings</h2>
@@ -992,52 +214,8 @@ export default function DraftRoomPage() {
                 Waiting for the commissioner to start the draft.
               </p>
             </div>
-            {userSlot !== undefined && (
-              <div className="rounded-lg bg-white dark:bg-gray-800 shadow flex flex-col" style={{ height: 'calc(100vh - 400px)', minHeight: '400px' }}>
-                <div className="flex border-b border-gray-200 dark:border-gray-700">
-                  <button
-                    onClick={() => setSidebarTab('players')}
-                    className={`flex-1 px-3 py-2.5 text-sm font-medium transition-colors ${
-                      sidebarTab === 'players'
-                        ? 'border-b-2 border-blue-600 text-blue-600'
-                        : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
-                    }`}
-                  >
-                    Players
-                  </button>
-                  <button
-                    onClick={() => setSidebarTab('queue')}
-                    className={`flex-1 px-3 py-2.5 text-sm font-medium transition-colors ${
-                      sidebarTab === 'queue'
-                        ? 'border-b-2 border-blue-600 text-blue-600'
-                        : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
-                    }`}
-                  >
-                    My Queue
-                  </button>
-                </div>
-                <div className="flex-1 min-h-0">
-                  {sidebarTab === 'players' ? (
-                    <BestAvailablePlayers
-                      draftId={draft.id}
-                      draftedPlayerIds={draftedPlayerIds}
-                      queuedPlayerIds={new Set(queue.map((q) => q.player_id))}
-                      onAdd={handleAddToQueue}
-                      accessToken={accessToken!}
-                    />
-                  ) : (
-                    <DraftQueue
-                      queue={queue}
-                      draftedPlayerIds={draftedPlayerIds}
-                      onReorder={handleReorderQueue}
-                      onRemove={handleRemoveFromQueue}
-                      onUpdateMaxBid={handleUpdateMaxBid}
-                      isAuction={draft.type === 'auction'}
-                      budget={draft.settings.budget}
-                    />
-                  )}
-                </div>
-              </div>
+            {room.userSlot !== undefined && (
+              <DraftSidebar {...sidebarProps} height="calc(100vh - 400px)" />
             )}
           </div>
         )}

@@ -23,6 +23,7 @@ import { LeagueService } from './modules/leagues/leagues.service';
 import { PlayerService } from './modules/players/players.service';
 import { ScoringService } from './modules/scoring/scoring.service';
 import { DraftService } from './modules/drafts/drafts.service';
+import { AuctionService } from './modules/drafts/auction.service';
 import { MatchupService } from './modules/matchups/matchups.service';
 import { ChatService } from './modules/chat/chat.service';
 import { TradeService } from './modules/trades/trades.service';
@@ -91,6 +92,7 @@ export function createContainer() {
     sleeperStatsProvider,
   );
   const draftService = new DraftService(draftRepository, leagueRepository, playerRepository);
+  const auctionService = new AuctionService(draftRepository, leagueRepository, playerRepository);
   const matchupService = new MatchupService(matchupRepository, leagueRepository);
   const chatService = new ChatService(chatRepository);
   const tradeService = new TradeService(tradeRepository, leagueRepository);
@@ -101,7 +103,7 @@ export function createContainer() {
   const leagueController = new LeagueController(leagueService);
   const playerController = new PlayerController(playerService);
   const scoringController = new ScoringController(scoringService);
-  const draftController = new DraftController(draftService);
+  const draftController = new DraftController(draftService, auctionService);
   const matchupController = new MatchupController(matchupService);
   const chatController = new ChatController(chatService);
   const tradeController = new TradeController(tradeService);
@@ -121,6 +123,7 @@ export function createContainer() {
     services: {
       chatService,
       draftService,
+      auctionService,
       tradeService,
       transactionService,
     },

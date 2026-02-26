@@ -20,6 +20,7 @@ const draftGateway = createDraftGateway(
   container.services.chatService,
 );
 container.services.draftService.setGateway(draftGateway);
+container.services.auctionService.setGateway(draftGateway);
 
 // Attach transactions gateway and inject into services
 const transactionsGateway = createTransactionsGateway(io);
@@ -27,7 +28,7 @@ container.services.tradeService.setGateway(transactionsGateway);
 container.services.transactionService.setGateway(transactionsGateway);
 
 // Recover any active auction auto-bids that were lost on previous restart
-container.services.draftService.recoverActiveAuctions();
+container.services.auctionService.recoverActiveAuctions();
 
 server.listen(config.PORT, '0.0.0.0', () => {
   console.log(`TBDFF Backend started on port ${config.PORT}`);
