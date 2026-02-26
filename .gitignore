@@ -42,3 +42,6 @@ yarn-error.*
 
 # pnpm
 .pnpm-store/
+
+# npm (this is a pnpm monorepo — no package-lock needed)
+package-lock.json

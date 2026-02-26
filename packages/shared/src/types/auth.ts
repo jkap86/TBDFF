@@ -10,7 +10,8 @@ export interface User {
 export interface AuthResponse {
   user: User;
   token: string;
-  refreshToken: string;
+  /** Present only for mobile clients (X-Client: mobile). Web uses httpOnly cookie. */
+  refreshToken?: string;
 }
 
 export interface UserResponse {

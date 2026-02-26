@@ -7,6 +7,7 @@ import AppNavigator from './src/navigation/AppNavigator';
 
 initApiClient({
   baseUrl: Constants.expoConfig?.extra?.apiUrl || 'http://localhost:5000/api',
+  clientType: 'mobile',
 });
 
 export default function App() {

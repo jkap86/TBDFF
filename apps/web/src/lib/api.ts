@@ -4,7 +4,7 @@ import { initApiClient } from '@tbdff/shared';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
 
-initApiClient({ baseUrl: API_URL });
+initApiClient({ baseUrl: API_URL, clientType: 'web' });
 
 export { apiClient, authApi, leagueApi, draftApi, matchupApi, scoringApi, playerApi, tradeApi, transactionApi, tokenManager, ApiError } from '@tbdff/shared';
 export type { User, AuthResponse, UserResponse, League, LeagueMember, CreateLeagueRequest, UpdateLeagueRequest, LeagueInvite, PublicLeague, PublicLeaguesResponse, Roster, RosterSettings, RosterListResponse, RosterPosition, LeagueScoringSettings, LeagueSettings } from '@tbdff/shared';

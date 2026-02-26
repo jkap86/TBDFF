@@ -34,7 +34,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const result = await authApi.refresh(storedRefreshToken);
         setUser(result.user);
         setAccessToken(result.token);
-        await storage.setItem(REFRESH_TOKEN_KEY, result.refreshToken);
+        if (result.refreshToken) await storage.setItem(REFRESH_TOKEN_KEY, result.refreshToken);
       } catch {
         // Refresh failed - clear stored token
         await storage.deleteItem(REFRESH_TOKEN_KEY);
@@ -50,14 +50,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const result = await authApi.login(username, password);
     setUser(result.user);
     setAccessToken(result.token);
-    await storage.setItem(REFRESH_TOKEN_KEY, result.refreshToken);
+    if (result.refreshToken) await storage.setItem(REFRESH_TOKEN_KEY, result.refreshToken);
   }, []);
 
   const register = useCallback(async (username: string, email: string, password: string) => {
     const result = await authApi.register(username, email, password);
     setUser(result.user);
     setAccessToken(result.token);
-    await storage.setItem(REFRESH_TOKEN_KEY, result.refreshToken);
+    if (result.refreshToken) await storage.setItem(REFRESH_TOKEN_KEY, result.refreshToken);
   }, []);
 
   const logout = useCallback(async () => {
@@ -84,7 +84,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           const result = await authApi.refresh(storedRefreshToken);
           setUser(result.user);
           setAccessToken(result.token);
-          await storage.setItem(REFRESH_TOKEN_KEY, result.refreshToken);
+          if (result.refreshToken) await storage.setItem(REFRESH_TOKEN_KEY, result.refreshToken);
           return result.token;
         } catch {
           return null;

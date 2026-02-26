@@ -1,13 +1,17 @@
 import { tokenManager } from './token-manager';
 
 let baseUrl = '';
+let clientType: 'web' | 'mobile' | undefined;
 
 /**
- * Initialize the API client with a base URL.
+ * Initialize the API client with a base URL and optional client type.
  * Must be called once at app startup before making any API calls.
+ * @param config.clientType - 'web' or 'mobile'. Sent as X-Client header so the
+ *   backend can tailor responses (e.g. omit refreshToken from JSON for web).
  */
-export function initApiClient(config: { baseUrl: string }) {
+export function initApiClient(config: { baseUrl: string; clientType?: 'web' | 'mobile' }) {
   baseUrl = config.baseUrl;
+  clientType = config.clientType;
 }
 
 export class ApiError extends Error {
@@ -34,6 +38,10 @@ async function request<T>(
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
   };
+
+  if (clientType) {
+    headers['X-Client'] = clientType;
+  }
 
   if (token) {
     headers['Authorization'] = `Bearer ${token}`;

@@ -7,6 +7,15 @@ import { setRefreshCookie, clearRefreshCookie, getRefreshCookie } from '../../sh
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
+  /**
+   * Returns true for mobile clients (X-Client: mobile).
+   * Mobile clients receive the refreshToken in JSON so they can store it in
+   * SecureStore. Web clients rely solely on the httpOnly cookie.
+   */
+  private isMobileClient(req: Request): boolean {
+    return req.headers['x-client'] === 'mobile';
+  }
+
   private mapUserToResponse(user: {
     userId: string;
     username: string;
@@ -29,11 +38,13 @@ export class AuthController {
     const { username, email, password } = req.body;
     const result = await this.authService.register(username, email, password);
 
+    // httpOnly cookie is set for all clients — mobile ignores it, but it keeps
+    // the flow uniform and avoids branching cookie logic.
     setRefreshCookie(res, result.refreshToken);
     res.status(201).json({
       user: this.mapUserToResponse(result.user),
       token: result.token,
-      refreshToken: result.refreshToken,
+      ...(this.isMobileClient(req) && { refreshToken: result.refreshToken }),
     });
   };
 
@@ -45,7 +56,7 @@ export class AuthController {
     res.status(200).json({
       user: this.mapUserToResponse(result.user),
       token: result.token,
-      refreshToken: result.refreshToken,
+      ...(this.isMobileClient(req) && { refreshToken: result.refreshToken }),
     });
   };
 
@@ -68,7 +79,7 @@ export class AuthController {
     res.status(200).json({
       user: this.mapUserToResponse(result.user),
       token: result.token,
-      refreshToken: result.refreshToken,
+      ...(this.isMobileClient(req) && { refreshToken: result.refreshToken }),
     });
   };
 

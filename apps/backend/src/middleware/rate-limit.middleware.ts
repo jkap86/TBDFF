@@ -1,4 +1,4 @@
-import rateLimit, { ipKeyGenerator } from 'express-rate-limit';
+import rateLimit from 'express-rate-limit';
 import { AuthRequest } from './auth.middleware';
 
 /**
@@ -11,7 +11,7 @@ export const ipMutationLimiter = rateLimit({
   max: 60,
   standardHeaders: true,
   legacyHeaders: false,
-  keyGenerator: (req) => ipKeyGenerator(req.ip ?? ''),
+  keyGenerator: (req) => req.ip ?? 'unknown',
   skip: (req) => req.method === 'GET' || req.method === 'HEAD' || req.method === 'OPTIONS',
   message: {
     error: { code: 'RATE_LIMITED', message: 'Too many requests, please slow down' },
@@ -30,7 +30,7 @@ export const userMutationLimiter = rateLimit({
   legacyHeaders: false,
   keyGenerator: (req) => {
     const authReq = req as AuthRequest;
-    return `user:${authReq.user?.userId ?? ipKeyGenerator(req.ip ?? '')}`;
+    return `user:${authReq.user?.userId ?? req.ip ?? 'unknown'}`;
   },
   skip: (req) => req.method === 'GET' || req.method === 'HEAD' || req.method === 'OPTIONS',
   message: {
@@ -49,7 +49,7 @@ export const strictLimiter = rateLimit({
   legacyHeaders: false,
   keyGenerator: (req) => {
     const authReq = req as AuthRequest;
-    return `strict:${authReq.user?.userId ?? ipKeyGenerator(req.ip ?? '')}`;
+    return `strict:${authReq.user?.userId ?? req.ip ?? 'unknown'}`;
   },
   message: {
     error: { code: 'RATE_LIMITED', message: 'Too many requests, please slow down' },
