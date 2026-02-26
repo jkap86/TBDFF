@@ -16,6 +16,14 @@ interface TradeComposerProps {
   onSubmit: (data: ProposeTradeRequest) => Promise<unknown>;
 }
 
+function rosterName(roster: Roster, members: LeagueMember[]): string {
+  if (roster.owner_id) {
+    const member = members.find((m) => m.user_id === roster.owner_id);
+    if (member) return member.username;
+  }
+  return `Team ${roster.roster_id}`;
+}
+
 function playerLabel(pid: string, playerMap: Record<string, Player>): string {
   const p = playerMap[pid];
   if (!p) return pid;
@@ -77,8 +85,8 @@ export function TradeComposer({ isOpen, onClose, members, rosters, currentUserId
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const otherMembers = members.filter((m) => m.user_id !== currentUserId);
   const myRoster = rosters.find((r) => r.owner_id === currentUserId);
+  const otherRosters = rosters.filter((r) => r.owner_id !== currentUserId);
   const partnerRoster = rosters.find((r) => r.owner_id === selectedPartner);
   const myFuturePicks = futurePicks.filter((p) => p.current_owner_id === currentUserId);
   const theirFuturePicks = futurePicks.filter((p) => p.current_owner_id === selectedPartner);
@@ -172,8 +180,10 @@ export function TradeComposer({ isOpen, onClose, members, rosters, currentUserId
             className="w-full rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-gray-900 dark:text-white"
           >
             <option value="">Select a team...</option>
-            {otherMembers.map((m) => (
-              <option key={m.user_id} value={m.user_id}>{m.username}</option>
+            {otherRosters.map((r) => (
+              <option key={r.roster_id} value={r.owner_id ?? ''} disabled={!r.owner_id}>
+                {rosterName(r, members)}
+              </option>
             ))}
           </select>
         </div>
