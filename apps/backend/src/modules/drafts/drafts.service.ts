@@ -16,7 +16,7 @@ import {
   ForbiddenException,
   ConflictException,
 } from '../../shared/exceptions';
-import { findUserBySlot, findRosterIdByUserId, getMaxPlayersPerTeam } from './draft-helpers';
+import { findUserBySlot, findUserByRosterId, findRosterIdByUserId, getMaxPlayersPerTeam } from './draft-helpers';
 
 export class DraftService {
   /** Per-draft lock to prevent concurrent processAutoPickChain executions */
@@ -347,16 +347,15 @@ export class DraftService {
       throw new ValidationException('All picks have been made');
     }
 
-    // Verify it's this user's turn
-    // Find which draft_slot this user owns by checking draft_order
-    const userSlot = draft.draftOrder[userId];
-    if (userSlot === undefined) {
+    // Verify it's this user's turn using roster_id (which reflects trades)
+    const userRosterId = findRosterIdByUserId(draft, userId);
+    if (userRosterId === null) {
       throw new ForbiddenException('You are not assigned a draft slot');
     }
 
     // Commissioners can pick for anyone, otherwise must be your turn
     const isCommissioner = member.role === 'commissioner';
-    if (!isCommissioner && nextPick.draftSlot !== userSlot) {
+    if (!isCommissioner && nextPick.rosterId !== userRosterId) {
       throw new ForbiddenException('It is not your turn to pick');
     }
 
@@ -366,10 +365,10 @@ export class DraftService {
       throw new ConflictException('This player has already been picked');
     }
 
-    // Determine who is picking (the owner of the current slot)
+    // Determine who is picking (the owner of the current pick's roster)
     const pickingUserId =
-      isCommissioner && nextPick.draftSlot !== userSlot
-        ? (findUserBySlot(draft.draftOrder, nextPick.draftSlot) ?? userId)
+      isCommissioner && nextPick.rosterId !== userRosterId
+        ? (findUserByRosterId(draft.draftOrder, draft.slotToRosterId, nextPick.rosterId) ?? userId)
         : userId;
 
     // Look up player for metadata
@@ -452,15 +451,15 @@ export class DraftService {
       }
     }
 
-    // Determine the user who owns the current slot
-    const slotOwner = findUserBySlot(draft.draftOrder, nextPick.draftSlot);
-    if (!slotOwner) {
-      throw new ValidationException('Could not determine slot owner for auto-pick');
+    // Determine the user who owns the current pick's roster (accounts for trades)
+    const pickOwner = findUserByRosterId(draft.draftOrder, draft.slotToRosterId, nextPick.rosterId);
+    if (!pickOwner) {
+      throw new ValidationException('Could not determine pick owner for auto-pick');
     }
 
     // Try the user's queue first, fall back to best available
-    console.log(`[auto-pick] draft=${draftId} slot=${nextPick.draftSlot} slotOwner=${slotOwner} triggeredBy=${userId}`);
-    const queuedPlayer = await this.draftRepository.findFirstAvailableFromQueue(draftId, slotOwner);
+    console.log(`[auto-pick] draft=${draftId} slot=${nextPick.draftSlot} rosterId=${nextPick.rosterId} pickOwner=${pickOwner} triggeredBy=${userId}`);
+    const queuedPlayer = await this.draftRepository.findFirstAvailableFromQueue(draftId, pickOwner);
     console.log(`[auto-pick] queueResult=${queuedPlayer ? `${queuedPlayer.fullName} (${queuedPlayer.id})` : 'null (no queued player)'}`);
     const bestPlayer = queuedPlayer ?? (await this.draftRepository.findBestAvailable(draftId));
     if (!bestPlayer) {
@@ -481,7 +480,7 @@ export class DraftService {
     const pick = await this.draftRepository.makePick(
       nextPick.id,
       bestPlayer.id,
-      slotOwner,
+      pickOwner,
       pickMetadata,
     );
 
@@ -493,7 +492,7 @@ export class DraftService {
     });
 
     // Timeout triggers autopick mode for the timed-out user
-    await this.draftRepository.addAutoPickUser(draftId, slotOwner);
+    await this.draftRepository.addAutoPickUser(draftId, pickOwner);
 
     // Atomically complete draft + league in one transaction
     const completed = await this.draftRepository.completeAndUpdateLeague(draftId, draft.leagueId);
@@ -570,12 +569,12 @@ export class DraftService {
       if (!nextPick) break;
 
       const autoPickUsers: string[] = draft.metadata?.auto_pick_users ?? [];
-      const slotOwner = findUserBySlot(draft.draftOrder, nextPick.draftSlot);
-      if (!slotOwner || !autoPickUsers.includes(slotOwner)) break;
+      const pickOwner = findUserByRosterId(draft.draftOrder, draft.slotToRosterId, nextPick.rosterId);
+      if (!pickOwner || !autoPickUsers.includes(pickOwner)) break;
 
       const queuedPlayer = await this.draftRepository.findFirstAvailableFromQueue(
         draftId,
-        slotOwner,
+        pickOwner,
       );
       const bestPlayer = queuedPlayer ?? (await this.draftRepository.findBestAvailable(draftId));
       if (!bestPlayer) break;
@@ -592,7 +591,7 @@ export class DraftService {
       const pick = await this.draftRepository.makePick(
         nextPick.id,
         bestPlayer.id,
-        slotOwner,
+        pickOwner,
         pickMetadata,
       );
 

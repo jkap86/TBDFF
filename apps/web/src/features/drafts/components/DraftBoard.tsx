@@ -35,6 +35,8 @@ export function DraftBoard({ draft, picks, members, currentUserId }: DraftBoardP
 
   // Find which slot the current user has
   const userSlot = currentUserId ? draft_order[currentUserId] : undefined;
+  // Resolve current user's roster_id for trade-aware highlighting
+  const userRosterId = userSlot !== undefined ? draft.slot_to_roster_id?.[String(userSlot)] : undefined;
 
   // Find the next pick
   const nextPick = picks.find((p) => !p.player_id);
@@ -46,6 +48,16 @@ export function DraftBoard({ draft, picks, members, currentUserId }: DraftBoardP
     const member = members.find((m) => m.user_id === userId);
     slotToUser[slot] = member?.display_name || member?.username || `Slot ${slot}`;
     slotToUserId[slot] = userId;
+  }
+
+  // Build roster_id -> display name for showing traded pick owners
+  const rosterIdToName: Record<number, string> = {};
+  for (const [userId, slot] of Object.entries(draft_order) as [string, number][]) {
+    const rosterId = draft.slot_to_roster_id?.[String(slot)];
+    if (rosterId !== undefined) {
+      const member = members.find((m) => m.user_id === userId);
+      rosterIdToName[rosterId] = member?.display_name || member?.username || `Slot ${slot}`;
+    }
   }
 
   const autoPickUsers: string[] = draft.metadata?.auto_pick_users ?? [];
@@ -82,9 +94,13 @@ export function DraftBoard({ draft, picks, members, currentUserId }: DraftBoardP
                 {rIdx + 1}
               </td>
               {row.map((pick, sIdx) => {
+                const slot = sIdx + 1;
                 const isNextPick = nextPick && pick && pick.id === nextPick.id;
-                const isUserPick = pick && pick.draft_slot === userSlot;
+                const isUserPick = pick && userRosterId !== undefined && pick.roster_id === userRosterId;
                 const isFilled = pick?.player_id;
+                const originalRosterId = draft.slot_to_roster_id?.[String(slot)];
+                const isTraded = pick && originalRosterId !== undefined && pick.roster_id !== originalRosterId;
+                const tradedOwnerName = isTraded ? rosterIdToName[pick.roster_id] : null;
 
                 return (
                   <td
@@ -96,7 +112,9 @@ export function DraftBoard({ draft, picks, members, currentUserId }: DraftBoardP
                           ? isUserPick
                             ? 'bg-blue-50 dark:bg-blue-900/20'
                             : 'bg-white dark:bg-gray-800'
-                          : 'bg-gray-50 dark:bg-gray-800'
+                          : isTraded
+                            ? 'bg-purple-50 dark:bg-purple-900/20'
+                            : 'bg-gray-50 dark:bg-gray-800'
                     }`}
                   >
                     {isFilled ? (
@@ -107,9 +125,19 @@ export function DraftBoard({ draft, picks, members, currentUserId }: DraftBoardP
                         {pick.metadata?.position && (
                           <span className="ml-1 text-gray-400 dark:text-gray-500">{pick.metadata.position}</span>
                         )}
+                        {isTraded && tradedOwnerName && (
+                          <div className="text-[10px] text-purple-500 dark:text-purple-400">{tradedOwnerName}</div>
+                        )}
                       </div>
                     ) : isNextPick ? (
-                      <span className="text-yellow-600 font-medium">OTC</span>
+                      <div>
+                        <span className="text-yellow-600 font-medium">OTC</span>
+                        {isTraded && tradedOwnerName && (
+                          <div className="text-[10px] text-purple-500 dark:text-purple-400">→ {tradedOwnerName}</div>
+                        )}
+                      </div>
+                    ) : isTraded && tradedOwnerName ? (
+                      <span className="text-[10px] text-purple-500 dark:text-purple-400">→ {tradedOwnerName}</span>
                     ) : (
                       <span className="text-gray-300 dark:text-gray-600">&mdash;</span>
                     )}

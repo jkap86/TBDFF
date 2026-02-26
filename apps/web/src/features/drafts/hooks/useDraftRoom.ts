@@ -429,7 +429,8 @@ export function useDraftRoom(leagueId: string) {
   const draftedPlayerIds = new Set(picks.filter((p) => p.player_id).map((p) => p.player_id!));
   const nextPick = picks.find((p) => !p.player_id);
   const userSlot = user?.id && draft?.draft_order ? draft.draft_order[user.id] : undefined;
-  const isMyTurn = nextPick && userSlot !== undefined && nextPick.draft_slot === userSlot;
+  const userRosterId = rosters.find(r => r.owner_id === user?.id)?.roster_id;
+  const isMyTurn = nextPick && userRosterId !== undefined && nextPick.roster_id === userRosterId;
   const currentMember = members.find((m) => m.user_id === user?.id);
   const isCommissioner = currentMember?.role === 'commissioner';
 

@@ -15,6 +15,18 @@ export function findRosterIdByUserId(draft: Draft, userId: string): number | nul
   return draft.slotToRosterId[String(userSlot)] ?? null;
 }
 
+/** Find the userId that owns a given roster_id (accounts for traded picks) */
+export function findUserByRosterId(
+  draftOrder: Record<string, number>,
+  slotToRosterId: Record<string, number>,
+  rosterId: number,
+): string | null {
+  for (const [userId, slot] of Object.entries(draftOrder)) {
+    if (slotToRosterId[String(slot)] === rosterId) return userId;
+  }
+  return null;
+}
+
 /** Get maximum players allowed per team (falls back to rounds) */
 export function getMaxPlayersPerTeam(draft: Draft): number {
   return draft.settings.max_players_per_team || draft.settings.rounds;
