@@ -31,8 +31,9 @@ export class DraftRepository {
     return Draft.fromDatabase(result.rows[0]);
   }
 
-  async findById(id: string): Promise<Draft | null> {
-    const result = await this.db.query('SELECT * FROM drafts WHERE id = $1', [id]);
+  async findById(id: string, client?: PoolClient): Promise<Draft | null> {
+    const conn = client ?? this.db;
+    const result = await conn.query('SELECT * FROM drafts WHERE id = $1', [id]);
     return result.rows.length > 0 ? Draft.fromDatabase(result.rows[0]) : null;
   }
 
@@ -85,13 +86,14 @@ export class DraftRepository {
     return { fields, values };
   }
 
-  async update(id: string, data: Record<string, any>): Promise<Draft | null> {
+  async update(id: string, data: Record<string, any>, client?: PoolClient): Promise<Draft | null> {
+    const conn = client ?? this.db;
     const { fields, values } = this.buildUpdateClauses(data);
 
-    if (fields.length === 0) return this.findById(id);
+    if (fields.length === 0) return this.findById(id, client);
 
     values.push(id);
-    const result = await this.db.query(
+    const result = await conn.query(
       `UPDATE drafts SET ${fields.join(', ')} WHERE id = $${values.length} RETURNING *`,
       values
     );
@@ -366,6 +368,57 @@ export class DraftRepository {
     }
   }
 
+  /**
+   * Same as completeAndUpdateLeague but uses a provided client (no new transaction).
+   * Caller is responsible for BEGIN/COMMIT/ROLLBACK.
+   */
+  async completeAndUpdateLeagueInTx(client: PoolClient, draftId: string, leagueId: string): Promise<Draft | null> {
+    const result = await client.query(
+      `UPDATE drafts SET status = 'complete'
+       WHERE id = $1 AND status = 'drafting'
+         AND (SELECT COUNT(*) FROM draft_picks
+              WHERE draft_id = $1
+                AND player_id IS NULL
+                AND (metadata->>'forfeited' IS DISTINCT FROM 'true')) = 0
+       RETURNING *`,
+      [draftId],
+    );
+    if (result.rows.length === 0) {
+      return null;
+    }
+    await client.query(`UPDATE leagues SET status = 'in_season' WHERE id = $1`, [leagueId]);
+    await client.query(
+      `UPDATE rosters r
+       SET players = r.players || sub.new_players
+       FROM (
+         SELECT dp.roster_id, array_agg(dp.player_id ORDER BY dp.pick_no) AS new_players
+         FROM draft_picks dp
+         WHERE dp.draft_id = $1
+           AND dp.player_id IS NOT NULL
+         GROUP BY dp.roster_id
+       ) sub
+       WHERE r.league_id = $2
+         AND r.roster_id = sub.roster_id`,
+      [draftId, leagueId],
+    );
+    return Draft.fromDatabase(result.rows[0]);
+  }
+
+  async withTransaction<T>(fn: (client: PoolClient) => Promise<T>): Promise<T> {
+    const client: PoolClient = await this.db.connect();
+    try {
+      await client.query('BEGIN');
+      const result = await fn(client);
+      await client.query('COMMIT');
+      return result;
+    } catch (e) {
+      await client.query('ROLLBACK');
+      throw e;
+    } finally {
+      client.release();
+    }
+  }
+
   async findBestAvailable(draftId: string): Promise<Player | null> {
     const result = await this.db.query(
       `SELECT p.* FROM players p
@@ -460,8 +513,10 @@ export class DraftRepository {
     rosterId: number,
     amount: number,
     metadata: object,
+    client?: PoolClient,
   ): Promise<DraftPick | null> {
-    const result = await this.db.query(
+    const conn = client ?? this.db;
+    const result = await conn.query(
       `WITH updated AS (
          UPDATE draft_picks
          SET player_id = $1, picked_by = $2, roster_id = $3, amount = $4, metadata = $5
@@ -507,10 +562,12 @@ export class DraftRepository {
     draftId: string,
     rosterId: number,
     amount: number,
+    client?: PoolClient,
   ): Promise<Draft | null> {
+    const conn = client ?? this.db;
     // The WHERE clause makes check-and-deduct atomic: returns null if budget is insufficient,
     // preventing concurrent bids from overdrafting.
-    const result = await this.db.query(
+    const result = await conn.query(
       `UPDATE drafts
        SET metadata = jsonb_set(
          metadata,
@@ -532,8 +589,9 @@ export class DraftRepository {
     return result.rows.map(Draft.fromDatabase);
   }
 
-  async countPicksWonByRoster(draftId: string, rosterId: number): Promise<number> {
-    const result = await this.db.query(
+  async countPicksWonByRoster(draftId: string, rosterId: number, client?: PoolClient): Promise<number> {
+    const conn = client ?? this.db;
+    const result = await conn.query(
       `SELECT COUNT(*) as cnt FROM draft_picks
        WHERE draft_id = $1 AND roster_id = $2 AND player_id IS NOT NULL`,
       [draftId, rosterId]
@@ -676,10 +734,12 @@ export class DraftRepository {
   async countPicksWonByRosters(
     draftId: string,
     rosterIds: number[],
+    client?: PoolClient,
   ): Promise<Map<number, number>> {
     if (rosterIds.length === 0) return new Map();
+    const conn = client ?? this.db;
     const placeholders = rosterIds.map((_, i) => `$${i + 2}`).join(', ');
-    const result = await this.db.query(
+    const result = await conn.query(
       `SELECT roster_id, COUNT(*) as cnt FROM draft_picks
        WHERE draft_id = $1 AND roster_id IN (${placeholders}) AND player_id IS NOT NULL
        GROUP BY roster_id`,

@@ -32,8 +32,9 @@ export class LeagueRepository {
     return League.fromDatabase(result.rows[0]);
   }
 
-  async findById(id: string): Promise<League | null> {
-    const result = await this.db.query('SELECT * FROM leagues WHERE id = $1', [id]);
+  async findById(id: string, client?: PoolClient): Promise<League | null> {
+    const conn = client ?? this.db;
+    const result = await conn.query('SELECT * FROM leagues WHERE id = $1', [id]);
     return result.rows.length > 0 ? League.fromDatabase(result.rows[0]) : null;
   }
 
@@ -353,8 +354,9 @@ export class LeagueRepository {
     return result.rows.map(Roster.fromDatabase);
   }
 
-  async findRostersByLeagueId(leagueId: string): Promise<Roster[]> {
-    const result = await this.db.query(
+  async findRostersByLeagueId(leagueId: string, client?: PoolClient): Promise<Roster[]> {
+    const conn = client ?? this.db;
+    const result = await conn.query(
       `SELECT * FROM rosters WHERE league_id = $1 ORDER BY roster_id ASC`,
       [leagueId]
     );
@@ -382,8 +384,9 @@ export class LeagueRepository {
     return result.rows.length > 0 ? Roster.fromDatabase(result.rows[0]) : null;
   }
 
-  async findRosterByOwner(leagueId: string, ownerId: string): Promise<Roster | null> {
-    const result = await this.db.query(
+  async findRosterByOwner(leagueId: string, ownerId: string, client?: PoolClient): Promise<Roster | null> {
+    const conn = client ?? this.db;
+    const result = await conn.query(
       `SELECT * FROM rosters WHERE league_id = $1 AND owner_id = $2`,
       [leagueId, ownerId]
     );

@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { TradeController } from './trades.controller';
 import { authMiddleware } from '../../middleware/auth.middleware';
-import { strictLimiter } from '../../middleware/rate-limit.middleware';
+import { strictLimiter, userMutationLimiter } from '../../middleware/rate-limit.middleware';
 import { asyncHandler } from '../../shared/async-handler';
 import { validate } from '../../shared/validate';
 import { proposeTradeSchema, counterTradeSchema, tradeListQuerySchema } from './trades.schemas';
@@ -13,6 +13,7 @@ import { proposeTradeSchema, counterTradeSchema, tradeListQuerySchema } from './
 export function createLeagueTradeRoutes(controller: TradeController): Router {
   const router = Router();
   router.use(authMiddleware);
+  router.use(userMutationLimiter);
 
   router.post('/:leagueId/trades', strictLimiter, validate(proposeTradeSchema), asyncHandler(controller.propose));
   router.get('/:leagueId/trades', validate(tradeListQuerySchema, 'query'), asyncHandler(controller.list));
@@ -29,6 +30,7 @@ export function createLeagueTradeRoutes(controller: TradeController): Router {
 export function createTradeRoutes(controller: TradeController): Router {
   const router = Router();
   router.use(authMiddleware);
+  router.use(userMutationLimiter);
 
   router.get('/:tradeId', asyncHandler(controller.getById));
   router.post('/:tradeId/accept', strictLimiter, asyncHandler(controller.accept));

@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { LeagueController } from './leagues.controller';
 import { authMiddleware } from '../../middleware/auth.middleware';
+import { userMutationLimiter } from '../../middleware/rate-limit.middleware';
 import { asyncHandler } from '../../shared/async-handler';
 import { validate } from '../../shared/validate';
 import { updateLeagueSchema, createInviteSchema } from './leagues.schemas';
@@ -17,6 +18,7 @@ export function createLeagueRoutes(controller: LeagueController): Router {
 
   // Apply auth middleware to all routes below this point
   router.use(authMiddleware);
+  router.use(userMutationLimiter);
 
   // League CRUD
   router.post('/', asyncHandler(controller.create));

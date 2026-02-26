@@ -262,12 +262,13 @@ export class TransactionService {
   }
 
   async processLeagueWaivers(leagueId: string): Promise<void> {
-    const league = await this.leagueRepo.findById(leagueId);
-    if (!league) return;
-
     await this.txRepo.withTransaction(async (client) => {
       // Advisory lock to prevent concurrent processing
       await client.query(`SELECT pg_advisory_xact_lock(hashtext($1))`, [leagueId]);
+
+      // Read league state within the transaction
+      const league = await this.leagueRepo.findById(leagueId, client);
+      if (!league) return;
 
       const claims = await this.txRepo.findPendingClaimsByLeague(client, leagueId);
       if (claims.length === 0) return;
@@ -293,8 +294,8 @@ export class TransactionService {
             continue;
           }
 
-          // Validate roster still has room or has drop player
-          const roster = await this.leagueRepo.findRosterByOwner(leagueId, claim.userId);
+          // Validate roster still has room or has drop player (read within tx)
+          const roster = await this.leagueRepo.findRosterByOwner(leagueId, claim.userId, client);
           if (!roster) {
             await this.txRepo.updateClaimStatus(client, claim.id, 'invalid');
             continue;
@@ -309,8 +310,13 @@ export class TransactionService {
             }
           }
 
-          // Execute the claim
-          await this.txRepo.addPlayerToRoster(client, leagueId, claim.userId, playerId);
+          // Execute the claim (safe against duplicates)
+          const added = await this.txRepo.addPlayerToRoster(client, leagueId, claim.userId, playerId);
+          if (!added) {
+            // Player already on this roster — treat as invalid
+            await this.txRepo.updateClaimStatus(client, claim.id, 'invalid');
+            continue;
+          }
 
           if (claim.dropPlayerId) {
             await this.txRepo.removePlayerFromRoster(client, leagueId, claim.userId, claim.dropPlayerId);

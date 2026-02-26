@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { LeagueController } from './leagues.controller';
 import { authMiddleware } from '../../middleware/auth.middleware';
+import { userMutationLimiter } from '../../middleware/rate-limit.middleware';
 import { asyncHandler } from '../../shared/async-handler';
 
 /**
@@ -12,6 +13,7 @@ export function createInviteRoutes(controller: LeagueController): Router {
 
   // All invite routes require authentication
   router.use(authMiddleware);
+  router.use(userMutationLimiter);
 
   // Get current user's pending invites
   router.get('/pending', asyncHandler(controller.getMyInvites));

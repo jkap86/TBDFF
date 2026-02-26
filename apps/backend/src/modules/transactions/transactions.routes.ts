@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { TransactionController } from './transactions.controller';
 import { authMiddleware } from '../../middleware/auth.middleware';
-import { strictLimiter } from '../../middleware/rate-limit.middleware';
+import { strictLimiter, userMutationLimiter } from '../../middleware/rate-limit.middleware';
 import { asyncHandler } from '../../shared/async-handler';
 import { validate } from '../../shared/validate';
 import {
@@ -19,6 +19,7 @@ import {
 export function createLeagueTransactionRoutes(controller: TransactionController): Router {
   const router = Router();
   router.use(authMiddleware);
+  router.use(userMutationLimiter);
 
   // Activity feed
   router.get('/:leagueId/transactions', validate(transactionListQuerySchema, 'query'), asyncHandler(controller.list));

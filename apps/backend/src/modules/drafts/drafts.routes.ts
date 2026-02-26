@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { DraftController } from './drafts.controller';
 import { authMiddleware } from '../../middleware/auth.middleware';
-import { strictLimiter } from '../../middleware/rate-limit.middleware';
+import { strictLimiter, userMutationLimiter } from '../../middleware/rate-limit.middleware';
 import { asyncHandler } from '../../shared/async-handler';
 import { validate } from '../../shared/validate';
 import {
@@ -25,6 +25,7 @@ export function createDraftLeagueRoutes(controller: DraftController): Router {
   const router = Router();
 
   router.use(authMiddleware);
+  router.use(userMutationLimiter);
 
   // Create a draft for a league
   router.post('/:leagueId/drafts', validate(createDraftSchema), asyncHandler(controller.create));
@@ -43,6 +44,7 @@ export function createDraftRoutes(controller: DraftController): Router {
   const router = Router();
 
   router.use(authMiddleware);
+  router.use(userMutationLimiter);
 
   // Get a single draft
   router.get('/:draftId', asyncHandler(controller.getById));

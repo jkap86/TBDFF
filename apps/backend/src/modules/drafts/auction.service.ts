@@ -168,6 +168,7 @@ export class AuctionService {
     userId: string,
     amount: number,
   ): Promise<{ draft: Draft; won?: DraftPick }> {
+    // Light pre-checks outside transaction
     const draft = await this.draftRepository.findById(draftId);
     if (!draft) throw new NotFoundException('Draft not found');
     if (draft.status !== 'drafting') throw new ValidationException('Draft is not active');
@@ -176,47 +177,66 @@ export class AuctionService {
     const member = await this.leagueRepository.findMember(draft.leagueId, userId);
     if (!member) throw new ForbiddenException('Not a member');
 
-    const nomination = draft.metadata?.current_nomination;
-    if (!nomination) throw new ValidationException('No active nomination');
-
-    const deadline = new Date(nomination.bid_deadline).getTime();
-    if (Date.now() > deadline) {
-      return this.resolveNomination(draftId, userId);
+    // If deadline already passed, delegate to resolve instead of bidding
+    const preNomination = draft.metadata?.current_nomination;
+    if (preNomination) {
+      const deadline = new Date(preNomination.bid_deadline).getTime();
+      if (Date.now() > deadline) {
+        return this.resolveNomination(draftId, userId);
+      }
     }
 
-    if (amount <= nomination.current_bid) {
-      throw new ValidationException(`Bid must be greater than $${nomination.current_bid}`);
-    }
+    // All bid logic under advisory lock to prevent concurrent clobber
+    const updated = await this.draftRepository.withTransaction(async (client) => {
+      await client.query('SELECT pg_advisory_xact_lock(hashtext($1))', [draftId]);
 
-    if (userId === nomination.current_bidder) {
-      throw new ValidationException('You already have the highest bid');
-    }
+      const freshDraft = await this.draftRepository.findById(draftId, client);
+      if (!freshDraft || freshDraft.status !== 'drafting') {
+        throw new ValidationException('Draft is no longer active');
+      }
 
-    const bidderRosterId = findRosterIdByUserId(draft, userId);
-    if (bidderRosterId === null) throw new ForbiddenException('No roster found');
+      const nomination = freshDraft.metadata?.current_nomination;
+      if (!nomination) throw new ValidationException('No active nomination');
 
-    await this.validateBudget(draft, bidderRosterId, amount);
+      const dl = new Date(nomination.bid_deadline).getTime();
+      if (Date.now() > dl) {
+        throw new ValidationException('Bid deadline has expired');
+      }
 
-    const newDeadline = new Date(Date.now() + draft.settings.nomination_timer * 1000).toISOString();
+      if (amount <= nomination.current_bid) {
+        throw new ValidationException(`Bid must be greater than $${nomination.current_bid}`);
+      }
 
-    const updatedNomination = {
-      ...nomination,
-      current_bid: amount,
-      current_bidder: userId,
-      bidder_roster_id: bidderRosterId,
-      bid_deadline: newDeadline,
-      bid_history: [
-        ...nomination.bid_history,
-        { user_id: userId, amount, timestamp: new Date().toISOString() },
-      ],
-    };
+      if (userId === nomination.current_bidder) {
+        throw new ValidationException('You already have the highest bid');
+      }
 
-    const updated = await this.draftRepository.update(draftId, {
-      metadata: {
-        ...draft.metadata,
-        current_nomination: updatedNomination,
-      },
-      lastPicked: new Date().toISOString(),
+      const bidderRosterId = findRosterIdByUserId(freshDraft, userId);
+      if (bidderRosterId === null) throw new ForbiddenException('No roster found');
+
+      await this.validateBudget(freshDraft, bidderRosterId, amount, client);
+
+      const newDeadline = new Date(Date.now() + freshDraft.settings.nomination_timer * 1000).toISOString();
+
+      const updatedNomination = {
+        ...nomination,
+        current_bid: amount,
+        current_bidder: userId,
+        bidder_roster_id: bidderRosterId,
+        bid_deadline: newDeadline,
+        bid_history: [
+          ...nomination.bid_history,
+          { user_id: userId, amount, timestamp: new Date().toISOString() },
+        ],
+      };
+
+      return this.draftRepository.update(draftId, {
+        metadata: {
+          ...freshDraft.metadata,
+          current_nomination: updatedNomination,
+        },
+        lastPicked: new Date().toISOString(),
+      }, client);
     });
 
     if (!updated) throw new NotFoundException('Draft not found');
@@ -230,113 +250,138 @@ export class AuctionService {
     draftId: string,
     userId: string,
   ): Promise<{ draft: Draft; won?: DraftPick }> {
+    // Pre-checks outside transaction
     const draft = await this.draftRepository.findById(draftId);
     if (!draft) throw new NotFoundException('Draft not found');
 
     const member = await this.leagueRepository.findMember(draft.leagueId, userId);
     if (!member) throw new ForbiddenException('Not a member of this league');
 
-    let nomination = draft.metadata?.current_nomination;
-    if (!nomination) throw new ValidationException('No active nomination');
+    // Entire resolution under advisory lock in a single transaction
+    const { resultDraft, pick } = await this.draftRepository.withTransaction(async (client) => {
+      await client.query('SELECT pg_advisory_xact_lock(hashtext($1))', [draftId]);
 
-    // Guard: do not resolve if the bid deadline has not expired yet
-    if (nomination.bid_deadline) {
-      const deadline = new Date(nomination.bid_deadline).getTime();
-      if (Date.now() < deadline) {
-        throw new ValidationException('Bid deadline has not expired yet');
+      const freshDraft = await this.draftRepository.findById(draftId, client);
+      if (!freshDraft) throw new NotFoundException('Draft not found');
+
+      let nomination = freshDraft.metadata?.current_nomination;
+      if (!nomination) {
+        // Already resolved — idempotent return
+        return { resultDraft: freshDraft, pick: undefined };
       }
-    }
 
-    // Defensive: if winner's roster is full, find an eligible fallback team
-    const winnerPicksWon = await this.draftRepository.countPicksWonByRoster(
-      draftId,
-      nomination.bidder_roster_id,
-    );
-    if (winnerPicksWon >= getMaxPlayersPerTeam(draft)) {
-      const fallback = await this.findEligibleInitialBidder(draft, null);
-      if (fallback) {
-        nomination = {
-          ...nomination,
-          current_bidder: fallback.userId,
-          bidder_roster_id: fallback.rosterId,
-        };
+      // Guard: do not resolve if the bid deadline has not expired yet
+      if (nomination.bid_deadline) {
+        const deadline = new Date(nomination.bid_deadline).getTime();
+        if (Date.now() < deadline) {
+          throw new ValidationException('Bid deadline has not expired yet');
+        }
       }
-    }
 
-    const pickMetadata = {
-      ...nomination.player_metadata,
-      bid_history: nomination.bid_history,
-      nominated_by: nomination.nominated_by,
-    };
-
-    const pick = await this.draftRepository.makeAuctionPick(
-      nomination.pick_id,
-      nomination.player_id,
-      nomination.current_bidder,
-      nomination.bidder_roster_id,
-      nomination.current_bid,
-      pickMetadata,
-    );
-
-    if (!pick) {
-      // Another client already resolved this nomination — return current state
-      const currentDraft = await this.draftRepository.findById(draftId);
-      return { draft: currentDraft! };
-    }
-
-    const afterDeduct = await this.draftRepository.deductBudget(
-      draftId,
-      nomination.bidder_roster_id,
-      nomination.current_bid,
-    );
-    if (!afterDeduct) {
-      console.error(
-        `[AuctionService] deductBudget returned null for draft ${draftId} roster ${nomination.bidder_roster_id} amount ${nomination.current_bid} — possible concurrent bid race`,
+      // Defensive: if winner's roster is full, find an eligible fallback team
+      const winnerPicksWon = await this.draftRepository.countPicksWonByRoster(
+        draftId,
+        nomination.bidder_roster_id,
+        client,
       );
-    }
+      if (winnerPicksWon >= getMaxPlayersPerTeam(freshDraft)) {
+        const fallback = await this.findEligibleInitialBidder(freshDraft, null, client);
+        if (fallback) {
+          nomination = {
+            ...nomination,
+            current_bidder: fallback.userId,
+            bidder_roster_id: fallback.rosterId,
+          };
+        }
+      }
 
-    const completed = await this.draftRepository.completeAndUpdateLeague(draftId, draft.leagueId);
-    if (completed) {
-      this.cancelScheduledAutoBids(draftId);
-      const refreshedDraft = await this.draftRepository.findById(draftId);
-      // Clear nomination state on completion
+      const pickMetadata = {
+        ...nomination.player_metadata,
+        bid_history: nomination.bid_history,
+        nominated_by: nomination.nominated_by,
+      };
+
+      // Atomic pick: WHERE player_id IS NULL prevents double-resolve
+      const resolvedPick = await this.draftRepository.makeAuctionPick(
+        nomination.pick_id,
+        nomination.player_id,
+        nomination.current_bidder,
+        nomination.bidder_roster_id,
+        nomination.current_bid,
+        pickMetadata,
+        client,
+      );
+
+      if (!resolvedPick) {
+        // Another call already resolved this nomination — return current state
+        return { resultDraft: freshDraft, pick: undefined };
+      }
+
+      // Deduct budget within the same transaction
+      const afterDeduct = await this.draftRepository.deductBudget(
+        draftId,
+        nomination.bidder_roster_id,
+        nomination.current_bid,
+        client,
+      );
+      if (!afterDeduct) {
+        throw new ValidationException(
+          `Budget deduction failed for roster ${nomination.bidder_roster_id} amount $${nomination.current_bid}`,
+        );
+      }
+
+      // Check if draft is complete (all picks made)
+      const completed = await this.draftRepository.completeAndUpdateLeagueInTx(
+        client,
+        draftId,
+        freshDraft.leagueId,
+      );
+      if (completed) {
+        // Clear nomination state on completion
+        await this.draftRepository.update(draftId, {
+          metadata: {
+            ...completed.metadata,
+            current_nomination: null,
+            nomination_deadline: null,
+          },
+        }, client);
+        const finalDraft = await this.draftRepository.findById(draftId, client);
+        return { resultDraft: finalDraft!, pick: resolvedPick };
+      }
+
+      // Set up next nomination deadline
+      const nominationDeadline = new Date(
+        Date.now() + (freshDraft.settings.offering_timer || freshDraft.settings.nomination_timer) * 1000,
+      ).toISOString();
+
       await this.draftRepository.update(draftId, {
         metadata: {
-          ...refreshedDraft!.metadata,
+          ...afterDeduct.metadata,
           current_nomination: null,
-          nomination_deadline: null,
+          nomination_deadline: nominationDeadline,
         },
-      });
-      const finalDraft = await this.draftRepository.findById(draftId);
-      if (finalDraft) {
-        this.draftGateway?.broadcast(draftId, 'draft:state_updated', { draft: finalDraft, pick });
-      }
-      return { draft: finalDraft!, won: pick };
-    }
+        lastPicked: new Date().toISOString(),
+      }, client);
 
-    // Set up next nomination
-    const refreshedDraft = await this.draftRepository.findById(draftId);
-    const nominationDeadline = new Date(
-      Date.now() + (draft.settings.offering_timer || draft.settings.nomination_timer) * 1000,
-    ).toISOString();
-
-    await this.draftRepository.update(draftId, {
-      metadata: {
-        ...refreshedDraft!.metadata,
-        current_nomination: null,
-        nomination_deadline: nominationDeadline,
-      },
-      lastPicked: new Date().toISOString(),
+      const finalDraft = await this.draftRepository.findById(draftId, client);
+      return { resultDraft: finalDraft!, pick: resolvedPick };
     });
 
-    // Check if next nominator is on auto-pick
-    await this.processAutoNomination(draftId);
-
-    const finalDraft = await this.draftRepository.findById(draftId);
-    if (finalDraft) {
-      this.draftGateway?.broadcast(draftId, 'draft:state_updated', { draft: finalDraft, pick });
+    // Post-transaction side effects (broadcasts, scheduling)
+    if (resultDraft.status === 'complete') {
+      this.cancelScheduledAutoBids(draftId);
     }
-    return { draft: finalDraft!, won: pick };
+
+    if (pick) {
+      this.draftGateway?.broadcast(draftId, 'draft:state_updated', { draft: resultDraft, pick });
+
+      // Check if next nominator is on auto-pick (only if draft is still active)
+      if (resultDraft.status === 'drafting') {
+        await this.processAutoNomination(draftId);
+      }
+    }
+
+    return { draft: resultDraft, won: pick };
   }
 
   async autoNominate(draftId: string, userId: string): Promise<Draft> {
@@ -527,11 +572,16 @@ export class AuctionService {
     }
   }
 
-  private async validateBudget(draft: Draft, rosterId: number, bidAmount: number): Promise<void> {
+  private async validateBudget(
+    draft: Draft,
+    rosterId: number,
+    bidAmount: number,
+    client?: import('pg').PoolClient,
+  ): Promise<void> {
     const budgets: Record<string, number> = draft.metadata?.auction_budgets ?? {};
     const currentBudget = budgets[String(rosterId)] ?? 0;
 
-    const picksWon = await this.draftRepository.countPicksWonByRoster(draft.id, rosterId);
+    const picksWon = await this.draftRepository.countPicksWonByRoster(draft.id, rosterId, client);
     const totalSlots = getMaxPlayersPerTeam(draft);
     const remainingSlots = totalSlots - picksWon;
 
@@ -557,10 +607,11 @@ export class AuctionService {
   private async findEligibleInitialBidder(
     draft: Draft,
     excludeUserId: string | null,
+    client?: import('pg').PoolClient,
   ): Promise<{ userId: string; rosterId: number } | null> {
     const budgets: Record<string, number> = draft.metadata?.auction_budgets ?? {};
     const allRosterIds = Object.values(draft.slotToRosterId);
-    const picksWonMap = await this.draftRepository.countPicksWonByRosters(draft.id, allRosterIds);
+    const picksWonMap = await this.draftRepository.countPicksWonByRosters(draft.id, allRosterIds, client);
     const maxPlayers = getMaxPlayersPerTeam(draft);
 
     for (const [slotStr, rosterId] of Object.entries(draft.slotToRosterId)) {
@@ -590,6 +641,7 @@ export class AuctionService {
       clearTimeout(timeout);
       this.pendingAutoBidTimeouts.delete(draftId);
     }
+    this.autoBidLocks.delete(draftId);
   }
 
   /**

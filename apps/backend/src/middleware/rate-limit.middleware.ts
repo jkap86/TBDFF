@@ -2,16 +2,36 @@ import rateLimit, { ipKeyGenerator } from 'express-rate-limit';
 import { AuthRequest } from './auth.middleware';
 
 /**
- * General rate limiter for mutation endpoints (POST/PUT/PATCH/DELETE).
- * Applied globally before auth, so keyed by IP address.
+ * Coarse IP-keyed rate limiter for mutation endpoints (POST/PUT/PATCH/DELETE).
+ * Applied globally on /api before auth runs.
  * 60 requests per minute per IP.
  */
-export const mutationLimiter = rateLimit({
+export const ipMutationLimiter = rateLimit({
   windowMs: 60 * 1000,
   max: 60,
   standardHeaders: true,
   legacyHeaders: false,
   keyGenerator: (req) => ipKeyGenerator(req.ip ?? ''),
+  skip: (req) => req.method === 'GET' || req.method === 'HEAD' || req.method === 'OPTIONS',
+  message: {
+    error: { code: 'RATE_LIMITED', message: 'Too many requests, please slow down' },
+  },
+});
+
+/**
+ * User-keyed rate limiter for authenticated mutation endpoints.
+ * Applied after authMiddleware on protected routes.
+ * 60 requests per minute per user (falls back to IP if user is missing).
+ */
+export const userMutationLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 60,
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req) => {
+    const authReq = req as AuthRequest;
+    return `user:${authReq.user?.userId ?? ipKeyGenerator(req.ip ?? '')}`;
+  },
   skip: (req) => req.method === 'GET' || req.method === 'HEAD' || req.method === 'OPTIONS',
   message: {
     error: { code: 'RATE_LIMITED', message: 'Too many requests, please slow down' },

@@ -246,11 +246,16 @@ export class TransactionRepository {
 
   // ---- Roster helpers ----
 
-  async addPlayerToRoster(client: PoolClient, leagueId: string, ownerId: string, playerId: string): Promise<void> {
-    await client.query(
-      'UPDATE rosters SET players = array_append(players, $1) WHERE league_id = $2 AND owner_id = $3',
+  async addPlayerToRoster(client: PoolClient, leagueId: string, ownerId: string, playerId: string): Promise<boolean> {
+    // Only appends if the player is not already on the roster; returns false if duplicate
+    const result = await client.query(
+      `UPDATE rosters
+       SET players = array_append(players, $1)
+       WHERE league_id = $2 AND owner_id = $3
+         AND NOT ($1 = ANY(players))`,
       [playerId, leagueId, ownerId],
     );
+    return (result.rowCount ?? 0) > 0;
   }
 
   async removePlayerFromRoster(client: PoolClient, leagueId: string, ownerId: string, playerId: string): Promise<void> {

@@ -25,6 +25,7 @@ interface SocketData {
 
 const RATE_LIMIT_WINDOW_MS = 10_000;
 const RATE_LIMIT_MAX = 10;
+const PRUNE_INTERVAL_MS = 5 * 60 * 1000; // Prune every 5 minutes
 const rateLimitMap = new Map<string, number[]>();
 
 function isRateLimited(userId: string): boolean {
@@ -36,6 +37,19 @@ function isRateLimited(userId: string): boolean {
   recent.push(now);
   return false;
 }
+
+// Periodically prune stale entries to prevent unbounded growth
+setInterval(() => {
+  const now = Date.now();
+  for (const [userId, timestamps] of rateLimitMap) {
+    const recent = timestamps.filter((t) => now - t < RATE_LIMIT_WINDOW_MS);
+    if (recent.length === 0) {
+      rateLimitMap.delete(userId);
+    } else {
+      rateLimitMap.set(userId, recent);
+    }
+  }
+}, PRUNE_INTERVAL_MS).unref();
 
 export function createChatGateway(
   httpServer: HttpServer,
