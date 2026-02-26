@@ -1,5 +1,11 @@
-import rateLimit from 'express-rate-limit';
+import rateLimit, { type Options } from 'express-rate-limit';
 import { AuthRequest } from './auth.middleware';
+
+/** Normalize IPv4-mapped IPv6 addresses (e.g. ::ffff:127.0.0.1 → 127.0.0.1) */
+function normalizeIp(ip: string | undefined): string {
+  if (!ip) return 'unknown';
+  return ip.startsWith('::ffff:') ? ip.slice(7) : ip;
+}
 
 /**
  * Coarse IP-keyed rate limiter for mutation endpoints (POST/PUT/PATCH/DELETE).
@@ -11,8 +17,9 @@ export const ipMutationLimiter = rateLimit({
   max: 60,
   standardHeaders: true,
   legacyHeaders: false,
-  keyGenerator: (req) => req.ip ?? 'unknown',
+  keyGenerator: (req) => normalizeIp(req.ip),
   skip: (req) => req.method === 'GET' || req.method === 'HEAD' || req.method === 'OPTIONS',
+  validate: { ipKeyGenerator: false } as Partial<Options['validate']>,
   message: {
     error: { code: 'RATE_LIMITED', message: 'Too many requests, please slow down' },
   },
@@ -30,9 +37,10 @@ export const userMutationLimiter = rateLimit({
   legacyHeaders: false,
   keyGenerator: (req) => {
     const authReq = req as AuthRequest;
-    return `user:${authReq.user?.userId ?? req.ip ?? 'unknown'}`;
+    return `user:${authReq.user?.userId ?? normalizeIp(req.ip)}`;
   },
   skip: (req) => req.method === 'GET' || req.method === 'HEAD' || req.method === 'OPTIONS',
+  validate: { ipKeyGenerator: false } as Partial<Options['validate']>,
   message: {
     error: { code: 'RATE_LIMITED', message: 'Too many requests, please slow down' },
   },
@@ -49,8 +57,9 @@ export const strictLimiter = rateLimit({
   legacyHeaders: false,
   keyGenerator: (req) => {
     const authReq = req as AuthRequest;
-    return `strict:${authReq.user?.userId ?? req.ip ?? 'unknown'}`;
+    return `strict:${authReq.user?.userId ?? normalizeIp(req.ip)}`;
   },
+  validate: { ipKeyGenerator: false } as Partial<Options['validate']>,
   message: {
     error: { code: 'RATE_LIMITED', message: 'Too many requests, please slow down' },
   },
