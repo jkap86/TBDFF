@@ -1,4 +1,4 @@
-import rateLimit from 'express-rate-limit';
+import rateLimit, { ipKeyGenerator } from 'express-rate-limit';
 import { AuthRequest } from './auth.middleware';
 
 /**
@@ -13,7 +13,7 @@ export const mutationLimiter = rateLimit({
   legacyHeaders: false,
   keyGenerator: (req) => {
     const authReq = req as AuthRequest;
-    return authReq.user?.userId ?? req.ip ?? 'unknown';
+    return authReq.user?.userId ?? ipKeyGenerator(req.ip ?? '');
   },
   skip: (req) => req.method === 'GET' || req.method === 'HEAD' || req.method === 'OPTIONS',
   message: {
@@ -32,7 +32,7 @@ export const strictLimiter = rateLimit({
   legacyHeaders: false,
   keyGenerator: (req) => {
     const authReq = req as AuthRequest;
-    return `strict:${authReq.user?.userId ?? req.ip ?? 'unknown'}`;
+    return `strict:${authReq.user?.userId ?? ipKeyGenerator(req.ip ?? '')}`;
   },
   message: {
     error: { code: 'RATE_LIMITED', message: 'Too many requests, please slow down' },
