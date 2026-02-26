@@ -219,7 +219,12 @@ export class TradeService {
           if (item.side === 'proposer') {
             // Proposer gives player -> remove from proposer, add to receiver
             await client.query(
-              'UPDATE rosters SET players = array_remove(players, $1) WHERE league_id = $2 AND owner_id = $3',
+              `UPDATE rosters SET
+                 players  = array_remove(players, $1),
+                 starters = array_remove(starters, $1),
+                 reserve  = array_remove(reserve, $1),
+                 taxi     = array_remove(taxi, $1)
+               WHERE league_id = $2 AND owner_id = $3`,
               [item.playerId, trade.leagueId, trade.proposedBy],
             );
             const addResult = await client.query(
@@ -234,7 +239,12 @@ export class TradeService {
           } else {
             // Receiver gives player -> remove from receiver, add to proposer
             await client.query(
-              'UPDATE rosters SET players = array_remove(players, $1) WHERE league_id = $2 AND owner_id = $3',
+              `UPDATE rosters SET
+                 players  = array_remove(players, $1),
+                 starters = array_remove(starters, $1),
+                 reserve  = array_remove(reserve, $1),
+                 taxi     = array_remove(taxi, $1)
+               WHERE league_id = $2 AND owner_id = $3`,
               [item.playerId, trade.leagueId, trade.proposedTo],
             );
             const addResult = await client.query(

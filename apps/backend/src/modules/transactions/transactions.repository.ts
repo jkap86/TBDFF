@@ -261,9 +261,10 @@ export class TransactionRepository {
   async removePlayerFromRoster(client: PoolClient, leagueId: string, ownerId: string, playerId: string): Promise<void> {
     await client.query(
       `UPDATE rosters SET
-         players = array_remove(players, $1),
+         players  = array_remove(players, $1),
          starters = array_remove(starters, $1),
-         reserve = array_remove(reserve, $1)
+         reserve  = array_remove(reserve, $1),
+         taxi     = array_remove(taxi, $1)
        WHERE league_id = $2 AND owner_id = $3`,
       [playerId, leagueId, ownerId],
     );
