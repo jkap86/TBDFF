@@ -477,20 +477,21 @@ export default function LeagueDetailPage() {
           </div>
         )}
 
-        {/* Roster Management Cards */}
-        {(league.status === 'in_season' || league.status === 'complete') && (
-          <div className="grid gap-4 sm:grid-cols-3">
-            <button
-              onClick={() => router.push(`/leagues/${leagueId}/trades`)}
-              className="rounded-lg bg-white dark:bg-gray-800 p-6 shadow hover:shadow-md transition-shadow text-left"
-            >
-              <div className="flex items-center gap-3 mb-2">
-                <ArrowLeftRight className="h-5 w-5 text-blue-600" />
-                <h3 className="text-lg font-bold text-gray-900 dark:text-white">Trades</h3>
-              </div>
-              <p className="text-sm text-gray-500 dark:text-gray-400">Propose and manage trades with other teams</p>
-            </button>
+        {/* Trades Card - always visible for draft pick trading */}
+        <button
+          onClick={() => router.push(`/leagues/${leagueId}/trades`)}
+          className="w-full rounded-lg bg-white dark:bg-gray-800 p-6 shadow hover:shadow-md transition-shadow text-left"
+        >
+          <div className="flex items-center gap-3 mb-2">
+            <ArrowLeftRight className="h-5 w-5 text-blue-600" />
+            <h3 className="text-lg font-bold text-gray-900 dark:text-white">Trades</h3>
+          </div>
+          <p className="text-sm text-gray-500 dark:text-gray-400">Trade draft picks and manage trades with other teams</p>
+        </button>
 
+        {/* Waivers & Activity Cards - only during/after season */}
+        {(league.status === 'in_season' || league.status === 'complete') && (
+          <div className="grid gap-4 sm:grid-cols-2">
             <button
               onClick={() => router.push(`/leagues/${leagueId}/waivers`)}
               className="rounded-lg bg-white dark:bg-gray-800 p-6 shadow hover:shadow-md transition-shadow text-left"

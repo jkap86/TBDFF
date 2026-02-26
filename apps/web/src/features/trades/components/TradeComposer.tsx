@@ -12,6 +12,7 @@ interface TradeComposerProps {
   currentUserId: string;
   playerMap: Record<string, Player>;
   futurePicks: FutureDraftPick[];
+  picksError?: string | null;
   onSubmit: (data: ProposeTradeRequest) => Promise<unknown>;
 }
 
@@ -30,7 +31,40 @@ function pickLabel(pick: FutureDraftPick, currentUserId: string): string {
   return base;
 }
 
-export function TradeComposer({ isOpen, onClose, members, rosters, currentUserId, playerMap, futurePicks, onSubmit }: TradeComposerProps) {
+function PicksSection({ picks, selectedPicks, onToggle, currentUserId, picksError }: {
+  picks: FutureDraftPick[];
+  selectedPicks: string[];
+  onToggle: (id: string) => void;
+  currentUserId: string;
+  picksError?: string | null;
+}) {
+  return (
+    <>
+      <h4 className="text-xs font-medium text-gray-500 dark:text-gray-400 mt-3 mb-1">Draft Picks</h4>
+      <div className="max-h-32 overflow-y-auto space-y-1 border border-gray-200 dark:border-gray-600 rounded p-2">
+        {picksError ? (
+          <p className="text-xs text-red-400">{picksError}</p>
+        ) : picks.length === 0 ? (
+          <p className="text-xs text-gray-400">No draft picks available</p>
+        ) : (
+          picks.map((pick) => (
+            <label key={pick.id} className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 p-1 rounded">
+              <input
+                type="checkbox"
+                checked={selectedPicks.includes(pick.id)}
+                onChange={() => onToggle(pick.id)}
+                className="rounded"
+              />
+              <span className="text-sm text-gray-700 dark:text-gray-300">{pickLabel(pick, currentUserId)}</span>
+            </label>
+          ))
+        )}
+      </div>
+    </>
+  );
+}
+
+export function TradeComposer({ isOpen, onClose, members, rosters, currentUserId, playerMap, futurePicks, picksError, onSubmit }: TradeComposerProps) {
   const [selectedPartner, setSelectedPartner] = useState('');
   const [message, setMessage] = useState('');
   const [myPlayers, setMyPlayers] = useState<string[]>([]);
@@ -146,76 +180,82 @@ export function TradeComposer({ isOpen, onClose, members, rosters, currentUserId
           <div className="grid grid-cols-2 gap-4 mb-4">
             <div>
               <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">You Give</h3>
-              <div className="max-h-48 overflow-y-auto space-y-1 border border-gray-200 dark:border-gray-600 rounded p-2">
-                {myRoster.players.map((pid) => (
-                  <label key={pid} className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 p-1 rounded">
-                    <input
-                      type="checkbox"
-                      checked={myPlayers.includes(pid)}
-                      onChange={() => togglePlayer(pid, myPlayers, setMyPlayers)}
-                      className="rounded"
-                    />
-                    <span className="text-sm text-gray-700 dark:text-gray-300">{playerLabel(pid, playerMap)}</span>
-                  </label>
-                ))}
-                {myRoster.players.length === 0 && (
-                  <p className="text-xs text-gray-400">No players on roster</p>
-                )}
-              </div>
-              {myFuturePicks.length > 0 && (
+              {myRoster.players.length === 0 ? (
                 <>
-                  <h4 className="text-xs font-medium text-gray-500 dark:text-gray-400 mt-3 mb-1">Draft Picks</h4>
-                  <div className="max-h-32 overflow-y-auto space-y-1 border border-gray-200 dark:border-gray-600 rounded p-2">
-                    {myFuturePicks.map((pick) => (
-                      <label key={pick.id} className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 p-1 rounded">
+                  <PicksSection
+                    picks={myFuturePicks}
+                    selectedPicks={myPicks}
+                    onToggle={(id) => togglePlayer(id, myPicks, setMyPicks)}
+                    currentUserId={currentUserId}
+                    picksError={picksError}
+                  />
+                  <div className="max-h-48 overflow-y-auto space-y-1 border border-gray-200 dark:border-gray-600 rounded p-2 mt-3">
+                    <p className="text-xs text-gray-400">No players on roster</p>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="max-h-48 overflow-y-auto space-y-1 border border-gray-200 dark:border-gray-600 rounded p-2">
+                    {myRoster.players.map((pid) => (
+                      <label key={pid} className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 p-1 rounded">
                         <input
                           type="checkbox"
-                          checked={myPicks.includes(pick.id)}
-                          onChange={() => togglePlayer(pick.id, myPicks, setMyPicks)}
+                          checked={myPlayers.includes(pid)}
+                          onChange={() => togglePlayer(pid, myPlayers, setMyPlayers)}
                           className="rounded"
                         />
-                        <span className="text-sm text-gray-700 dark:text-gray-300">{pickLabel(pick, currentUserId)}</span>
+                        <span className="text-sm text-gray-700 dark:text-gray-300">{playerLabel(pid, playerMap)}</span>
                       </label>
                     ))}
                   </div>
+                  <PicksSection
+                    picks={myFuturePicks}
+                    selectedPicks={myPicks}
+                    onToggle={(id) => togglePlayer(id, myPicks, setMyPicks)}
+                    currentUserId={currentUserId}
+                    picksError={picksError}
+                  />
                 </>
               )}
             </div>
 
             <div>
               <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">You Receive</h3>
-              <div className="max-h-48 overflow-y-auto space-y-1 border border-gray-200 dark:border-gray-600 rounded p-2">
-                {partnerRoster.players.map((pid) => (
-                  <label key={pid} className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 p-1 rounded">
-                    <input
-                      type="checkbox"
-                      checked={theirPlayers.includes(pid)}
-                      onChange={() => togglePlayer(pid, theirPlayers, setTheirPlayers)}
-                      className="rounded"
-                    />
-                    <span className="text-sm text-gray-700 dark:text-gray-300">{playerLabel(pid, playerMap)}</span>
-                  </label>
-                ))}
-                {partnerRoster.players.length === 0 && (
-                  <p className="text-xs text-gray-400">No players on roster</p>
-                )}
-              </div>
-              {theirFuturePicks.length > 0 && (
+              {partnerRoster.players.length === 0 ? (
                 <>
-                  <h4 className="text-xs font-medium text-gray-500 dark:text-gray-400 mt-3 mb-1">Draft Picks</h4>
-                  <div className="max-h-32 overflow-y-auto space-y-1 border border-gray-200 dark:border-gray-600 rounded p-2">
-                    {theirFuturePicks.map((pick) => (
-                      <label key={pick.id} className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 p-1 rounded">
+                  <PicksSection
+                    picks={theirFuturePicks}
+                    selectedPicks={theirPicks}
+                    onToggle={(id) => togglePlayer(id, theirPicks, setTheirPicks)}
+                    currentUserId={currentUserId}
+                    picksError={picksError}
+                  />
+                  <div className="max-h-48 overflow-y-auto space-y-1 border border-gray-200 dark:border-gray-600 rounded p-2 mt-3">
+                    <p className="text-xs text-gray-400">No players on roster</p>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="max-h-48 overflow-y-auto space-y-1 border border-gray-200 dark:border-gray-600 rounded p-2">
+                    {partnerRoster.players.map((pid) => (
+                      <label key={pid} className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 p-1 rounded">
                         <input
                           type="checkbox"
-                          checked={theirPicks.includes(pick.id)}
-                          onChange={() => togglePlayer(pick.id, theirPicks, setTheirPicks)}
+                          checked={theirPlayers.includes(pid)}
+                          onChange={() => togglePlayer(pid, theirPlayers, setTheirPlayers)}
                           className="rounded"
                         />
-                        <span className="text-sm text-gray-700 dark:text-gray-300">{pickLabel(pick, currentUserId)}</span>
+                        <span className="text-sm text-gray-700 dark:text-gray-300">{playerLabel(pid, playerMap)}</span>
                       </label>
                     ))}
                   </div>
+                  <PicksSection
+                    picks={theirFuturePicks}
+                    selectedPicks={theirPicks}
+                    onToggle={(id) => togglePlayer(id, theirPicks, setTheirPicks)}
+                    currentUserId={currentUserId}
+                    picksError={picksError}
+                  />
                 </>
               )}
             </div>

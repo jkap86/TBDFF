@@ -19,9 +19,13 @@ import {
   leagueSettingsFullSchema,
   scoringSettingsFullSchema,
 } from './leagues.schemas';
+import { DraftRepository } from '../drafts/drafts.repository';
 
 export class LeagueService {
-  constructor(private readonly leagueRepository: LeagueRepository) {}
+  constructor(
+    private readonly leagueRepository: LeagueRepository,
+    private readonly draftRepository: DraftRepository,
+  ) {}
 
   async createLeague(
     userId: string,
@@ -481,7 +485,23 @@ export class LeagueService {
     }
 
     // 4. Assign roster owner and promote to member (transactional)
-    return this.leagueRepository.assignRosterOwnerTransaction(leagueId, rosterId, targetUserId);
+    const result = await this.leagueRepository.assignRosterOwnerTransaction(leagueId, rosterId, targetUserId);
+
+    // 5. Seed future draft picks if an active draft exists
+    const activeDraft = await this.draftRepository.findActiveDraftByLeagueId(leagueId);
+    if (activeDraft) {
+      const league = await this.leagueRepository.findById(leagueId);
+      if (league) {
+        await this.draftRepository.createFutureDraftPicks(
+          leagueId,
+          league.season,
+          activeDraft.settings.rounds,
+          [{ rosterId, ownerId: targetUserId }],
+        );
+      }
+    }
+
+    return result;
   }
 
   async unassignMemberFromRoster(

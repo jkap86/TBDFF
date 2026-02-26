@@ -11,6 +11,7 @@ export function useTrades(leagueId: string) {
   const [futurePicks, setFuturePicks] = useState<FutureDraftPick[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [picksError, setPicksError] = useState<string | null>(null);
 
   const fetchTrades = useCallback(async (status?: string) => {
     if (!accessToken) return;
@@ -29,10 +30,12 @@ export function useTrades(leagueId: string) {
   const fetchFuturePicks = useCallback(async () => {
     if (!accessToken) return;
     try {
+      setPicksError(null);
       const result = await tradeApi.getFuturePicks(leagueId, accessToken);
       setFuturePicks(result.picks);
-    } catch {
-      // Future picks are optional; don't block the page on failure
+    } catch (err) {
+      console.error('Failed to load future picks:', err);
+      setPicksError(err instanceof ApiError ? err.message : 'Failed to load draft picks');
     }
   }, [leagueId, accessToken]);
 
@@ -95,6 +98,7 @@ export function useTrades(leagueId: string) {
     futurePicks,
     isLoading,
     error,
+    picksError,
     fetchTrades,
     fetchFuturePicks,
     proposeTrade,

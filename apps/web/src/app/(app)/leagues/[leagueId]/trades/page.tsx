@@ -29,6 +29,7 @@ export default function TradesPage() {
     futurePicks,
     isLoading,
     error,
+    picksError,
     fetchTrades,
     proposeTrade,
     acceptTrade,
@@ -184,6 +185,7 @@ export default function TradesPage() {
         currentUserId={user?.id ?? ''}
         playerMap={playerMap}
         futurePicks={futurePicks}
+        picksError={picksError}
         onSubmit={proposeTrade}
       />
 

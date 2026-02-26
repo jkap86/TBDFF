@@ -83,7 +83,7 @@ export function createContainer() {
 
   // Services
   const authService = new AuthService(userRepository);
-  const leagueService = new LeagueService(leagueRepository);
+  const leagueService = new LeagueService(leagueRepository, draftRepository);
   const playerService = new PlayerService(playerRepository, sleeperPlayerProvider);
   const scoringService = new ScoringService(
     scoringRepository,
