@@ -399,167 +399,128 @@ export class AuctionService {
   }
 
   async autoNominate(draftId: string, userId: string): Promise<Draft> {
+    // Pre-checks outside transaction
     const draft = await this.draftRepository.findById(draftId);
     if (!draft) throw new NotFoundException('Draft not found');
     if (draft.type !== 'auction') throw new ValidationException('Not an auction draft');
     if (draft.status !== 'drafting') throw new ValidationException('Draft is not active');
 
-    if (draft.metadata?.current_nomination) {
-      throw new ValidationException('A nomination is already active');
-    }
-
     const member = await this.leagueRepository.findMember(draft.leagueId, userId);
     const isCommissioner = member?.role === 'commissioner';
 
-    if (!isCommissioner) {
-      const deadline = draft.metadata?.nomination_deadline;
-      if (deadline && Date.now() < new Date(deadline).getTime()) {
-        throw new ValidationException('Nomination timer has not expired');
+    // All mutation logic under advisory lock
+    const updated = await this.draftRepository.withTransaction(async (client) => {
+      await client.query('SELECT pg_advisory_xact_lock(hashtext($1))', [draftId]);
+
+      const freshDraft = await this.draftRepository.findById(draftId, client);
+      if (!freshDraft || freshDraft.status !== 'drafting') {
+        throw new ValidationException('Draft is no longer active');
       }
-    }
 
-    let nextPick = await this.draftRepository.findNextPick(draftId);
-    if (!nextPick) throw new ValidationException('All nominations complete');
+      if (freshDraft.metadata?.current_nomination) {
+        throw new ValidationException('A nomination is already active');
+      }
 
-    // Enable auto-pick for the timed-out nominator (the original slot owner who missed their turn)
-    const originalSlotOwner = findUserBySlot(draft.draftOrder, nextPick.draftSlot);
-    if (originalSlotOwner) {
-      await this.draftRepository.addAutoPickUser(draftId, originalSlotOwner);
-    }
-
-    // Forfeit nomination slots for full-roster teams until an eligible nominator is found
-    let nominatorRosterId = draft.slotToRosterId[String(nextPick.draftSlot)];
-    let nominatorPicksWon = await this.draftRepository.countPicksWonByRoster(
-      draftId,
-      nominatorRosterId,
-    );
-
-    while (nominatorPicksWon >= getMaxPlayersPerTeam(draft)) {
-      await this.draftRepository.forfeitPick(nextPick.id);
-
-      nextPick = await this.draftRepository.findNextPick(draftId);
-      if (!nextPick) {
-        // All remaining nomination slots forfeited — complete the draft
-        const completed = await this.draftRepository.completeAndUpdateLeague(
-          draftId,
-          draft.leagueId,
-        );
-        if (completed) {
-          this.cancelScheduledAutoBids(draftId);
-          const refreshedDraft = await this.draftRepository.findById(draftId);
-          await this.draftRepository.update(draftId, {
-            metadata: {
-              ...refreshedDraft!.metadata,
-              current_nomination: null,
-              nomination_deadline: null,
-            },
-          });
+      if (!isCommissioner) {
+        const deadline = freshDraft.metadata?.nomination_deadline;
+        if (deadline && Date.now() < new Date(deadline).getTime()) {
+          throw new ValidationException('Nomination timer has not expired');
         }
-        return (await this.draftRepository.findById(draftId))!;
       }
 
-      nominatorRosterId = draft.slotToRosterId[String(nextPick.draftSlot)];
-      nominatorPicksWon = await this.draftRepository.countPicksWonByRoster(
-        draftId,
-        nominatorRosterId,
-      );
-    }
+      let nextPick = await this.draftRepository.findNextPick(draftId, client);
+      if (!nextPick) throw new ValidationException('All nominations complete');
 
-    const slotOwner = findUserBySlot(draft.draftOrder, nextPick.draftSlot);
-
-    // Try the eligible nominator's queue first, fall back to best available
-    const queuedPlayer = slotOwner
-      ? await this.draftRepository.findFirstAvailableFromQueue(draftId, slotOwner)
-      : null;
-    const bestPlayer = queuedPlayer ?? (await this.draftRepository.findBestAvailable(draftId));
-    if (!bestPlayer) throw new ValidationException('No available players');
-
-    const bidDeadline = new Date(Date.now() + draft.settings.nomination_timer * 1000).toISOString();
-
-    const nomination: AuctionNomination = {
-      pick_id: nextPick.id,
-      player_id: bestPlayer.id,
-      nominated_by: slotOwner || userId,
-      current_bid: 1,
-      current_bidder: slotOwner || userId,
-      bidder_roster_id: nominatorRosterId,
-      bid_deadline: bidDeadline,
-      bid_history: [
-        {
-          user_id: slotOwner || userId,
-          amount: 1,
-          timestamp: new Date().toISOString(),
-        },
-      ],
-      player_metadata: {
-        first_name: bestPlayer.firstName,
-        last_name: bestPlayer.lastName,
-        full_name: bestPlayer.fullName,
-        position: bestPlayer.position,
-        team: bestPlayer.team,
-        auction_value: bestPlayer.auctionValue ?? null,
-      },
-    };
-
-    const refreshedDraft = await this.draftRepository.findById(draftId);
-    const updated = await this.draftRepository.update(draftId, {
-      metadata: {
-        ...refreshedDraft!.metadata,
-        current_nomination: nomination,
-        nomination_deadline: null,
-      },
-      lastPicked: new Date().toISOString(),
-    });
-
-    this.scheduleAutoBids(draftId);
-    this.draftGateway?.broadcast(draftId, 'draft:state_updated', { draft: updated! });
-    return updated!;
-  }
-
-  private async processAutoNomination(draftId: string): Promise<void> {
-    const draft = await this.draftRepository.findById(draftId);
-    if (!draft || draft.status !== 'drafting' || draft.type !== 'auction') return;
-    if (draft.metadata?.current_nomination) return;
-
-    const nextPick = await this.draftRepository.findNextPick(draftId);
-    if (!nextPick) return;
-
-    const autoPickUsers: string[] = draft.metadata?.auto_pick_users ?? [];
-    const slotOwner = findUserBySlot(draft.draftOrder, nextPick.draftSlot);
-
-    if (slotOwner && autoPickUsers.includes(slotOwner)) {
-      const queuedPlayer = await this.draftRepository.findFirstAvailableFromQueue(
-        draftId,
-        slotOwner,
-      );
-      const bestPlayer = queuedPlayer ?? (await this.draftRepository.findBestAvailable(draftId));
-      if (!bestPlayer) return;
-
-      const nominatorRosterId = draft.slotToRosterId[String(nextPick.draftSlot)];
-
-      // If nominator's roster is full, skip auto-nominate — the offering timer will
-      // expire and resolveNomination will advance to the next pick slot naturally.
-      const nominatorPicksWon = await this.draftRepository.countPicksWonByRoster(
-        draftId,
-        nominatorRosterId,
-      );
-      if (nominatorPicksWon >= getMaxPlayersPerTeam(draft)) {
-        return;
+      // Enable auto-pick for the timed-out nominator (the original slot owner who missed their turn)
+      const originalSlotOwner = findUserBySlot(freshDraft.draftOrder, nextPick.draftSlot);
+      if (originalSlotOwner) {
+        await this.draftRepository.addAutoPickUser(draftId, originalSlotOwner, client);
       }
 
-      const bidDeadline = new Date(
-        Date.now() + draft.settings.nomination_timer * 1000,
-      ).toISOString();
+      // Forfeit nomination slots for full-roster teams until an eligible nominator is found
+      let nominatorRosterId = freshDraft.slotToRosterId[String(nextPick.draftSlot)];
+      let nominatorPicksWon = await this.draftRepository.countPicksWonByRoster(
+        draftId, nominatorRosterId, client,
+      );
+
+      while (nominatorPicksWon >= getMaxPlayersPerTeam(freshDraft)) {
+        await this.draftRepository.forfeitPick(nextPick.id, client);
+
+        nextPick = await this.draftRepository.findNextPick(draftId, client);
+        if (!nextPick) {
+          // All remaining nomination slots forfeited — complete the draft
+          const completed = await this.draftRepository.completeAndUpdateLeagueInTx(
+            client, draftId, freshDraft.leagueId,
+          );
+          if (completed) {
+            this.cancelScheduledAutoBids(draftId);
+            await this.draftRepository.update(draftId, {
+              metadata: {
+                ...completed.metadata,
+                current_nomination: null,
+                nomination_deadline: null,
+              },
+            }, client);
+          }
+          return (await this.draftRepository.findById(draftId, client))!;
+        }
+
+        nominatorRosterId = freshDraft.slotToRosterId[String(nextPick.draftSlot)];
+        nominatorPicksWon = await this.draftRepository.countPicksWonByRoster(
+          draftId, nominatorRosterId, client,
+        );
+      }
+
+      const slotOwner = findUserBySlot(freshDraft.draftOrder, nextPick.draftSlot);
+
+      // Try the eligible nominator's queue first, fall back to best available
+      const queuedPlayer = slotOwner
+        ? await this.draftRepository.findFirstAvailableFromQueue(draftId, slotOwner, client)
+        : null;
+      const bestPlayer = queuedPlayer ?? (await this.draftRepository.findBestAvailable(draftId, client));
+      if (!bestPlayer) throw new ValidationException('No available players');
+
+      // Determine initial bidder — must have valid budget for $1
+      let bidderId: string;
+      let bidderRosterId: number;
+
+      if (slotOwner) {
+        try {
+          await this.validateBudget(freshDraft, nominatorRosterId, 1, client);
+          bidderId = slotOwner;
+          bidderRosterId = nominatorRosterId;
+        } catch {
+          // Slot owner can't afford $1 — find an eligible fallback
+          const fallback = await this.findEligibleInitialBidder(freshDraft, slotOwner, client);
+          if (!fallback) throw new ValidationException('No eligible bidder available');
+          bidderId = fallback.userId;
+          bidderRosterId = fallback.rosterId;
+        }
+      } else {
+        // No slot owner — find any eligible bidder
+        const fallback = await this.findEligibleInitialBidder(freshDraft, null, client);
+        if (!fallback) throw new ValidationException('No eligible bidder available');
+        bidderId = fallback.userId;
+        bidderRosterId = fallback.rosterId;
+      }
+
+      const bidDeadline = new Date(Date.now() + freshDraft.settings.nomination_timer * 1000).toISOString();
 
       const nomination: AuctionNomination = {
         pick_id: nextPick.id,
         player_id: bestPlayer.id,
-        nominated_by: slotOwner,
+        nominated_by: slotOwner || userId,
         current_bid: 1,
-        current_bidder: slotOwner,
-        bidder_roster_id: nominatorRosterId,
+        current_bidder: bidderId,
+        bidder_roster_id: bidderRosterId,
         bid_deadline: bidDeadline,
-        bid_history: [{ user_id: slotOwner, amount: 1, timestamp: new Date().toISOString() }],
+        bid_history: [
+          {
+            user_id: bidderId,
+            amount: 1,
+            timestamp: new Date().toISOString(),
+          },
+        ],
         player_metadata: {
           first_name: bestPlayer.firstName,
           last_name: bestPlayer.lastName,
@@ -570,19 +531,114 @@ export class AuctionService {
         },
       };
 
-      const autoNomUpdated = await this.draftRepository.update(draftId, {
+      return this.draftRepository.update(draftId, {
         metadata: {
-          ...draft.metadata,
+          ...freshDraft.metadata,
           current_nomination: nomination,
           nomination_deadline: null,
         },
         lastPicked: new Date().toISOString(),
-      });
+      }, client);
+    });
 
-      this.scheduleAutoBids(draftId);
-      if (autoNomUpdated) {
-        this.draftGateway?.broadcast(draftId, 'draft:state_updated', { draft: autoNomUpdated });
+    if (!updated) throw new NotFoundException('Draft not found');
+
+    this.scheduleAutoBids(draftId);
+    this.draftGateway?.broadcast(draftId, 'draft:state_updated', { draft: updated });
+    return updated;
+  }
+
+  private async processAutoNomination(draftId: string): Promise<void> {
+    // Pre-check outside transaction
+    const draft = await this.draftRepository.findById(draftId);
+    if (!draft || draft.status !== 'drafting' || draft.type !== 'auction') return;
+    if (draft.metadata?.current_nomination) return;
+
+    // All mutation logic under advisory lock
+    const updated = await this.draftRepository.withTransaction(async (client) => {
+      await client.query('SELECT pg_advisory_xact_lock(hashtext($1))', [draftId]);
+
+      const freshDraft = await this.draftRepository.findById(draftId, client);
+      if (!freshDraft || freshDraft.status !== 'drafting' || freshDraft.type !== 'auction') return null;
+      if (freshDraft.metadata?.current_nomination) return null;
+
+      const nextPick = await this.draftRepository.findNextPick(draftId, client);
+      if (!nextPick) return null;
+
+      const autoPickUsers: string[] = freshDraft.metadata?.auto_pick_users ?? [];
+      const slotOwner = findUserBySlot(freshDraft.draftOrder, nextPick.draftSlot);
+
+      if (!slotOwner || !autoPickUsers.includes(slotOwner)) return null;
+
+      const queuedPlayer = await this.draftRepository.findFirstAvailableFromQueue(
+        draftId, slotOwner, client,
+      );
+      const bestPlayer = queuedPlayer ?? (await this.draftRepository.findBestAvailable(draftId, client));
+      if (!bestPlayer) return null;
+
+      const nominatorRosterId = freshDraft.slotToRosterId[String(nextPick.draftSlot)];
+
+      // If nominator's roster is full, skip auto-nominate — the offering timer will
+      // expire and resolveNomination will advance to the next pick slot naturally.
+      const nominatorPicksWon = await this.draftRepository.countPicksWonByRoster(
+        draftId, nominatorRosterId, client,
+      );
+      if (nominatorPicksWon >= getMaxPlayersPerTeam(freshDraft)) {
+        return null;
       }
+
+      // Determine initial bidder — validate budget for $1
+      let bidderId: string;
+      let bidderRosterId: number;
+
+      try {
+        await this.validateBudget(freshDraft, nominatorRosterId, 1, client);
+        bidderId = slotOwner;
+        bidderRosterId = nominatorRosterId;
+      } catch {
+        // Slot owner can't afford $1 — find an eligible fallback
+        const fallback = await this.findEligibleInitialBidder(freshDraft, slotOwner, client);
+        if (!fallback) return null;
+        bidderId = fallback.userId;
+        bidderRosterId = fallback.rosterId;
+      }
+
+      const bidDeadline = new Date(
+        Date.now() + freshDraft.settings.nomination_timer * 1000,
+      ).toISOString();
+
+      const nomination: AuctionNomination = {
+        pick_id: nextPick.id,
+        player_id: bestPlayer.id,
+        nominated_by: slotOwner,
+        current_bid: 1,
+        current_bidder: bidderId,
+        bidder_roster_id: bidderRosterId,
+        bid_deadline: bidDeadline,
+        bid_history: [{ user_id: bidderId, amount: 1, timestamp: new Date().toISOString() }],
+        player_metadata: {
+          first_name: bestPlayer.firstName,
+          last_name: bestPlayer.lastName,
+          full_name: bestPlayer.fullName,
+          position: bestPlayer.position,
+          team: bestPlayer.team,
+          auction_value: bestPlayer.auctionValue ?? null,
+        },
+      };
+
+      return this.draftRepository.update(draftId, {
+        metadata: {
+          ...freshDraft.metadata,
+          current_nomination: nomination,
+          nomination_deadline: null,
+        },
+        lastPicked: new Date().toISOString(),
+      }, client);
+    });
+
+    if (updated) {
+      this.scheduleAutoBids(draftId);
+      this.draftGateway?.broadcast(draftId, 'draft:state_updated', { draft: updated });
     }
   }
 

@@ -251,3 +251,182 @@ describe('AuctionService.resolveNomination', () => {
     );
   });
 });
+
+describe('AuctionService.autoNominate', () => {
+  let service: AuctionService;
+  let draftRepo: any;
+  let leagueRepo: any;
+  let playerRepo: any;
+  let capturedClient: any;
+
+  const bestPlayer = {
+    id: 'player-99',
+    firstName: 'Test',
+    lastName: 'Player',
+    fullName: 'Test Player',
+    position: 'RB',
+    team: 'NYG',
+    auctionValue: 25,
+  };
+
+  beforeEach(() => {
+    capturedClient = { query: vi.fn() };
+
+    draftRepo = {
+      findById: vi.fn(),
+      update: vi.fn(),
+      findNextPick: vi.fn(),
+      addAutoPickUser: vi.fn().mockResolvedValue(null),
+      countPicksWonByRoster: vi.fn().mockResolvedValue(0),
+      countPicksWonByRosters: vi.fn().mockResolvedValue(new Map()),
+      findFirstAvailableFromQueue: vi.fn().mockResolvedValue(null),
+      findBestAvailable: vi.fn().mockResolvedValue(bestPlayer),
+      forfeitPick: vi.fn(),
+      completeAndUpdateLeagueInTx: vi.fn(),
+      withTransaction: vi.fn(async (fn: any) => fn(capturedClient)),
+    };
+
+    leagueRepo = {
+      findMember: vi.fn().mockResolvedValue({ role: 'member' }),
+    };
+
+    playerRepo = {};
+
+    service = new AuctionService(draftRepo, leagueRepo, playerRepo);
+  });
+
+  it('acquires advisory lock and re-reads draft inside transaction', async () => {
+    const draft = makeDraft();
+    (draft as any).metadata = {
+      current_nomination: null,
+      nomination_deadline: new Date(Date.now() - 5000).toISOString(),
+      auction_budgets: { '101': 200, '102': 200 },
+    };
+
+    draftRepo.findById.mockResolvedValue(draft);
+    draftRepo.findNextPick.mockResolvedValue({ id: 'pick-1', draftSlot: 1 });
+
+    const updatedDraft = makeDraft();
+    draftRepo.update.mockResolvedValue(updatedDraft);
+
+    await service.autoNominate('draft-1', 'user-a');
+
+    expect(draftRepo.withTransaction).toHaveBeenCalledTimes(1);
+    expect(capturedClient.query).toHaveBeenCalledWith(
+      'SELECT pg_advisory_xact_lock(hashtext($1))',
+      ['draft-1'],
+    );
+    // findById called with client inside tx
+    const insideTxCall = draftRepo.findById.mock.calls.find(
+      (call: any[]) => call.length === 2 && call[1] === capturedClient,
+    );
+    expect(insideTxCall).toBeDefined();
+  });
+
+  it('validates budget and falls back to eligible bidder when slot owner cannot afford $1', async () => {
+    const draft = makeDraft();
+    // Slot 1 owned by user-a with roster 101, budget only enough for reserve (no extra for bid)
+    // 2 teams, rounds=15, max_players_per_team=0 (falls back to rounds=15)
+    // user-a has won 14 picks, remaining=1, reserve=0, maxBid=budget=1 — but budget is 0
+    (draft as any).metadata = {
+      current_nomination: null,
+      nomination_deadline: new Date(Date.now() - 5000).toISOString(),
+      auction_budgets: { '101': 0, '102': 200 },
+    };
+
+    draftRepo.findById.mockResolvedValue(draft);
+    draftRepo.findNextPick.mockResolvedValue({ id: 'pick-1', draftSlot: 1 });
+    // user-a won 0 picks but has $0 budget; reserve=14 slots, maxBid=0-14=-14 → bid of $1 fails
+    draftRepo.countPicksWonByRoster.mockResolvedValue(0);
+
+    const updatedDraft = makeDraft();
+    draftRepo.update.mockResolvedValue(updatedDraft);
+
+    await service.autoNominate('draft-1', 'user-a');
+
+    // update should have been called with user-b as bidder (fallback)
+    const updateCall = draftRepo.update.mock.calls[0];
+    const nominationData = updateCall[1].metadata.current_nomination;
+    expect(nominationData.current_bidder).toBe('user-b');
+    expect(nominationData.bidder_roster_id).toBe(102);
+  });
+
+  it('throws when no slot owner and no eligible bidder exists', async () => {
+    // Draft with a slot that has no user mapped
+    const draft = new Draft(
+      'draft-1', 'league-1', '2025', 'nfl', 'drafting', 'auction',
+      null, null,
+      { 'user-a': 1 }, // only slot 1 mapped
+      { '1': 101, '2': 102 }, // slot 2 has a roster but no user
+      { ...DEFAULT_DRAFT_SETTINGS, nomination_timer: 30, teams: 2 },
+      {
+        current_nomination: null,
+        nomination_deadline: new Date(Date.now() - 5000).toISOString(),
+        auction_budgets: { '101': 0, '102': 0 },
+      },
+      'user-a', new Date(), new Date(),
+    );
+
+    draftRepo.findById.mockResolvedValue(draft);
+    draftRepo.findNextPick.mockResolvedValue({ id: 'pick-2', draftSlot: 2 });
+    draftRepo.countPicksWonByRoster.mockResolvedValue(0);
+    // All rosters have $0 budget — no eligible bidder
+    draftRepo.countPicksWonByRosters.mockResolvedValue(new Map());
+
+    leagueRepo.findMember.mockResolvedValue({ role: 'commissioner' });
+
+    await expect(service.autoNominate('draft-1', 'user-a')).rejects.toThrow(
+      'No eligible bidder available',
+    );
+  });
+
+  it('passes client to all repo calls inside transaction', async () => {
+    const draft = makeDraft();
+    (draft as any).metadata = {
+      current_nomination: null,
+      nomination_deadline: new Date(Date.now() - 5000).toISOString(),
+      auction_budgets: { '101': 200, '102': 200 },
+    };
+
+    draftRepo.findById.mockResolvedValue(draft);
+    draftRepo.findNextPick.mockResolvedValue({ id: 'pick-1', draftSlot: 1 });
+
+    const updatedDraft = makeDraft();
+    draftRepo.update.mockResolvedValue(updatedDraft);
+
+    await service.autoNominate('draft-1', 'user-a');
+
+    // findNextPick called with client
+    const nextPickCall = draftRepo.findNextPick.mock.calls[0];
+    expect(nextPickCall[1]).toBe(capturedClient);
+
+    // addAutoPickUser called with client
+    const autoPickCall = draftRepo.addAutoPickUser.mock.calls[0];
+    expect(autoPickCall[2]).toBe(capturedClient);
+
+    // countPicksWonByRoster called with client
+    const countCall = draftRepo.countPicksWonByRoster.mock.calls[0];
+    expect(countCall[2]).toBe(capturedClient);
+
+    // update called with client
+    const updateCall = draftRepo.update.mock.calls[0];
+    expect(updateCall[2]).toBe(capturedClient);
+  });
+
+  it('rejects concurrent auto-nominate when nomination became active under lock', async () => {
+    const draft = makeDraft();
+    (draft as any).metadata = { current_nomination: null };
+
+    // Pre-check: no nomination. Under lock: nomination appeared
+    const freshDraft = makeDraft();
+    (freshDraft as any).metadata = { current_nomination: makeNomination() };
+
+    draftRepo.findById
+      .mockResolvedValueOnce(draft) // pre-check
+      .mockResolvedValueOnce(freshDraft); // inside tx
+
+    await expect(service.autoNominate('draft-1', 'user-a')).rejects.toThrow(
+      'A nomination is already active',
+    );
+  });
+});

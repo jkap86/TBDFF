@@ -267,8 +267,9 @@ export class DraftRepository {
     return result.rows.map(DraftPick.fromDatabase);
   }
 
-  async findNextPick(draftId: string): Promise<DraftPick | null> {
-    const result = await this.db.query(
+  async findNextPick(draftId: string, client?: PoolClient): Promise<DraftPick | null> {
+    const conn = client ?? this.db;
+    const result = await conn.query(
       `SELECT dp.*, u.username
        FROM draft_picks dp
        LEFT JOIN users u ON u.id = dp.picked_by
@@ -430,8 +431,9 @@ export class DraftRepository {
     }
   }
 
-  async findBestAvailable(draftId: string): Promise<Player | null> {
-    const result = await this.db.query(
+  async findBestAvailable(draftId: string, client?: PoolClient): Promise<Player | null> {
+    const conn = client ?? this.db;
+    const result = await conn.query(
       `SELECT p.* FROM players p
        WHERE p.active = true
          AND p.position IN ('QB', 'RB', 'WR', 'TE', 'K', 'DEF')
@@ -482,8 +484,9 @@ export class DraftRepository {
     return result.rows.map(Player.fromDatabase);
   }
 
-  async addAutoPickUser(draftId: string, userId: string): Promise<Draft | null> {
-    const result = await this.db.query(
+  async addAutoPickUser(draftId: string, userId: string, client?: PoolClient): Promise<Draft | null> {
+    const conn = client ?? this.db;
+    const result = await conn.query(
       `UPDATE drafts
        SET metadata = jsonb_set(
          COALESCE(metadata, '{}'),
@@ -498,8 +501,9 @@ export class DraftRepository {
     return result.rows.length > 0 ? Draft.fromDatabase(result.rows[0]) : null;
   }
 
-  async removeAutoPickUser(draftId: string, userId: string): Promise<Draft | null> {
-    const result = await this.db.query(
+  async removeAutoPickUser(draftId: string, userId: string, client?: PoolClient): Promise<Draft | null> {
+    const conn = client ?? this.db;
+    const result = await conn.query(
       `UPDATE drafts
        SET metadata = jsonb_set(
          COALESCE(metadata, '{}'),
@@ -542,8 +546,9 @@ export class DraftRepository {
     return result.rows.length > 0 ? DraftPick.fromDatabase(result.rows[0]) : null;
   }
 
-  async forfeitPick(pickId: string): Promise<void> {
-    await this.db.query(
+  async forfeitPick(pickId: string, client?: PoolClient): Promise<void> {
+    const conn = client ?? this.db;
+    await conn.query(
       `UPDATE draft_picks
        SET metadata = COALESCE(metadata, '{}'::jsonb) || '{"forfeited": true}'::jsonb
        WHERE id = $1 AND player_id IS NULL`,
@@ -763,8 +768,9 @@ export class DraftRepository {
     return map;
   }
 
-  async findFirstAvailableFromQueue(draftId: string, userId: string): Promise<Player | null> {
-    const result = await this.db.query(
+  async findFirstAvailableFromQueue(draftId: string, userId: string, client?: PoolClient): Promise<Player | null> {
+    const conn = client ?? this.db;
+    const result = await conn.query(
       `SELECT p.* FROM draft_queue dq
        JOIN players p ON p.id::text = dq.player_id
        WHERE dq.draft_id = $1
