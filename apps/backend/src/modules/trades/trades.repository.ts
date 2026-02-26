@@ -50,8 +50,9 @@ export class TradeRepository {
     return results;
   }
 
-  async findProposalById(id: string): Promise<TradeProposal | null> {
-    const result = await this.db.query(
+  async findProposalById(id: string, client?: PoolClient): Promise<TradeProposal | null> {
+    const conn = client ?? this.db;
+    const result = await conn.query(
       `SELECT tp.*,
               u1.username AS proposed_by_username,
               u2.username AS proposed_to_username
@@ -63,12 +64,13 @@ export class TradeRepository {
     );
     if (result.rows.length === 0) return null;
 
-    const items = await this.findItemsByTradeId(id);
+    const items = await this.findItemsByTradeId(id, client);
     return TradeProposal.fromDatabase(result.rows[0], items);
   }
 
-  async findItemsByTradeId(tradeId: string): Promise<TradeItem[]> {
-    const result = await this.db.query(
+  async findItemsByTradeId(tradeId: string, client?: PoolClient): Promise<TradeItem[]> {
+    const conn = client ?? this.db;
+    const result = await conn.query(
       'SELECT * FROM trade_items WHERE trade_id = $1 ORDER BY side, item_type',
       [tradeId],
     );

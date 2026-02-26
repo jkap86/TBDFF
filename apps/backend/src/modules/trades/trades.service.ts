@@ -84,7 +84,7 @@ export class TradeService {
 
       const items = await this.tradeRepo.createItems(client, proposal.id, request.items);
 
-      const trade = await this.tradeRepo.findProposalById(proposal.id);
+      const trade = await this.tradeRepo.findProposalById(proposal.id, client);
 
       this.gateway?.broadcastToLeague(leagueId, 'trade:proposed', { trade: trade!.toSafeObject() });
       this.gateway?.broadcastToUser(request.proposed_to, 'trade:proposed', { trade: trade!.toSafeObject() });
@@ -111,7 +111,7 @@ export class TradeService {
 
       return this.tradeRepo.withTransaction(async (client) => {
         await this.tradeRepo.updateProposalStatus(client, tradeId, 'review', { reviewExpiresAt: expiresAt });
-        const updated = await this.tradeRepo.findProposalById(tradeId);
+        const updated = await this.tradeRepo.findProposalById(tradeId, client);
         this.gateway?.broadcastToLeague(trade.leagueId, 'trade:accepted', { trade: updated!.toSafeObject() });
         return updated!;
       });
@@ -254,7 +254,7 @@ export class TradeService {
         transactionId: txResult.rows[0].id,
       });
 
-      const completed = await this.tradeRepo.findProposalById(tradeId);
+      const completed = await this.tradeRepo.findProposalById(tradeId, client);
       this.gateway?.broadcastToLeague(trade.leagueId, 'trade:completed', { trade: completed!.toSafeObject() });
       this.gateway?.broadcastToLeague(trade.leagueId, 'roster:updated', { league_id: trade.leagueId });
 
@@ -270,7 +270,7 @@ export class TradeService {
 
     return this.tradeRepo.withTransaction(async (client) => {
       await this.tradeRepo.updateProposalStatus(client, tradeId, 'declined');
-      const updated = await this.tradeRepo.findProposalById(tradeId);
+      const updated = await this.tradeRepo.findProposalById(tradeId, client);
       this.gateway?.broadcastToLeague(trade.leagueId, 'trade:declined', { trade: updated!.toSafeObject() });
       return updated!;
     });
@@ -284,7 +284,7 @@ export class TradeService {
 
     return this.tradeRepo.withTransaction(async (client) => {
       await this.tradeRepo.updateProposalStatus(client, tradeId, 'withdrawn');
-      const updated = await this.tradeRepo.findProposalById(tradeId);
+      const updated = await this.tradeRepo.findProposalById(tradeId, client);
       return updated!;
     });
   }
@@ -337,7 +337,7 @@ export class TradeService {
 
       await this.tradeRepo.createItems(client, counter.id, request.items);
 
-      const counterTrade = await this.tradeRepo.findProposalById(counter.id);
+      const counterTrade = await this.tradeRepo.findProposalById(counter.id, client);
       this.gateway?.broadcastToLeague(original.leagueId, 'trade:countered', { trade: counterTrade!.toSafeObject() });
       this.gateway?.broadcastToUser(original.proposedBy, 'trade:countered', { trade: counterTrade!.toSafeObject() });
 
@@ -361,7 +361,7 @@ export class TradeService {
 
     return this.tradeRepo.withTransaction(async (client) => {
       await this.tradeRepo.updateProposalStatus(client, tradeId, 'vetoed');
-      const updated = await this.tradeRepo.findProposalById(tradeId);
+      const updated = await this.tradeRepo.findProposalById(tradeId, client);
       this.gateway?.broadcastToLeague(trade.leagueId, 'trade:vetoed', { trade: updated!.toSafeObject() });
       return updated!;
     });
