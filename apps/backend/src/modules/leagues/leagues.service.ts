@@ -72,6 +72,15 @@ export class LeagueService {
       createdBy: userId,
     });
 
+    // Seed draft picks for the commissioner's roster (roster 1) so picks
+    // are available in the Trade Center before a draft is created.
+    await this.draftRepository.createFutureDraftPicks(
+      league.id,
+      league.season,
+      league.settings.draft_rounds,
+      [{ rosterId: 1, ownerId: userId }],
+    );
+
     return league;
   }
 
@@ -487,18 +496,19 @@ export class LeagueService {
     // 4. Assign roster owner and promote to member (transactional)
     const result = await this.leagueRepository.assignRosterOwnerTransaction(leagueId, rosterId, targetUserId);
 
-    // 5. Seed future draft picks if an active draft exists
-    const activeDraft = await this.draftRepository.findActiveDraftByLeagueId(leagueId);
-    if (activeDraft) {
-      const league = await this.leagueRepository.findById(leagueId);
-      if (league) {
-        await this.draftRepository.createFutureDraftPicks(
-          leagueId,
-          league.season,
-          activeDraft.settings.rounds,
-          [{ rosterId, ownerId: targetUserId }],
-        );
-      }
+    // 5. Seed future draft picks so they're available in the Trade Center
+    // even before a draft is created. Use active draft rounds if available,
+    // otherwise fall back to the league's draft_rounds setting.
+    const league = await this.leagueRepository.findById(leagueId);
+    if (league) {
+      const activeDraft = await this.draftRepository.findActiveDraftByLeagueId(leagueId);
+      const rounds = activeDraft?.settings.rounds ?? league.settings.draft_rounds;
+      await this.draftRepository.createFutureDraftPicks(
+        leagueId,
+        league.season,
+        rounds,
+        [{ rosterId, ownerId: targetUserId }],
+      );
     }
 
     return result;
