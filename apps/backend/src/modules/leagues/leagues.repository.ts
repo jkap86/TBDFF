@@ -87,6 +87,10 @@ export class LeagueRepository {
   }
 
   async delete(id: string): Promise<boolean> {
+    // Delete trade_proposals first to avoid check constraint violation:
+    // future_draft_picks ON DELETE SET NULL would null out trade_items.draft_pick_id
+    // before trade_items are cascade-deleted via trade_proposals, violating trade_items_player_check
+    await this.db.query('DELETE FROM trade_proposals WHERE league_id = $1', [id]);
     const result = await this.db.query('DELETE FROM leagues WHERE id = $1', [id]);
     return (result.rowCount ?? 0) > 0;
   }
