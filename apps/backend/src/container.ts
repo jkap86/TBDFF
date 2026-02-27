@@ -51,6 +51,7 @@ import { StatsSyncJob } from './jobs/stats-sync.job';
 import { WaiverProcessJob } from './jobs/waiver-process.job';
 import { TradeReviewJob } from './jobs/trade-review.job';
 import { SlowAuctionSettlementJob } from './jobs/slow-auction-settlement.job';
+import { AuctionTimerJob } from './jobs/auction-timer.job';
 
 function createPool(): Pool {
   const pool = new Pool({
@@ -126,6 +127,7 @@ export function createContainer() {
   const waiverProcessJob = new WaiverProcessJob(transactionService);
   const tradeReviewJob = new TradeReviewJob(tradeService);
   const slowAuctionSettlementJob = new SlowAuctionSettlementJob(slowAuctionService, pool);
+  const auctionTimerJob = new AuctionTimerJob(auctionService, draftRepository);
 
   return {
     pool,
@@ -158,6 +160,7 @@ export function createContainer() {
       waiverProcessJob,
       tradeReviewJob,
       slowAuctionSettlementJob,
+      auctionTimerJob,
     },
   };
 }

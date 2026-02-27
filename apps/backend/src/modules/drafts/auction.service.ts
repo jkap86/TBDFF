@@ -1,4 +1,3 @@
-import cron from 'node-cron';
 import { DraftRepository } from './drafts.repository';
 import { LeagueRepository } from '../leagues/leagues.repository';
 import { PlayerRepository } from '../players/players.repository';
@@ -14,26 +13,16 @@ import {
   ForbiddenException,
   ConflictException,
 } from '../../shared/exceptions';
-import { config } from '../../config';
-import { findUserBySlot, findRosterIdByUserId, getMaxPlayersPerTeam } from './draft-helpers';
+import { findUserBySlot, findRosterIdByUserId, getMaxPlayersPerTeam, assertBudgetExists } from './draft-helpers';
 
 /**
  * Manages auction draft logic: nominations, bidding, auto-bids, and resolution.
  *
- * **Single-instance limitation:** In-memory timers (pendingAutoBidTimeouts, autoBidLocks)
- * only exist on the current process. If multiple backend instances run concurrently,
- * each maintains its own timers independently — only one instance should run auction
- * drafts at a time. TODO: For multi-instance support, move timer coordination to
- * a shared store (e.g. Redis pub/sub or pg_notify).
- *
- * **Recovery:** On startup, `recoverActiveAuctions()` re-schedules auto-bid timers for
- * any in-progress nominations, and a 30-second cron job catches any that slip through.
+ * **Multi-instance safe:** Timer coordination uses a Postgres `auction_timers` table
+ * instead of in-memory setTimeouts. Any instance can claim and process timers via
+ * the AuctionTimerJob (1-second poll with FOR UPDATE SKIP LOCKED).
  */
 export class AuctionService {
-  /** Per-draft lock to prevent concurrent processAutoBids executions */
-  private autoBidLocks = new Map<string, Promise<Draft | null>>();
-  /** Pending setTimeout handles for scheduleAutoBids, keyed by draftId */
-  private pendingAutoBidTimeouts = new Map<string, ReturnType<typeof setTimeout>>();
   /** Optional WebSocket gateway for broadcasting draft state changes */
   private draftGateway?: DraftGateway;
 
@@ -46,52 +35,6 @@ export class AuctionService {
   /** Inject the draft gateway after socket.io setup (avoids circular dependency at construction time) */
   setGateway(gateway: DraftGateway): void {
     this.draftGateway = gateway;
-  }
-
-  /**
-   * Reschedule auto-bids for any active auction drafts that have an unresolved
-   * nomination. Called on startup to recover state lost when the process restarted.
-   */
-  async recoverActiveAuctions(): Promise<void> {
-    if (!config.ENABLE_DRAFT_RECOVERY) {
-      console.log('[AuctionService] Draft recovery disabled via ENABLE_DRAFT_RECOVERY');
-      return;
-    }
-    try {
-      const drafts = await this.draftRepository.findActiveDraftingAuctions();
-      for (const draft of drafts) {
-        if (draft.metadata?.current_nomination) {
-          console.log(`[AuctionService] Recovering nomination timer for draft ${draft.id}, pick ${draft.metadata.current_nomination.pick_id}`);
-          this.scheduleAutoBids(draft.id);
-        }
-      }
-    } catch (err) {
-      console.error('[AuctionService] recoverActiveAuctions failed:', err);
-    }
-    this.startRecoveryJob();
-  }
-
-  /**
-   * Cron job that runs every 30 seconds to catch any active auction nominations
-   * whose auto-bid timeout was lost (e.g. after a partial restart or edge case).
-   */
-  private startRecoveryJob(): void {
-    cron.schedule('*/30 * * * * *', async () => {
-      try {
-        const drafts = await this.draftRepository.findActiveDraftingAuctions();
-        for (const draft of drafts) {
-          if (
-            draft.metadata?.current_nomination &&
-            !this.pendingAutoBidTimeouts.has(draft.id) &&
-            !this.autoBidLocks.has(draft.id)
-          ) {
-            this.scheduleAutoBids(draft.id);
-          }
-        }
-      } catch (err) {
-        console.error('[AuctionService] recovery cron failed:', err);
-      }
-    });
   }
 
   async nominate(
@@ -170,7 +113,7 @@ export class AuctionService {
 
     if (!updated) throw new NotFoundException('Draft not found');
 
-    this.scheduleAutoBids(draftId);
+    await this.scheduleAutoBids(draftId);
     this.draftGateway?.broadcast(draftId, 'draft:state_updated', { draft: updated, server_time: new Date().toISOString() });
     return updated;
   }
@@ -253,7 +196,7 @@ export class AuctionService {
 
     if (!updated) throw new NotFoundException('Draft not found');
 
-    this.scheduleAutoBids(draftId);
+    await this.scheduleAutoBids(draftId);
     this.draftGateway?.broadcast(draftId, 'draft:state_updated', { draft: updated, server_time: new Date().toISOString() });
     return { draft: updated };
   }
@@ -383,7 +326,7 @@ export class AuctionService {
 
     // Post-transaction side effects (broadcasts, scheduling)
     if (resultDraft.status === 'complete') {
-      this.cancelScheduledAutoBids(draftId);
+      await this.cancelScheduledAutoBids(draftId);
     }
 
     if (pick) {
@@ -454,7 +397,7 @@ export class AuctionService {
             client, draftId, freshDraft.leagueId,
           );
           if (completed) {
-            this.cancelScheduledAutoBids(draftId);
+            await this.cancelScheduledAutoBids(draftId);
             await this.draftRepository.update(draftId, {
               metadata: {
                 ...completed.metadata,
@@ -544,7 +487,7 @@ export class AuctionService {
 
     if (!updated) throw new NotFoundException('Draft not found');
 
-    this.scheduleAutoBids(draftId);
+    await this.scheduleAutoBids(draftId);
     this.draftGateway?.broadcast(draftId, 'draft:state_updated', { draft: updated, server_time: new Date().toISOString() });
     return updated;
   }
@@ -638,7 +581,7 @@ export class AuctionService {
     });
 
     if (updated) {
-      this.scheduleAutoBids(draftId);
+      await this.scheduleAutoBids(draftId);
       this.draftGateway?.broadcast(draftId, 'draft:state_updated', { draft: updated, server_time: new Date().toISOString() });
     }
   }
@@ -650,7 +593,8 @@ export class AuctionService {
     client?: import('pg').PoolClient,
   ): Promise<void> {
     const budgets: Record<string, number> = draft.metadata?.auction_budgets ?? {};
-    const currentBudget = budgets[String(rosterId)] ?? 0;
+    assertBudgetExists(budgets, rosterId, 'budget validation');
+    const currentBudget = budgets[String(rosterId)];
 
     const picksWon = await this.draftRepository.countPicksWonByRoster(draft.id, rosterId, client);
     const totalSlots = getMaxPlayersPerTeam(draft);
@@ -692,7 +636,8 @@ export class AuctionService {
       const picksWon = picksWonMap.get(rosterId) ?? 0;
       if (picksWon >= maxPlayers) continue;
 
-      const budget = budgets[String(rosterId)] ?? 0;
+      if (!(String(rosterId) in budgets)) continue;
+      const budget = budgets[String(rosterId)];
       const remainingSlots = maxPlayers - picksWon;
       const reserveNeeded = Math.max(0, remainingSlots - 1);
       if (budget - reserveNeeded >= 1) {
@@ -703,71 +648,51 @@ export class AuctionService {
   }
 
   /**
-   * Cancel any pending scheduleAutoBids timeout for this draft.
-   * Called when a draft completes so the setTimeout never fires.
+   * Cancel any pending auction timers for this draft.
+   * Called when a draft completes.
    */
-  cancelScheduledAutoBids(draftId: string): void {
-    const timeout = this.pendingAutoBidTimeouts.get(draftId);
-    if (timeout) {
-      clearTimeout(timeout);
-      this.pendingAutoBidTimeouts.delete(draftId);
-    }
-    this.autoBidLocks.delete(draftId);
+  async cancelScheduledAutoBids(draftId: string): Promise<void> {
+    await this.draftRepository.cancelAuctionTimers(draftId);
   }
 
   /**
-   * Schedule auto-bid processing with per-draft locking.
-   * If a processAutoBids is already running for this draft, the new call
-   * waits for it to finish then runs once more (coalescing multiple triggers).
-   * Cancels any existing pending timeout before scheduling a new one.
+   * Schedule auto-bid processing by upserting a row into auction_timers.
+   * The AuctionTimerJob polls for runnable timers every 1 second and calls
+   * processAutoBidsFromTimer when a timer fires.
    *
-   * **Single-instance only:** The setTimeout handle lives in this process's memory.
-   * If the process restarts, recoverActiveAuctions + the 30s cron job will
-   * re-schedule any lost timers on the next tick.
+   * Multi-instance safe: the partial unique index ensures only one pending
+   * timer per draft, and INSERT ON CONFLICT replaces any existing timer.
    */
-  scheduleAutoBids(draftId: string): void {
-    const existingTimeout = this.pendingAutoBidTimeouts.get(draftId);
-    if (existingTimeout) clearTimeout(existingTimeout);
+  async scheduleAutoBids(draftId: string, delayMs = 3000): Promise<void> {
+    const runAt = new Date(Date.now() + delayMs);
+    const timerType = delayMs <= 3000 ? 'auto_bid' : 'deadline';
+    await this.draftRepository.upsertAuctionTimer(draftId, timerType, runAt);
+  }
 
-    const timeout = setTimeout(() => {
-      this.pendingAutoBidTimeouts.delete(draftId);
-      const existing = this.autoBidLocks.get(draftId);
-      const run = (existing ?? Promise.resolve(null))
-        .then(() => this._processAutoBids(draftId))
-        .then(async (result) => {
-          if (!result) {
-            // No auto-bid was placed — schedule a follow-up at the deadline
-            // so _processAutoBids can auto-resolve the expired nomination (Fix A)
-            const draft = await this.draftRepository.findById(draftId);
-            const nom = draft?.metadata?.current_nomination;
-            if (nom && draft?.status === 'drafting') {
-              const msUntilDeadline = new Date(nom.bid_deadline).getTime() - Date.now();
-              if (msUntilDeadline > 0) {
-                const deadlineTimeout = setTimeout(() => {
-                  this.pendingAutoBidTimeouts.delete(draftId);
-                  this.scheduleAutoBids(draftId);
-                }, msUntilDeadline + 1000);
-                this.pendingAutoBidTimeouts.set(draftId, deadlineTimeout);
-              } else {
-                this.scheduleAutoBids(draftId);
-              }
-            }
+  /**
+   * Called by AuctionTimerJob when a timer fires.
+   * Processes auto-bids and schedules follow-up timers as needed.
+   */
+  async processAutoBidsFromTimer(draftId: string): Promise<void> {
+    try {
+      const result = await this._processAutoBids(draftId);
+      if (!result) {
+        // No auto-bid was placed — schedule a follow-up at the deadline
+        // so _processAutoBids can auto-resolve the expired nomination
+        const draft = await this.draftRepository.findById(draftId);
+        const nom = draft?.metadata?.current_nomination;
+        if (nom && draft?.status === 'drafting') {
+          const msUntilDeadline = new Date(nom.bid_deadline).getTime() - Date.now();
+          if (msUntilDeadline > 0) {
+            await this.scheduleAutoBids(draftId, msUntilDeadline + 1000);
+          } else {
+            await this.scheduleAutoBids(draftId, 0);
           }
-          return result;
-        })
-        .catch((err) => {
-          console.error(`[AuctionService] processAutoBids failed for draft ${draftId}:`, err);
-          return null;
-        });
-      this.autoBidLocks.set(draftId, run);
-      run.finally(() => {
-        if (this.autoBidLocks.get(draftId) === run) {
-          this.autoBidLocks.delete(draftId);
         }
-      });
-    }, 3000);
-
-    this.pendingAutoBidTimeouts.set(draftId, timeout);
+      }
+    } catch (err) {
+      console.error(`[AuctionService] processAutoBidsFromTimer failed for draft ${draftId}:`, err);
+    }
   }
 
   /**
@@ -852,7 +777,8 @@ export class AuctionService {
             ? Math.floor(auctionValue * 0.8 * (draftBudget / 200) * (draft.settings.teams / 12))
             : 0;
 
-      const budget = budgets[String(rosterId)] ?? 0;
+      if (!(String(rosterId) in budgets)) continue;
+      const budget = budgets[String(rosterId)];
       const picksWon = picksWonMap.get(rosterId) ?? 0;
       const totalSlots = getMaxPlayersPerTeam(draft);
       const remainingSlots = totalSlots - picksWon;
@@ -945,7 +871,7 @@ export class AuctionService {
       }, client);
     });
 
-    this.scheduleAutoBids(draftId);
+    await this.scheduleAutoBids(draftId);
 
     if (updated) {
       this.draftGateway?.broadcast(draftId, 'draft:state_updated', { draft: updated, server_time: new Date().toISOString() });

@@ -28,8 +28,8 @@ const transactionsGateway = createTransactionsGateway(io);
 container.services.tradeService.setGateway(transactionsGateway);
 container.services.transactionService.setGateway(transactionsGateway);
 
-// Recover any active auction auto-bids that were lost on previous restart
-container.services.auctionService.recoverActiveAuctions();
+// Start auction timer job (replaces in-memory timers with DB-backed polling)
+container.jobs.auctionTimerJob.start();
 
 // Start slow auction settlement job
 container.jobs.slowAuctionSettlementJob.start();
@@ -47,6 +47,7 @@ const gracefulShutdown = () => {
   console.log('Shutting down gracefully...');
 
   io.close();
+  container.jobs.auctionTimerJob.stop();
   container.jobs.slowAuctionSettlementJob.stop();
 
   server.close(async () => {

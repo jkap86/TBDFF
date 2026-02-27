@@ -48,6 +48,8 @@ describe('AuctionService.placeBid', () => {
       findById: vi.fn(),
       update: vi.fn(),
       countPicksWonByRoster: vi.fn().mockResolvedValue(0),
+      upsertAuctionTimer: vi.fn().mockResolvedValue(undefined),
+      cancelAuctionTimers: vi.fn().mockResolvedValue(undefined),
       withTransaction: vi.fn(async (fn: any) => {
         const mockClient = { query: vi.fn() };
         return fn(mockClient);
@@ -164,6 +166,8 @@ describe('AuctionService.resolveNomination', () => {
       completeAndUpdateLeagueInTx: vi.fn(),
       countPicksWonByRoster: vi.fn().mockResolvedValue(0),
       countPicksWonByRosters: vi.fn().mockResolvedValue(new Map()),
+      upsertAuctionTimer: vi.fn().mockResolvedValue(undefined),
+      cancelAuctionTimers: vi.fn().mockResolvedValue(undefined),
       withTransaction: vi.fn(async (fn: any) => {
         const mockClient = { query: vi.fn() };
         return fn(mockClient);
@@ -266,6 +270,8 @@ describe('AuctionService._processAutoBids (incremental bidding)', () => {
       countPicksWonByRosters: vi.fn().mockResolvedValue(new Map()),
       getQueueItemsForPlayerByUsers: vi.fn().mockResolvedValue(new Map()),
       getUserIdsWithMaxBidForPlayer: vi.fn().mockResolvedValue([]),
+      upsertAuctionTimer: vi.fn().mockResolvedValue(undefined),
+      cancelAuctionTimers: vi.fn().mockResolvedValue(undefined),
       withTransaction: vi.fn(async (fn: any) => {
         const mockClient = { query: vi.fn() };
         return fn(mockClient);
@@ -504,6 +510,8 @@ describe('AuctionService.autoNominate', () => {
       findBestAvailable: vi.fn().mockResolvedValue(bestPlayer),
       forfeitPick: vi.fn(),
       completeAndUpdateLeagueInTx: vi.fn(),
+      upsertAuctionTimer: vi.fn().mockResolvedValue(undefined),
+      cancelAuctionTimers: vi.fn().mockResolvedValue(undefined),
       withTransaction: vi.fn(async (fn: any) => fn(capturedClient)),
     };
 
@@ -704,6 +712,8 @@ describe('AuctionService._processAutoBids (auto-resolution & fallback)', () => {
       findBestAvailable: vi.fn(),
       findFirstAvailableFromQueue: vi.fn(),
       addAutoPickUser: vi.fn(),
+      upsertAuctionTimer: vi.fn().mockResolvedValue(undefined),
+      cancelAuctionTimers: vi.fn().mockResolvedValue(undefined),
       withTransaction: vi.fn(async (fn: any) => {
         const mockClient = { query: vi.fn() };
         return fn(mockClient);
@@ -795,5 +805,346 @@ describe('AuctionService._processAutoBids (auto-resolution & fallback)', () => {
     // With auction_value=30, target = floor(30 * 0.8 * (200/200) * (12/12)) = 24
     // Single auto-bidder vs currentBid=1 → bid = currentBid + 1 = 2
     expect(nom.current_bid).toBe(2);
+  });
+});
+
+describe('Concurrent bid race (stale-read under lock)', () => {
+  let service: AuctionService;
+  let draftRepo: any;
+  let leagueRepo: any;
+  let capturedClient: any;
+
+  beforeEach(() => {
+    capturedClient = { query: vi.fn() };
+
+    draftRepo = {
+      findById: vi.fn(),
+      update: vi.fn(),
+      countPicksWonByRoster: vi.fn().mockResolvedValue(0),
+      upsertAuctionTimer: vi.fn().mockResolvedValue(undefined),
+      cancelAuctionTimers: vi.fn().mockResolvedValue(undefined),
+      withTransaction: vi.fn(async (fn: any) => fn(capturedClient)),
+    };
+
+    leagueRepo = {
+      findMember: vi.fn().mockResolvedValue({ role: 'member' }),
+    };
+
+    service = new AuctionService(draftRepo, leagueRepo, {});
+  });
+
+  it('second bid fails after re-reading higher bid under lock', async () => {
+    const nomination = makeNomination({ current_bid: 5, current_bidder: 'user-a' });
+    const staleDraft = makeDraft();
+    (staleDraft as any).metadata = {
+      current_nomination: nomination,
+      auction_budgets: { '101': 200, '102': 200 },
+    };
+
+    // After first bid lands: bid is now $10
+    const freshNomination = makeNomination({
+      current_bid: 10,
+      current_bidder: 'user-b',
+      bidder_roster_id: 102,
+    });
+    const freshDraft = makeDraft();
+    (freshDraft as any).metadata = {
+      current_nomination: freshNomination,
+      auction_budgets: { '101': 200, '102': 200 },
+    };
+
+    // user-c's pre-check sees stale $5, but lock re-read sees fresh $10
+    draftRepo.findById
+      .mockResolvedValueOnce(staleDraft)   // pre-check
+      .mockResolvedValueOnce(freshDraft);  // inside tx
+
+    await expect(service.placeBid('draft-1', 'user-c', 8)).rejects.toThrow(
+      'Bid must be greater than $10',
+    );
+
+    expect(capturedClient.query).toHaveBeenCalledWith(
+      'SELECT pg_advisory_xact_lock(hashtext($1))',
+      ['draft-1'],
+    );
+  });
+
+  it('bid at exact current amount is rejected (not strictly greater)', async () => {
+    const nomination = makeNomination({ current_bid: 15, current_bidder: 'user-a' });
+    const draft = makeDraft();
+    (draft as any).metadata = {
+      current_nomination: nomination,
+      auction_budgets: { '101': 200, '102': 200 },
+    };
+
+    draftRepo.findById.mockResolvedValue(draft);
+
+    await expect(service.placeBid('draft-1', 'user-b', 15)).rejects.toThrow(
+      'Bid must be greater than $15',
+    );
+  });
+});
+
+describe('Auto-bid war continues until lower target exceeded', () => {
+  let service: AuctionService;
+  let draftRepo: any;
+
+  beforeEach(() => {
+    draftRepo = {
+      findById: vi.fn(),
+      update: vi.fn(),
+      countPicksWonByRoster: vi.fn().mockResolvedValue(0),
+      countPicksWonByRosters: vi.fn().mockResolvedValue(new Map()),
+      getQueueItemsForPlayerByUsers: vi.fn().mockResolvedValue(new Map()),
+      getUserIdsWithMaxBidForPlayer: vi.fn().mockResolvedValue([]),
+      upsertAuctionTimer: vi.fn().mockResolvedValue(undefined),
+      cancelAuctionTimers: vi.fn().mockResolvedValue(undefined),
+      withTransaction: vi.fn(async (fn: any) => {
+        const mockClient = { query: vi.fn() };
+        return fn(mockClient);
+      }),
+    };
+
+    service = new AuctionService(draftRepo, { findMember: vi.fn() }, {
+      findById: vi.fn().mockResolvedValue({ id: 'player-1', auctionValue: 40, searchRank: 5 }),
+    });
+  });
+
+  it('war stops at lower_target + 1 with two different max_bids', async () => {
+    // user-a: max_bid=10, user-b: max_bid=25. Starting at $1, user-a is current bidder.
+    let currentBid = 1;
+    let currentBidder = 'user-a';
+
+    draftRepo.getQueueItemsForPlayerByUsers.mockImplementation(() =>
+      new Map([['user-a', { max_bid: 10 }], ['user-b', { max_bid: 25 }]]),
+    );
+
+    draftRepo.findById.mockImplementation(() => {
+      const nomination = makeNomination({
+        current_bid: currentBid,
+        current_bidder: currentBidder,
+        bidder_roster_id: currentBidder === 'user-a' ? 101 : 102,
+      });
+      return new Draft(
+        'draft-1', 'league-1', '2025', 'nfl', 'drafting', 'auction',
+        null, null,
+        { 'user-a': 1, 'user-b': 2 },
+        { '1': 101, '2': 102 },
+        { ...DEFAULT_DRAFT_SETTINGS, nomination_timer: 30, teams: 12 },
+        {
+          current_nomination: nomination,
+          auto_pick_users: ['user-a', 'user-b'],
+          auction_budgets: { '101': 200, '102': 200 },
+        },
+        'user-a', new Date(), new Date(),
+      );
+    });
+
+    draftRepo.update.mockImplementation((_id: string, data: any) => {
+      const nom = data.metadata.current_nomination;
+      currentBid = nom.current_bid;
+      currentBidder = nom.current_bidder;
+      return draftRepo.findById();
+    });
+
+    // Drive the bidding war
+    const bids: Array<{ bidder: string; amount: number }> = [];
+    for (let i = 0; i < 50; i++) {
+      const result = await (service as any)._processAutoBids('draft-1');
+      if (!result) break;
+      bids.push({ bidder: currentBidder, amount: currentBid });
+    }
+
+    expect(bids.length).toBeLessThan(50);
+    expect(bids.length).toBeGreaterThan(0);
+
+    // user-b wins at $10 (user-a's effective target is 10, can't counter when currentBid=10)
+    const lastBid = bids[bids.length - 1];
+    expect(lastBid.bidder).toBe('user-b');
+    expect(lastBid.amount).toBe(10);
+
+    // Bids strictly alternate
+    for (let i = 1; i < bids.length; i++) {
+      expect(bids[i].bidder).not.toBe(bids[i - 1].bidder);
+    }
+  });
+
+  it('equal targets: war terminates without infinite loop', async () => {
+    let currentBid = 1;
+    let currentBidder = 'user-a';
+
+    draftRepo.getQueueItemsForPlayerByUsers.mockImplementation(() =>
+      new Map([['user-a', { max_bid: 10 }], ['user-b', { max_bid: 10 }]]),
+    );
+
+    draftRepo.findById.mockImplementation(() => {
+      const nomination = makeNomination({
+        current_bid: currentBid,
+        current_bidder: currentBidder,
+        bidder_roster_id: currentBidder === 'user-a' ? 101 : 102,
+      });
+      return new Draft(
+        'draft-1', 'league-1', '2025', 'nfl', 'drafting', 'auction',
+        null, null,
+        { 'user-a': 1, 'user-b': 2 },
+        { '1': 101, '2': 102 },
+        { ...DEFAULT_DRAFT_SETTINGS, nomination_timer: 30, teams: 12 },
+        {
+          current_nomination: nomination,
+          auto_pick_users: ['user-a', 'user-b'],
+          auction_budgets: { '101': 200, '102': 200 },
+        },
+        'user-a', new Date(), new Date(),
+      );
+    });
+
+    draftRepo.update.mockImplementation((_id: string, data: any) => {
+      const nom = data.metadata.current_nomination;
+      currentBid = nom.current_bid;
+      currentBidder = nom.current_bidder;
+      return draftRepo.findById();
+    });
+
+    const bids: Array<{ bidder: string; amount: number }> = [];
+    for (let i = 0; i < 50; i++) {
+      const result = await (service as any)._processAutoBids('draft-1');
+      if (!result) break;
+      bids.push({ bidder: currentBidder, amount: currentBid });
+    }
+
+    expect(bids.length).toBeLessThan(50);
+    expect(bids.length).toBeGreaterThan(0);
+
+    // Last bid should be at or below the shared target of 10
+    const lastBid = bids[bids.length - 1];
+    expect(lastBid.amount).toBeLessThanOrEqual(10);
+  });
+});
+
+describe('Recovery: auto-resolves expired nomination after restart', () => {
+  let service: AuctionService;
+  let draftRepo: any;
+  let capturedClient: any;
+
+  beforeEach(() => {
+    capturedClient = { query: vi.fn() };
+
+    draftRepo = {
+      findById: vi.fn(),
+      update: vi.fn(),
+      makeAuctionPick: vi.fn(),
+      deductBudget: vi.fn(),
+      completeAndUpdateLeagueInTx: vi.fn().mockResolvedValue(null),
+      countPicksWonByRoster: vi.fn().mockResolvedValue(0),
+      countPicksWonByRosters: vi.fn().mockResolvedValue(new Map()),
+      getQueueItemsForPlayerByUsers: vi.fn().mockResolvedValue(new Map()),
+      getUserIdsWithMaxBidForPlayer: vi.fn().mockResolvedValue([]),
+      findNextPick: vi.fn(),
+      findBestAvailable: vi.fn(),
+      findFirstAvailableFromQueue: vi.fn().mockResolvedValue(null),
+      addAutoPickUser: vi.fn().mockResolvedValue(null),
+      upsertAuctionTimer: vi.fn().mockResolvedValue(undefined),
+      cancelAuctionTimers: vi.fn().mockResolvedValue(undefined),
+      withTransaction: vi.fn(async (fn: any) => fn(capturedClient)),
+    };
+
+    service = new AuctionService(
+      draftRepo,
+      { findMember: vi.fn().mockResolvedValue({ role: 'member' }) },
+      { findById: vi.fn().mockResolvedValue({ id: 'player-1', auctionValue: 40 }) },
+    );
+  });
+
+  it('resolves expired nomination via processAutoBidsFromTimer', async () => {
+    const expiredNomination = makeNomination({
+      current_bid: 20,
+      current_bidder: 'user-b',
+      bidder_roster_id: 102,
+      bid_deadline: new Date(Date.now() - 10_000).toISOString(),
+    });
+
+    const draft = makeDraft();
+    (draft as any).metadata = {
+      current_nomination: expiredNomination,
+      auto_pick_users: ['user-a'],
+      auction_budgets: { '101': 200, '102': 200 },
+    };
+
+    draftRepo.findById.mockResolvedValue(draft);
+    draftRepo.makeAuctionPick.mockResolvedValue({ id: 'pick-1', playerId: 'player-1' });
+
+    const afterDeduct = makeDraft();
+    (afterDeduct as any).metadata = { auction_budgets: { '101': 200, '102': 180 } };
+    draftRepo.deductBudget.mockResolvedValue(afterDeduct);
+    draftRepo.update.mockResolvedValue(draft);
+
+    await service.processAutoBidsFromTimer('draft-1');
+
+    // Should have resolved the expired nomination
+    expect(draftRepo.makeAuctionPick).toHaveBeenCalled();
+    const pickCall = draftRepo.makeAuctionPick.mock.calls[0];
+    expect(pickCall[2]).toBe('user-b');     // winner
+    expect(pickCall[3]).toBe(102);          // roster_id
+    expect(pickCall[4]).toBe(20);           // winning bid amount
+  });
+
+  it('deducts budget from winner on recovery resolution', async () => {
+    const expiredNomination = makeNomination({
+      current_bid: 30,
+      current_bidder: 'user-b',
+      bidder_roster_id: 102,
+      bid_deadline: new Date(Date.now() - 3_000).toISOString(),
+    });
+
+    const draft = makeDraft();
+    (draft as any).metadata = {
+      current_nomination: expiredNomination,
+      auction_budgets: { '101': 200, '102': 200 },
+    };
+
+    draftRepo.findById.mockResolvedValue(draft);
+    draftRepo.makeAuctionPick.mockResolvedValue({ id: 'pick-1' });
+
+    const afterDeduct = makeDraft();
+    (afterDeduct as any).metadata = { auction_budgets: { '101': 200, '102': 170 } };
+    draftRepo.deductBudget.mockResolvedValue(afterDeduct);
+    draftRepo.update.mockResolvedValue(draft);
+
+    await service.processAutoBidsFromTimer('draft-1');
+
+    expect(draftRepo.deductBudget).toHaveBeenCalled();
+    const deductCall = draftRepo.deductBudget.mock.calls[0];
+    expect(deductCall[1]).toBe(102);  // roster_id
+    expect(deductCall[2]).toBe(30);   // amount
+  });
+
+  it('schedules deadline follow-up when no auto-bid and nomination still active', async () => {
+    const nomination = makeNomination({
+      current_bid: 5,
+      current_bidder: 'user-a',
+      bidder_roster_id: 101,
+      bid_deadline: new Date(Date.now() + 20_000).toISOString(),
+    });
+
+    const draft = makeDraft();
+    (draft as any).metadata = {
+      current_nomination: nomination,
+      auto_pick_users: [],
+      auction_budgets: { '101': 200, '102': 200 },
+    };
+
+    draftRepo.findById.mockResolvedValue(draft);
+
+    await service.processAutoBidsFromTimer('draft-1');
+
+    // No auto-bid placed, no resolution — should schedule a deadline follow-up
+    expect(draftRepo.makeAuctionPick).not.toHaveBeenCalled();
+    expect(draftRepo.upsertAuctionTimer).toHaveBeenCalled();
+
+    const timerCall = draftRepo.upsertAuctionTimer.mock.calls[0];
+    expect(timerCall[0]).toBe('draft-1');
+    expect(timerCall[1]).toBe('deadline');
+    // run_at should be roughly at bid_deadline + 1s
+    const runAt = new Date(timerCall[2]).getTime();
+    expect(runAt).toBeGreaterThan(Date.now() + 15_000);
   });
 });

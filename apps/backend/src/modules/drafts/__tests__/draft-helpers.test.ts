@@ -4,6 +4,7 @@ import {
   findRosterIdByUserId,
   findUserByRosterId,
   getMaxPlayersPerTeam,
+  assertBudgetExists,
 } from '../draft-helpers';
 import { Draft, DEFAULT_DRAFT_SETTINGS, DraftSettings } from '../drafts.model';
 
@@ -83,5 +84,27 @@ describe('getMaxPlayersPerTeam', () => {
       settings: { ...DEFAULT_DRAFT_SETTINGS, max_players_per_team: 0, rounds: 15 },
     });
     expect(getMaxPlayersPerTeam(draft)).toBe(15);
+  });
+});
+
+describe('assertBudgetExists', () => {
+  it('does not throw when roster has a budget entry', () => {
+    expect(() => assertBudgetExists({ '101': 200 }, 101, 'test')).not.toThrow();
+  });
+
+  it('does not throw when budget is zero (legitimate)', () => {
+    expect(() => assertBudgetExists({ '101': 0 }, 101, 'test')).not.toThrow();
+  });
+
+  it('throws when budgets is undefined', () => {
+    expect(() => assertBudgetExists(undefined, 101, 'test')).toThrow(
+      'Budget entry missing for roster 101',
+    );
+  });
+
+  it('throws when roster key is missing from budgets', () => {
+    expect(() => assertBudgetExists({ '102': 200 }, 101, 'bid placement')).toThrow(
+      'Budget entry missing for roster 101 during bid placement',
+    );
   });
 });

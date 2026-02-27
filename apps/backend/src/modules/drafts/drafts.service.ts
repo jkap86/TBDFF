@@ -16,7 +16,7 @@ import {
   ForbiddenException,
   ConflictException,
 } from '../../shared/exceptions';
-import { findUserBySlot, findUserByRosterId, findRosterIdByUserId, getMaxPlayersPerTeam } from './draft-helpers';
+import { findUserBySlot, findUserByRosterId, findRosterIdByUserId, getMaxPlayersPerTeam, assertBudgetExists } from './draft-helpers';
 
 export class DraftService {
   /** Per-draft lock to prevent concurrent processAutoPickChain executions */
@@ -332,6 +332,19 @@ export class DraftService {
         budgets[String(rosterId)] = draft.settings.budget;
       }
       metadata = { auction_budgets: budgets };
+    }
+
+    // Validate every roster has a budget entry (fail-fast on misconfiguration)
+    if (metadata.auction_budgets) {
+      for (let slot = 1; slot <= draft.settings.teams; slot++) {
+        const rosterId = draft.slotToRosterId[String(slot)];
+        if (rosterId === undefined) {
+          throw new ValidationException(
+            `Slot ${slot} has no roster mapping — cannot initialize budget`,
+          );
+        }
+        assertBudgetExists(metadata.auction_budgets, rosterId, 'draft start');
+      }
     }
 
     // Atomically update draft status to 'drafting' and league status in one transaction
