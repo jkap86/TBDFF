@@ -125,7 +125,7 @@ export function createContainer() {
   const statsSyncJob = new StatsSyncJob(scoringService);
   const waiverProcessJob = new WaiverProcessJob(transactionService);
   const tradeReviewJob = new TradeReviewJob(tradeService);
-  const slowAuctionSettlementJob = new SlowAuctionSettlementJob(slowAuctionService);
+  const slowAuctionSettlementJob = new SlowAuctionSettlementJob(slowAuctionService, pool);
 
   return {
     pool,

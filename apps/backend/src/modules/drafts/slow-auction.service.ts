@@ -43,6 +43,7 @@ export class SlowAuctionService {
       minIncrement: s.min_increment || 1,
       budget: s.budget || 200,
       maxPlayersPerTeam: getMaxPlayersPerTeam(draft),
+      maxLotDurationSeconds: s.max_lot_duration_seconds || null,
     };
   }
 
@@ -162,6 +163,10 @@ export class SlowAuctionService {
     }
 
     const result = await this.lotRepo.withTransaction(async (client) => {
+      // Roster-level advisory lock: serializes all bids from the same roster
+      // Prevents concurrent bids on different lots from overcommitting budget
+      await client.query('SELECT pg_advisory_xact_lock(hashtext($1))', [`${draftId}:roster:${rosterId}`]);
+
       // Lock the lot
       const lot = await this.lotRepo.findLotByIdForUpdate(lotId, client);
       if (!lot) throw new NotFoundException('Lot not found');
@@ -222,7 +227,9 @@ export class SlowAuctionService {
         const ext = computeExtendedDeadline(
           new Date(),
           new Date(lot.bidDeadline),
+          new Date(lot.createdAt),
           settings.bidWindowSeconds,
+          settings.maxLotDurationSeconds,
         );
         if (ext.shouldExtend) {
           newDeadline = ext.newDeadline;

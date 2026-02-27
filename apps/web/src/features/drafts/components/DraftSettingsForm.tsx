@@ -43,6 +43,14 @@ const BID_WINDOW_PRESETS = [
   { label: '48h', value: 172800 },
 ];
 
+const MAX_LOT_DURATION_PRESETS = [
+  { label: 'No cap', value: 0 },
+  { label: '3 days', value: 259200 },
+  { label: '5 days', value: 432000 },
+  { label: '7 days', value: 604800 },
+  { label: '14 days', value: 1209600 },
+];
+
 interface DraftSettingsFormProps {
   draft: Draft;
   onSave: (updates: UpdateDraftRequest) => Promise<void>;
@@ -64,6 +72,7 @@ export function DraftSettingsForm({ draft, onSave, readOnly }: DraftSettingsForm
   const [dailyNominationLimit, setDailyNominationLimit] = useState(draft.settings.daily_nomination_limit ?? 0);
   const [minBid, setMinBid] = useState(draft.settings.min_bid ?? 1);
   const [minIncrement, setMinIncrement] = useState(draft.settings.min_increment ?? 1);
+  const [maxLotDurationSeconds, setMaxLotDurationSeconds] = useState(draft.settings.max_lot_duration_seconds ?? 0);
 
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -86,6 +95,7 @@ export function DraftSettingsForm({ draft, onSave, readOnly }: DraftSettingsForm
     setDailyNominationLimit(draft.settings.daily_nomination_limit ?? 0);
     setMinBid(draft.settings.min_bid ?? 1);
     setMinIncrement(draft.settings.min_increment ?? 1);
+    setMaxLotDurationSeconds(draft.settings.max_lot_duration_seconds ?? 0);
     setError(null);
   }, [draft]);
 
@@ -119,6 +129,7 @@ export function DraftSettingsForm({ draft, onSave, readOnly }: DraftSettingsForm
       if (dailyNominationLimit !== (draft.settings.daily_nomination_limit ?? 0)) settingsUpdates.daily_nomination_limit = dailyNominationLimit;
       if (minBid !== (draft.settings.min_bid ?? 1)) settingsUpdates.min_bid = minBid;
       if (minIncrement !== (draft.settings.min_increment ?? 1)) settingsUpdates.min_increment = minIncrement;
+      if (maxLotDurationSeconds !== (draft.settings.max_lot_duration_seconds ?? 0)) settingsUpdates.max_lot_duration_seconds = maxLotDurationSeconds;
     }
 
     if (Object.keys(settingsUpdates).length > 0) {
@@ -193,6 +204,14 @@ export function DraftSettingsForm({ draft, onSave, readOnly }: DraftSettingsForm
                 <div className="font-medium text-gray-900 dark:text-white">{draft.settings.max_nominations_global ?? 25}</div>
                 <div className="text-gray-500 dark:text-gray-400">Min Bid</div>
                 <div className="font-medium text-gray-900 dark:text-white">${draft.settings.min_bid ?? 1}</div>
+                {(draft.settings.max_lot_duration_seconds ?? 0) > 0 && (
+                  <>
+                    <div className="text-gray-500 dark:text-gray-400">Max Lot Duration</div>
+                    <div className="font-medium text-gray-900 dark:text-white">
+                      {Math.round((draft.settings.max_lot_duration_seconds ?? 0) / 86400)} days
+                    </div>
+                  </>
+                )}
               </>
             )}
           </div>
@@ -477,6 +496,29 @@ export function DraftSettingsForm({ draft, onSave, readOnly }: DraftSettingsForm
                     />
                   </div>
                 </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Max Lot Duration</label>
+                <div className="flex flex-wrap gap-1.5">
+                  {MAX_LOT_DURATION_PRESETS.map((preset) => (
+                    <button
+                      key={preset.value}
+                      type="button"
+                      onClick={() => setMaxLotDurationSeconds(preset.value)}
+                      className={`rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors ${
+                        maxLotDurationSeconds === preset.value
+                          ? 'border-blue-300 bg-blue-100 text-blue-700'
+                          : 'border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
+                      }`}
+                    >
+                      {preset.label}
+                    </button>
+                  ))}
+                </div>
+                <span className="text-xs text-gray-400 dark:text-gray-500 mt-1 block">
+                  0 = lots can extend indefinitely
+                </span>
               </div>
             </>
           )}

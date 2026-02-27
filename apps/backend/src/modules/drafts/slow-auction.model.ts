@@ -9,6 +9,7 @@ export interface SlowAuctionSettings {
   minIncrement: number;
   budget: number;
   maxPlayersPerTeam: number;
+  maxLotDurationSeconds: number | null; // null = no cap
 }
 
 export class AuctionLot {

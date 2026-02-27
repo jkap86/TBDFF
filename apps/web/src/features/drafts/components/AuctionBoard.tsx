@@ -10,7 +10,7 @@ interface AuctionBoardProps {
 }
 
 export function AuctionBoard({ draft, picks, members, currentUserId }: AuctionBoardProps) {
-  const nomination = draft.metadata?.current_nomination;
+  const nomination = draft.metadata?.current_nomination as Record<string, any> | undefined;
   const budgets: Record<string, number> = draft.metadata?.auction_budgets ?? {};
   const completedPicks = picks.filter((p) => p.player_id).sort((a, b) => b.pick_no - a.pick_no);
 

@@ -95,13 +95,24 @@ export function resolveSecondPrice(
 /**
  * Compute whether to extend a lot's deadline on leader change.
  * Only extends, never shortens.
+ * Caps at lotCreatedAt + maxLotDurationSeconds if configured.
  */
 export function computeExtendedDeadline(
   now: Date,
   currentDeadline: Date,
+  lotCreatedAt: Date,
   bidWindowSeconds: number,
+  maxLotDurationSeconds: number | null,
 ): { shouldExtend: boolean; newDeadline: Date } {
-  const newDeadline = new Date(now.getTime() + bidWindowSeconds * 1000);
+  let newDeadline = new Date(now.getTime() + bidWindowSeconds * 1000);
+
+  if (maxLotDurationSeconds !== null) {
+    const maxDeadline = new Date(lotCreatedAt.getTime() + maxLotDurationSeconds * 1000);
+    if (newDeadline > maxDeadline) {
+      newDeadline = maxDeadline;
+    }
+  }
+
   const shouldExtend = newDeadline > currentDeadline;
   return {
     shouldExtend,

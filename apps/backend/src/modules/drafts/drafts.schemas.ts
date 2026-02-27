@@ -34,6 +34,7 @@ const draftSettingsPartialSchema = z.object({
   daily_nomination_limit: z.number().int().min(0).max(100).optional(),
   min_bid: z.number().int().min(1).max(999).optional(),
   min_increment: z.number().int().min(1).max(100).optional(),
+  max_lot_duration_seconds: z.number().int().min(0).max(2592000).optional(), // 0 = no cap, max 30 days
 }).passthrough();
 
 export const createDraftSchema = z.object({
