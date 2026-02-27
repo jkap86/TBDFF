@@ -6,11 +6,14 @@ import { asyncHandler } from '../../shared/async-handler';
 import { validate } from '../../shared/validate';
 import { registerSchema, loginSchema, refreshSchema } from './auth.schemas';
 
+const isDev = process.env.NODE_ENV === 'development';
+
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 15,
   standardHeaders: true,
   legacyHeaders: false,
+  skip: () => isDev,
   message: { error: { code: 'RATE_LIMITED', message: 'Too many attempts, try again later' } },
 });
 

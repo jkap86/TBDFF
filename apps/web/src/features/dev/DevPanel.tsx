@@ -86,36 +86,6 @@ export function DevPanel() {
         }
       }
 
-      // Find commissioner among the added users to assign rosters
-      const commUser = userTokens.find((u) => u.username === 'test1');
-      if (commUser) {
-        addLog('Assigning rosters as commissioner...');
-        // Get current rosters to find open slots
-        const { rosters } = await leagueApi.getRosters(leagueId, commUser.token);
-        const openSlots = rosters
-          .filter((r) => !r.owner_id)
-          .sort((a, b) => a.roster_id - b.roster_id);
-
-        let slotIdx = 0;
-        for (const u of userTokens) {
-          if (u.username === 'test1') continue;
-          if (slotIdx >= openSlots.length) break;
-          try {
-            await leagueApi.assignRoster(leagueId, openSlots[slotIdx].roster_id, { user_id: u.userId }, commUser.token);
-            addLog(`${u.username} → roster ${openSlots[slotIdx].roster_id}`);
-            slotIdx++;
-          } catch (e: any) {
-            if (e.message?.includes('already assigned')) {
-              addLog(`${u.username} already has roster`);
-            } else {
-              addLog(`${u.username} roster failed: ${e.message}`);
-            }
-          }
-        }
-      } else {
-        addLog('test1 not selected — skipping roster assignment');
-      }
-
       addLog('Done! Refreshing...');
       router.refresh();
       window.location.reload();
