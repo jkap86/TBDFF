@@ -81,8 +81,8 @@ export class TradeService {
         if (pick.currentOwnerId !== expectedOwner) {
           throw new ValidationException('Draft pick is not owned by the expected user');
         }
-        const started = await this.tradeRepo.isDraftStartedForPick(item.draft_pick_id);
-        if (started) throw new ValidationException('Cannot trade a pick for a draft that has already started');
+        const complete = await this.tradeRepo.isDraftCompleteForPick(item.draft_pick_id);
+        if (complete) throw new ValidationException('Cannot trade a pick for a draft that has already completed');
       }
     }
 
@@ -264,6 +264,8 @@ export class TradeService {
           const newOwner = item.side === 'proposer' ? trade.proposedTo : trade.proposedBy;
           const newRoster = item.side === 'proposer' ? receiverRoster.rosterId : proposerRoster.rosterId;
           await this.tradeRepo.transferDraftPick(client, item.draftPickId, newOwner, newRoster);
+          // If the draft is in progress, also update the corresponding draft_pick
+          await this.tradeRepo.transferActiveDraftPicks(client, item.draftPickId, newRoster);
         }
 
         if (item.itemType === 'faab' && item.faabAmount) {
@@ -370,8 +372,8 @@ export class TradeService {
         if (pick.currentOwnerId !== expectedOwner) {
           throw new ValidationException('Draft pick is not owned by the expected user');
         }
-        const started = await this.tradeRepo.isDraftStartedForPick(item.draft_pick_id);
-        if (started) throw new ValidationException('Cannot trade a pick for a draft that has already started');
+        const complete = await this.tradeRepo.isDraftCompleteForPick(item.draft_pick_id);
+        if (complete) throw new ValidationException('Cannot trade a pick for a draft that has already completed');
       }
     }
 

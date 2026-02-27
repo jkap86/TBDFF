@@ -194,15 +194,34 @@ export class TradeRepository {
     return result.rows.length > 0 ? FutureDraftPick.fromDatabase(result.rows[0]) : null;
   }
 
-  async isDraftStartedForPick(futurePickId: string): Promise<boolean> {
+  async isDraftCompleteForPick(futurePickId: string): Promise<boolean> {
     const result = await this.db.query(
       `SELECT 1 FROM drafts d
        JOIN future_draft_picks fp ON fp.league_id = d.league_id AND fp.season = d.season
-       WHERE fp.id = $1 AND d.status IN ('drafting', 'complete')
+       WHERE fp.id = $1 AND d.status = 'complete'
        LIMIT 1`,
       [futurePickId],
     );
     return result.rows.length > 0;
+  }
+
+  async transferActiveDraftPicks(
+    client: PoolClient,
+    futurePickId: string,
+    newRosterId: number,
+  ): Promise<void> {
+    await client.query(
+      `UPDATE draft_picks dp
+       SET roster_id = $2
+       FROM drafts d
+       JOIN future_draft_picks fp ON fp.league_id = d.league_id AND fp.season = d.season
+       WHERE fp.id = $1
+         AND d.status = 'drafting'
+         AND dp.draft_id = d.id
+         AND dp.round = fp.round
+         AND dp.draft_slot = (d.draft_order->>fp.original_owner_id::text)::int`,
+      [futurePickId, newRosterId],
+    );
   }
 
   async transferDraftPick(client: PoolClient, pickId: string, newOwnerId: string, newRosterId: number): Promise<void> {
