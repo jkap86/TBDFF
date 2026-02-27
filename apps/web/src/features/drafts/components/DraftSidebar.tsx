@@ -21,6 +21,7 @@ interface DraftSidebarProps {
   accessToken: string;
   isAuction: boolean;
   budget: number;
+  teams: number;
   height?: string;
 }
 
@@ -41,6 +42,7 @@ export function DraftSidebar({
   accessToken,
   isAuction,
   budget,
+  teams,
   height = 'calc(100vh - 200px)',
 }: DraftSidebarProps) {
   return (
@@ -89,6 +91,7 @@ export function DraftSidebar({
             onUpdateMaxBid={onUpdateMaxBid}
             isAuction={isAuction}
             budget={budget}
+            teams={teams}
           />
         )}
       </div>

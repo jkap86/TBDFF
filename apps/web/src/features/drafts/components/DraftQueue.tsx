@@ -12,15 +12,17 @@ interface DraftQueueProps {
   onUpdateMaxBid?: (playerId: string, maxBid: number | null) => void;
   isAuction?: boolean;
   budget?: number;
+  teams?: number;
 }
 
-function MaxBidInput({ item, budget, onUpdateMaxBid }: {
+function MaxBidInput({ item, budget, teams, onUpdateMaxBid }: {
   item: DraftQueueItem;
   budget: number;
+  teams: number;
   onUpdateMaxBid: (playerId: string, maxBid: number | null) => void;
 }) {
   const defaultBid = item.auction_value != null
-    ? Math.floor(item.auction_value * 0.8 * (budget / 200))
+    ? Math.floor(item.auction_value * 0.8 * (budget / 200) * (teams / 12))
     : null;
   const [value, setValue] = useState(item.max_bid != null ? String(item.max_bid) : '');
   const [isFocused, setIsFocused] = useState(false);
@@ -70,7 +72,7 @@ function MaxBidInput({ item, budget, onUpdateMaxBid }: {
   );
 }
 
-export function DraftQueue({ queue, draftedPlayerIds, onReorder, onRemove, onUpdateMaxBid, isAuction, budget }: DraftQueueProps) {
+export function DraftQueue({ queue, draftedPlayerIds, onReorder, onRemove, onUpdateMaxBid, isAuction, budget, teams }: DraftQueueProps) {
   const handleMoveUp = (index: number) => {
     if (index === 0) return;
     const ids = queue.map((q) => q.player_id);
@@ -86,7 +88,7 @@ export function DraftQueue({ queue, draftedPlayerIds, onReorder, onRemove, onUpd
   };
 
   const availableCount = queue.filter((q) => !draftedPlayerIds.has(q.player_id)).length;
-  const showBids = isAuction && onUpdateMaxBid && budget;
+  const showBids = isAuction && onUpdateMaxBid && budget && teams;
 
   return (
     <div className="flex h-full flex-col">
@@ -130,7 +132,7 @@ export function DraftQueue({ queue, draftedPlayerIds, onReorder, onRemove, onUpd
                   </span>
                 )}
                 {showBids && !isDrafted && (
-                  <MaxBidInput item={item} budget={budget} onUpdateMaxBid={onUpdateMaxBid} />
+                  <MaxBidInput item={item} budget={budget} teams={teams} onUpdateMaxBid={onUpdateMaxBid} />
                 )}
                 {!isDrafted && (
                   <div className="flex items-center gap-0.5">

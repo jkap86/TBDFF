@@ -909,21 +909,42 @@ export class AuctionService {
       ],
     };
 
-    // Re-read draft to ensure nomination hasn't been resolved by a concurrent resolve call
-    const freshDraft = await this.draftRepository.findById(draftId);
-    if (
-      !freshDraft?.metadata?.current_nomination ||
-      freshDraft.metadata.current_nomination.pick_id !== nomination.pick_id
-    ) {
-      return null;
-    }
+    // Re-read and write under advisory lock to prevent clobbering a concurrent manual bid
+    const updated = await this.draftRepository.withTransaction(async (client) => {
+      await client.query('SELECT pg_advisory_xact_lock(hashtext($1))', [draftId]);
 
-    const updated = await this.draftRepository.update(draftId, {
-      metadata: {
-        ...freshDraft.metadata,
-        current_nomination: updatedNomination,
-      },
-      lastPicked: new Date().toISOString(),
+      const freshDraft = await this.draftRepository.findById(draftId, client);
+      if (
+        !freshDraft?.metadata?.current_nomination ||
+        freshDraft.metadata.current_nomination.pick_id !== nomination.pick_id
+      ) {
+        return null;
+      }
+
+      // Bail out if a manual bid raised the price above our winning bid
+      if (freshDraft.metadata.current_nomination.current_bid >= winningBid) {
+        return null;
+      }
+
+      return this.draftRepository.update(draftId, {
+        metadata: {
+          ...freshDraft.metadata,
+          current_nomination: {
+            ...updatedNomination,
+            // Use the freshest bid_history in case a manual bid landed between our read and lock
+            bid_history: [
+              ...freshDraft.metadata.current_nomination.bid_history,
+              {
+                user_id: winner.userId,
+                amount: winningBid,
+                timestamp: new Date().toISOString(),
+                auto_bid: true,
+              },
+            ],
+          },
+        },
+        lastPicked: new Date().toISOString(),
+      }, client);
     });
 
     this.scheduleAutoBids(draftId);

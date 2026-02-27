@@ -65,6 +65,7 @@ export default function DraftRoomPage() {
     accessToken: accessToken!,
     isAuction: room.isAuction,
     budget: draft.settings.budget,
+    teams: draft.settings.teams,
     ...(room.isAuction ? {
       onDraft: room.handleNominate,
       isMyTurn: !!room.isMyTurn && !draft.metadata?.current_nomination && !room.isAutoPick,

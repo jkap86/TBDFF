@@ -3,16 +3,17 @@
 import { useState, useEffect } from 'react';
 import type { Draft, DraftQueueItem } from '@/lib/api';
 
-function NominationMaxBid({ nomination, queue, budget, onUpdateMaxBid }: {
+function NominationMaxBid({ nomination, queue, budget, teams, onUpdateMaxBid }: {
   nomination: { player_id: string; player_metadata?: { auction_value?: number | null } };
   queue: DraftQueueItem[];
   budget: number;
+  teams: number;
   onUpdateMaxBid: (playerId: string, maxBid: number | null) => void;
 }) {
   const queueItem = queue.find((q) => q.player_id === nomination.player_id);
   const currentMaxBid = queueItem?.max_bid ?? null;
   const aav = nomination.player_metadata?.auction_value ?? queueItem?.auction_value ?? null;
-  const defaultBid = aav != null ? Math.floor(aav * 0.8 * (budget / 200)) : null;
+  const defaultBid = aav != null ? Math.floor(aav * 0.8 * (budget / 200) * (teams / 12)) : null;
 
   const [value, setValue] = useState(currentMaxBid != null ? String(currentMaxBid) : '');
   const [isFocused, setIsFocused] = useState(false);
@@ -210,6 +211,7 @@ export function AuctionControls({
               nomination={draft.metadata.current_nomination}
               queue={queue}
               budget={draft.settings.budget}
+              teams={draft.settings.teams}
               onUpdateMaxBid={onNominationMaxBid}
             />
           </div>
