@@ -71,8 +71,8 @@ export function useDraftRoom(leagueId: string) {
       setMembers(membersResult.members);
       setRosters(rostersResult.rosters);
 
-      // Compute clock offset from server's updated_at timestamp so the timer stays in sync
-      timer.updateClockOffset(draftResult.draft.updated_at);
+      // Compute clock offset from server's current time so the timer stays in sync
+      timer.updateClockOffset(draftResult.server_time);
 
       // Fetch picks if the draft has started or is complete
       if (draftResult.draft.status === 'drafting' || draftResult.draft.status === 'complete') {
@@ -129,10 +129,10 @@ export function useDraftRoom(leagueId: string) {
 
     socket.emit('draft:join', draft.id);
 
-    const handleStateUpdate = (data: { draft: Draft; pick?: DraftPick; chained_picks?: DraftPick[] }) => {
+    const handleStateUpdate = (data: { draft: Draft; pick?: DraftPick; chained_picks?: DraftPick[]; server_time?: string }) => {
       setDraft(data.draft);
       // Update clock offset whenever we get a server timestamp
-      timer.updateClockOffset(data.draft.updated_at);
+      if (data.server_time) timer.updateClockOffset(data.server_time);
       if (data.pick) {
         setPicks((prev) => {
           let updated = prev.map((p) => (p.id === data.pick!.id ? data.pick! : p));
@@ -233,6 +233,7 @@ export function useDraftRoom(leagueId: string) {
             draftApi.getSlowAuctionBudgets(draft.id, accessToken),
           ]);
           setDraft(draftResult.draft);
+          if (draftResult.server_time) timer.updateClockOffset(draftResult.server_time);
           setSlowAuctionLots(lotsResult.lots);
           setSlowAuctionBudgets(budgetsResult.budgets);
         } else {
@@ -241,6 +242,7 @@ export function useDraftRoom(leagueId: string) {
             draftApi.getPicks(draft.id, accessToken),
           ]);
           setDraft(draftResult.draft);
+          if (draftResult.server_time) timer.updateClockOffset(draftResult.server_time);
           setPicks(picksResult.picks);
         }
       } catch {

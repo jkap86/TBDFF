@@ -452,6 +452,7 @@ export class DraftService {
         draft: finalDraft,
         pick,
         chained_picks: chainedPicks,
+        server_time: new Date().toISOString(),
       });
     }
 
@@ -548,6 +549,7 @@ export class DraftService {
         draft: finalDraft,
         pick,
         chained_picks: chainedPicks,
+        server_time: new Date().toISOString(),
       });
     }
 
@@ -579,7 +581,7 @@ export class DraftService {
     if (isCurrentlyOn) {
       const updatedDraft =
         (await this.draftRepository.removeAutoPickUser(draftId, userId)) ?? draft;
-      this.draftGateway?.broadcast(draftId, 'draft:state_updated', { draft: updatedDraft });
+      this.draftGateway?.broadcast(draftId, 'draft:state_updated', { draft: updatedDraft, server_time: new Date().toISOString() });
       return { draft: updatedDraft, picks: [] };
     }
 
@@ -594,6 +596,7 @@ export class DraftService {
       this.draftGateway?.broadcast(draftId, 'draft:state_updated', {
         draft: finalDraft,
         chained_picks: chainedPicks,
+        server_time: new Date().toISOString(),
       });
     }
     return { draft: finalDraft ?? draft, picks: chainedPicks };

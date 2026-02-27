@@ -138,6 +138,7 @@ export interface PlaceBidRequest {
 // Response types
 export interface DraftResponse {
   draft: Draft;
+  server_time: string;
 }
 
 export interface DraftListResponse {
@@ -161,11 +162,13 @@ export interface ToggleAutoPickResponse {
 // Auction-specific response types
 export interface NominationResponse {
   draft: Draft;
+  server_time: string;
 }
 
 export interface BidResponse {
   draft: Draft;
   won: DraftPick | null;
+  server_time: string;
 }
 
 // Draft queue types

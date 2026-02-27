@@ -62,7 +62,7 @@ export class DraftController {
     const draftId = Array.isArray(req.params.draftId) ? req.params.draftId[0] : req.params.draftId;
     const draft = await this.draftService.getDraft(draftId, userId);
 
-    res.status(200).json({ draft: draft.toSafeObject() });
+    res.status(200).json({ draft: draft.toSafeObject(), server_time: new Date().toISOString() });
   };
 
   update = async (req: AuthRequest, res: Response): Promise<void> => {
@@ -170,7 +170,7 @@ export class DraftController {
     const body = req.body as NominateDraftPickInput;
 
     const draft = await this.auctionService.nominate(draftId, userId, body.player_id, body.amount);
-    res.status(200).json({ draft: draft.toSafeObject() });
+    res.status(200).json({ draft: draft.toSafeObject(), server_time: new Date().toISOString() });
   };
 
   bid = async (req: AuthRequest, res: Response): Promise<void> => {
@@ -184,6 +184,7 @@ export class DraftController {
     res.status(200).json({
       draft: result.draft.toSafeObject(),
       won: result.won?.toSafeObject() ?? null,
+      server_time: new Date().toISOString(),
     });
   };
 
@@ -196,6 +197,7 @@ export class DraftController {
     res.status(200).json({
       draft: result.draft.toSafeObject(),
       won: result.won?.toSafeObject() ?? null,
+      server_time: new Date().toISOString(),
     });
   };
 
@@ -205,7 +207,7 @@ export class DraftController {
 
     const draftId = Array.isArray(req.params.draftId) ? req.params.draftId[0] : req.params.draftId;
     const draft = await this.auctionService.autoNominate(draftId, userId);
-    res.status(200).json({ draft: draft.toSafeObject() });
+    res.status(200).json({ draft: draft.toSafeObject(), server_time: new Date().toISOString() });
   };
 
   // ---- Available Players ----

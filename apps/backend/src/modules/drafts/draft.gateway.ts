@@ -7,6 +7,7 @@ export interface DraftStateUpdate {
   draft: Draft;
   pick?: DraftPick;
   chained_picks?: DraftPick[];
+  server_time?: string;
 }
 
 export class DraftGateway {

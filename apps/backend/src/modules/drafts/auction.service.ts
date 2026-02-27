@@ -171,7 +171,7 @@ export class AuctionService {
     if (!updated) throw new NotFoundException('Draft not found');
 
     this.scheduleAutoBids(draftId);
-    this.draftGateway?.broadcast(draftId, 'draft:state_updated', { draft: updated });
+    this.draftGateway?.broadcast(draftId, 'draft:state_updated', { draft: updated, server_time: new Date().toISOString() });
     return updated;
   }
 
@@ -254,7 +254,7 @@ export class AuctionService {
     if (!updated) throw new NotFoundException('Draft not found');
 
     this.scheduleAutoBids(draftId);
-    this.draftGateway?.broadcast(draftId, 'draft:state_updated', { draft: updated });
+    this.draftGateway?.broadcast(draftId, 'draft:state_updated', { draft: updated, server_time: new Date().toISOString() });
     return { draft: updated };
   }
 
@@ -387,7 +387,7 @@ export class AuctionService {
     }
 
     if (pick) {
-      this.draftGateway?.broadcast(draftId, 'draft:state_updated', { draft: resultDraft, pick });
+      this.draftGateway?.broadcast(draftId, 'draft:state_updated', { draft: resultDraft, pick, server_time: new Date().toISOString() });
 
       // Check if next nominator is on auto-pick (only if draft is still active)
       if (resultDraft.status === 'drafting') {
@@ -545,7 +545,7 @@ export class AuctionService {
     if (!updated) throw new NotFoundException('Draft not found');
 
     this.scheduleAutoBids(draftId);
-    this.draftGateway?.broadcast(draftId, 'draft:state_updated', { draft: updated });
+    this.draftGateway?.broadcast(draftId, 'draft:state_updated', { draft: updated, server_time: new Date().toISOString() });
     return updated;
   }
 
@@ -639,7 +639,7 @@ export class AuctionService {
 
     if (updated) {
       this.scheduleAutoBids(draftId);
-      this.draftGateway?.broadcast(draftId, 'draft:state_updated', { draft: updated });
+      this.draftGateway?.broadcast(draftId, 'draft:state_updated', { draft: updated, server_time: new Date().toISOString() });
     }
   }
 
@@ -950,7 +950,7 @@ export class AuctionService {
     this.scheduleAutoBids(draftId);
 
     if (updated) {
-      this.draftGateway?.broadcast(draftId, 'draft:state_updated', { draft: updated });
+      this.draftGateway?.broadcast(draftId, 'draft:state_updated', { draft: updated, server_time: new Date().toISOString() });
     }
 
     return updated;
