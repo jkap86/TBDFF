@@ -6,6 +6,7 @@ import { Settings, MessageSquare, ArrowLeftRight, ClipboardList, Activity } from
 import { leagueApi, draftApi, matchupApi, ApiError, type League, type LeagueMember, type Roster, type UpdateLeagueRequest, type Draft, type Matchup } from '@/lib/api';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import { LeagueSettingsModal } from '@/features/leagues/components/LeagueSettingsModal';
+import { PaymentsCard } from '@/features/leagues/components/PaymentsCard';
 import { useConversations } from '@/features/chat/hooks/useConversations';
 import { useChatPanel } from '@/features/chat/context/ChatPanelContext';
 
@@ -146,6 +147,16 @@ export default function LeagueDetailPage() {
       openConversation(conversation);
     } catch {
       // Non-fatal — user may already have the panel open
+    }
+  };
+
+  const handleRefreshLeague = async () => {
+    if (!accessToken) return;
+    try {
+      const result = await leagueApi.getById(leagueId, accessToken);
+      setLeague(result.league);
+    } catch {
+      // Non-fatal
     }
   };
 
@@ -476,6 +487,15 @@ export default function LeagueDetailPage() {
             )}
           </div>
         )}
+
+        {/* Payments Card */}
+        <PaymentsCard
+          leagueId={leagueId}
+          members={members}
+          settings={league.settings}
+          isCommissioner={!!isCommissioner}
+          onSettingsUpdate={handleRefreshLeague}
+        />
 
         {/* Trades Card - always visible for draft pick trading */}
         <button

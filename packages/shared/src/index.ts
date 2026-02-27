@@ -29,6 +29,9 @@ export { tradeApi } from './trades/trade-api';
 // Transactions
 export { transactionApi } from './transactions/transaction-api';
 
+// Payments
+export { paymentApi } from './payments/payment-api';
+
 // Types
 export type { User, AuthResponse, UserResponse } from './types/auth';
 export type {
@@ -146,3 +149,12 @@ export type {
   WaiverClaimResponse,
   WaiverClaimListResponse,
 } from './types/transaction';
+export type {
+  LeaguePayment,
+  PaymentType,
+  PaymentListResponse,
+  PaymentResponse,
+  RecordBuyInRequest,
+  RecordPayoutRequest,
+  SetBuyInRequest,
+} from './types/payment';

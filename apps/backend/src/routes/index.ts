@@ -10,6 +10,7 @@ import { createScoringRoutes, createLeagueScoringRoutes } from '../modules/scori
 import { createLeagueChatRoutes, createConversationRoutes } from '../modules/chat/chat.routes';
 import { createTradeRoutes, createLeagueTradeRoutes } from '../modules/trades/trades.routes';
 import { createLeagueTransactionRoutes } from '../modules/transactions/transactions.routes';
+import { createPaymentRoutes } from '../modules/payments/payments.routes';
 
 export function registerRoutes(app: Express, container: Container): void {
   const { controllers, pool } = container;
@@ -59,4 +60,5 @@ export function registerRoutes(app: Express, container: Container): void {
   app.use('/api/trades', createTradeRoutes(controllers.tradeController));
   app.use('/api/leagues', createLeagueTradeRoutes(controllers.tradeController));
   app.use('/api/leagues', createLeagueTransactionRoutes(controllers.transactionController));
+  app.use('/api/leagues', createPaymentRoutes(controllers.paymentController));
 }

@@ -16,6 +16,7 @@ import { MatchupRepository } from './modules/matchups/matchups.repository';
 import { ChatRepository } from './modules/chat/chat.repository';
 import { TradeRepository } from './modules/trades/trades.repository';
 import { TransactionRepository } from './modules/transactions/transactions.repository';
+import { PaymentRepository } from './modules/payments/payments.repository';
 
 // Services
 import { AuthService } from './modules/auth/auth.service';
@@ -28,6 +29,7 @@ import { MatchupService } from './modules/matchups/matchups.service';
 import { ChatService } from './modules/chat/chat.service';
 import { TradeService } from './modules/trades/trades.service';
 import { TransactionService } from './modules/transactions/transactions.service';
+import { PaymentService } from './modules/payments/payments.service';
 
 // Controllers
 import { AuthController } from './modules/auth/auth.controller';
@@ -39,6 +41,7 @@ import { MatchupController } from './modules/matchups/matchups.controller';
 import { ChatController } from './modules/chat/chat.controller';
 import { TradeController } from './modules/trades/trades.controller';
 import { TransactionController } from './modules/transactions/transactions.controller';
+import { PaymentController } from './modules/payments/payments.controller';
 
 // Jobs
 import { PlayerSyncJob } from './jobs/player-sync.job';
@@ -80,6 +83,7 @@ export function createContainer() {
   const chatRepository = new ChatRepository(pool);
   const tradeRepository = new TradeRepository(pool);
   const transactionRepository = new TransactionRepository(pool);
+  const paymentRepository = new PaymentRepository(pool);
 
   // Services
   const authService = new AuthService(userRepository);
@@ -97,6 +101,7 @@ export function createContainer() {
   const chatService = new ChatService(chatRepository);
   const tradeService = new TradeService(tradeRepository, leagueRepository, draftRepository);
   const transactionService = new TransactionService(transactionRepository, leagueRepository);
+  const paymentService = new PaymentService(paymentRepository, leagueRepository);
 
   // Controllers
   const authController = new AuthController(authService);
@@ -108,6 +113,7 @@ export function createContainer() {
   const chatController = new ChatController(chatService);
   const tradeController = new TradeController(tradeService);
   const transactionController = new TransactionController(transactionService);
+  const paymentController = new PaymentController(paymentService);
 
   // Jobs
   const playerSyncJob = new PlayerSyncJob(playerService);
@@ -137,6 +143,7 @@ export function createContainer() {
       chatController,
       tradeController,
       transactionController,
+      paymentController,
     },
     jobs: {
       playerSyncJob,
