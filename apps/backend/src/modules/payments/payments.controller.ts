@@ -2,7 +2,7 @@ import { Response } from 'express';
 import { AuthRequest } from '../../middleware/auth.middleware';
 import { PaymentService } from './payments.service';
 import { InvalidCredentialsException } from '../../shared/exceptions';
-import { RecordBuyInInput, RecordPayoutInput, SetBuyInInput } from './payments.schemas';
+import { RecordBuyInInput, SetBuyInInput, SetPayoutsInput } from './payments.schemas';
 
 function param(value: string | string[]): string {
   return Array.isArray(value) ? value[0] : value;
@@ -43,6 +43,17 @@ export class PaymentController {
     res.status(201).json({ payment: payment.toSafeObject() });
   };
 
+  setPayouts = async (req: AuthRequest, res: Response): Promise<void> => {
+    const userId = req.user?.userId;
+    if (!userId) throw new InvalidCredentialsException();
+
+    const body = req.body as SetPayoutsInput;
+    await this.paymentService.setPayouts(
+      param(req.params.leagueId), userId, body.payouts,
+    );
+    res.status(200).json({ message: 'Payout structure updated' });
+  };
+
   removePayment = async (req: AuthRequest, res: Response): Promise<void> => {
     const userId = req.user?.userId;
     if (!userId) throw new InvalidCredentialsException();
@@ -51,16 +62,5 @@ export class PaymentController {
       param(req.params.leagueId), userId, param(req.params.paymentId),
     );
     res.status(200).json({ message: 'Payment record removed' });
-  };
-
-  recordPayout = async (req: AuthRequest, res: Response): Promise<void> => {
-    const userId = req.user?.userId;
-    if (!userId) throw new InvalidCredentialsException();
-
-    const body = req.body as RecordPayoutInput;
-    const payment = await this.paymentService.recordPayout(
-      param(req.params.leagueId), userId, body.user_id, body.amount, body.note,
-    );
-    res.status(201).json({ payment: payment.toSafeObject() });
   };
 }

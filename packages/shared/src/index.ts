@@ -152,9 +152,11 @@ export type {
 export type {
   LeaguePayment,
   PaymentType,
+  PayoutCategory,
+  PayoutEntry,
   PaymentListResponse,
   PaymentResponse,
   RecordBuyInRequest,
-  RecordPayoutRequest,
   SetBuyInRequest,
+  SetPayoutsRequest,
 } from './types/payment';

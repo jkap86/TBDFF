@@ -1,4 +1,5 @@
 export type PaymentType = 'buy_in' | 'payout';
+export type PayoutCategory = 'place' | 'points';
 
 export interface LeaguePayment {
   id: string;
@@ -7,11 +8,19 @@ export interface LeaguePayment {
   type: PaymentType;
   amount: number;
   note: string | null;
+  category: PayoutCategory | null;
   recorded_by: string;
   created_at: string;
   updated_at: string;
   username?: string;
   recorded_by_username?: string;
+}
+
+export interface PayoutEntry {
+  category: PayoutCategory;
+  position: number;
+  value: number;
+  is_percentage: boolean;
 }
 
 export interface PaymentListResponse {
@@ -27,12 +36,10 @@ export interface RecordBuyInRequest {
   amount: number;
 }
 
-export interface RecordPayoutRequest {
-  user_id: string;
-  amount: number;
-  note?: string;
-}
-
 export interface SetBuyInRequest {
   buy_in: number;
+}
+
+export interface SetPayoutsRequest {
+  payouts: PayoutEntry[];
 }

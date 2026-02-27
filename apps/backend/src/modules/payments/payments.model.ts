@@ -1,4 +1,5 @@
 export type PaymentType = 'buy_in' | 'payout';
+export type PayoutCategory = 'place' | 'points';
 
 export class LeaguePayment {
   constructor(
@@ -8,6 +9,7 @@ export class LeaguePayment {
     public readonly type: PaymentType,
     public readonly amount: number,
     public readonly note: string | null,
+    public readonly category: PayoutCategory | null,
     public readonly recordedBy: string,
     public readonly createdAt: Date,
     public readonly updatedAt: Date,
@@ -23,6 +25,7 @@ export class LeaguePayment {
       row.type,
       parseFloat(row.amount),
       row.note,
+      row.category,
       row.recorded_by,
       row.created_at,
       row.updated_at,
@@ -39,6 +42,7 @@ export class LeaguePayment {
       type: this.type,
       amount: this.amount,
       note: this.note,
+      category: this.category,
       recorded_by: this.recordedBy,
       created_at: this.createdAt,
       updated_at: this.updatedAt,

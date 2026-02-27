@@ -6,7 +6,6 @@ import { Settings, MessageSquare, ArrowLeftRight, ClipboardList, Activity } from
 import { leagueApi, draftApi, matchupApi, ApiError, type League, type LeagueMember, type Roster, type UpdateLeagueRequest, type Draft, type Matchup } from '@/lib/api';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import { LeagueSettingsModal } from '@/features/leagues/components/LeagueSettingsModal';
-import { PaymentsCard } from '@/features/leagues/components/PaymentsCard';
 import { useConversations } from '@/features/chat/hooks/useConversations';
 import { useChatPanel } from '@/features/chat/context/ChatPanelContext';
 
@@ -488,15 +487,6 @@ export default function LeagueDetailPage() {
           </div>
         )}
 
-        {/* Payments Card */}
-        <PaymentsCard
-          leagueId={leagueId}
-          members={members}
-          settings={league.settings}
-          isCommissioner={!!isCommissioner}
-          onSettingsUpdate={handleRefreshLeague}
-        />
-
         {/* Trades Card - always visible for draft pick trading */}
         <button
           onClick={() => router.push(`/leagues/${leagueId}/trades`)}
@@ -588,6 +578,7 @@ export default function LeagueDetailPage() {
           onDelete={handleDeleteLeague}
           onAssignRoster={handleAssignRoster}
           onUnassignRoster={handleUnassignRoster}
+          onLeagueRefresh={handleRefreshLeague}
           isOwner={isCommissioner}
         />
       )}

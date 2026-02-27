@@ -14,4 +14,4 @@ export type { Matchup, MatchupListResponse } from '@tbdff/shared';
 export type { NflStateResponse, LeaguePlayerScore, LeagueScoresResponse, LeaguePlayerProjection, LeagueProjectionsResponse, GameInfo, GameScheduleResponse, PlayerGameStatus, LivePlayerScore, LiveRosterScore, LiveScoresResponse } from '@tbdff/shared';
 export type { TradeProposal, TradeItem, TradeStatus, FutureDraftPick, ProposeTradeRequest, CounterTradeRequest, TradeProposalResponse, TradeListResponse, FutureDraftPickListResponse } from '@tbdff/shared';
 export type { Transaction, TransactionType, WaiverClaim, WaiverClaimStatus, AddPlayerRequest, DropPlayerRequest, PlaceWaiverClaimRequest, UpdateWaiverClaimRequest, TransactionListResponse, TransactionResponse, WaiverClaimResponse, WaiverClaimListResponse } from '@tbdff/shared';
-export type { LeaguePayment, PaymentType, RecordBuyInRequest, RecordPayoutRequest, SetBuyInRequest, PaymentListResponse, PaymentResponse } from '@tbdff/shared';
+export type { LeaguePayment, PaymentType, PayoutCategory, PayoutEntry, RecordBuyInRequest, SetBuyInRequest, SetPayoutsRequest, PaymentListResponse, PaymentResponse } from '@tbdff/shared';

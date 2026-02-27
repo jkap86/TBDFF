@@ -3,8 +3,8 @@ import type {
   PaymentListResponse,
   PaymentResponse,
   RecordBuyInRequest,
-  RecordPayoutRequest,
   SetBuyInRequest,
+  SetPayoutsRequest,
 } from '../types/payment';
 
 export const paymentApi = {
@@ -17,8 +17,8 @@ export const paymentApi = {
   recordBuyIn: (leagueId: string, data: RecordBuyInRequest, token: string) =>
     apiClient.post<PaymentResponse>(`/leagues/${leagueId}/payments/buy-ins`, data, token),
 
-  recordPayout: (leagueId: string, data: RecordPayoutRequest, token: string) =>
-    apiClient.post<PaymentResponse>(`/leagues/${leagueId}/payments/payouts`, data, token),
+  setPayouts: (leagueId: string, data: SetPayoutsRequest, token: string) =>
+    apiClient.put<{ message: string }>(`/leagues/${leagueId}/payments/payouts`, data, token),
 
   removePayment: (leagueId: string, paymentId: string, token: string) =>
     apiClient.delete<{ message: string }>(`/leagues/${leagueId}/payments/${paymentId}`, token),

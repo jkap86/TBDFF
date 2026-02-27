@@ -8,6 +8,7 @@ import { scoringFromLeague } from '../config/scoring-config';
 import { RosterPositionsEditor } from './RosterPositionsEditor';
 import { ScoringSettingsEditor } from './ScoringSettingsEditor';
 import { RosterAssignments } from './RosterAssignments';
+import { PaymentsSettings } from './PaymentsSettings';
 
 interface LeagueSettingsModalProps {
   isOpen: boolean;
@@ -19,11 +20,12 @@ interface LeagueSettingsModalProps {
   onDelete: () => Promise<void>;
   onAssignRoster: (rosterId: number, userId: string) => Promise<void>;
   onUnassignRoster: (rosterId: number) => Promise<void>;
+  onLeagueRefresh: () => void;
   isOwner: boolean;
 }
 
 export function LeagueSettingsModal({
-  isOpen, onClose, league, members, rosters, onUpdate, onDelete, onAssignRoster, onUnassignRoster, isOwner,
+  isOpen, onClose, league, members, rosters, onUpdate, onDelete, onAssignRoster, onUnassignRoster, onLeagueRefresh, isOwner,
 }: LeagueSettingsModalProps) {
   const [name, setName] = useState(league.name);
   const [totalRosters, setTotalRosters] = useState(league.total_rosters);
@@ -40,6 +42,7 @@ export function LeagueSettingsModal({
   const [showRoster, setShowRoster] = useState(false);
   const [scoring, setScoring] = useState<Record<string, number>>(() => scoringFromLeague(league));
   const [showScoring, setShowScoring] = useState(false);
+  const [showPayments, setShowPayments] = useState(false);
 
   // Reset form when league changes or modal opens
   useEffect(() => {
@@ -53,6 +56,7 @@ export function LeagueSettingsModal({
       setShowRoster(false);
       setScoring(scoringFromLeague(league));
       setShowScoring(false);
+      setShowPayments(false);
       setError(null);
       setShowDeleteConfirmation(false);
       setIsDeleting(false);
@@ -270,6 +274,17 @@ export function LeagueSettingsModal({
             onToggle={() => setShowScoring(!showScoring)}
             isSubmitting={isSubmitting}
           />
+
+          {isOwner && (
+            <PaymentsSettings
+              leagueId={league.id}
+              members={members}
+              settings={league.settings}
+              isOpen={showPayments}
+              onToggle={() => setShowPayments(!showPayments)}
+              onSettingsUpdate={onLeagueRefresh}
+            />
+          )}
 
           {isOwner && (
             <RosterAssignments

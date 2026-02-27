@@ -1,6 +1,7 @@
 import { PaymentRepository } from './payments.repository';
 import { LeagueRepository } from '../leagues/leagues.repository';
 import { LeaguePayment } from './payments.model';
+import { SetPayoutsInput } from './payments.schemas';
 import {
   ForbiddenException,
   NotFoundException,
@@ -62,29 +63,21 @@ export class PaymentService {
     }
   }
 
-  async recordPayout(
+  async setPayouts(
     leagueId: string,
-    requestingUserId: string,
-    targetUserId: string,
-    amount: number,
-    note?: string,
-  ): Promise<LeaguePayment> {
-    const member = await this.leagueRepository.findMember(leagueId, requestingUserId);
+    userId: string,
+    payouts: SetPayoutsInput['payouts'],
+  ): Promise<void> {
+    const member = await this.leagueRepository.findMember(leagueId, userId);
     if (!member || member.role !== 'commissioner') {
-      throw new ForbiddenException('Only the league commissioner can record payouts');
+      throw new ForbiddenException('Only the league commissioner can set payouts');
     }
 
-    const target = await this.leagueRepository.findMember(leagueId, targetUserId);
-    if (!target) throw new NotFoundException('User is not a member of this league');
+    const league = await this.leagueRepository.findById(leagueId);
+    if (!league) throw new NotFoundException('League not found');
 
-    return this.paymentRepository.create({
-      leagueId,
-      userId: targetUserId,
-      type: 'payout',
-      amount,
-      note,
-      recordedBy: requestingUserId,
-    });
+    const updatedSettings = { ...league.settings, payouts };
+    await this.leagueRepository.update(leagueId, { settings: updatedSettings });
   }
 
   async removePayment(

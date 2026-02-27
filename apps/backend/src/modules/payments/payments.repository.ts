@@ -34,20 +34,21 @@ export class PaymentRepository {
     userId: string;
     type: string;
     amount: number;
+    category?: string;
     note?: string;
     recordedBy: string;
   }): Promise<LeaguePayment> {
     const result = await this.db.query(
       `WITH inserted AS (
-         INSERT INTO league_payments (league_id, user_id, type, amount, note, recorded_by)
-         VALUES ($1, $2, $3, $4, $5, $6)
+         INSERT INTO league_payments (league_id, user_id, type, amount, category, note, recorded_by)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)
          RETURNING *
        )
        SELECT i.*, u.username, recorder.username AS recorded_by_username
        FROM inserted i
        JOIN users u ON u.id = i.user_id
        JOIN users recorder ON recorder.id = i.recorded_by`,
-      [data.leagueId, data.userId, data.type, data.amount, data.note ?? null, data.recordedBy]
+      [data.leagueId, data.userId, data.type, data.amount, data.category ?? null, data.note ?? null, data.recordedBy]
     );
     return LeaguePayment.fromDatabase(result.rows[0]);
   }
