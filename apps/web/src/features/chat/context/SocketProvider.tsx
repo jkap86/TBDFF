@@ -10,7 +10,7 @@ import {
 } from 'react';
 import { io, Socket } from 'socket.io-client';
 import { useAuth } from '@/features/auth/hooks/useAuth';
-import type { ChatMessage, ChatJoinedEvent, ChatErrorEvent, Draft, DraftPick } from '@tbdff/shared';
+import type { ChatMessage, ChatJoinedEvent, ChatErrorEvent, Draft, DraftPick, AuctionLot } from '@tbdff/shared';
 
 interface DraftStateUpdate {
   draft: Draft;
@@ -23,6 +23,11 @@ interface ServerToClientEvents {
   'chat:error': (error: ChatErrorEvent) => void;
   'chat:joined': (data: ChatJoinedEvent) => void;
   'draft:state_updated': (data: DraftStateUpdate) => void;
+  'slow_auction:lot_created': (data: { lot: AuctionLot }) => void;
+  'slow_auction:lot_updated': (data: { lot: AuctionLot }) => void;
+  'slow_auction:lot_won': (data: { lot: AuctionLot; winner_roster_id: number; price: number }) => void;
+  'slow_auction:lot_passed': (data: { lot: AuctionLot }) => void;
+  'slow_auction:outbid': (data: { lot_id: string; player_id: string; new_bid: number }) => void;
 }
 
 interface ClientToServerEvents {

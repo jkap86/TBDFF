@@ -1,4 +1,4 @@
-export type DraftType = 'snake' | 'linear' | '3rr' | 'auction';
+export type DraftType = 'snake' | 'linear' | '3rr' | 'auction' | 'slow_auction';
 export type DraftStatus = 'pre_draft' | 'drafting' | 'complete';
 
 export interface BidHistoryEntry {
@@ -90,6 +90,13 @@ export const DEFAULT_DRAFT_SETTINGS: DraftSettings = {
   slots_bn: 5,
   budget: 200,
   max_players_per_team: 0,
+  // Slow auction settings
+  bid_window_seconds: 43200,      // 12 hours
+  max_nominations_per_team: 2,
+  max_nominations_global: 25,
+  daily_nomination_limit: 0,      // 0 = unlimited
+  min_bid: 1,
+  min_increment: 1,
 };
 
 export class Draft {

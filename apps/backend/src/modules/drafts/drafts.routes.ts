@@ -15,6 +15,8 @@ import {
   addToQueueSchema,
   updateQueueMaxBidSchema,
   availablePlayersQuerySchema,
+  slowNominateSchema,
+  slowSetMaxBidSchema,
 } from './drafts.schemas';
 
 /**
@@ -91,6 +93,14 @@ export function createDraftRoutes(controller: DraftController): Router {
   router.post('/:draftId/queue', validate(addToQueueSchema), asyncHandler(controller.addToQueue));
   router.patch('/:draftId/queue/:playerId', validate(updateQueueMaxBidSchema), asyncHandler(controller.updateQueueMaxBid));
   router.delete('/:draftId/queue/:playerId', asyncHandler(controller.removeFromQueue));
+
+  // Slow auction
+  router.get('/:draftId/lots', asyncHandler(controller.getSlowAuctionLots));
+  router.get('/:draftId/lots/:lotId/history', asyncHandler(controller.getSlowAuctionLotHistory));
+  router.post('/:draftId/lots', validate(slowNominateSchema), asyncHandler(controller.slowNominate));
+  router.post('/:draftId/lots/:lotId/bid', strictLimiter, validate(slowSetMaxBidSchema), asyncHandler(controller.slowSetMaxBid));
+  router.get('/:draftId/budgets', asyncHandler(controller.getSlowAuctionBudgets));
+  router.get('/:draftId/nomination-stats', asyncHandler(controller.getNominationStats));
 
   return router;
 }

@@ -53,6 +53,16 @@ export class DraftGateway {
       chained_picks: data.chained_picks?.map((p) => p.toSafeObject()),
     });
   }
+
+  /** Broadcast a slow auction event to all clients in the draft room */
+  broadcastSlowAuction(draftId: string, event: string, data: Record<string, any>): void {
+    this.io.to(`draft:${draftId}`).emit(event, data);
+  }
+
+  /** Send an event to a specific user (e.g., outbid notification) */
+  broadcastToUser(userId: string, event: string, data: Record<string, any>): void {
+    this.io.to(`user:${userId}`).emit(event, data);
+  }
 }
 
 export function createDraftGateway(

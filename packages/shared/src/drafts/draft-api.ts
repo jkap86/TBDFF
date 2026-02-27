@@ -18,6 +18,14 @@ import type {
   BidResponse,
   DraftQueueResponse,
   AvailablePlayersResponse,
+  SlowNominateRequest,
+  SetMaxBidRequest,
+  SlowAuctionLotsResponse,
+  SlowNominateResponse,
+  SetMaxBidResponse,
+  SlowAuctionBudgetsResponse,
+  SlowAuctionBidHistoryResponse,
+  NominationStatsResponse,
 } from '../types/draft';
 
 export const draftApi = {
@@ -92,4 +100,23 @@ export const draftApi = {
 
   removeFromQueue: (draftId: string, playerId: string, token: string) =>
     apiClient.delete<DraftQueueResponse>(`/drafts/${draftId}/queue/${playerId}`, token),
+
+  // Slow auction
+  getSlowAuctionLots: (draftId: string, token: string) =>
+    apiClient.get<SlowAuctionLotsResponse>(`/drafts/${draftId}/lots`, token),
+
+  getSlowAuctionLotHistory: (draftId: string, lotId: string, token: string) =>
+    apiClient.get<SlowAuctionBidHistoryResponse>(`/drafts/${draftId}/lots/${lotId}/history`, token),
+
+  slowNominate: (draftId: string, body: SlowNominateRequest, token: string) =>
+    apiClient.post<SlowNominateResponse>(`/drafts/${draftId}/lots`, body, token),
+
+  slowSetMaxBid: (draftId: string, lotId: string, body: SetMaxBidRequest, token: string) =>
+    apiClient.post<SetMaxBidResponse>(`/drafts/${draftId}/lots/${lotId}/bid`, body, token),
+
+  getSlowAuctionBudgets: (draftId: string, token: string) =>
+    apiClient.get<SlowAuctionBudgetsResponse>(`/drafts/${draftId}/budgets`, token),
+
+  getNominationStats: (draftId: string, token: string) =>
+    apiClient.get<NominationStatsResponse>(`/drafts/${draftId}/nomination-stats`, token),
 };

@@ -21,6 +21,7 @@ const draftGateway = createDraftGateway(
 );
 container.services.draftService.setGateway(draftGateway);
 container.services.auctionService.setGateway(draftGateway);
+container.services.slowAuctionService.setGateway(draftGateway);
 
 // Attach transactions gateway and inject into services
 const transactionsGateway = createTransactionsGateway(io);
@@ -29,6 +30,9 @@ container.services.transactionService.setGateway(transactionsGateway);
 
 // Recover any active auction auto-bids that were lost on previous restart
 container.services.auctionService.recoverActiveAuctions();
+
+// Start slow auction settlement job
+container.jobs.slowAuctionSettlementJob.start();
 
 server.listen(config.PORT, '0.0.0.0', () => {
   console.log(`TBDFF Backend started on port ${config.PORT}`);
@@ -43,6 +47,7 @@ const gracefulShutdown = () => {
   console.log('Shutting down gracefully...');
 
   io.close();
+  container.jobs.slowAuctionSettlementJob.stop();
 
   server.close(async () => {
     console.log('HTTP server closed');

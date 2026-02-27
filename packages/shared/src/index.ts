@@ -93,6 +93,18 @@ export type {
   UpdateQueueMaxBidRequest,
   DraftQueueResponse,
   AvailablePlayersResponse,
+  AuctionLot,
+  AuctionLotStatus,
+  AuctionBidHistoryEntry,
+  RosterBudget,
+  SlowNominateRequest,
+  SetMaxBidRequest,
+  SlowAuctionLotsResponse,
+  SlowNominateResponse,
+  SetMaxBidResponse,
+  SlowAuctionBudgetsResponse,
+  SlowAuctionBidHistoryResponse,
+  NominationStatsResponse,
 } from './types/draft';
 export type {
   Matchup,

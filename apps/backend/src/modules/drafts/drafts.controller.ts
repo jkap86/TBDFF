@@ -2,7 +2,9 @@ import { Response } from 'express';
 import { AuthRequest } from '../../middleware/auth.middleware';
 import { DraftService } from './drafts.service';
 import { AuctionService } from './auction.service';
+import { SlowAuctionService } from './slow-auction.service';
 import { InvalidCredentialsException } from '../../shared/exceptions';
+import { findRosterIdByUserId } from './draft-helpers';
 import {
   CreateDraftInput,
   UpdateDraftInput,
@@ -13,12 +15,15 @@ import {
   SetDraftQueueInput,
   AddToQueueInput,
   UpdateQueueMaxBidInput,
+  SlowNominateInput,
+  SlowSetMaxBidInput,
 } from './drafts.schemas';
 
 export class DraftController {
   constructor(
     private readonly draftService: DraftService,
     private readonly auctionService: AuctionService,
+    private readonly slowAuctionService: SlowAuctionService,
   ) {}
 
   // ---- League-scoped ----
@@ -277,5 +282,103 @@ export class DraftController {
     const playerId = Array.isArray(req.params.playerId) ? req.params.playerId[0] : req.params.playerId;
     const queue = await this.draftService.removeFromQueue(draftId, userId, playerId);
     res.status(200).json({ queue });
+  };
+
+  // ---- Slow Auction ----
+
+  getSlowAuctionLots = async (req: AuthRequest, res: Response): Promise<void> => {
+    const userId = req.user?.userId;
+    if (!userId) throw new InvalidCredentialsException();
+
+    const draftId = Array.isArray(req.params.draftId) ? req.params.draftId[0] : req.params.draftId;
+    const draft = await this.draftService.getDraft(draftId, userId);
+    const rosterId = findRosterIdByUserId(draft, userId);
+
+    const lots = await this.slowAuctionService.getActiveLots(draftId, rosterId ?? undefined);
+    res.status(200).json({
+      lots: lots.map((l) => l.toSafeObject((l as any)._myMaxBid)),
+    });
+  };
+
+  getSlowAuctionLotHistory = async (req: AuthRequest, res: Response): Promise<void> => {
+    const userId = req.user?.userId;
+    if (!userId) throw new InvalidCredentialsException();
+
+    const lotId = Array.isArray(req.params.lotId) ? req.params.lotId[0] : req.params.lotId;
+    const history = await this.slowAuctionService.getBidHistory(lotId);
+    res.status(200).json({
+      history: history.map((h) => ({
+        id: h.id,
+        lot_id: h.lotId,
+        roster_id: h.rosterId,
+        bid_amount: h.bidAmount,
+        is_proxy: h.isProxy,
+        username: h.username,
+        created_at: h.createdAt,
+      })),
+    });
+  };
+
+  slowNominate = async (req: AuthRequest, res: Response): Promise<void> => {
+    const userId = req.user?.userId;
+    if (!userId) throw new InvalidCredentialsException();
+
+    const draftId = Array.isArray(req.params.draftId) ? req.params.draftId[0] : req.params.draftId;
+    const body = req.body as SlowNominateInput;
+
+    const result = await this.slowAuctionService.nominate(draftId, userId, body.player_id);
+    res.status(201).json({
+      lot: result.lot.toSafeObject(),
+    });
+  };
+
+  slowSetMaxBid = async (req: AuthRequest, res: Response): Promise<void> => {
+    const userId = req.user?.userId;
+    if (!userId) throw new InvalidCredentialsException();
+
+    const draftId = Array.isArray(req.params.draftId) ? req.params.draftId[0] : req.params.draftId;
+    const lotId = Array.isArray(req.params.lotId) ? req.params.lotId[0] : req.params.lotId;
+    const body = req.body as SlowSetMaxBidInput;
+
+    const result = await this.slowAuctionService.setMaxBid(draftId, lotId, userId, body.max_bid);
+    res.status(200).json({
+      lot: result.lot.toSafeObject(),
+    });
+  };
+
+  getSlowAuctionBudgets = async (req: AuthRequest, res: Response): Promise<void> => {
+    const userId = req.user?.userId;
+    if (!userId) throw new InvalidCredentialsException();
+
+    const draftId = Array.isArray(req.params.draftId) ? req.params.draftId[0] : req.params.draftId;
+    // Ensure user has access
+    await this.draftService.getDraft(draftId, userId);
+
+    const budgets = await this.slowAuctionService.getAllBudgets(draftId);
+    res.status(200).json({ budgets });
+  };
+
+  getNominationStats = async (req: AuthRequest, res: Response): Promise<void> => {
+    const userId = req.user?.userId;
+    if (!userId) throw new InvalidCredentialsException();
+
+    const draftId = Array.isArray(req.params.draftId) ? req.params.draftId[0] : req.params.draftId;
+    const draft = await this.draftService.getDraft(draftId, userId);
+    const rosterId = findRosterIdByUserId(draft, userId);
+
+    if (rosterId === null) {
+      res.status(200).json({
+        active_nominations: 0,
+        max_per_team: 0,
+        global_active: 0,
+        max_global: 0,
+        daily_used: 0,
+        daily_limit: 0,
+      });
+      return;
+    }
+
+    const stats = await this.slowAuctionService.getNominationStats(draftId, rosterId);
+    res.status(200).json(stats);
   };
 }

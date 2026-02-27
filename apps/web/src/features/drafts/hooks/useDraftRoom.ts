@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { toast } from 'sonner';
-import { draftApi, leagueApi, ApiError, type Draft, type DraftPick, type DraftQueueItem, type LeagueMember, type Roster, type UpdateDraftRequest } from '@/lib/api';
+import { draftApi, leagueApi, ApiError, type Draft, type DraftPick, type DraftQueueItem, type LeagueMember, type Roster, type UpdateDraftRequest, type AuctionLot, type RosterBudget, type NominationStatsResponse } from '@/lib/api';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import { useSocket } from '@/features/chat/context/SocketProvider';
 import { useDraftTimer } from './useDraftTimer';
@@ -38,6 +38,11 @@ export function useDraftRoom(leagueId: string) {
   const [bidAmount, setBidAmount] = useState(0);
   const [isNominating, setIsNominating] = useState(false);
   const [isBidding, setIsBidding] = useState(false);
+
+  // Slow auction state
+  const [slowAuctionLots, setSlowAuctionLots] = useState<AuctionLot[]>([]);
+  const [slowAuctionBudgets, setSlowAuctionBudgets] = useState<RosterBudget[]>([]);
+  const [nominationStats, setNominationStats] = useState<NominationStatsResponse | null>(null);
 
   const timer = useDraftTimer(draft);
 
@@ -85,6 +90,25 @@ export function useDraftRoom(leagueId: string) {
           // Queue fetch is non-critical
         }
       }
+
+      // Fetch slow auction data if applicable
+      if (draftResult.draft.type === 'slow_auction' && (draftResult.draft.status === 'drafting' || draftResult.draft.status === 'complete')) {
+        try {
+          const [lotsResult, budgetsResult] = await Promise.all([
+            draftApi.getSlowAuctionLots(activeDraft.id, accessToken),
+            draftApi.getSlowAuctionBudgets(activeDraft.id, accessToken),
+          ]);
+          setSlowAuctionLots(lotsResult.lots);
+          setSlowAuctionBudgets(budgetsResult.budgets);
+
+          if (draftResult.draft.status === 'drafting') {
+            const statsResult = await draftApi.getNominationStats(activeDraft.id, accessToken);
+            setNominationStats(statsResult);
+          }
+        } catch {
+          // Slow auction data fetch is non-critical
+        }
+      }
     } catch (err) {
       if (err instanceof ApiError) {
         setError(err.message);
@@ -127,11 +151,75 @@ export function useDraftRoom(leagueId: string) {
 
     socket.on('draft:state_updated', handleStateUpdate);
 
+    // Slow auction socket events
+    const handleLotCreated = (data: { lot: AuctionLot }) => {
+      setSlowAuctionLots((prev) => {
+        const existing = prev.find((l) => l.id === data.lot.id);
+        if (existing) return prev.map((l) => (l.id === data.lot.id ? data.lot : l));
+        return [...prev, data.lot];
+      });
+      refreshSlowAuctionData();
+    };
+
+    const handleLotUpdated = (data: { lot: AuctionLot }) => {
+      setSlowAuctionLots((prev) => prev.map((l) => (l.id === data.lot.id ? { ...data.lot, my_max_bid: l.my_max_bid } : l)));
+    };
+
+    const handleLotWon = (data: { lot: AuctionLot }) => {
+      setSlowAuctionLots((prev) => prev.filter((l) => l.id !== data.lot.id));
+      refreshSlowAuctionData();
+    };
+
+    const handleLotPassed = (data: { lot: AuctionLot }) => {
+      setSlowAuctionLots((prev) => prev.filter((l) => l.id !== data.lot.id));
+      refreshSlowAuctionData();
+    };
+
+    const handleOutbid = (data: { lot_id: string; player_id: string; new_bid: number }) => {
+      toast.error(`You've been outbid on Player #${data.player_id}! New bid: $${data.new_bid}`);
+      // Refresh lots to get updated my_max_bid state
+      if (accessToken && draft.id) {
+        draftApi.getSlowAuctionLots(draft.id, accessToken).then((res) => setSlowAuctionLots(res.lots)).catch(() => {});
+      }
+    };
+
+    if (draft.type === 'slow_auction') {
+      socket.on('slow_auction:lot_created', handleLotCreated);
+      socket.on('slow_auction:lot_updated', handleLotUpdated);
+      socket.on('slow_auction:lot_won', handleLotWon);
+      socket.on('slow_auction:lot_passed', handleLotPassed);
+      socket.on('slow_auction:outbid', handleOutbid);
+    }
+
     return () => {
       socket.off('draft:state_updated', handleStateUpdate);
+      if (draft.type === 'slow_auction') {
+        socket.off('slow_auction:lot_created', handleLotCreated);
+        socket.off('slow_auction:lot_updated', handleLotUpdated);
+        socket.off('slow_auction:lot_won', handleLotWon);
+        socket.off('slow_auction:lot_passed', handleLotPassed);
+        socket.off('slow_auction:outbid', handleOutbid);
+      }
       socket.emit('draft:leave', draft.id);
     };
-  }, [socket, draft?.id, draft?.status, accessToken, timer.updateClockOffset]);
+  }, [socket, draft?.id, draft?.status, draft?.type, accessToken, timer.updateClockOffset]);
+
+  // Helper to refresh slow auction data
+  const refreshSlowAuctionData = useCallback(async () => {
+    if (!draft || !accessToken || draft.type !== 'slow_auction') return;
+    try {
+      const [budgetsResult, statsResult, picksResult] = await Promise.all([
+        draftApi.getSlowAuctionBudgets(draft.id, accessToken),
+        draftApi.getNominationStats(draft.id, accessToken),
+        draftApi.getPicks(draft.id, accessToken),
+      ]);
+      setSlowAuctionBudgets(budgetsResult.budgets);
+      setNominationStats(statsResult);
+      setPicks(picksResult.picks);
+    } catch {
+      // Non-critical
+    }
+  }, [draft?.id, draft?.type, accessToken]);
 
   // Fallback polling (reduced frequency since socket handles real-time updates)
   useEffect(() => {
@@ -139,19 +227,30 @@ export function useDraftRoom(leagueId: string) {
 
     const interval = setInterval(async () => {
       try {
-        const [draftResult, picksResult] = await Promise.all([
-          draftApi.getById(draft.id, accessToken),
-          draftApi.getPicks(draft.id, accessToken),
-        ]);
-        setDraft(draftResult.draft);
-        setPicks(picksResult.picks);
+        if (draft.type === 'slow_auction') {
+          const [draftResult, lotsResult, budgetsResult] = await Promise.all([
+            draftApi.getById(draft.id, accessToken),
+            draftApi.getSlowAuctionLots(draft.id, accessToken),
+            draftApi.getSlowAuctionBudgets(draft.id, accessToken),
+          ]);
+          setDraft(draftResult.draft);
+          setSlowAuctionLots(lotsResult.lots);
+          setSlowAuctionBudgets(budgetsResult.budgets);
+        } else {
+          const [draftResult, picksResult] = await Promise.all([
+            draftApi.getById(draft.id, accessToken),
+            draftApi.getPicks(draft.id, accessToken),
+          ]);
+          setDraft(draftResult.draft);
+          setPicks(picksResult.picks);
+        }
       } catch {
         // Silently ignore polling errors — socket handles primary updates
       }
-    }, 10000); // 10s fallback (down from 2-5s) since socket delivers real-time updates
+    }, draft.type === 'slow_auction' ? 30000 : 10000);
 
     return () => clearInterval(interval);
-  }, [draft?.id, draft?.status, accessToken]);
+  }, [draft?.id, draft?.status, draft?.type, accessToken]);
 
   // Auto-pick / auction resolve when timer expires
   useEffect(() => {
@@ -343,6 +442,43 @@ export function useDraftRoom(leagueId: string) {
     }
   }, [draft, accessToken, bidAmount]);
 
+  // Slow auction handlers
+  const handleSlowNominate = useCallback(async () => {
+    if (!draft || !accessToken || !nominatePlayerId.trim()) return;
+    try {
+      setIsNominating(true);
+      setPickError(null);
+      const result = await draftApi.slowNominate(draft.id, { player_id: nominatePlayerId.trim() }, accessToken);
+      setSlowAuctionLots((prev) => [...prev, result.lot]);
+      setNominatePlayerId('');
+      // Refresh stats
+      const statsResult = await draftApi.getNominationStats(draft.id, accessToken);
+      setNominationStats(statsResult);
+    } catch (err) {
+      if (err instanceof ApiError) setPickError(err.message);
+      else setPickError('Failed to nominate');
+    } finally {
+      setIsNominating(false);
+    }
+  }, [draft, accessToken, nominatePlayerId]);
+
+  const handleSlowSetMaxBid = useCallback(async (lotId: string, maxBid: number) => {
+    if (!draft || !accessToken) return;
+    try {
+      const result = await draftApi.slowSetMaxBid(draft.id, lotId, { max_bid: maxBid }, accessToken);
+      setSlowAuctionLots((prev) => prev.map((l) => (l.id === result.lot.id ? result.lot : l)));
+      // Refresh lots to get updated my_max_bid
+      const lotsResult = await draftApi.getSlowAuctionLots(draft.id, accessToken);
+      setSlowAuctionLots(lotsResult.lots);
+      // Refresh budgets
+      const budgetsResult = await draftApi.getSlowAuctionBudgets(draft.id, accessToken);
+      setSlowAuctionBudgets(budgetsResult.budgets);
+    } catch (err) {
+      if (err instanceof ApiError) throw err;
+      throw new Error('Failed to place bid');
+    }
+  }, [draft, accessToken]);
+
   // Queue handlers
   const handleReorderQueue = useCallback(async (playerIds: string[]) => {
     if (!draft || !accessToken) return;
@@ -424,6 +560,7 @@ export function useDraftRoom(leagueId: string) {
 
   // Derived state
   const isAuction = draft?.type === 'auction';
+  const isSlowAuction = draft?.type === 'slow_auction';
   const autoPickUsers: string[] = draft?.metadata?.auto_pick_users ?? [];
   const isAutoPick = user?.id ? autoPickUsers.includes(user.id) : false;
   const draftedPlayerIds = new Set(picks.filter((p) => p.player_id).map((p) => p.player_id!));
@@ -471,12 +608,19 @@ export function useDraftRoom(leagueId: string) {
 
     // Derived state
     isAuction,
+    isSlowAuction,
     isAutoPick,
     draftedPlayerIds,
     nextPick,
     userSlot,
+    userRosterId,
     isMyTurn,
     isCommissioner,
+
+    // Slow auction state
+    slowAuctionLots,
+    slowAuctionBudgets,
+    nominationStats,
 
     // Handlers
     handleUpdateSettings,
@@ -485,6 +629,8 @@ export function useDraftRoom(leagueId: string) {
     handleMakePick,
     handleNominate,
     handleBid,
+    handleSlowNominate,
+    handleSlowSetMaxBid,
     handleReorderQueue,
     handleRemoveFromQueue,
     handleAddToQueue,

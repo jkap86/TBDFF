@@ -5,6 +5,8 @@ import { ArrowLeft } from 'lucide-react';
 import { useDraftRoom } from '@/features/drafts/hooks/useDraftRoom';
 import { DraftBoard } from '@/features/drafts/components/DraftBoard';
 import { AuctionBoard } from '@/features/drafts/components/AuctionBoard';
+import { SlowAuctionBoard } from '@/features/drafts/components/SlowAuctionBoard';
+import { SlowAuctionControls } from '@/features/drafts/components/SlowAuctionControls';
 import { DraftSettingsForm } from '@/features/drafts/components/DraftSettingsForm';
 import { DraftSidebar } from '@/features/drafts/components/DraftSidebar';
 import { DraftControls } from '@/features/drafts/components/DraftControls';
@@ -15,6 +17,7 @@ const draftTypeLabels: Record<string, string> = {
   linear: 'Linear',
   '3rr': '3rd Round Reversal',
   auction: 'Auction',
+  slow_auction: 'Slow Auction',
 };
 
 export default function DraftRoomPage() {
@@ -82,7 +85,13 @@ export default function DraftRoomPage() {
             </span>
           </div>
           <div className="text-sm text-gray-500 dark:text-gray-400">
-            {draftTypeLabels[draft.type]} | {draft.settings.rounds} rounds | {room.isAuction ? `$${draft.settings.budget} budget | ${draft.settings.offering_timer ?? 120}s offer / ${draft.settings.nomination_timer}s bid` : `${draft.settings.pick_timer}s timer`}
+            {draftTypeLabels[draft.type]} | {draft.settings.rounds} rounds | {
+              room.isSlowAuction
+                ? `$${draft.settings.budget} budget | ${Math.round((draft.settings.bid_window_seconds ?? 43200) / 3600)}h bid window`
+                : room.isAuction
+                  ? `$${draft.settings.budget} budget | ${draft.settings.offering_timer ?? 120}s offer / ${draft.settings.nomination_timer}s bid`
+                  : `${draft.settings.pick_timer}s timer`
+            }
           </div>
         </div>
 
@@ -164,8 +173,43 @@ export default function DraftRoomPage() {
           </>
         )}
 
+        {/* Slow Auction Draft Board */}
+        {draft.status === 'drafting' && room.isSlowAuction && (
+          <>
+            <SlowAuctionControls
+              nominatePlayerId={room.nominatePlayerId}
+              setNominatePlayerId={room.setNominatePlayerId}
+              isNominating={room.isNominating}
+              pickError={room.pickError}
+              nominationStats={room.nominationStats}
+              onNominate={room.handleSlowNominate}
+              canNominate={room.userRosterId !== undefined}
+            />
+
+            <div className="flex gap-4">
+              <div className="flex-1 min-w-0">
+                <SlowAuctionBoard
+                  draft={draft}
+                  lots={room.slowAuctionLots}
+                  budgets={room.slowAuctionBudgets}
+                  members={members}
+                  picks={picks}
+                  currentUserId={user?.id}
+                  myRosterId={room.userRosterId}
+                  onSetMaxBid={room.handleSlowSetMaxBid}
+                />
+              </div>
+              {room.userSlot !== undefined && (
+                <div className="w-80 shrink-0">
+                  <DraftSidebar {...sidebarProps} />
+                </div>
+              )}
+            </div>
+          </>
+        )}
+
         {/* Standard Draft Board (snake/linear/3rr) */}
-        {draft.status === 'drafting' && !room.isAuction && (
+        {draft.status === 'drafting' && !room.isAuction && !room.isSlowAuction && (
           <>
             <DraftControls
               timeRemaining={room.timeRemaining}
@@ -199,9 +243,20 @@ export default function DraftRoomPage() {
 
         {/* Complete State */}
         {draft.status === 'complete' && picks.length > 0 && (
-          room.isAuction
-            ? <AuctionBoard draft={draft} picks={picks} members={members} currentUserId={user?.id} />
-            : <DraftBoard draft={draft} picks={picks} members={members} currentUserId={user?.id} />
+          room.isSlowAuction
+            ? <SlowAuctionBoard
+                draft={draft}
+                lots={room.slowAuctionLots}
+                budgets={room.slowAuctionBudgets}
+                members={members}
+                picks={picks}
+                currentUserId={user?.id}
+                myRosterId={room.userRosterId}
+                onSetMaxBid={room.handleSlowSetMaxBid}
+              />
+            : room.isAuction
+              ? <AuctionBoard draft={draft} picks={picks} members={members} currentUserId={user?.id} />
+              : <DraftBoard draft={draft} picks={picks} members={members} currentUserId={user?.id} />
         )}
 
         {/* Pre-draft queue + settings */}

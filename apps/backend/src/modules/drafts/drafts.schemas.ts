@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-const draftTypeEnum = z.enum(['snake', 'linear', '3rr', 'auction']);
+const draftTypeEnum = z.enum(['snake', 'linear', '3rr', 'auction', 'slow_auction']);
 
 const draftSettingsPartialSchema = z.object({
   teams: z.number().int().min(2).max(32).optional(),
@@ -27,6 +27,13 @@ const draftSettingsPartialSchema = z.object({
   slots_bn: z.number().int().min(0).max(20).optional(),
   budget: z.number().int().min(1).max(9999).optional(),
   max_players_per_team: z.number().int().min(0).max(50).optional(),
+  // Slow auction settings
+  bid_window_seconds: z.number().int().min(60).max(604800).optional(),
+  max_nominations_per_team: z.number().int().min(1).max(50).optional(),
+  max_nominations_global: z.number().int().min(1).max(200).optional(),
+  daily_nomination_limit: z.number().int().min(0).max(100).optional(),
+  min_bid: z.number().int().min(1).max(999).optional(),
+  min_increment: z.number().int().min(1).max(100).optional(),
 }).passthrough();
 
 export const createDraftSchema = z.object({
@@ -91,6 +98,19 @@ export const updateQueueMaxBidSchema = z.object({
 }).strict();
 
 export type UpdateQueueMaxBidInput = z.infer<typeof updateQueueMaxBidSchema>;
+
+// Slow auction schemas
+export const slowNominateSchema = z.object({
+  player_id: z.string().min(1, 'Player ID is required'),
+}).strict();
+
+export type SlowNominateInput = z.infer<typeof slowNominateSchema>;
+
+export const slowSetMaxBidSchema = z.object({
+  max_bid: z.number().int().min(1, 'Minimum bid is $1'),
+}).strict();
+
+export type SlowSetMaxBidInput = z.infer<typeof slowSetMaxBidSchema>;
 
 export const availablePlayersQuerySchema = z.object({
   position: z.string().optional(),

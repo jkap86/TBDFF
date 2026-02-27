@@ -271,16 +271,18 @@ export class DraftService {
       }
     }
 
-    // Generate all pick slots
-    await this.draftRepository.createPicks(
-      draftId,
-      draft.settings.rounds,
-      draft.settings.teams,
-      draft.type,
-      draft.draftOrder,
-      draft.slotToRosterId,
-      pickOverrides.size > 0 ? pickOverrides : undefined,
-    );
+    // Slow auction skips pre-created pick slots — picks are created on lot settlement
+    if (draft.type !== 'slow_auction') {
+      await this.draftRepository.createPicks(
+        draftId,
+        draft.settings.rounds,
+        draft.settings.teams,
+        draft.type,
+        draft.draftOrder,
+        draft.slotToRosterId,
+        pickOverrides.size > 0 ? pickOverrides : undefined,
+      );
+    }
 
     // Initialize auction budgets if auction type
     let metadata: DraftMetadata = {};
@@ -297,6 +299,14 @@ export class DraftService {
           Date.now() + (draft.settings.offering_timer || draft.settings.nomination_timer) * 1000,
         ).toISOString(),
       };
+    } else if (draft.type === 'slow_auction') {
+      // Slow auction budgets are computed from auction_lots table — just mark as initialized
+      const budgets: Record<string, number> = {};
+      for (let slot = 1; slot <= draft.settings.teams; slot++) {
+        const rosterId = draft.slotToRosterId[String(slot)];
+        budgets[String(rosterId)] = draft.settings.budget;
+      }
+      metadata = { auction_budgets: budgets };
     }
 
     // Atomically update draft status to 'drafting' and league status in one transaction
@@ -333,7 +343,7 @@ export class DraftService {
       throw new ValidationException('Draft is not currently active');
     }
 
-    if (draft.type === 'auction') {
+    if (draft.type === 'auction' || draft.type === 'slow_auction') {
       throw new ValidationException('Use the nominate/bid endpoints for auction drafts');
     }
 
@@ -434,7 +444,7 @@ export class DraftService {
       throw new ValidationException('Draft is not currently active');
     }
 
-    if (draft.type === 'auction') {
+    if (draft.type === 'auction' || draft.type === 'slow_auction') {
       throw new ValidationException('Use the nominate/bid endpoints for auction drafts');
     }
 
