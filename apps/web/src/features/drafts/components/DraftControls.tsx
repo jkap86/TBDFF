@@ -9,13 +9,8 @@ interface DraftControlsProps {
   isMyTurn: boolean;
   isAutoPick: boolean;
   isTogglingAutoPick: boolean;
-  isCommissioner: boolean;
   nextPick: DraftPick | undefined;
-  pickPlayerId: string;
-  setPickPlayerId: (v: string) => void;
-  isPicking: boolean;
   pickError: string | null;
-  onMakePick: () => void;
   onToggleAutoPick: () => void;
 }
 
@@ -26,13 +21,8 @@ export function DraftControls({
   isMyTurn,
   isAutoPick,
   isTogglingAutoPick,
-  isCommissioner,
   nextPick,
-  pickPlayerId,
-  setPickPlayerId,
-  isPicking,
   pickError,
-  onMakePick,
   onToggleAutoPick,
 }: DraftControlsProps) {
   return (
@@ -78,25 +68,6 @@ export function DraftControls({
           <span className="text-sm text-gray-500 dark:text-gray-400">
             Waiting for pick #{nextPick.pick_no} (Round {nextPick.round})
           </span>
-        )}
-        {((isMyTurn && !isAutoPick) || isCommissioner) && (
-          <div className="flex flex-1 items-center gap-2">
-            <input
-              type="text"
-              value={pickPlayerId}
-              onChange={(e) => setPickPlayerId(e.target.value)}
-              placeholder="Enter Player ID"
-              className="flex-1 rounded-lg border border-gray-300 dark:border-gray-600 px-3 py-2 text-sm text-gray-900 dark:text-white dark:bg-gray-700 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-              onKeyDown={(e) => e.key === 'Enter' && onMakePick()}
-            />
-            <button
-              onClick={onMakePick}
-              disabled={isPicking || !pickPlayerId.trim()}
-              className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
-            >
-              {isPicking ? 'Picking...' : 'Pick'}
-            </button>
-          </div>
         )}
       </div>
       {pickError && (

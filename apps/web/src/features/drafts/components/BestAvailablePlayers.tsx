@@ -13,6 +13,9 @@ interface BestAvailablePlayersProps {
   draftedPlayerIds: Set<string>;
   queuedPlayerIds: Set<string>;
   onAdd: (playerId: string) => void;
+  onDraft?: (playerId: string) => void;
+  isMyTurn?: boolean;
+  isPicking?: boolean;
   accessToken: string;
 }
 
@@ -21,6 +24,9 @@ export function BestAvailablePlayers({
   draftedPlayerIds,
   queuedPlayerIds,
   onAdd,
+  onDraft,
+  isMyTurn = false,
+  isPicking = false,
   accessToken,
 }: BestAvailablePlayersProps) {
   const [players, setPlayers] = useState<Player[]>([]);
@@ -151,6 +157,20 @@ export function BestAvailablePlayers({
                   {player.position}{player.team ? ` - ${player.team}` : ''}
                 </div>
               </div>
+              {onDraft && (
+                <button
+                  onClick={() => onDraft(player.id)}
+                  disabled={!isMyTurn || isPicking}
+                  className={`rounded px-1.5 py-0.5 text-xs font-medium transition-colors ${
+                    isMyTurn && !isPicking
+                      ? 'bg-green-600 text-white hover:bg-green-700'
+                      : 'bg-gray-200 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed'
+                  }`}
+                  title={!isMyTurn ? 'Not your turn' : 'Draft player'}
+                >
+                  Draft
+                </button>
+              )}
               <button
                 onClick={() => !isQueued && onAdd(player.id)}
                 disabled={isQueued}

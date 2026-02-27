@@ -23,7 +23,6 @@ export function useDraftRoom(leagueId: string) {
   const [rosters, setRosters] = useState<Roster[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [pickPlayerId, setPickPlayerId] = useState('');
   const [isPicking, setIsPicking] = useState(false);
   const [pickError, setPickError] = useState<string | null>(null);
   const [isTogglingAutoPick, setIsTogglingAutoPick] = useState(false);
@@ -373,13 +372,13 @@ export function useDraftRoom(leagueId: string) {
     }
   }, [draft, accessToken]);
 
-  const handleMakePick = useCallback(async () => {
-    if (!draft || !accessToken || !pickPlayerId.trim()) return;
+  const handleMakePick = useCallback(async (playerId: string) => {
+    if (!draft || !accessToken || !playerId.trim()) return;
 
     try {
       setIsPicking(true);
       setPickError(null);
-      const result = await draftApi.makePick(draft.id, { player_id: pickPlayerId.trim() }, accessToken);
+      const result = await draftApi.makePick(draft.id, { player_id: playerId.trim() }, accessToken);
       setPicks((prev) => {
         let updated = prev.map((p) => (p.id === result.pick.id ? result.pick : p));
         if (result.chained_picks?.length) {
@@ -387,7 +386,6 @@ export function useDraftRoom(leagueId: string) {
         }
         return updated;
       });
-      setPickPlayerId('');
 
       // Refresh draft state
       const draftResult = await draftApi.getById(draft.id, accessToken);
@@ -401,7 +399,7 @@ export function useDraftRoom(leagueId: string) {
     } finally {
       setIsPicking(false);
     }
-  }, [draft, accessToken, pickPlayerId]);
+  }, [draft, accessToken]);
 
   // Auction handlers
   const handleNominate = useCallback(async () => {
@@ -584,8 +582,6 @@ export function useDraftRoom(leagueId: string) {
     accessToken,
 
     // UI state
-    pickPlayerId,
-    setPickPlayerId,
     isPicking,
     pickError,
     isTogglingAutoPick,

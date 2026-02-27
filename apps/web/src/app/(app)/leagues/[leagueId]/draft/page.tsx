@@ -65,6 +65,11 @@ export default function DraftRoomPage() {
     accessToken: accessToken!,
     isAuction: room.isAuction,
     budget: draft.settings.budget,
+    ...(!room.isAuction && !room.isSlowAuction ? {
+      onDraft: room.handleMakePick,
+      isMyTurn: !!room.isMyTurn,
+      isPicking: room.isPicking,
+    } : {}),
   };
 
   return (
@@ -218,13 +223,8 @@ export default function DraftRoomPage() {
               isMyTurn={!!room.isMyTurn}
               isAutoPick={room.isAutoPick}
               isTogglingAutoPick={room.isTogglingAutoPick}
-              isCommissioner={!!room.isCommissioner}
               nextPick={room.nextPick}
-              pickPlayerId={room.pickPlayerId}
-              setPickPlayerId={room.setPickPlayerId}
-              isPicking={room.isPicking}
               pickError={room.pickError}
-              onMakePick={room.handleMakePick}
               onToggleAutoPick={room.handleToggleAutoPick}
             />
 

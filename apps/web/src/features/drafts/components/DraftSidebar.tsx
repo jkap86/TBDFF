@@ -11,6 +11,9 @@ interface DraftSidebarProps {
   sidebarTab: 'queue' | 'players';
   onTabChange: (tab: 'queue' | 'players') => void;
   onAdd: (playerId: string) => void;
+  onDraft?: (playerId: string) => void;
+  isMyTurn?: boolean;
+  isPicking?: boolean;
   onReorder: (playerIds: string[]) => void;
   onRemove: (playerId: string) => void;
   onUpdateMaxBid: (playerId: string, maxBid: number | null) => void;
@@ -27,6 +30,9 @@ export function DraftSidebar({
   sidebarTab,
   onTabChange,
   onAdd,
+  onDraft,
+  isMyTurn,
+  isPicking,
   onReorder,
   onRemove,
   onUpdateMaxBid,
@@ -66,6 +72,9 @@ export function DraftSidebar({
             draftedPlayerIds={draftedPlayerIds}
             queuedPlayerIds={new Set(queue.map((q) => q.player_id))}
             onAdd={onAdd}
+            onDraft={onDraft}
+            isMyTurn={isMyTurn}
+            isPicking={isPicking}
             accessToken={accessToken}
           />
         ) : (
