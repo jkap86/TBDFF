@@ -65,11 +65,21 @@ export default function DraftRoomPage() {
     accessToken: accessToken!,
     isAuction: room.isAuction,
     budget: draft.settings.budget,
-    ...(!room.isAuction && !room.isSlowAuction ? {
+    ...(room.isAuction ? {
+      onDraft: room.handleNominate,
+      isMyTurn: !!room.isMyTurn && !draft.metadata?.current_nomination && !room.isAutoPick,
+      isPicking: room.isNominating,
+      actionLabel: 'Nominate',
+    } : room.isSlowAuction ? {
+      onDraft: room.handleSlowNominate,
+      isMyTurn: room.userRosterId !== undefined,
+      isPicking: room.isNominating,
+      actionLabel: 'Nominate',
+    } : {
       onDraft: room.handleMakePick,
       isMyTurn: !!room.isMyTurn,
       isPicking: room.isPicking,
-    } : {}),
+    }),
   };
 
   return (
@@ -151,17 +161,13 @@ export default function DraftRoomPage() {
               isMyTurn={!!room.isMyTurn}
               isAutoPick={room.isAutoPick}
               isTogglingAutoPick={room.isTogglingAutoPick}
-              nominatePlayerId={room.nominatePlayerId}
-              setNominatePlayerId={room.setNominatePlayerId}
               nominateAmount={room.nominateAmount}
               setNominateAmount={room.setNominateAmount}
-              isNominating={room.isNominating}
               bidAmount={room.bidAmount}
               setBidAmount={room.setBidAmount}
               isBidding={room.isBidding}
               pickError={room.pickError}
               queue={queue}
-              onNominate={room.handleNominate}
               onBid={room.handleBid}
               onToggleAutoPick={room.handleToggleAutoPick}
               onNominationMaxBid={room.handleNominationMaxBid}
@@ -184,13 +190,8 @@ export default function DraftRoomPage() {
         {draft.status === 'drafting' && room.isSlowAuction && (
           <>
             <SlowAuctionControls
-              nominatePlayerId={room.nominatePlayerId}
-              setNominatePlayerId={room.setNominatePlayerId}
-              isNominating={room.isNominating}
               pickError={room.pickError}
               nominationStats={room.nominationStats}
-              onNominate={room.handleSlowNominate}
-              canNominate={room.userRosterId !== undefined}
             />
 
             <div className="flex gap-4">

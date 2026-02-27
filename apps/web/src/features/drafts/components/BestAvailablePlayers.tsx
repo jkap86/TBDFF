@@ -16,6 +16,7 @@ interface BestAvailablePlayersProps {
   onDraft?: (playerId: string) => void;
   isMyTurn?: boolean;
   isPicking?: boolean;
+  actionLabel?: string;
   accessToken: string;
 }
 
@@ -27,6 +28,7 @@ export function BestAvailablePlayers({
   onDraft,
   isMyTurn = false,
   isPicking = false,
+  actionLabel = 'Draft',
   accessToken,
 }: BestAvailablePlayersProps) {
   const [players, setPlayers] = useState<Player[]>([]);
@@ -166,9 +168,9 @@ export function BestAvailablePlayers({
                       ? 'bg-green-600 text-white hover:bg-green-700'
                       : 'bg-gray-200 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed'
                   }`}
-                  title={!isMyTurn ? 'Not your turn' : 'Draft player'}
+                  title={!isMyTurn ? 'Not your turn' : `${actionLabel} player`}
                 >
-                  Draft
+                  {actionLabel}
                 </button>
               )}
               <button

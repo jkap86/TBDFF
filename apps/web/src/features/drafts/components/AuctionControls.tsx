@@ -68,17 +68,13 @@ interface AuctionControlsProps {
   isMyTurn: boolean;
   isAutoPick: boolean;
   isTogglingAutoPick: boolean;
-  nominatePlayerId: string;
-  setNominatePlayerId: (v: string) => void;
   nominateAmount: number;
   setNominateAmount: (v: number) => void;
-  isNominating: boolean;
   bidAmount: number;
   setBidAmount: (v: number) => void;
   isBidding: boolean;
   pickError: string | null;
   queue: DraftQueueItem[];
-  onNominate: () => void;
   onBid: (amount?: number) => void;
   onToggleAutoPick: () => void;
   onNominationMaxBid: (playerId: string, maxBid: number | null) => void;
@@ -92,17 +88,13 @@ export function AuctionControls({
   isMyTurn,
   isAutoPick,
   isTogglingAutoPick,
-  nominatePlayerId,
-  setNominatePlayerId,
   nominateAmount,
   setNominateAmount,
-  isNominating,
   bidAmount,
   setBidAmount,
   isBidding,
   pickError,
   queue,
-  onNominate,
   onBid,
   onToggleAutoPick,
   onNominationMaxBid,
@@ -140,21 +132,14 @@ export function AuctionControls({
           </button>
         )}
 
-        {/* Nomination Input (no active nomination, user's turn) */}
+        {/* Nomination (no active nomination, user's turn) */}
         {!draft.metadata?.current_nomination && isMyTurn && !isAutoPick && (
           <div className="flex flex-1 items-center gap-2">
             <span className="rounded-full bg-green-100 px-3 py-1 text-sm font-medium text-green-700">
               Your Nomination!
             </span>
-            <input
-              type="text"
-              value={nominatePlayerId}
-              onChange={(e) => setNominatePlayerId(e.target.value)}
-              placeholder="Player ID"
-              className="flex-1 rounded-lg border border-gray-300 dark:border-gray-600 px-3 py-2 text-sm text-gray-900 dark:text-white dark:bg-gray-700 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-            />
             <div className="flex items-center gap-1">
-              <span className="text-sm text-gray-500 dark:text-gray-400">$</span>
+              <span className="text-sm text-gray-500 dark:text-gray-400">Starting bid: $</span>
               <input
                 type="number"
                 value={nominateAmount}
@@ -163,13 +148,9 @@ export function AuctionControls({
                 className="w-20 rounded-lg border border-gray-300 dark:border-gray-600 px-2 py-2 text-sm text-gray-900 dark:text-white dark:bg-gray-700 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
               />
             </div>
-            <button
-              onClick={onNominate}
-              disabled={isNominating || !nominatePlayerId.trim()}
-              className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
-            >
-              {isNominating ? 'Nominating...' : 'Nominate'}
-            </button>
+            <span className="text-sm text-gray-400 dark:text-gray-500">
+              Select a player from the Players tab
+            </span>
           </div>
         )}
 

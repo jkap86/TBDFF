@@ -14,6 +14,7 @@ interface DraftSidebarProps {
   onDraft?: (playerId: string) => void;
   isMyTurn?: boolean;
   isPicking?: boolean;
+  actionLabel?: string;
   onReorder: (playerIds: string[]) => void;
   onRemove: (playerId: string) => void;
   onUpdateMaxBid: (playerId: string, maxBid: number | null) => void;
@@ -33,6 +34,7 @@ export function DraftSidebar({
   onDraft,
   isMyTurn,
   isPicking,
+  actionLabel,
   onReorder,
   onRemove,
   onUpdateMaxBid,
@@ -75,6 +77,7 @@ export function DraftSidebar({
             onDraft={onDraft}
             isMyTurn={isMyTurn}
             isPicking={isPicking}
+            actionLabel={actionLabel}
             accessToken={accessToken}
           />
         ) : (

@@ -402,12 +402,13 @@ export function useDraftRoom(leagueId: string) {
   }, [draft, accessToken]);
 
   // Auction handlers
-  const handleNominate = useCallback(async () => {
-    if (!draft || !accessToken || !nominatePlayerId.trim()) return;
+  const handleNominate = useCallback(async (playerId?: string) => {
+    const pid = playerId || nominatePlayerId;
+    if (!draft || !accessToken || !pid.trim()) return;
     try {
       setIsNominating(true);
       setPickError(null);
-      const result = await draftApi.nominate(draft.id, { player_id: nominatePlayerId.trim(), amount: nominateAmount }, accessToken);
+      const result = await draftApi.nominate(draft.id, { player_id: pid.trim(), amount: nominateAmount }, accessToken);
       setDraft(result.draft);
       setNominatePlayerId('');
       setNominateAmount(1);
@@ -441,12 +442,13 @@ export function useDraftRoom(leagueId: string) {
   }, [draft, accessToken, bidAmount]);
 
   // Slow auction handlers
-  const handleSlowNominate = useCallback(async () => {
-    if (!draft || !accessToken || !nominatePlayerId.trim()) return;
+  const handleSlowNominate = useCallback(async (playerId?: string) => {
+    const pid = playerId || nominatePlayerId;
+    if (!draft || !accessToken || !pid.trim()) return;
     try {
       setIsNominating(true);
       setPickError(null);
-      const result = await draftApi.slowNominate(draft.id, { player_id: nominatePlayerId.trim() }, accessToken);
+      const result = await draftApi.slowNominate(draft.id, { player_id: pid.trim() }, accessToken);
       setSlowAuctionLots((prev) => [...prev, result.lot]);
       setNominatePlayerId('');
       // Refresh stats
