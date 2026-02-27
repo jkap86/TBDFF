@@ -364,9 +364,20 @@ export function useDraftRoom(leagueId: string) {
     try {
       const result = await draftApi.start(draft.id, accessToken);
       setDraft(result.draft);
-      // Fetch picks after starting
-      const picksResult = await draftApi.getPicks(result.draft.id, accessToken);
-      setPicks(picksResult.picks);
+
+      if (result.draft.type === 'slow_auction') {
+        const [lotsResult, budgetsResult, picksResult] = await Promise.all([
+          draftApi.getSlowAuctionLots(result.draft.id, accessToken),
+          draftApi.getSlowAuctionBudgets(result.draft.id, accessToken),
+          draftApi.getPicks(result.draft.id, accessToken),
+        ]);
+        setSlowAuctionLots(lotsResult.lots);
+        setSlowAuctionBudgets(budgetsResult.budgets);
+        setPicks(picksResult.picks);
+      } else {
+        const picksResult = await draftApi.getPicks(result.draft.id, accessToken);
+        setPicks(picksResult.picks);
+      }
     } catch (err) {
       if (err instanceof ApiError) {
         setError(err.message);
