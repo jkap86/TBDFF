@@ -8,6 +8,7 @@ import { useAuth } from '@/features/auth/hooks/useAuth';
 export function useWaivers(leagueId: string) {
   const { accessToken } = useAuth();
   const [claims, setClaims] = useState<WaiverClaim[]>([]);
+  const [playerNames, setPlayerNames] = useState<Record<string, string>>({});
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -18,6 +19,7 @@ export function useWaivers(leagueId: string) {
       setError(null);
       const result = await transactionApi.getWaiverClaims(leagueId, accessToken);
       setClaims(result.claims);
+      if (result.player_names) setPlayerNames(result.player_names);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Failed to load waiver claims');
     } finally {
@@ -51,6 +53,7 @@ export function useWaivers(leagueId: string) {
 
   return {
     claims,
+    playerNames,
     isLoading,
     error,
     fetchClaims,

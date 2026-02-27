@@ -9,6 +9,7 @@ export function useTransactions(leagueId: string) {
   const { accessToken } = useAuth();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [total, setTotal] = useState(0);
+  const [playerNames, setPlayerNames] = useState<Record<string, string>>({});
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -20,6 +21,7 @@ export function useTransactions(leagueId: string) {
       const result = await transactionApi.list(leagueId, accessToken, params);
       setTransactions(result.transactions);
       setTotal(result.total);
+      if (result.player_names) setPlayerNames(result.player_names);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Failed to load transactions');
     } finally {
@@ -46,6 +48,7 @@ export function useTransactions(leagueId: string) {
   return {
     transactions,
     total,
+    playerNames,
     isLoading,
     error,
     fetchTransactions,

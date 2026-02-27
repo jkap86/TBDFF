@@ -5,11 +5,12 @@ import { X } from 'lucide-react';
 
 interface MyWaiverClaimsProps {
   claims: WaiverClaim[];
+  playerNames?: Record<string, string>;
   isLoading: boolean;
   onCancel: (claimId: string) => void;
 }
 
-export function MyWaiverClaims({ claims, isLoading, onCancel }: MyWaiverClaimsProps) {
+export function MyWaiverClaims({ claims, playerNames, isLoading, onCancel }: MyWaiverClaimsProps) {
   if (isLoading) {
     return <p className="text-sm text-gray-500 dark:text-gray-400">Loading claims...</p>;
   }
@@ -27,13 +28,13 @@ export function MyWaiverClaims({ claims, isLoading, onCancel }: MyWaiverClaimsPr
         >
           <div className="flex-1">
             <div className="flex items-center gap-2">
-              <span className="font-medium text-sm text-gray-900 dark:text-white">{claim.player_id}</span>
+              <span className="font-medium text-sm text-gray-900 dark:text-white">{playerNames?.[claim.player_id] || claim.player_id}</span>
               {claim.faab_amount > 0 && (
                 <span className="text-xs text-gray-500 dark:text-gray-400">${claim.faab_amount}</span>
               )}
             </div>
             {claim.drop_player_id && (
-              <p className="text-xs text-gray-500 dark:text-gray-400">Dropping: {claim.drop_player_id}</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Dropping: {playerNames?.[claim.drop_player_id] || claim.drop_player_id}</p>
             )}
             {claim.process_at && (
               <p className="text-xs text-gray-400">

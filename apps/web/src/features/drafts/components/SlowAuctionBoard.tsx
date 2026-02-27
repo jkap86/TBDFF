@@ -96,8 +96,13 @@ export function SlowAuctionBoard({
                   <div className="flex items-start justify-between mb-2">
                     <div>
                       <div className="font-medium text-gray-900 dark:text-white text-sm">
-                        Player #{lot.player_id}
+                        {(lot.player_metadata?.full_name as string) || lot.player_id}
                       </div>
+                      {!!lot.player_metadata?.position && (
+                        <div className="text-xs text-gray-500 dark:text-gray-400">
+                          {String(lot.player_metadata.position)} - {String(lot.player_metadata.team)}
+                        </div>
+                      )}
                       <div className="text-xs text-gray-500 dark:text-gray-400">
                         Nom: {rosterToUser[lot.nominator_roster_id] || `Team ${lot.nominator_roster_id}`}
                       </div>

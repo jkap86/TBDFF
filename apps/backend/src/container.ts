@@ -108,7 +108,7 @@ export function createContainer() {
   const matchupService = new MatchupService(matchupRepository, leagueRepository);
   const chatService = new ChatService(chatRepository);
   const tradeService = new TradeService(tradeRepository, leagueRepository, draftRepository);
-  const transactionService = new TransactionService(transactionRepository, leagueRepository);
+  const transactionService = new TransactionService(transactionRepository, leagueRepository, playerRepository);
   const paymentService = new PaymentService(paymentRepository, leagueRepository);
 
   // Controllers

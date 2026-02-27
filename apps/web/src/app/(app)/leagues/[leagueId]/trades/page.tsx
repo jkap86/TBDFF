@@ -165,6 +165,7 @@ export default function TradesPage() {
                 currentUserId={user?.id ?? ''}
                 isCommissioner={isCommissioner}
                 futurePicks={futurePicks}
+                playerMap={playerMap}
                 onAccept={(id) => confirmAndAct('Accept', acceptTrade, id)}
                 onDecline={(id) => confirmAndAct('Decline', declineTrade, id)}
                 onWithdraw={(id) => confirmAndAct('Withdraw', withdrawTrade, id)}

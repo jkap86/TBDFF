@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { ArrowLeft } from 'lucide-react';
-import { leagueApi, ApiError } from '@/lib/api';
+import { leagueApi, playerApi, ApiError } from '@/lib/api';
 import type { Roster, League } from '@/lib/api';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import { useWaivers } from '@/features/transactions/hooks/useWaivers';
@@ -20,10 +20,11 @@ export default function WaiversPage() {
   const [league, setLeague] = useState<League | null>(null);
   const [rosters, setRosters] = useState<Roster[]>([]);
   const [allPlayers, setAllPlayers] = useState<string[]>([]);
+  const [rosterPlayerNames, setRosterPlayerNames] = useState<Record<string, string>>({});
   const [claimingPlayer, setClaimingPlayer] = useState<string | null>(null);
   const [addError, setAddError] = useState<string | null>(null);
 
-  const { claims, isLoading: claimsLoading, fetchClaims, placeClaim, cancelClaim } = useWaivers(leagueId);
+  const { claims, playerNames: claimPlayerNames, isLoading: claimsLoading, fetchClaims, placeClaim, cancelClaim } = useWaivers(leagueId);
   const { addPlayer, dropPlayer } = useTransactions(leagueId);
 
   useEffect(() => {
@@ -41,6 +42,19 @@ export default function WaiversPage() {
         for (const p of r.players) rostered.add(p);
       }
       setAllPlayers(Array.from(rostered));
+
+      // Fetch player names for roster display
+      Promise.all(
+        Array.from(rostered).map((pid) =>
+          playerApi.getById(pid, accessToken).then((res) => res.player).catch(() => null),
+        ),
+      ).then((players) => {
+        const names: Record<string, string> = {};
+        for (const p of players) {
+          if (p) names[p.id] = p.full_name;
+        }
+        setRosterPlayerNames(names);
+      });
     }).catch(() => {});
   }, [leagueId, accessToken]);
 
@@ -96,6 +110,7 @@ export default function WaiversPage() {
           <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-4">My Pending Claims</h2>
           <MyWaiverClaims
             claims={claims}
+            playerNames={{ ...rosterPlayerNames, ...claimPlayerNames }}
             isLoading={claimsLoading}
             onCancel={cancelClaim}
           />
@@ -105,7 +120,9 @@ export default function WaiversPage() {
         {claimingPlayer && myRoster && league && (
           <WaiverClaimForm
             playerId={claimingPlayer}
+            playerName={rosterPlayerNames[claimingPlayer] || claimPlayerNames[claimingPlayer]}
             roster={myRoster}
+            playerNames={rosterPlayerNames}
             waiverType={league.settings.waiver_type}
             onSubmit={async (data) => {
               await placeClaim(data);
@@ -126,7 +143,7 @@ export default function WaiversPage() {
                   key={playerId}
                   className="flex items-center justify-between rounded border border-gray-200 dark:border-gray-700 p-3"
                 >
-                  <span className="text-sm font-medium text-gray-900 dark:text-white">{playerId}</span>
+                  <span className="text-sm font-medium text-gray-900 dark:text-white">{rosterPlayerNames[playerId] || playerId}</span>
                   <button
                     onClick={() => handleDropPlayer(playerId)}
                     className="rounded bg-red-100 px-2 py-1 text-xs font-medium text-red-700 hover:bg-red-200"

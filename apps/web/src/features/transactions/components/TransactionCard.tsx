@@ -18,9 +18,10 @@ const typeColors: Record<string, string> = {
 
 interface TransactionCardProps {
   transaction: Transaction;
+  playerNames?: Record<string, string>;
 }
 
-export function TransactionCard({ transaction }: TransactionCardProps) {
+export function TransactionCard({ transaction, playerNames }: TransactionCardProps) {
   const adds = Object.entries(transaction.adds) as [string, number][];
   const drops = Object.entries(transaction.drops) as [string, number][];
 
@@ -39,14 +40,14 @@ export function TransactionCard({ transaction }: TransactionCardProps) {
         {adds.map(([playerId, rosterId]) => (
           <div key={`add-${playerId}`} className="flex items-center gap-2">
             <span className="text-green-600 dark:text-green-400 font-medium text-xs">+ ADD</span>
-            <span className="text-gray-700 dark:text-gray-300">{playerId}</span>
+            <span className="text-gray-700 dark:text-gray-300">{playerNames?.[playerId] || playerId}</span>
             <span className="text-gray-400 text-xs">to Roster {rosterId}</span>
           </div>
         ))}
         {drops.map(([playerId, rosterId]) => (
           <div key={`drop-${playerId}`} className="flex items-center gap-2">
             <span className="text-red-600 dark:text-red-400 font-medium text-xs">- DROP</span>
-            <span className="text-gray-700 dark:text-gray-300">{playerId}</span>
+            <span className="text-gray-700 dark:text-gray-300">{playerNames?.[playerId] || playerId}</span>
             <span className="text-gray-400 text-xs">from Roster {rosterId}</span>
           </div>
         ))}

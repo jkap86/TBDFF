@@ -53,8 +53,11 @@ export class TransactionController {
     const userId = req.user?.userId;
     if (!userId) throw new InvalidCredentialsException();
 
-    const claims = await this.transactionService.getMyWaiverClaims(param(req.params.leagueId), userId);
-    res.status(200).json({ claims: claims.map((c) => c.toSafeObject()) });
+    const result = await this.transactionService.getMyWaiverClaims(param(req.params.leagueId), userId);
+    res.status(200).json({
+      claims: result.claims.map((c) => c.toSafeObject()),
+      player_names: result.player_names,
+    });
   };
 
   placeWaiverClaim = async (req: AuthRequest, res: Response): Promise<void> => {

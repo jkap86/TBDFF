@@ -49,7 +49,7 @@ export class AuctionLot {
     );
   }
 
-  toSafeObject(myMaxBid?: number | null) {
+  toSafeObject(myMaxBid?: number | null, playerMetadata?: Record<string, unknown>) {
     const obj: Record<string, any> = {
       id: this.id,
       draft_id: this.draftId,
@@ -67,6 +67,9 @@ export class AuctionLot {
     };
     if (myMaxBid !== undefined) {
       obj.my_max_bid = myMaxBid;
+    }
+    if (playerMetadata) {
+      obj.player_metadata = playerMetadata;
     }
     return obj;
   }

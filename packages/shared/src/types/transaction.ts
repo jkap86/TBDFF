@@ -63,6 +63,7 @@ export interface TransactionListResponse {
   total: number;
   limit: number;
   offset: number;
+  player_names?: Record<string, string>;
 }
 
 export interface TransactionResponse {
@@ -75,4 +76,5 @@ export interface WaiverClaimResponse {
 
 export interface WaiverClaimListResponse {
   claims: WaiverClaim[];
+  player_names?: Record<string, string>;
 }

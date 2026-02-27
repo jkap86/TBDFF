@@ -174,8 +174,8 @@ export function useDraftRoom(leagueId: string) {
       refreshSlowAuctionData();
     };
 
-    const handleOutbid = (data: { lot_id: string; player_id: string; new_bid: number }) => {
-      toast.error(`You've been outbid on Player #${data.player_id}! New bid: $${data.new_bid}`);
+    const handleOutbid = (data: { lot_id: string; player_id: string; player_name?: string; new_bid: number }) => {
+      toast.error(`You've been outbid on ${data.player_name || data.player_id}! New bid: $${data.new_bid}`);
       // Refresh lots to get updated my_max_bid state
       if (accessToken && draft.id) {
         draftApi.getSlowAuctionLots(draft.id, accessToken).then((res) => setSlowAuctionLots(res.lots)).catch(() => {});

@@ -5,13 +5,15 @@ import type { Roster, PlaceWaiverClaimRequest } from '@/lib/api';
 
 interface WaiverClaimFormProps {
   playerId: string;
+  playerName?: string;
   roster: Roster;
+  playerNames?: Record<string, string>;
   waiverType: number;
   onSubmit: (data: PlaceWaiverClaimRequest) => Promise<void>;
   onCancel: () => void;
 }
 
-export function WaiverClaimForm({ playerId, roster, waiverType, onSubmit, onCancel }: WaiverClaimFormProps) {
+export function WaiverClaimForm({ playerId, playerName, roster, playerNames, waiverType, onSubmit, onCancel }: WaiverClaimFormProps) {
   const [dropPlayerId, setDropPlayerId] = useState('');
   const [faabAmount, setFaabAmount] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -35,7 +37,7 @@ export function WaiverClaimForm({ playerId, roster, waiverType, onSubmit, onCanc
 
   return (
     <div className="space-y-3 p-4 border border-gray-200 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-900">
-      <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300">Waiver Claim for {playerId}</h4>
+      <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300">Waiver Claim for {playerName || playerId}</h4>
 
       {error && (
         <p className="text-xs text-red-600 dark:text-red-400">{error}</p>
@@ -65,7 +67,7 @@ export function WaiverClaimForm({ playerId, roster, waiverType, onSubmit, onCanc
         >
           <option value="">None</option>
           {roster.players.map((pid) => (
-            <option key={pid} value={pid}>{pid}</option>
+            <option key={pid} value={pid}>{playerNames?.[pid] || pid}</option>
           ))}
         </select>
       </div>

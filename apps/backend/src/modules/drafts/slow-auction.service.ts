@@ -6,6 +6,7 @@ import { PlayerRepository } from '../players/players.repository';
 import { DraftGateway } from './draft.gateway';
 import { AuctionLot, SlowAuctionSettings, RosterBudgetData } from './slow-auction.model';
 import { Draft, DraftPick } from './drafts.model';
+import { Player } from '../players/players.model';
 import { resolveSecondPrice, computeExtendedDeadline, type ProxyBidSnapshot, type OutbidNotification } from './auction-price-resolver';
 import { findRosterIdByUserId, findUserByRosterId, getMaxPlayersPerTeam } from './draft-helpers';
 import {
@@ -28,6 +29,20 @@ export class SlowAuctionService {
 
   setGateway(gateway: DraftGateway): void {
     this.draftGateway = gateway;
+  }
+
+  // ---- Player Metadata Helper ----
+
+  private buildPlayerMeta(player: Player | null | undefined): Record<string, unknown> | undefined {
+    if (!player) return undefined;
+    return {
+      full_name: player.fullName,
+      first_name: player.firstName,
+      last_name: player.lastName,
+      position: player.position,
+      team: player.team,
+      auction_value: player.auctionValue ?? null,
+    };
   }
 
   // ---- Settings Helper ----
@@ -135,7 +150,7 @@ export class SlowAuctionService {
 
     // Broadcast
     this.draftGateway?.broadcastSlowAuction(draftId, 'slow_auction:lot_created', {
-      lot: lot.toSafeObject(),
+      lot: lot.toSafeObject(undefined, this.buildPlayerMeta(player)),
     });
 
     return { lot, draft };
@@ -275,9 +290,13 @@ export class SlowAuctionService {
       return { lot: updatedLot, outbidNotifications: resolution.outbidNotifications };
     });
 
+    // Fetch player for metadata in broadcasts
+    const player = await this.playerRepo.findById(result.lot.playerId);
+    const playerMeta = this.buildPlayerMeta(player);
+
     // Broadcast lot update
     this.draftGateway?.broadcastSlowAuction(draftId, 'slow_auction:lot_updated', {
-      lot: result.lot.toSafeObject(),
+      lot: result.lot.toSafeObject(undefined, playerMeta),
     });
 
     // Send outbid notifications
@@ -287,6 +306,7 @@ export class SlowAuctionService {
         this.draftGateway?.broadcastToUser(outbidUserId, 'slow_auction:outbid', {
           lot_id: lotId,
           player_id: result.lot.playerId,
+          player_name: player?.fullName ?? result.lot.playerId,
           new_bid: notification.newLeadingBid,
         });
       }
@@ -509,18 +529,24 @@ export class SlowAuctionService {
 
   // ---- Query Methods ----
 
-  async getActiveLots(draftId: string, rosterId?: number): Promise<Array<{ lot: AuctionLot; myMaxBid: number | null }>> {
+  async getActiveLots(draftId: string, rosterId?: number): Promise<Array<{ lot: AuctionLot; myMaxBid: number | null; playerMetadata?: Record<string, unknown> }>> {
     const lots = await this.lotRepo.findActiveLotsByDraft(draftId);
+
+    // Batch-fetch player metadata for all lots
+    const playerIds = lots.map((l) => l.playerId);
+    const players = await this.playerRepo.findByIds(playerIds);
+    const playerMap = new Map(players.map((p) => [p.id, p]));
 
     if (rosterId !== undefined) {
       const userBids = await this.lotRepo.getProxyBidsForRosterByDraft(draftId, rosterId);
       return lots.map((lot) => ({
         lot,
         myMaxBid: userBids.get(lot.id) ?? null,
+        playerMetadata: this.buildPlayerMeta(playerMap.get(lot.playerId)),
       }));
     }
 
-    return lots.map((lot) => ({ lot, myMaxBid: null }));
+    return lots.map((lot) => ({ lot, myMaxBid: null, playerMetadata: this.buildPlayerMeta(playerMap.get(lot.playerId)) }));
   }
 
   async getAllBudgets(draftId: string): Promise<Array<{

@@ -66,8 +66,13 @@ export function SlowBidDialog({ lot, myBudget, minBid, minIncrement, onSubmit, o
         {/* Player info */}
         <div className="rounded-lg bg-gray-50 dark:bg-gray-700 p-3 mb-4">
           <div className="font-medium text-gray-900 dark:text-white">
-            Player #{lot.player_id}
+            {(lot.player_metadata?.full_name as string) || lot.player_id}
           </div>
+          {!!lot.player_metadata?.position && (
+            <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">
+              {String(lot.player_metadata.position)} - {String(lot.player_metadata.team)}
+            </div>
+          )}
           <div className="flex items-center gap-4 mt-1 text-sm text-gray-600 dark:text-gray-400">
             <span>Current bid: <span className="font-bold text-green-700">${currentBid}</span></span>
             <span>Bids: {lot.bid_count}</span>

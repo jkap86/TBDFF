@@ -11,7 +11,7 @@ export default function TransactionsPage() {
   const router = useRouter();
   const leagueId = params.leagueId as string;
 
-  const { transactions, total, isLoading, fetchTransactions } = useTransactions(leagueId);
+  const { transactions, total, playerNames, isLoading, fetchTransactions } = useTransactions(leagueId);
 
   const handleFilterChange = useCallback((type?: string) => {
     fetchTransactions({ type, limit: 25, offset: 0 });
@@ -40,6 +40,7 @@ export default function TransactionsPage() {
           <TransactionFeed
             transactions={transactions}
             total={total}
+            playerNames={playerNames}
             isLoading={isLoading}
             onFilterChange={handleFilterChange}
             onLoadMore={handleLoadMore}

@@ -313,7 +313,7 @@ export class DraftController {
 
     const results = await this.slowAuctionService.getActiveLots(draftId, rosterId ?? undefined);
     res.status(200).json({
-      lots: results.map(({ lot, myMaxBid }) => lot.toSafeObject(myMaxBid)),
+      lots: results.map(({ lot, myMaxBid, playerMetadata }) => lot.toSafeObject(myMaxBid, playerMetadata)),
     });
   };
 

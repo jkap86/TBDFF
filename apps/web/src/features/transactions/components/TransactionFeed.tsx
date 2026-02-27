@@ -14,12 +14,13 @@ const typeFilters: Array<{ label: string; value: string | undefined }> = [
 interface TransactionFeedProps {
   transactions: Transaction[];
   total: number;
+  playerNames?: Record<string, string>;
   isLoading: boolean;
   onFilterChange: (type?: string) => void;
   onLoadMore?: () => void;
 }
 
-export function TransactionFeed({ transactions, total, isLoading, onFilterChange, onLoadMore }: TransactionFeedProps) {
+export function TransactionFeed({ transactions, total, playerNames, isLoading, onFilterChange, onLoadMore }: TransactionFeedProps) {
   const [activeFilter, setActiveFilter] = useState<string | undefined>(undefined);
 
   const handleFilter = (type: string | undefined) => {
@@ -52,7 +53,7 @@ export function TransactionFeed({ transactions, total, isLoading, onFilterChange
       ) : (
         <div className="space-y-3">
           {transactions.map((tx) => (
-            <TransactionCard key={tx.id} transaction={tx} />
+            <TransactionCard key={tx.id} transaction={tx} playerNames={playerNames} />
           ))}
           {transactions.length < total && onLoadMore && (
             <button

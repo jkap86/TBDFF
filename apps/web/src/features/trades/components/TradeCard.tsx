@@ -1,6 +1,6 @@
 'use client';
 
-import type { TradeProposal, TradeItem, FutureDraftPick } from '@/lib/api';
+import type { TradeProposal, TradeItem, FutureDraftPick, Player } from '@/lib/api';
 
 const statusColors: Record<string, string> = {
   pending: 'bg-yellow-100 text-yellow-700',
@@ -19,6 +19,7 @@ interface TradeCardProps {
   currentUserId: string;
   isCommissioner: boolean;
   futurePicks?: FutureDraftPick[];
+  playerMap?: Record<string, Player>;
   onAccept?: (tradeId: string) => void;
   onDecline?: (tradeId: string) => void;
   onWithdraw?: (tradeId: string) => void;
@@ -32,6 +33,7 @@ export function TradeCard({
   currentUserId,
   isCommissioner,
   futurePicks,
+  playerMap,
   onAccept,
   onDecline,
   onWithdraw,
@@ -46,7 +48,7 @@ export function TradeCard({
   const receiverItems = trade.items?.filter((i: TradeItem) => i.side === 'receiver') ?? [];
 
   const formatItem = (item: TradeItem) => {
-    if (item.item_type === 'player') return item.player_id ?? 'Unknown Player';
+    if (item.item_type === 'player') return (item.player_id && playerMap?.[item.player_id]?.full_name) || item.player_id || 'Unknown Player';
     if (item.item_type === 'draft_pick') {
       const pick = futurePicks?.find((p) => p.id === item.draft_pick_id);
       if (pick) {

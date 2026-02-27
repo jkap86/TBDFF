@@ -1,6 +1,7 @@
 import { TransactionRepository } from './transactions.repository';
 import { Transaction, WaiverClaim } from './transactions.model';
 import { LeagueRepository } from '../leagues/leagues.repository';
+import { PlayerRepository } from '../players/players.repository';
 import { TransactionsGateway } from './transactions.gateway';
 import {
   NotFoundException,
@@ -14,6 +15,7 @@ export class TransactionService {
   constructor(
     private readonly txRepo: TransactionRepository,
     private readonly leagueRepo: LeagueRepository,
+    private readonly playerRepo?: PlayerRepository,
   ) {}
 
   setGateway(gw: TransactionsGateway): void {
@@ -225,27 +227,52 @@ export class TransactionService {
     if (!cancelled) throw new ValidationException('Claim could not be cancelled');
   }
 
-  async getMyWaiverClaims(leagueId: string, userId: string): Promise<WaiverClaim[]> {
+  async getMyWaiverClaims(leagueId: string, userId: string): Promise<{ claims: WaiverClaim[]; player_names: Record<string, string> }> {
     const member = await this.leagueRepo.findMember(leagueId, userId);
     if (!member) throw new ForbiddenException('You are not a member of this league');
 
-    return this.txRepo.findPendingClaimsByUser(leagueId, userId);
+    const claims = await this.txRepo.findPendingClaimsByUser(leagueId, userId);
+    const playerNames = await this.resolvePlayerNames(
+      [...claims.map((c) => c.playerId), ...claims.map((c) => c.dropPlayerId).filter(Boolean) as string[]],
+    );
+    return { claims, player_names: playerNames };
   }
 
   async getTransactionFeed(
     leagueId: string,
     userId: string,
     filters?: { type?: string; limit?: number; offset?: number },
-  ): Promise<{ transactions: Transaction[]; total: number; limit: number; offset: number }> {
+  ): Promise<{ transactions: Transaction[]; total: number; limit: number; offset: number; player_names: Record<string, string> }> {
     const member = await this.leagueRepo.findMember(leagueId, userId);
     if (!member) throw new ForbiddenException('You are not a member of this league');
 
     const result = await this.txRepo.findByLeague(leagueId, filters);
+
+    // Collect all unique player IDs from adds/drops
+    const playerIds = new Set<string>();
+    for (const tx of result.transactions) {
+      for (const pid of Object.keys(tx.adds)) playerIds.add(pid);
+      for (const pid of Object.keys(tx.drops)) playerIds.add(pid);
+    }
+    const playerNames = await this.resolvePlayerNames(Array.from(playerIds));
+
     return {
       ...result,
       limit: filters?.limit ?? 25,
       offset: filters?.offset ?? 0,
+      player_names: playerNames,
     };
+  }
+
+  private async resolvePlayerNames(playerIds: string[]): Promise<Record<string, string>> {
+    if (!this.playerRepo || playerIds.length === 0) return {};
+    const unique = [...new Set(playerIds)];
+    const players = await this.playerRepo.findByIds(unique);
+    const map: Record<string, string> = {};
+    for (const p of players) {
+      map[p.id] = p.fullName;
+    }
+    return map;
   }
 
   // ---- Waiver Processing ----
