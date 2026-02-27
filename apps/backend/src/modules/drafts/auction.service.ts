@@ -870,25 +870,39 @@ export class AuctionService {
 
     if (allAutoTargets.length === 0) return null;
 
-    // Find the auto-bidder with the highest target to place the next incremental bid.
-    allAutoTargets.sort((a, b) => {
-      if (b.effectiveTarget !== a.effectiveTarget) return b.effectiveTarget - a.effectiveTarget;
-      // Tie-break: current bidder ranks lower (they already lead; challengers need to act)
-      if (a.userId === currentBidder) return 1;
-      if (b.userId === currentBidder) return -1;
-      return 0;
-    });
+    // Sort auto-bidders by target descending to resolve the proxy bidding war.
+    allAutoTargets.sort((a, b) => b.effectiveTarget - a.effectiveTarget);
 
-    const topBidder = allAutoTargets[0];
+    // Find the challenger: highest-target bidder who is NOT the current bidder
+    const challenger = allAutoTargets.find((b) => b.userId !== currentBidder);
+    if (!challenger || challenger.effectiveTarget <= currentBid) return null;
 
-    // If the highest auto-pick target belongs to the current bidder, they already win
-    if (topBidder.userId === currentBidder) return null;
+    // Check if the current bidder is also an auto-bidder
+    const currentBidderAuto = allAutoTargets.find((b) => b.userId === currentBidder);
 
-    // The top bidder must be able to beat the current bid
-    if (topBidder.effectiveTarget <= currentBid) return null;
+    // Resolve the proxy war in one step (second-price auction style):
+    // The winner outbids the runner-up's ceiling by $1.
+    let winner: { userId: string; rosterId: number; effectiveTarget: number };
+    let winningBid: number;
 
-    const winner = topBidder;
-    const winningBid = currentBid + 1;
+    if (currentBidderAuto && currentBidderAuto.effectiveTarget >= challenger.effectiveTarget) {
+      // Current bidder has the highest auto-target — they win
+      winner = currentBidderAuto;
+      winningBid = Math.min(
+        winner.effectiveTarget,
+        Math.max(currentBid + 1, challenger.effectiveTarget + 1),
+      );
+    } else {
+      // Challenger has a higher target — they win
+      winner = challenger;
+      const runnerUpCeiling = currentBidderAuto
+        ? Math.max(currentBid, currentBidderAuto.effectiveTarget)
+        : currentBid;
+      winningBid = Math.min(
+        winner.effectiveTarget,
+        Math.max(currentBid + 1, runnerUpCeiling + 1),
+      );
+    }
 
     const newDeadline = new Date(Date.now() + draft.settings.nomination_timer * 1000).toISOString();
 

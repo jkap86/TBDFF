@@ -343,10 +343,10 @@ describe('AuctionService._processAutoBids (incremental bidding)', () => {
     expect(nom.current_bidder).toBe('user-b');
   });
 
-  it('two auto-bidders bid incrementally at currentBid + 1', async () => {
+  it('two auto-bidders with equal targets resolve in one shot', async () => {
     // user-a bid $5 and is current bidder. Both user-a and user-b are on auto.
     // Both have target=32 (80% of auctionValue 40 with teams=12, budget=200).
-    // user-b (challenger) bids currentBid + 1 = 6; scheduleAutoBids handles the rest.
+    // One-shot resolution: user-a (current bidder) wins the tie at challenger's limit = $32.
     const draft = makeAutoBidDraft({
       currentBid: 5,
       currentBidder: 'user-a',
@@ -359,8 +359,8 @@ describe('AuctionService._processAutoBids (incremental bidding)', () => {
 
     const updateCall = draftRepo.update.mock.calls[0];
     const nom = updateCall[1].metadata.current_nomination;
-    expect(nom.current_bidder).toBe('user-b');
-    expect(nom.current_bid).toBe(6);
+    expect(nom.current_bidder).toBe('user-a');
+    expect(nom.current_bid).toBe(32);
   });
 
   it('does nothing when highest auto-bidder is already the current bidder', async () => {
@@ -400,7 +400,7 @@ describe('AuctionService._processAutoBids (incremental bidding)', () => {
     expect(nom.current_bid).toBe(6);
   });
 
-  it('two auto-bidders with different queue max_bids bid incrementally', async () => {
+  it('two auto-bidders with different queue max_bids resolve in one shot', async () => {
     const draft = makeAutoBidDraft({
       currentBid: 1,
       currentBidder: 'user-a',
@@ -422,9 +422,9 @@ describe('AuctionService._processAutoBids (incremental bidding)', () => {
 
     const updateCall = draftRepo.update.mock.calls[0];
     const nom = updateCall[1].metadata.current_nomination;
-    // user-b (challenger) bids currentBid + 1 = 2; scheduleAutoBids continues the war.
+    // One-shot: user-b wins at user-a's ceiling ($20) + $1 = $21.
     expect(nom.current_bidder).toBe('user-b');
-    expect(nom.current_bid).toBe(2);
+    expect(nom.current_bid).toBe(21);
   });
 
   it('non-auto-pick user with queue max_bid should auto-bid', async () => {
