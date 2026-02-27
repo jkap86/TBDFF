@@ -6,7 +6,7 @@ import { useAuth } from '@/features/auth/hooks/useAuth';
 import { authApi, leagueApi } from '@/lib/api';
 
 const TEST_USERS = Array.from({ length: 12 }, (_, i) => `test${i + 1}`);
-const PASSWORD = 'aaabbbcc';
+const PASSWORD = 'password';
 
 export function DevPanel() {
   const [isOpen, setIsOpen] = useState(false);

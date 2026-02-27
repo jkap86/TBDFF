@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # seed-test-users.sh
 #
-# Creates test users test2-test12 (password: aaabbbcc)
+# Creates test users test2-test12 (password: password)
 # Optionally adds them all to a league with roster assignments.
 #
 # Usage:
@@ -11,7 +11,7 @@
 set -euo pipefail
 
 API_URL="${API_URL:-http://localhost:5000/api}"
-PASSWORD="aaabbbcc"
+PASSWORD="password"
 LEAGUE_ID="${1:-}"
 
 echo "=== TBDFF Test User Seeder ==="
