@@ -107,24 +107,26 @@ export default function DraftRoomPage() {
             <div className="space-y-6">
               <DraftSettingsForm draft={draft} onSave={room.handleUpdateSettings} readOnly={false} />
 
-              <div className="border-t border-gray-200 dark:border-gray-700 pt-4">
-                <p className="mb-2 text-sm text-gray-600 dark:text-gray-400">
-                  Draft Order: {Object.keys(draft.draft_order ?? {}).length > 0
-                    ? `${Object.keys(draft.draft_order ?? {}).length} slots assigned`
-                    : 'Not set'}
-                </p>
-                <button
-                  onClick={room.handleSetOrder}
-                  className="rounded-lg bg-gray-600 px-4 py-2 text-sm font-medium text-white hover:bg-gray-700"
-                >
-                  {Object.keys(draft.draft_order ?? {}).length > 0 ? 'Reset Draft Order' : 'Set Draft Order'}
-                </button>
-                <p className="mt-1 text-xs text-gray-400 dark:text-gray-500">
-                  Auto-assigns order based on roster slot assignments
-                </p>
-              </div>
+              {!room.isSlowAuction && (
+                <div className="border-t border-gray-200 dark:border-gray-700 pt-4">
+                  <p className="mb-2 text-sm text-gray-600 dark:text-gray-400">
+                    Draft Order: {Object.keys(draft.draft_order ?? {}).length > 0
+                      ? `${Object.keys(draft.draft_order ?? {}).length} slots assigned`
+                      : 'Not set'}
+                  </p>
+                  <button
+                    onClick={room.handleSetOrder}
+                    className="rounded-lg bg-gray-600 px-4 py-2 text-sm font-medium text-white hover:bg-gray-700"
+                  >
+                    {Object.keys(draft.draft_order ?? {}).length > 0 ? 'Reset Draft Order' : 'Set Draft Order'}
+                  </button>
+                  <p className="mt-1 text-xs text-gray-400 dark:text-gray-500">
+                    Auto-assigns order based on roster slot assignments
+                  </p>
+                </div>
+              )}
 
-              {Object.keys(draft.draft_order ?? {}).length > 0 && (
+              {(room.isSlowAuction || Object.keys(draft.draft_order ?? {}).length > 0) && (
                 <div>
                   <button
                     onClick={room.handleStartDraft}

@@ -229,7 +229,7 @@ export class DraftService {
   }
 
   async startDraft(draftId: string, userId: string): Promise<Draft> {
-    const draft = await this.draftRepository.findById(draftId);
+    let draft = await this.draftRepository.findById(draftId);
     if (!draft) throw new NotFoundException('Draft not found');
 
     // Only commissioners can start
@@ -240,6 +240,31 @@ export class DraftService {
 
     if (draft.status !== 'pre_draft') {
       throw new ValidationException('Draft has already started or is complete');
+    }
+
+    // For slow auctions, auto-generate draft order from roster assignments
+    if (draft.type === 'slow_auction' && Object.keys(draft.draftOrder).length === 0) {
+      const rosters = await this.leagueRepository.findRostersByLeagueId(draft.leagueId);
+      const assignedRosters = rosters
+        .filter((r) => r.ownerId)
+        .sort((a, b) => a.rosterId - b.rosterId);
+
+      if (assignedRosters.length === 0) {
+        throw new ValidationException('No rosters have been assigned owners');
+      }
+
+      const draftOrder: Record<string, number> = {};
+      const slotToRosterId: Record<string, number> = {};
+
+      assignedRosters.forEach((roster, index) => {
+        const slot = index + 1;
+        draftOrder[roster.ownerId!] = slot;
+        slotToRosterId[String(slot)] = roster.rosterId;
+      });
+
+      const updated = await this.draftRepository.update(draft.id, { draftOrder, slotToRosterId });
+      if (!updated) throw new NotFoundException('Draft not found');
+      draft = updated;
     }
 
     // Validate draft order is set
