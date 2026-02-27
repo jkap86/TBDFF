@@ -262,6 +262,12 @@ export class DraftController {
     const draftId = Array.isArray(req.params.draftId) ? req.params.draftId[0] : req.params.draftId;
     const body = req.body as AddToQueueInput;
     const queue = await this.draftService.addToQueue(draftId, userId, body.player_id, body.max_bid);
+
+    // Trigger auto-bid re-evaluation when a max_bid is set during an active nomination
+    if (body.max_bid != null) {
+      this.auctionService.scheduleAutoBids(draftId);
+    }
+
     res.status(200).json({ queue });
   };
 
@@ -302,9 +308,9 @@ export class DraftController {
     const draft = await this.draftService.getDraft(draftId, userId);
     const rosterId = findRosterIdByUserId(draft, userId);
 
-    const lots = await this.slowAuctionService.getActiveLots(draftId, rosterId ?? undefined);
+    const results = await this.slowAuctionService.getActiveLots(draftId, rosterId ?? undefined);
     res.status(200).json({
-      lots: lots.map((l) => l.toSafeObject((l as any)._myMaxBid)),
+      lots: results.map(({ lot, myMaxBid }) => lot.toSafeObject(myMaxBid)),
     });
   };
 

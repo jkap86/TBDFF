@@ -696,8 +696,9 @@ export class DraftRepository {
     );
   }
 
-  async removeFromQueue(draftId: string, userId: string, playerId: string): Promise<void> {
-    await this.db.query(
+  async removeFromQueue(draftId: string, userId: string, playerId: string, client?: PoolClient): Promise<void> {
+    const conn = client ?? this.db;
+    await conn.query(
       'DELETE FROM draft_queue WHERE draft_id = $1 AND user_id = $2 AND player_id = $3',
       [draftId, userId, playerId]
     );

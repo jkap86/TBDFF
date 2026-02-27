@@ -879,15 +879,13 @@ export class AuctionService {
       return 0;
     });
 
-    const topBidder = allAutoTargets[0];
+    // Find the challenger: highest-target bidder who is NOT the current bidder.
+    // The old logic returned null when the top bidder was the current bidder,
+    // which stopped the war prematurely — other auto-bidders never got to counter.
+    const challenger = allAutoTargets.find((b) => b.userId !== currentBidder);
+    if (!challenger || challenger.effectiveTarget <= currentBid) return null;
 
-    // If the highest auto-pick target belongs to the current bidder, they already win
-    if (topBidder.userId === currentBidder) return null;
-
-    // The top bidder must be able to beat the current bid
-    if (topBidder.effectiveTarget <= currentBid) return null;
-
-    const winner = topBidder;
+    const winner = challenger;
     const winningBid = currentBid + 1;
 
     const newDeadline = new Date(Date.now() + draft.settings.nomination_timer * 1000).toISOString();

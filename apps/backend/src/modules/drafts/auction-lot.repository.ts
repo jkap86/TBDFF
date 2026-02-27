@@ -290,8 +290,9 @@ export class AuctionLotRepository {
   /**
    * Compute budget data for all rosters in a draft.
    */
-  async getAllRosterBudgetData(draftId: string): Promise<Map<number, RosterBudgetData>> {
-    const result = await this.db.query(
+  async getAllRosterBudgetData(draftId: string, client?: PoolClient): Promise<Map<number, RosterBudgetData>> {
+    const conn = client ?? this.db;
+    const result = await conn.query(
       `SELECT
          roster_id,
          SUM(CASE WHEN status = 'won' THEN winning_bid ELSE 0 END) as spent,

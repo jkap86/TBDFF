@@ -47,9 +47,13 @@ export class SlowAuctionService {
     };
   }
 
-  /** Get Eastern date string for daily nomination tracking */
+  /** Get Eastern date string (YYYY-MM-DD) for daily nomination tracking */
   private getEasternDateString(): string {
-    return new Date().toLocaleDateString('en-US', { timeZone: 'America/New_York' }).split('/').reverse().join('-');
+    const d = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/New_York' }));
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
   }
 
   // ---- Nominate ----
@@ -189,6 +193,12 @@ export class SlowAuctionService {
       // If we're already leading this lot, our current commitment is reusable
       if (lot.currentBidderRosterId === rosterId) {
         maxAffordable += lot.currentBid;
+
+        // Prevent lowering max bid below the current visible price — this would
+        // cause a leader change where the new leader's budget is not validated here
+        if (maxBid < lot.currentBid) {
+          throw new ValidationException(`Cannot lower bid below current price of $${lot.currentBid}`);
+        }
       }
 
       if (maxBid > maxAffordable) {
@@ -296,6 +306,7 @@ export class SlowAuctionService {
 
       const draft = await this.draftRepo.findById(lot.draftId, client);
       if (!draft) throw new NotFoundException('Draft not found for lot');
+      if (draft.status !== 'drafting') return { lot };
 
       const settings = this.getSettings(draft);
 
@@ -311,15 +322,22 @@ export class SlowAuctionService {
         return { lot: passedLot! };
       }
 
-      // Try each bidder in order (fallback logic)
+      // Pre-fetch budget data for all bidders in one query
+      const allBudgetData = await this.lotRepo.getAllRosterBudgetData(lot.draftId, client);
+
+      // Try each bidder in order, excluding those who already failed
+      const failedRosterIds = new Set<number>();
       for (const proxyBid of proxyBids) {
-        // Calculate second-price for this bidder being the winner
-        const bidsUpToThis = proxyBids.filter((pb) => pb.maxBid >= proxyBid.maxBid || pb.rosterId === proxyBid.rosterId);
+        // Calculate second-price excluding bidders who already failed affordability
+        const remainingBids = proxyBids
+          .filter((pb) => !failedRosterIds.has(pb.rosterId))
+          .map((pb) => ({ rosterId: pb.rosterId, maxBid: pb.maxBid }));
+
         const resolution = resolveSecondPrice({
           lotId: lot.id,
           currentBid: lot.currentBid,
           currentBidderRosterId: lot.currentBidderRosterId,
-          proxyBids: bidsUpToThis.map((pb) => ({ rosterId: pb.rosterId, maxBid: pb.maxBid })),
+          proxyBids: remainingBids,
           minBid: settings.minBid,
           minIncrement: settings.minIncrement,
         }, lot.bidCount);
@@ -329,9 +347,14 @@ export class SlowAuctionService {
         const price = resolution.newPrice;
 
         // Check if this bidder can afford it
-        const budgetData = await this.lotRepo.getRosterBudgetData(lot.draftId, proxyBid.rosterId, client);
+        const budgetData = allBudgetData.get(proxyBid.rosterId) ?? {
+          rosterId: proxyBid.rosterId, spent: 0, wonCount: 0, leadingCommitment: 0,
+        };
         const remainingSlots = settings.maxPlayersPerTeam - budgetData.wonCount;
-        if (remainingSlots <= 0) continue;
+        if (remainingSlots <= 0) {
+          failedRosterIds.add(proxyBid.rosterId);
+          continue;
+        }
 
         const reserveNeeded = Math.max(0, remainingSlots - 1) * settings.minBid;
         // Exclude this lot's leading commitment since we're settling it
@@ -341,7 +364,10 @@ export class SlowAuctionService {
         }
         const maxAffordable = settings.budget - budgetData.spent - reserveNeeded - adjustedLeadingCommitment;
 
-        if (price > maxAffordable) continue;
+        if (price > maxAffordable) {
+          failedRosterIds.add(proxyBid.rosterId);
+          continue;
+        }
 
         // This bidder can afford — settle as won
         const wonLot = await this.lotRepo.settleLotWon(lotId, proxyBid.rosterId, price, client);
@@ -404,9 +430,9 @@ export class SlowAuctionService {
         // Clean up proxy bids
         await this.lotRepo.deleteProxyBidsForLot(lotId, client);
 
-        // Remove from draft queue
+        // Remove from draft queue (inside transaction for atomicity)
         if (pickedByUserId) {
-          await this.draftRepo.removeFromQueue(lot.draftId, pickedByUserId, lot.playerId);
+          await this.draftRepo.removeFromQueue(lot.draftId, pickedByUserId, lot.playerId, client);
         }
 
         // Check if draft is complete (all rosters full)
@@ -414,10 +440,13 @@ export class SlowAuctionService {
         if (isComplete) {
           await client.query(`UPDATE drafts SET status = 'complete' WHERE id = $1`, [lot.draftId]);
           await client.query(`UPDATE leagues SET status = 'in_season' WHERE id = $1`, [draft.leagueId]);
-          // Move players to rosters
+          // Move drafted players to rosters (only append players not already present)
           await client.query(
             `UPDATE rosters r
-             SET players = r.players || sub.new_players
+             SET players = r.players || array(
+               SELECT p FROM unnest(sub.new_players) p
+               WHERE p != ALL(COALESCE(r.players, '{}'))
+             )
              FROM (
                SELECT dp.roster_id, array_agg(dp.player_id ORDER BY dp.pick_no) AS new_players
                FROM draft_picks dp
@@ -480,20 +509,18 @@ export class SlowAuctionService {
 
   // ---- Query Methods ----
 
-  async getActiveLots(draftId: string, rosterId?: number): Promise<AuctionLot[]> {
+  async getActiveLots(draftId: string, rosterId?: number): Promise<Array<{ lot: AuctionLot; myMaxBid: number | null }>> {
     const lots = await this.lotRepo.findActiveLotsByDraft(draftId);
 
     if (rosterId !== undefined) {
-      // Attach user's max bids
       const userBids = await this.lotRepo.getProxyBidsForRosterByDraft(draftId, rosterId);
-      return lots.map((lot) => {
-        const myMaxBid = userBids.get(lot.id) ?? null;
-        // Attach via a property that toSafeObject() can use
-        return Object.assign(lot, { _myMaxBid: myMaxBid });
-      });
+      return lots.map((lot) => ({
+        lot,
+        myMaxBid: userBids.get(lot.id) ?? null,
+      }));
     }
 
-    return lots;
+    return lots.map((lot) => ({ lot, myMaxBid: null }));
   }
 
   async getAllBudgets(draftId: string): Promise<Array<{
@@ -585,6 +612,10 @@ export class SlowAuctionService {
     settings: SlowAuctionSettings,
     client: import('pg').PoolClient,
   ): Promise<boolean> {
+    // Don't complete if there are still active lots that could settle
+    const activeLots = await this.lotRepo.countAllActiveLots(draftId, client);
+    if (activeLots > 0) return false;
+
     // Check if every roster has filled all slots
     const rosterIds = Object.values(draft.slotToRosterId);
     const picksWonMap = await this.draftRepo.countPicksWonByRosters(draftId, rosterIds, client);
