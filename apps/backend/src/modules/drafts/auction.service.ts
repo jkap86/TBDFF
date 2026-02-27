@@ -772,7 +772,9 @@ export class AuctionService {
 
   /**
    * Process auto-bids after a nomination or manual bid.
-   * Resolves multiple auto-bidders efficiently in one pass (second-price style).
+   * Places an incremental bid (currentBid + 1) for the highest-target auto-bidder.
+   * scheduleAutoBids() re-invokes this method after each bid, creating a natural
+   * bidding war that continues until one auto-bidder is outmatched.
    */
   private async _processAutoBids(draftId: string): Promise<Draft | null> {
     const draft = await this.draftRepository.findById(draftId);
@@ -858,9 +860,7 @@ export class AuctionService {
 
     if (allAutoTargets.length === 0) return null;
 
-    // Resolve auto-bids in a single pass (second-price style).
-    // The auto-bidder with the highest target wins at just above the runner-up's
-    // target (or currentBid + 1 if there's no runner-up).
+    // Find the auto-bidder with the highest target to place the next incremental bid.
     allAutoTargets.sort((a, b) => {
       if (b.effectiveTarget !== a.effectiveTarget) return b.effectiveTarget - a.effectiveTarget;
       // Tie-break: current bidder ranks lower (they already lead; challengers need to act)
@@ -877,20 +877,8 @@ export class AuctionService {
     // The top bidder must be able to beat the current bid
     if (topBidder.effectiveTarget <= currentBid) return null;
 
-    // Runner-up target: highest target among all competitors (other auto-bidders +
-    // the current bidder if they're auto-pick). Floor is the existing bid.
-    let runnerUpTarget = currentBid;
-    for (const entry of allAutoTargets) {
-      if (entry.userId !== topBidder.userId && entry.effectiveTarget > runnerUpTarget) {
-        runnerUpTarget = entry.effectiveTarget;
-      }
-    }
-
     const winner = topBidder;
-    const winningBid = Math.min(
-      winner.effectiveTarget,
-      Math.max(currentBid + 1, runnerUpTarget + 1),
-    );
+    const winningBid = currentBid + 1;
 
     const newDeadline = new Date(Date.now() + draft.settings.nomination_timer * 1000).toISOString();
 

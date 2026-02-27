@@ -252,7 +252,7 @@ describe('AuctionService.resolveNomination', () => {
   });
 });
 
-describe('AuctionService._processAutoBids (second-price resolution)', () => {
+describe('AuctionService._processAutoBids (incremental bidding)', () => {
   let service: AuctionService;
   let draftRepo: any;
   let leagueRepo: any;
@@ -342,10 +342,10 @@ describe('AuctionService._processAutoBids (second-price resolution)', () => {
     expect(nom.current_bidder).toBe('user-b');
   });
 
-  it('two auto-bidders resolve to second-price in one pass', async () => {
+  it('two auto-bidders bid incrementally at currentBid + 1', async () => {
     // user-a bid $5 and is current bidder. Both user-a and user-b are on auto.
     // Both have target=32 (80% of auctionValue 40 with teams=12, budget=200).
-    // user-b (challenger) bids at min(32, max(5+1, 32+1)) = min(32, 33) = 32
+    // user-b (challenger) bids currentBid + 1 = 6; scheduleAutoBids handles the rest.
     const draft = makeAutoBidDraft({
       currentBid: 5,
       currentBidder: 'user-a',
@@ -359,7 +359,7 @@ describe('AuctionService._processAutoBids (second-price resolution)', () => {
     const updateCall = draftRepo.update.mock.calls[0];
     const nom = updateCall[1].metadata.current_nomination;
     expect(nom.current_bidder).toBe('user-b');
-    expect(nom.current_bid).toBe(32);
+    expect(nom.current_bid).toBe(6);
   });
 
   it('does nothing when highest auto-bidder is already the current bidder', async () => {
@@ -399,7 +399,7 @@ describe('AuctionService._processAutoBids (second-price resolution)', () => {
     expect(nom.current_bid).toBe(6);
   });
 
-  it('two auto-bidders with different queue max_bids resolve correctly', async () => {
+  it('two auto-bidders with different queue max_bids bid incrementally', async () => {
     const draft = makeAutoBidDraft({
       currentBid: 1,
       currentBidder: 'user-a',
@@ -421,9 +421,9 @@ describe('AuctionService._processAutoBids (second-price resolution)', () => {
 
     const updateCall = draftRepo.update.mock.calls[0];
     const nom = updateCall[1].metadata.current_nomination;
-    // user-b (target 50) wins at user-a's target + 1 = 21
+    // user-b (challenger) bids currentBid + 1 = 2; scheduleAutoBids continues the war.
     expect(nom.current_bidder).toBe('user-b');
-    expect(nom.current_bid).toBe(21);
+    expect(nom.current_bid).toBe(2);
   });
 });
 
