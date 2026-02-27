@@ -265,6 +265,7 @@ describe('AuctionService._processAutoBids (incremental bidding)', () => {
       countPicksWonByRoster: vi.fn().mockResolvedValue(0),
       countPicksWonByRosters: vi.fn().mockResolvedValue(new Map()),
       getQueueItemsForPlayerByUsers: vi.fn().mockResolvedValue(new Map()),
+      getUserIdsWithMaxBidForPlayer: vi.fn().mockResolvedValue([]),
       withTransaction: vi.fn(async (fn: any) => {
         const mockClient = { query: vi.fn() };
         return fn(mockClient);
@@ -424,6 +425,51 @@ describe('AuctionService._processAutoBids (incremental bidding)', () => {
     // user-b (challenger) bids currentBid + 1 = 2; scheduleAutoBids continues the war.
     expect(nom.current_bidder).toBe('user-b');
     expect(nom.current_bid).toBe(2);
+  });
+
+  it('non-auto-pick user with queue max_bid should auto-bid', async () => {
+    // user-a nominated at $1, user-b bid $2. user-a set max_bid=20 but is NOT in auto_pick_users.
+    const draft = makeAutoBidDraft({
+      currentBid: 2,
+      currentBidder: 'user-b',
+      autoPickUsers: [],
+    });
+    draftRepo.findById.mockResolvedValue(draft);
+    draftRepo.update.mockResolvedValue(draft);
+
+    // user-a has a queue max_bid for this player
+    draftRepo.getUserIdsWithMaxBidForPlayer.mockResolvedValue(['user-a']);
+    draftRepo.getQueueItemsForPlayerByUsers.mockResolvedValue(
+      new Map([['user-a', { max_bid: 20 }]]),
+    );
+
+    await (service as any)._processAutoBids('draft-1');
+
+    const updateCall = draftRepo.update.mock.calls[0];
+    const nom = updateCall[1].metadata.current_nomination;
+    expect(nom.current_bid).toBe(3);
+    expect(nom.current_bidder).toBe('user-a');
+  });
+
+  it('non-auto-pick user without queue max_bid does not auto-bid', async () => {
+    // user-a is returned by getUserIdsWithMaxBidForPlayer but their queue entry has no max_bid
+    // (edge case: max_bid was cleared between the two queries)
+    const draft = makeAutoBidDraft({
+      currentBid: 2,
+      currentBidder: 'user-b',
+      autoPickUsers: [],
+    });
+    draftRepo.findById.mockResolvedValue(draft);
+
+    draftRepo.getUserIdsWithMaxBidForPlayer.mockResolvedValue(['user-a']);
+    draftRepo.getQueueItemsForPlayerByUsers.mockResolvedValue(
+      new Map([['user-a', { max_bid: null }]]),
+    );
+
+    const result = await (service as any)._processAutoBids('draft-1');
+
+    expect(result).toBeNull();
+    expect(draftRepo.update).not.toHaveBeenCalled();
   });
 });
 
@@ -653,6 +699,7 @@ describe('AuctionService._processAutoBids (auto-resolution & fallback)', () => {
       countPicksWonByRoster: vi.fn().mockResolvedValue(0),
       countPicksWonByRosters: vi.fn().mockResolvedValue(new Map()),
       getQueueItemsForPlayerByUsers: vi.fn().mockResolvedValue(new Map()),
+      getUserIdsWithMaxBidForPlayer: vi.fn().mockResolvedValue([]),
       findNextPick: vi.fn(),
       findBestAvailable: vi.fn(),
       findFirstAvailableFromQueue: vi.fn(),

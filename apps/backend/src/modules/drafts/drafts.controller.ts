@@ -271,6 +271,12 @@ export class DraftController {
     const playerId = Array.isArray(req.params.playerId) ? req.params.playerId[0] : req.params.playerId;
     const body = req.body as UpdateQueueMaxBidInput;
     const queue = await this.draftService.updateQueueMaxBid(draftId, userId, playerId, body.max_bid);
+
+    // Trigger auto-bid re-evaluation when a max_bid is set during an active nomination
+    if (body.max_bid != null) {
+      this.auctionService.scheduleAutoBids(draftId);
+    }
+
     res.status(200).json({ queue });
   };
 

@@ -791,7 +791,13 @@ export class AuctionService {
     }
 
     const autoPickUsers: string[] = draft.metadata?.auto_pick_users ?? [];
-    if (autoPickUsers.length === 0) return null;
+
+    // Also include users who explicitly set a max_bid for this player (e.g. via "Auto-bid up to")
+    const maxBidUserIds = await this.draftRepository.getUserIdsWithMaxBidForPlayer(
+      draftId, nomination.player_id,
+    );
+    const candidateUserIds = [...new Set([...autoPickUsers, ...maxBidUserIds])];
+    if (candidateUserIds.length === 0) return null;
 
     const player = await this.playerRepository.findById(nomination.player_id);
     if (!player) return null;
@@ -812,8 +818,9 @@ export class AuctionService {
 
     // Build list of ALL auto-bidders and their targets (including current bidder)
     // Batch-fetch queue items and roster pick counts to avoid N+2 queries per bidder
+    const autoPickSet = new Set(autoPickUsers);
     const userRosterPairs: Array<{ userId: string; rosterId: number }> = [];
-    for (const userId of autoPickUsers) {
+    for (const userId of candidateUserIds) {
       const rosterId = findRosterIdByUserId(draft, userId);
       if (rosterId !== null) userRosterPairs.push({ userId, rosterId });
     }
@@ -837,10 +844,13 @@ export class AuctionService {
 
     for (const { userId, rosterId } of userRosterPairs) {
       const queueItem = queueItemsMap.get(userId) ?? null;
+      // Auto-pick users fall back to 80% AAV default; max_bid-only users require an explicit max_bid
       const target =
         queueItem?.max_bid != null
           ? queueItem.max_bid
-          : Math.floor(auctionValue * 0.8 * (draftBudget / 200) * (draft.settings.teams / 12));
+          : autoPickSet.has(userId)
+            ? Math.floor(auctionValue * 0.8 * (draftBudget / 200) * (draft.settings.teams / 12))
+            : 0;
 
       const budget = budgets[String(rosterId)] ?? 0;
       const picksWon = picksWonMap.get(rosterId) ?? 0;

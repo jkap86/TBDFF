@@ -690,7 +690,8 @@ export class DraftRepository {
        VALUES ($1, $2, $3, COALESCE(
          (SELECT MAX(rank) FROM draft_queue WHERE draft_id = $1 AND user_id = $2), 0
        ) + 1, $4)
-       ON CONFLICT (draft_id, user_id, player_id) DO NOTHING`,
+       ON CONFLICT (draft_id, user_id, player_id)
+       DO UPDATE SET max_bid = EXCLUDED.max_bid WHERE EXCLUDED.max_bid IS NOT NULL`,
       [draftId, userId, playerId, maxBid ?? null]
     );
   }
@@ -745,6 +746,18 @@ export class DraftRepository {
       map.set(row.user_id, { max_bid: row.max_bid });
     }
     return map;
+  }
+
+  async getUserIdsWithMaxBidForPlayer(
+    draftId: string,
+    playerId: string,
+  ): Promise<string[]> {
+    const result = await this.db.query(
+      `SELECT user_id FROM draft_queue
+       WHERE draft_id = $1 AND player_id = $2 AND max_bid IS NOT NULL`,
+      [draftId, playerId]
+    );
+    return result.rows.map((row: any) => row.user_id as string);
   }
 
   async countPicksWonByRosters(
