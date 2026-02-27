@@ -279,6 +279,7 @@ export function LeagueSettingsModal({
             <PaymentsSettings
               leagueId={league.id}
               members={members}
+              totalRosters={league.total_rosters}
               settings={league.settings}
               isOpen={showPayments}
               onToggle={() => setShowPayments(!showPayments)}

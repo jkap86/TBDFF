@@ -10,6 +10,7 @@ import { useAuth } from '@/features/auth/hooks/useAuth';
 interface PaymentsSettingsProps {
   leagueId: string;
   members: LeagueMember[];
+  totalRosters: number;
   settings: LeagueSettings;
   isOpen: boolean;
   onToggle: () => void;
@@ -25,6 +26,7 @@ const ordinal = (n: number) => {
 export function PaymentsSettings({
   leagueId,
   members,
+  totalRosters,
   settings,
   isOpen,
   onToggle,
@@ -241,7 +243,7 @@ export function PaymentsSettings({
                   <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300">Buy-in Amount</h4>
                   {buyInAmount != null && (
                     <span className="text-xs text-gray-500 dark:text-gray-400">
-                      {paidUserIds.size}/{activeMembers.length} paid · ${totalCollected.toFixed(2)} collected
+                      {paidUserIds.size}/{totalRosters} paid · ${totalCollected.toFixed(2)} collected
                     </span>
                   )}
                 </div>
