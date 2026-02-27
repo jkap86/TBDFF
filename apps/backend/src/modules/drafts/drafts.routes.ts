@@ -17,6 +17,7 @@ import {
   availablePlayersQuerySchema,
   slowNominateSchema,
   slowSetMaxBidSchema,
+  derbyPickSchema,
 } from './drafts.schemas';
 
 /**
@@ -101,6 +102,12 @@ export function createDraftRoutes(controller: DraftController): Router {
   router.post('/:draftId/lots/:lotId/bid', strictLimiter, validate(slowSetMaxBidSchema), asyncHandler(controller.slowSetMaxBid));
   router.get('/:draftId/budgets', asyncHandler(controller.getSlowAuctionBudgets));
   router.get('/:draftId/nomination-stats', asyncHandler(controller.getNominationStats));
+
+  // Derby (draft order selection)
+  router.post('/:draftId/derby/start', asyncHandler(controller.startDerby));
+  router.get('/:draftId/derby', asyncHandler(controller.getDerbyState));
+  router.post('/:draftId/derby/pick', validate(derbyPickSchema), asyncHandler(controller.makeDerbyPick));
+  router.post('/:draftId/derby/autopick', asyncHandler(controller.derbyAutoPick));
 
   return router;
 }

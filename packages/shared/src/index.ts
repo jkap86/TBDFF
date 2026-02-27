@@ -105,6 +105,12 @@ export type {
   SlowAuctionBudgetsResponse,
   SlowAuctionBidHistoryResponse,
   NominationStatsResponse,
+  DerbyOrderEntry,
+  DerbyPick,
+  DerbyState,
+  DerbyPickRequest,
+  DerbyStateResponse,
+  DerbyPickResponse,
 } from './types/draft';
 export type {
   Matchup,

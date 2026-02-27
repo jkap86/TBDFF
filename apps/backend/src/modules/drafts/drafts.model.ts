@@ -29,11 +29,35 @@ export interface AuctionNomination {
   player_metadata: NominationPlayerMetadata;
 }
 
+export interface DerbyOrderEntry {
+  user_id: string;
+  roster_id: number;
+  username: string;
+}
+
+export interface DerbyPick {
+  user_id: string;
+  roster_id: number;
+  selected_slot: number;
+  picked_at: string;
+}
+
+export interface DerbyState {
+  status: 'active' | 'complete';
+  derby_order: DerbyOrderEntry[];
+  picks: DerbyPick[];
+  current_pick_index: number;
+  pick_timer: number;
+  pick_deadline: string;
+  started_at: string;
+}
+
 export interface DraftMetadata {
   auto_pick_users?: string[];
   auction_budgets?: Record<string, number>;
   current_nomination?: AuctionNomination | null;
   nomination_deadline?: string | null;
+  derby?: DerbyState;
   [key: string]: unknown;
 }
 

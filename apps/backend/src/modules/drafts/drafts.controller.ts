@@ -3,6 +3,7 @@ import { AuthRequest } from '../../middleware/auth.middleware';
 import { DraftService } from './drafts.service';
 import { AuctionService } from './auction.service';
 import { SlowAuctionService } from './slow-auction.service';
+import { DerbyService } from './derby.service';
 import { InvalidCredentialsException } from '../../shared/exceptions';
 import { findRosterIdByUserId } from './draft-helpers';
 import {
@@ -17,6 +18,7 @@ import {
   UpdateQueueMaxBidInput,
   SlowNominateInput,
   SlowSetMaxBidInput,
+  DerbyPickInput,
 } from './drafts.schemas';
 
 export class DraftController {
@@ -24,6 +26,7 @@ export class DraftController {
     private readonly draftService: DraftService,
     private readonly auctionService: AuctionService,
     private readonly slowAuctionService: SlowAuctionService,
+    private readonly derbyService: DerbyService,
   ) {}
 
   // ---- League-scoped ----
@@ -394,5 +397,49 @@ export class DraftController {
 
     const stats = await this.slowAuctionService.getNominationStats(draftId, rosterId);
     res.status(200).json(stats);
+  };
+
+  // ---- Derby (draft order selection) ----
+
+  startDerby = async (req: AuthRequest, res: Response): Promise<void> => {
+    const userId = req.user?.userId;
+    if (!userId) throw new InvalidCredentialsException();
+
+    const draftId = Array.isArray(req.params.draftId) ? req.params.draftId[0] : req.params.draftId;
+    const draft = await this.derbyService.startDerby(draftId, userId);
+
+    res.status(200).json({ draft: draft.toSafeObject(), server_time: new Date().toISOString() });
+  };
+
+  getDerbyState = async (req: AuthRequest, res: Response): Promise<void> => {
+    const userId = req.user?.userId;
+    if (!userId) throw new InvalidCredentialsException();
+
+    const draftId = Array.isArray(req.params.draftId) ? req.params.draftId[0] : req.params.draftId;
+    const derby = await this.derbyService.getDerbyState(draftId, userId);
+
+    res.status(200).json({ derby, server_time: new Date().toISOString() });
+  };
+
+  makeDerbyPick = async (req: AuthRequest, res: Response): Promise<void> => {
+    const userId = req.user?.userId;
+    if (!userId) throw new InvalidCredentialsException();
+
+    const draftId = Array.isArray(req.params.draftId) ? req.params.draftId[0] : req.params.draftId;
+    const body = req.body as DerbyPickInput;
+
+    const draft = await this.derbyService.makeDerbyPick(draftId, userId, body.slot);
+
+    res.status(200).json({ draft: draft.toSafeObject(), server_time: new Date().toISOString() });
+  };
+
+  derbyAutoPick = async (req: AuthRequest, res: Response): Promise<void> => {
+    const userId = req.user?.userId;
+    if (!userId) throw new InvalidCredentialsException();
+
+    const draftId = Array.isArray(req.params.draftId) ? req.params.draftId[0] : req.params.draftId;
+    const draft = await this.derbyService.autoPick(draftId, userId);
+
+    res.status(200).json({ draft: draft.toSafeObject(), server_time: new Date().toISOString() });
   };
 }

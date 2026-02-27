@@ -26,6 +26,9 @@ import type {
   SlowAuctionBudgetsResponse,
   SlowAuctionBidHistoryResponse,
   NominationStatsResponse,
+  DerbyPickRequest,
+  DerbyStateResponse,
+  DerbyPickResponse,
 } from '../types/draft';
 
 export const draftApi = {
@@ -119,4 +122,17 @@ export const draftApi = {
 
   getNominationStats: (draftId: string, token: string) =>
     apiClient.get<NominationStatsResponse>(`/drafts/${draftId}/nomination-stats`, token),
+
+  // Derby (draft order selection)
+  startDerby: (draftId: string, token: string) =>
+    apiClient.post<DerbyPickResponse>(`/drafts/${draftId}/derby/start`, undefined, token),
+
+  getDerbyState: (draftId: string, token: string) =>
+    apiClient.get<DerbyStateResponse>(`/drafts/${draftId}/derby`, token),
+
+  makeDerbyPick: (draftId: string, body: DerbyPickRequest, token: string) =>
+    apiClient.post<DerbyPickResponse>(`/drafts/${draftId}/derby/pick`, body, token),
+
+  derbyAutoPick: (draftId: string, token: string) =>
+    apiClient.post<DerbyPickResponse>(`/drafts/${draftId}/derby/autopick`, undefined, token),
 };

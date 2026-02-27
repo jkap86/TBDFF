@@ -113,6 +113,13 @@ export const slowSetMaxBidSchema = z.object({
 
 export type SlowSetMaxBidInput = z.infer<typeof slowSetMaxBidSchema>;
 
+// Derby schemas
+export const derbyPickSchema = z.object({
+  slot: z.number().int().min(1, 'Slot must be at least 1'),
+}).strict();
+
+export type DerbyPickInput = z.infer<typeof derbyPickSchema>;
+
 export const availablePlayersQuerySchema = z.object({
   position: z.string().optional(),
   q: z.string().optional(),

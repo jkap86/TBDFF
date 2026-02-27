@@ -27,6 +27,7 @@ import { ScoringService } from './modules/scoring/scoring.service';
 import { DraftService } from './modules/drafts/drafts.service';
 import { AuctionService } from './modules/drafts/auction.service';
 import { SlowAuctionService } from './modules/drafts/slow-auction.service';
+import { DerbyService } from './modules/drafts/derby.service';
 import { MatchupService } from './modules/matchups/matchups.service';
 import { ChatService } from './modules/chat/chat.service';
 import { TradeService } from './modules/trades/trades.service';
@@ -103,6 +104,7 @@ export function createContainer() {
   const draftService = new DraftService(draftRepository, leagueRepository, playerRepository);
   const auctionService = new AuctionService(draftRepository, leagueRepository, playerRepository);
   const slowAuctionService = new SlowAuctionService(auctionLotRepository, draftRepository, leagueRepository, playerRepository, pool);
+  const derbyService = new DerbyService(draftRepository, leagueRepository);
   const matchupService = new MatchupService(matchupRepository, leagueRepository);
   const chatService = new ChatService(chatRepository);
   const tradeService = new TradeService(tradeRepository, leagueRepository, draftRepository);
@@ -114,7 +116,7 @@ export function createContainer() {
   const leagueController = new LeagueController(leagueService);
   const playerController = new PlayerController(playerService);
   const scoringController = new ScoringController(scoringService);
-  const draftController = new DraftController(draftService, auctionService, slowAuctionService);
+  const draftController = new DraftController(draftService, auctionService, slowAuctionService, derbyService);
   const matchupController = new MatchupController(matchupService);
   const chatController = new ChatController(chatService);
   const tradeController = new TradeController(tradeService);
@@ -139,6 +141,7 @@ export function createContainer() {
       draftService,
       auctionService,
       slowAuctionService,
+      derbyService,
       tradeService,
       transactionService,
     },
