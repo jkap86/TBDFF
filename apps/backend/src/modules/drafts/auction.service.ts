@@ -412,7 +412,7 @@ export class AuctionService {
     const updated = await this.draftRepository.withTransaction(async (client) => {
       await client.query('SELECT pg_advisory_xact_lock(hashtext($1))', [draftId]);
 
-      const freshDraft = await this.draftRepository.findById(draftId, client);
+      let freshDraft = await this.draftRepository.findById(draftId, client);
       if (!freshDraft || freshDraft.status !== 'drafting') {
         throw new ValidationException('Draft is no longer active');
       }
@@ -434,7 +434,8 @@ export class AuctionService {
       // Enable auto-pick for the timed-out nominator (the original slot owner who missed their turn)
       const originalSlotOwner = findUserBySlot(freshDraft.draftOrder, nextPick.draftSlot);
       if (originalSlotOwner) {
-        await this.draftRepository.addAutoPickUser(draftId, originalSlotOwner, client);
+        const addResult = await this.draftRepository.addAutoPickUser(draftId, originalSlotOwner, client);
+        if (addResult) freshDraft = addResult;
       }
 
       // Forfeit nomination slots for full-roster teams until an eligible nominator is found
@@ -733,6 +734,27 @@ export class AuctionService {
       const existing = this.autoBidLocks.get(draftId);
       const run = (existing ?? Promise.resolve(null))
         .then(() => this._processAutoBids(draftId))
+        .then(async (result) => {
+          if (!result) {
+            // No auto-bid was placed — schedule a follow-up at the deadline
+            // so _processAutoBids can auto-resolve the expired nomination (Fix A)
+            const draft = await this.draftRepository.findById(draftId);
+            const nom = draft?.metadata?.current_nomination;
+            if (nom && draft?.status === 'drafting') {
+              const msUntilDeadline = new Date(nom.bid_deadline).getTime() - Date.now();
+              if (msUntilDeadline > 0) {
+                const deadlineTimeout = setTimeout(() => {
+                  this.pendingAutoBidTimeouts.delete(draftId);
+                  this.scheduleAutoBids(draftId);
+                }, msUntilDeadline + 1000);
+                this.pendingAutoBidTimeouts.set(draftId, deadlineTimeout);
+              } else {
+                this.scheduleAutoBids(draftId);
+              }
+            }
+          }
+          return result;
+        })
         .catch((err) => {
           console.error(`[AuctionService] processAutoBids failed for draft ${draftId}:`, err);
           return null;
@@ -759,6 +781,13 @@ export class AuctionService {
     const nomination = draft.metadata?.current_nomination;
     if (!nomination) return null;
 
+    // Auto-resolve expired nominations server-side (don't wait for client)
+    const deadline = new Date(nomination.bid_deadline).getTime();
+    if (Date.now() >= deadline) {
+      const result = await this.resolveNomination(draftId, nomination.current_bidder);
+      return result.draft;
+    }
+
     const autoPickUsers: string[] = draft.metadata?.auto_pick_users ?? [];
     if (autoPickUsers.length === 0) return null;
 
@@ -770,7 +799,9 @@ export class AuctionService {
       player.auctionValue ??
       (player.searchRank !== null
         ? Math.max(1, Math.round(55 * Math.exp(-0.022 * player.searchRank) + 0.5))
-        : null);
+        : null) ??
+      nomination.player_metadata?.auction_value ??
+      null;
     if (auctionValue === null) return null;
 
     const draftBudget = draft.settings.budget;
@@ -827,25 +858,39 @@ export class AuctionService {
 
     if (allAutoTargets.length === 0) return null;
 
-    // Filter to eligible bidders: not the current bidder and can beat the current bid
-    const eligible = allAutoTargets.filter(
-      (entry) => entry.userId !== currentBidder && entry.effectiveTarget > currentBid,
-    );
+    // Resolve auto-bids in a single pass (second-price style).
+    // The auto-bidder with the highest target wins at just above the runner-up's
+    // target (or currentBid + 1 if there's no runner-up).
+    allAutoTargets.sort((a, b) => {
+      if (b.effectiveTarget !== a.effectiveTarget) return b.effectiveTarget - a.effectiveTarget;
+      // Tie-break: current bidder ranks lower (they already lead; challengers need to act)
+      if (a.userId === currentBidder) return 1;
+      if (b.userId === currentBidder) return -1;
+      return 0;
+    });
 
-    if (eligible.length === 0) return null;
+    const topBidder = allAutoTargets[0];
 
-    // Round-robin: pick the eligible bidder with the fewest auto-bids so far,
-    // so all auto-pick teams participate rather than just the top 2.
-    const autoBidCounts: Record<string, number> = {};
-    for (const bid of nomination.bid_history) {
-      if (bid.auto_bid) {
-        autoBidCounts[bid.user_id] = (autoBidCounts[bid.user_id] || 0) + 1;
+    // If the highest auto-pick target belongs to the current bidder, they already win
+    if (topBidder.userId === currentBidder) return null;
+
+    // The top bidder must be able to beat the current bid
+    if (topBidder.effectiveTarget <= currentBid) return null;
+
+    // Runner-up target: highest target among all competitors (other auto-bidders +
+    // the current bidder if they're auto-pick). Floor is the existing bid.
+    let runnerUpTarget = currentBid;
+    for (const entry of allAutoTargets) {
+      if (entry.userId !== topBidder.userId && entry.effectiveTarget > runnerUpTarget) {
+        runnerUpTarget = entry.effectiveTarget;
       }
     }
-    eligible.sort((a, b) => (autoBidCounts[a.userId] || 0) - (autoBidCounts[b.userId] || 0));
 
-    const winner = eligible[0];
-    const winningBid = currentBid + 1;
+    const winner = topBidder;
+    const winningBid = Math.min(
+      winner.effectiveTarget,
+      Math.max(currentBid + 1, runnerUpTarget + 1),
+    );
 
     const newDeadline = new Date(Date.now() + draft.settings.nomination_timer * 1000).toISOString();
 

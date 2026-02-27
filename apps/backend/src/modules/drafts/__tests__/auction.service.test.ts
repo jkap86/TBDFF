@@ -252,6 +252,181 @@ describe('AuctionService.resolveNomination', () => {
   });
 });
 
+describe('AuctionService._processAutoBids (second-price resolution)', () => {
+  let service: AuctionService;
+  let draftRepo: any;
+  let leagueRepo: any;
+  let playerRepo: any;
+
+  beforeEach(() => {
+    draftRepo = {
+      findById: vi.fn(),
+      update: vi.fn(),
+      countPicksWonByRoster: vi.fn().mockResolvedValue(0),
+      countPicksWonByRosters: vi.fn().mockResolvedValue(new Map()),
+      getQueueItemsForPlayerByUsers: vi.fn().mockResolvedValue(new Map()),
+      withTransaction: vi.fn(async (fn: any) => {
+        const mockClient = { query: vi.fn() };
+        return fn(mockClient);
+      }),
+    };
+
+    leagueRepo = {
+      findMember: vi.fn().mockResolvedValue({ role: 'member' }),
+    };
+
+    playerRepo = {
+      findById: vi.fn().mockResolvedValue({
+        id: 'player-1',
+        auctionValue: 40,
+        searchRank: 5,
+      }),
+    };
+
+    service = new AuctionService(draftRepo, leagueRepo, playerRepo);
+  });
+
+  function makeAutoBidDraft(
+    overrides: {
+      currentBid?: number;
+      currentBidder?: string;
+      autoPickUsers?: string[];
+      budgets?: Record<string, number>;
+    } = {},
+  ) {
+    const {
+      currentBid = 5,
+      currentBidder = 'user-a',
+      autoPickUsers = ['user-b'],
+      budgets = { '101': 200, '102': 200 },
+    } = overrides;
+    const nomination = makeNomination({
+      current_bid: currentBid,
+      current_bidder: currentBidder,
+      bidder_roster_id: currentBidder === 'user-a' ? 101 : 102,
+    });
+    // Use teams=12 so the 80% AAV formula produces realistic targets
+    const draft = new Draft(
+      'draft-1', 'league-1', '2025', 'nfl', 'drafting', 'auction',
+      null, null,
+      { 'user-a': 1, 'user-b': 2 },
+      { '1': 101, '2': 102 },
+      { ...DEFAULT_DRAFT_SETTINGS, nomination_timer: 30, teams: 12 },
+      {
+        current_nomination: nomination,
+        auto_pick_users: autoPickUsers,
+        auction_budgets: budgets,
+      },
+      'user-a', new Date(), new Date(),
+    );
+    return draft;
+  }
+
+  it('single auto-bidder outbids human at currentBid + 1', async () => {
+    // Human user-a has bid $5, auto-pick user-b has target ~$32 (80% of auctionValue 40)
+    const draft = makeAutoBidDraft({
+      currentBid: 5,
+      currentBidder: 'user-a',
+      autoPickUsers: ['user-b'],
+    });
+    draftRepo.findById.mockResolvedValue(draft);
+    draftRepo.update.mockResolvedValue(draft);
+
+    // Trigger processAutoBids via public scheduleAutoBids
+    await (service as any)._processAutoBids('draft-1');
+
+    const updateCall = draftRepo.update.mock.calls[0];
+    const nom = updateCall[1].metadata.current_nomination;
+    // With no other auto-bidder, bid is just currentBid + 1
+    expect(nom.current_bid).toBe(6);
+    expect(nom.current_bidder).toBe('user-b');
+  });
+
+  it('two auto-bidders resolve to second-price in one pass', async () => {
+    // user-a bid $5 and is current bidder. Both user-a and user-b are on auto.
+    // Both have target=32 (80% of auctionValue 40 with teams=12, budget=200).
+    // user-b (challenger) bids at min(32, max(5+1, 32+1)) = min(32, 33) = 32
+    const draft = makeAutoBidDraft({
+      currentBid: 5,
+      currentBidder: 'user-a',
+      autoPickUsers: ['user-a', 'user-b'],
+    });
+    draftRepo.findById.mockResolvedValue(draft);
+    draftRepo.update.mockResolvedValue(draft);
+
+    await (service as any)._processAutoBids('draft-1');
+
+    const updateCall = draftRepo.update.mock.calls[0];
+    const nom = updateCall[1].metadata.current_nomination;
+    expect(nom.current_bidder).toBe('user-b');
+    expect(nom.current_bid).toBe(32);
+  });
+
+  it('does nothing when highest auto-bidder is already the current bidder', async () => {
+    // user-b is the current bidder and also the only auto-pick user
+    const draft = makeAutoBidDraft({
+      currentBid: 10,
+      currentBidder: 'user-b',
+      autoPickUsers: ['user-b'],
+    });
+    draftRepo.findById.mockResolvedValue(draft);
+
+    const result = await (service as any)._processAutoBids('draft-1');
+
+    expect(result).toBeNull();
+    expect(draftRepo.update).not.toHaveBeenCalled();
+  });
+
+  it('uses queue max_bid when player is in auto-bidder queue', async () => {
+    const draft = makeAutoBidDraft({
+      currentBid: 5,
+      currentBidder: 'user-a',
+      autoPickUsers: ['user-b'],
+    });
+    draftRepo.findById.mockResolvedValue(draft);
+    draftRepo.update.mockResolvedValue(draft);
+
+    // user-b has player in queue with max_bid = 15
+    draftRepo.getQueueItemsForPlayerByUsers.mockResolvedValue(
+      new Map([['user-b', { max_bid: 15 }]]),
+    );
+
+    await (service as any)._processAutoBids('draft-1');
+
+    const updateCall = draftRepo.update.mock.calls[0];
+    const nom = updateCall[1].metadata.current_nomination;
+    // Single auto-bidder with target 15 → bid = currentBid + 1 = 6
+    expect(nom.current_bid).toBe(6);
+  });
+
+  it('two auto-bidders with different queue max_bids resolve correctly', async () => {
+    const draft = makeAutoBidDraft({
+      currentBid: 1,
+      currentBidder: 'user-a',
+      autoPickUsers: ['user-a', 'user-b'],
+      budgets: { '101': 200, '102': 200 },
+    });
+    draftRepo.findById.mockResolvedValue(draft);
+    draftRepo.update.mockResolvedValue(draft);
+
+    // user-a has max_bid 20, user-b has max_bid 50
+    draftRepo.getQueueItemsForPlayerByUsers.mockResolvedValue(
+      new Map([
+        ['user-a', { max_bid: 20 }],
+        ['user-b', { max_bid: 50 }],
+      ]),
+    );
+
+    await (service as any)._processAutoBids('draft-1');
+
+    const updateCall = draftRepo.update.mock.calls[0];
+    const nom = updateCall[1].metadata.current_nomination;
+    // user-b (target 50) wins at user-a's target + 1 = 21
+    expect(nom.current_bidder).toBe('user-b');
+    expect(nom.current_bid).toBe(21);
+  });
+});
+
 describe('AuctionService.autoNominate', () => {
   let service: AuctionService;
   let draftRepo: any;
@@ -428,5 +603,150 @@ describe('AuctionService.autoNominate', () => {
     await expect(service.autoNominate('draft-1', 'user-a')).rejects.toThrow(
       'A nomination is already active',
     );
+  });
+
+  it('refreshes freshDraft after addAutoPickUser so metadata is not overwritten', async () => {
+    const draft = makeDraft();
+    (draft as any).metadata = {
+      current_nomination: null,
+      nomination_deadline: new Date(Date.now() - 5000).toISOString(),
+      auction_budgets: { '101': 200, '102': 200 },
+      auto_pick_users: [],
+    };
+
+    // addAutoPickUser returns a draft with updated auto_pick_users
+    const draftAfterAutoAdd = makeDraft();
+    (draftAfterAutoAdd as any).metadata = {
+      ...draft.metadata,
+      auto_pick_users: ['user-a'],
+    };
+
+    draftRepo.findById.mockResolvedValue(draft);
+    draftRepo.findNextPick.mockResolvedValue({ id: 'pick-1', draftSlot: 1 });
+    draftRepo.addAutoPickUser.mockResolvedValue(draftAfterAutoAdd);
+
+    const updatedDraft = makeDraft();
+    draftRepo.update.mockResolvedValue(updatedDraft);
+
+    await service.autoNominate('draft-1', 'user-a');
+
+    // The final update's metadata should include auto_pick_users from addAutoPickUser
+    const updateCall = draftRepo.update.mock.calls[0];
+    const metaSpread = updateCall[1].metadata;
+    expect(metaSpread.auto_pick_users).toContain('user-a');
+  });
+});
+
+describe('AuctionService._processAutoBids (auto-resolution & fallback)', () => {
+  let service: AuctionService;
+  let draftRepo: any;
+  let leagueRepo: any;
+  let playerRepo: any;
+
+  beforeEach(() => {
+    draftRepo = {
+      findById: vi.fn(),
+      update: vi.fn(),
+      makeAuctionPick: vi.fn(),
+      deductBudget: vi.fn(),
+      completeAndUpdateLeagueInTx: vi.fn(),
+      countPicksWonByRoster: vi.fn().mockResolvedValue(0),
+      countPicksWonByRosters: vi.fn().mockResolvedValue(new Map()),
+      getQueueItemsForPlayerByUsers: vi.fn().mockResolvedValue(new Map()),
+      findNextPick: vi.fn(),
+      findBestAvailable: vi.fn(),
+      findFirstAvailableFromQueue: vi.fn(),
+      addAutoPickUser: vi.fn(),
+      withTransaction: vi.fn(async (fn: any) => {
+        const mockClient = { query: vi.fn() };
+        return fn(mockClient);
+      }),
+    };
+
+    leagueRepo = {
+      findMember: vi.fn().mockResolvedValue({ role: 'member' }),
+    };
+
+    playerRepo = {
+      findById: vi.fn(),
+    };
+
+    service = new AuctionService(draftRepo, leagueRepo, playerRepo);
+  });
+
+  it('auto-resolves nomination when bid_deadline has expired', async () => {
+    const nomination = makeNomination({
+      current_bid: 15,
+      current_bidder: 'user-b',
+      bidder_roster_id: 102,
+      bid_deadline: new Date(Date.now() - 5000).toISOString(), // expired
+    });
+    const draft = makeDraft();
+    (draft as any).metadata = {
+      current_nomination: nomination,
+      auto_pick_users: ['user-a', 'user-b'],
+      auction_budgets: { '101': 200, '102': 200 },
+    };
+
+    draftRepo.findById.mockResolvedValue(draft);
+
+    const pick = { id: 'pick-1', playerId: 'player-1' };
+    draftRepo.makeAuctionPick.mockResolvedValue(pick);
+
+    const afterDeduct = makeDraft();
+    (afterDeduct as any).metadata = { auction_budgets: { '101': 200, '102': 185 } };
+    draftRepo.deductBudget.mockResolvedValue(afterDeduct);
+    draftRepo.completeAndUpdateLeagueInTx.mockResolvedValue(null);
+    draftRepo.update.mockResolvedValue(draft);
+
+    const result = await (service as any)._processAutoBids('draft-1');
+
+    // resolveNomination was triggered — makeAuctionPick should have been called
+    expect(draftRepo.makeAuctionPick).toHaveBeenCalled();
+    expect(result).toBeDefined();
+  });
+
+  it('falls back to nomination player_metadata.auction_value when player has null auctionValue', async () => {
+    const nomination = makeNomination({
+      current_bid: 1,
+      current_bidder: 'user-a',
+      bidder_roster_id: 101,
+      player_metadata: { full_name: 'Test Player', position: 'QB', auction_value: 30 },
+    });
+
+    const draft = new Draft(
+      'draft-1', 'league-1', '2025', 'nfl', 'drafting', 'auction',
+      null, null,
+      { 'user-a': 1, 'user-b': 2 },
+      { '1': 101, '2': 102 },
+      { ...DEFAULT_DRAFT_SETTINGS, nomination_timer: 30, teams: 12 },
+      {
+        current_nomination: nomination,
+        auto_pick_users: ['user-b'],
+        auction_budgets: { '101': 200, '102': 200 },
+      },
+      'user-a', new Date(), new Date(),
+    );
+
+    draftRepo.findById.mockResolvedValue(draft);
+    draftRepo.update.mockResolvedValue(draft);
+
+    // Player has null auctionValue and null searchRank
+    playerRepo.findById.mockResolvedValue({
+      id: 'player-1',
+      auctionValue: null,
+      searchRank: null,
+    });
+
+    await (service as any)._processAutoBids('draft-1');
+
+    // Auto-bid should have fired (not returned null due to missing auctionValue)
+    expect(draftRepo.update).toHaveBeenCalled();
+    const updateCall = draftRepo.update.mock.calls[0];
+    const nom = updateCall[1].metadata.current_nomination;
+    expect(nom.current_bidder).toBe('user-b');
+    // With auction_value=30, target = floor(30 * 0.8 * (200/200) * (12/12)) = 24
+    // Single auto-bidder vs currentBid=1 → bid = currentBid + 1 = 2
+    expect(nom.current_bid).toBe(2);
   });
 });
