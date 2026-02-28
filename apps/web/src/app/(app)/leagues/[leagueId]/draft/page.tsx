@@ -2,14 +2,12 @@
 
 import { useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { ArrowLeft, Settings } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
 import { useDraftRoom } from '@/features/drafts/hooks/useDraftRoom';
 import { DraftBoard } from '@/features/drafts/components/DraftBoard';
 import { AuctionBoard } from '@/features/drafts/components/AuctionBoard';
 import { SlowAuctionBoard } from '@/features/drafts/components/SlowAuctionBoard';
 import { SlowAuctionControls } from '@/features/drafts/components/SlowAuctionControls';
-import { DraftSettingsForm } from '@/features/drafts/components/DraftSettingsForm';
-import { DraftSettingsModal } from '@/features/drafts/components/DraftSettingsModal';
 import { DraftSidebar } from '@/features/drafts/components/DraftSidebar';
 import { DraftControls } from '@/features/drafts/components/DraftControls';
 import { AuctionControls } from '@/features/drafts/components/AuctionControls';
@@ -29,7 +27,7 @@ export default function DraftRoomPage() {
 
   const room = useDraftRoom(leagueId);
   const { draft, picks, members, rosters, queue, isLoading, error, user, accessToken } = room;
-  const [isDraftSettingsOpen, setIsDraftSettingsOpen] = useState(false);
+  const [isStarting, setIsStarting] = useState(false);
 
   if (isLoading) {
     return (
@@ -103,70 +101,58 @@ export default function DraftRoomPage() {
               {draft.status === 'drafting' ? 'Live' : draft.status === 'complete' ? 'Complete' : 'Setup'}
             </span>
           </div>
-          <div className="text-sm text-gray-500 dark:text-gray-400">
-            {draftTypeLabels[draft.type]} | {draft.settings.rounds} rounds | {
+          <div className="flex items-center gap-4">
+            {draft.status === 'pre_draft' && room.isCommissioner && (
+              <button
+                onClick={async () => {
+                  setIsStarting(true);
+                  await room.handleStartDraft();
+                  setIsStarting(false);
+                }}
+                disabled={isStarting}
+                className="rounded-lg bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-50"
+              >
+                {isStarting ? 'Starting...' : 'Start Draft'}
+              </button>
+            )}
+            <div className="text-sm text-gray-500 dark:text-gray-400">
+              {draftTypeLabels[draft.type]} | {draft.settings.rounds} rounds | {
               room.isSlowAuction
                 ? `$${draft.settings.budget} budget | ${Math.round((draft.settings.bid_window_seconds ?? 43200) / 3600)}h bid window`
                 : room.isAuction
                   ? `$${draft.settings.budget} budget | ${draft.settings.offering_timer ?? 120}s offer / ${draft.settings.nomination_timer}s bid`
                   : `${draft.settings.pick_timer}s timer`
             }
+            </div>
           </div>
         </div>
 
-        {/* Pre-Draft Setup */}
-        {draft.status === 'pre_draft' && room.isCommissioner && (
-          <div className="rounded-lg bg-white dark:bg-gray-800 p-6 shadow">
-            <div className="mb-4 flex items-center justify-between">
-              <h2 className="text-lg font-bold text-gray-900 dark:text-white">Draft Setup</h2>
-              <button
-                onClick={() => setIsDraftSettingsOpen(true)}
-                className="rounded p-2 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-700 dark:hover:text-gray-300"
-                title="Edit Draft Settings"
-              >
-                <Settings className="h-5 w-5" />
-              </button>
+        {/* Pre-Draft Board */}
+        {draft.status === 'pre_draft' && (
+          <div className="flex gap-4">
+            <div className="flex-1 min-w-0">
+              {room.isSlowAuction
+                ? <SlowAuctionBoard
+                    draft={draft}
+                    lots={room.slowAuctionLots}
+                    budgets={room.slowAuctionBudgets}
+                    members={members}
+                    picks={picks}
+                    currentUserId={user?.id}
+                    myRosterId={room.userRosterId}
+                    accessToken={room.accessToken}
+                    onSetMaxBid={room.handleSlowSetMaxBid}
+                  />
+                : room.isAuction
+                  ? <AuctionBoard draft={draft} picks={picks} members={members} currentUserId={user?.id} />
+                  : <DraftBoard draft={draft} picks={picks} members={members} currentUserId={user?.id} />
+              }
             </div>
-            <div className="space-y-6">
-              <DraftSettingsForm draft={draft} onSave={room.handleUpdateSettings} readOnly={true} />
-
-              {!room.isSlowAuction && (
-                <div className="border-t border-gray-200 dark:border-gray-700 pt-4">
-                  <p className="mb-2 text-sm text-gray-600 dark:text-gray-400">
-                    Draft Order: {Object.keys(draft.draft_order ?? {}).length > 0
-                      ? `${Object.keys(draft.draft_order ?? {}).length} slots assigned`
-                      : 'Not set'}
-                  </p>
-                  <button
-                    onClick={room.handleSetOrder}
-                    className="rounded-lg bg-gray-600 px-4 py-2 text-sm font-medium text-white hover:bg-gray-700"
-                  >
-                    {Object.keys(draft.draft_order ?? {}).length > 0 ? 'Reset Draft Order' : 'Set Draft Order'}
-                  </button>
-                  <p className="mt-1 text-xs text-gray-400 dark:text-gray-500">
-                    Auto-assigns order based on roster slot assignments
-                  </p>
-                </div>
-              )}
-
-              {(room.isSlowAuction || Object.keys(draft.draft_order ?? {}).length > 0) && (
-                <div>
-                  <button
-                    onClick={room.handleStartDraft}
-                    className="rounded-lg bg-blue-600 px-6 py-2 text-sm font-medium text-white hover:bg-blue-700"
-                  >
-                    Start Draft
-                  </button>
-                </div>
-              )}
-            </div>
-
-            <DraftSettingsModal
-              isOpen={isDraftSettingsOpen}
-              onClose={() => setIsDraftSettingsOpen(false)}
-              draft={draft}
-              onSave={room.handleUpdateSettings}
-            />
+            {room.userSlot !== undefined && (
+              <div className="w-80 shrink-0">
+                <DraftSidebar {...sidebarProps} />
+              </div>
+            )}
           </div>
         )}
 
@@ -284,21 +270,6 @@ export default function DraftRoomPage() {
               : <DraftBoard draft={draft} picks={picks} members={members} currentUserId={user?.id} />
         )}
 
-        {/* Pre-draft queue + settings */}
-        {draft.status === 'pre_draft' && !room.isCommissioner && (
-          <div className="space-y-4">
-            <div className="rounded-lg bg-white dark:bg-gray-800 p-6 shadow">
-              <h2 className="mb-4 text-lg font-bold text-gray-900 dark:text-white">Draft Settings</h2>
-              <DraftSettingsForm draft={draft} onSave={async () => {}} readOnly={true} />
-              <p className="mt-4 text-center text-sm text-gray-400 dark:text-gray-500">
-                Waiting for the commissioner to start the draft.
-              </p>
-            </div>
-            {room.userSlot !== undefined && (
-              <DraftSidebar {...sidebarProps} height="calc(100vh - 400px)" />
-            )}
-          </div>
-        )}
       </div>
     </div>
   );

@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { Settings, MessageSquare, ArrowLeftRight, ClipboardList, Activity } from 'lucide-react';
+import { Settings, MessageSquare, ArrowLeftRight, ClipboardList, Activity, ChevronDown } from 'lucide-react';
 import { leagueApi, draftApi, matchupApi, ApiError, type League, type LeagueMember, type Roster, type UpdateLeagueRequest, type Draft, type Matchup } from '@/lib/api';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import { LeagueSettingsModal } from '@/features/leagues/components/LeagueSettingsModal';
@@ -32,6 +32,9 @@ export default function LeagueDetailPage() {
   const [matchups, setMatchups] = useState<Matchup[]>([]);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isDraftSettingsOpen, setIsDraftSettingsOpen] = useState(false);
+  const [isDraftOrderExpanded, setIsDraftOrderExpanded] = useState(false);
+  const [shuffleDisplay, setShuffleDisplay] = useState<{ lockedCount: number; displayUserIds: string[] } | null>(null);
+  const shuffleIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [isCreatingDraft, setIsCreatingDraft] = useState(false);
   const [isGeneratingMatchups, setIsGeneratingMatchups] = useState(false);
   const [selectedWeek, setSelectedWeek] = useState(1);
@@ -131,6 +134,94 @@ export default function LeagueDetailPage() {
     const result = await draftApi.update(activeDraft.id, updates, accessToken);
     setDrafts((prev) => prev.map((d) => (d.id === result.draft.id ? result.draft : d)));
   };
+
+  const handleRandomizeDraftOrder = async () => {
+    if (!accessToken || !activeDraft) return;
+
+    try {
+      const assignedRosters = rosters.filter((r) => r.owner_id);
+
+      // Fisher-Yates shuffle
+      for (let i = assignedRosters.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [assignedRosters[i], assignedRosters[j]] = [assignedRosters[j], assignedRosters[i]];
+      }
+
+      const draftOrder: Record<string, number> = {};
+      const slotToRosterId: Record<string, number> = {};
+
+      assignedRosters.forEach((roster, index) => {
+        const slot = index + 1;
+        draftOrder[roster.owner_id!] = slot;
+        slotToRosterId[String(slot)] = roster.roster_id;
+      });
+
+      const result = await draftApi.setOrder(activeDraft.id, { draft_order: draftOrder, slot_to_roster_id: slotToRosterId }, accessToken);
+      setDrafts((prev) => prev.map((d) => (d.id === result.draft.id ? result.draft : d)));
+      setIsDraftOrderExpanded(true);
+
+      // Start shuffle animation
+      const finalEntries = Object.entries(result.draft.draft_order).sort(([, a], [, b]) => a - b);
+      const totalSlots = finalEntries.length;
+      const participantUserIds = finalEntries.map(([uid]) => uid);
+
+      if (shuffleIntervalRef.current) clearInterval(shuffleIntervalRef.current);
+      let tickCount = 0;
+      const initialTicks = 12;
+      const ticksPerLock = 13;
+
+      shuffleIntervalRef.current = setInterval(() => {
+        tickCount++;
+
+        let newLockedCount = 0;
+        if (tickCount > initialTicks) {
+          newLockedCount = Math.min(
+            Math.floor((tickCount - initialTicks) / ticksPerLock) + 1,
+            totalSlots
+          );
+        }
+
+        const lockedPart = finalEntries.slice(0, newLockedCount).map(([uid]) => uid);
+        const unlocked = participantUserIds.filter((uid) => !lockedPart.includes(uid));
+
+        for (let i = unlocked.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [unlocked[i], unlocked[j]] = [unlocked[j], unlocked[i]];
+        }
+
+        setShuffleDisplay({ lockedCount: newLockedCount, displayUserIds: [...lockedPart, ...unlocked] });
+
+        if (newLockedCount >= totalSlots) {
+          clearInterval(shuffleIntervalRef.current!);
+          shuffleIntervalRef.current = null;
+          setShuffleDisplay(null);
+        }
+      }, 80);
+    } catch (err) {
+      if (err instanceof ApiError) {
+        setError(err.message);
+      }
+    }
+  };
+
+  const handleStartDerby = async () => {
+    if (!accessToken || !activeDraft) return;
+    try {
+      const result = await draftApi.startDerby(activeDraft.id, accessToken);
+      setDrafts((prev) => prev.map((d) => (d.id === result.draft.id ? result.draft : d)));
+      setIsDraftOrderExpanded(true);
+    } catch (err) {
+      if (err instanceof ApiError) {
+        setError(err.message);
+      }
+    }
+  };
+
+  useEffect(() => {
+    return () => {
+      if (shuffleIntervalRef.current) clearInterval(shuffleIntervalRef.current);
+    };
+  }, []);
 
   const handleGenerateMatchups = async () => {
     if (!accessToken) return;
@@ -332,6 +423,21 @@ export default function LeagueDetailPage() {
                         Draft Settings
                       </button>
                     )}
+                    {isCommissioner && activeDraft.type !== 'slow_auction' && (
+                      <button
+                        onClick={
+                          (activeDraft.metadata?.order_method ?? 'randomize') === 'derby'
+                            ? handleStartDerby
+                            : handleRandomizeDraftOrder
+                        }
+                        disabled={shuffleDisplay !== null}
+                        className="rounded-lg bg-gray-600 px-4 py-2 text-sm font-medium text-white hover:bg-gray-700 disabled:opacity-50"
+                      >
+                        {(activeDraft.metadata?.order_method ?? 'randomize') === 'derby'
+                          ? 'Randomize Derby Order'
+                          : 'Randomize Draft Order'}
+                      </button>
+                    )}
                     <button
                       onClick={() => router.push(`/leagues/${leagueId}/draft`)}
                       className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
@@ -341,6 +447,50 @@ export default function LeagueDetailPage() {
                   </>
                 )}
               </div>
+
+              {(Object.keys(activeDraft.draft_order ?? {}).length > 0 || shuffleDisplay) && (
+                <div className="rounded-lg border border-gray-200 dark:border-gray-600">
+                  <button
+                    type="button"
+                    onClick={() => setIsDraftOrderExpanded(!isDraftOrderExpanded)}
+                    className="flex w-full items-center justify-between px-4 py-3 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50 rounded-lg"
+                  >
+                    <span>Draft Order ({Object.keys(activeDraft.draft_order ?? {}).length} teams)</span>
+                    <ChevronDown className={`h-4 w-4 transition-transform ${isDraftOrderExpanded ? 'rotate-180' : ''}`} />
+                  </button>
+                  {isDraftOrderExpanded && (
+                    <div className="border-t border-gray-200 dark:border-gray-600 px-4 py-3">
+                      <ol className="space-y-1">
+                        {(shuffleDisplay
+                          ? shuffleDisplay.displayUserIds.map((userId, index) => ({
+                              userId,
+                              slot: index + 1,
+                              isLocked: index < shuffleDisplay.lockedCount,
+                            }))
+                          : Object.entries(activeDraft.draft_order)
+                              .sort(([, a], [, b]) => a - b)
+                              .map(([userId, slot]) => ({ userId, slot, isLocked: true }))
+                        ).map(({ userId, slot, isLocked }) => {
+                          const member = members.find((m) => m.user_id === userId);
+                          return (
+                            <li
+                              key={`slot-${slot}`}
+                              className={`flex items-center gap-2 text-sm transition-colors duration-150 ${
+                                isLocked
+                                  ? 'text-gray-900 dark:text-white font-medium'
+                                  : 'text-gray-400 dark:text-gray-500'
+                              }`}
+                            >
+                              <span className="w-6 text-right font-medium text-gray-500 dark:text-gray-400">{slot}.</span>
+                              <span>{member?.display_name || member?.username || 'Unknown'}</span>
+                            </li>
+                          );
+                        })}
+                      </ol>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           ) : (
             <div className="text-center py-4">

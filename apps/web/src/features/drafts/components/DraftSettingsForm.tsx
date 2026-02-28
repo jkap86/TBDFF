@@ -74,6 +74,7 @@ export function DraftSettingsForm({ draft, onSave, onSaveSuccess, readOnly }: Dr
   const [minBid, setMinBid] = useState(draft.settings.min_bid ?? 1);
   const [minIncrement, setMinIncrement] = useState(draft.settings.min_increment ?? 1);
   const [maxLotDurationSeconds, setMaxLotDurationSeconds] = useState(draft.settings.max_lot_duration_seconds ?? 0);
+  const [orderMethod, setOrderMethod] = useState<'randomize' | 'derby'>(draft.metadata?.order_method ?? 'randomize');
 
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -97,6 +98,7 @@ export function DraftSettingsForm({ draft, onSave, onSaveSuccess, readOnly }: Dr
     setMinBid(draft.settings.min_bid ?? 1);
     setMinIncrement(draft.settings.min_increment ?? 1);
     setMaxLotDurationSeconds(draft.settings.max_lot_duration_seconds ?? 0);
+    setOrderMethod(draft.metadata?.order_method ?? 'randomize');
     setError(null);
   }, [draft]);
 
@@ -137,6 +139,10 @@ export function DraftSettingsForm({ draft, onSave, onSaveSuccess, readOnly }: Dr
       updates.settings = settingsUpdates;
     }
 
+    if (orderMethod !== (draft.metadata?.order_method ?? 'randomize')) {
+      updates.metadata = { ...draft.metadata, order_method: orderMethod };
+    }
+
     if (Object.keys(updates).length === 0) return;
 
     try {
@@ -174,6 +180,12 @@ export function DraftSettingsForm({ draft, onSave, onSaveSuccess, readOnly }: Dr
             <div className="font-medium text-gray-900 dark:text-white">{DRAFT_TYPE_OPTIONS.find((o) => o.value === draft.type)?.label}</div>
             <div className="text-gray-500 dark:text-gray-400">Rounds</div>
             <div className="font-medium text-gray-900 dark:text-white">{draft.settings.rounds}</div>
+            {draft.type !== 'slow_auction' && (
+              <>
+                <div className="text-gray-500 dark:text-gray-400">Draft Order</div>
+                <div className="font-medium text-gray-900 dark:text-white capitalize">{draft.metadata?.order_method ?? 'randomize'}</div>
+              </>
+            )}
             {draft.type !== 'auction' && draft.type !== 'slow_auction' && (
               <>
                 <div className="text-gray-500 dark:text-gray-400">Pick Timer</div>
@@ -255,6 +267,32 @@ export function DraftSettingsForm({ draft, onSave, onSaveSuccess, readOnly }: Dr
               className="w-20 rounded-lg border border-gray-300 dark:border-gray-600 px-3 py-2 text-sm text-gray-900 dark:text-white dark:bg-gray-700 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
             />
           </div>
+
+          {/* Draft Order Method (non-slow_auction only) */}
+          {!isSlowAuction && (
+            <div>
+              <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Draft Order</label>
+              <div className="flex gap-1.5">
+                {([
+                  { value: 'randomize' as const, label: 'Randomize' },
+                  { value: 'derby' as const, label: 'Derby' },
+                ]).map((opt) => (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => setOrderMethod(opt.value)}
+                    className={`rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors ${
+                      orderMethod === opt.value
+                        ? 'border-blue-300 bg-blue-100 text-blue-700'
+                        : 'border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
+                    }`}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Max Players Per Team (any auction) */}
           {isAnyAuction && (

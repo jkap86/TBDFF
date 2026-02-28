@@ -65,6 +65,7 @@ export interface DraftMetadata {
   current_nomination?: AuctionNomination | null;
   nomination_deadline?: string | null;
   derby?: DerbyState;
+  order_method?: 'randomize' | 'derby';
   [key: string]: unknown;
 }
 
