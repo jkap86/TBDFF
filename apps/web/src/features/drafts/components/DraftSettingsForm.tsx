@@ -54,10 +54,11 @@ const MAX_LOT_DURATION_PRESETS = [
 interface DraftSettingsFormProps {
   draft: Draft;
   onSave: (updates: UpdateDraftRequest) => Promise<void>;
+  onSaveSuccess?: () => void;
   readOnly: boolean;
 }
 
-export function DraftSettingsForm({ draft, onSave, readOnly }: DraftSettingsFormProps) {
+export function DraftSettingsForm({ draft, onSave, onSaveSuccess, readOnly }: DraftSettingsFormProps) {
   const [draftType, setDraftType] = useState<DraftType>(draft.type);
   const [rounds, setRounds] = useState(draft.settings.rounds);
   const [pickTimer, setPickTimer] = useState(draft.settings.pick_timer);
@@ -142,6 +143,7 @@ export function DraftSettingsForm({ draft, onSave, readOnly }: DraftSettingsForm
       setIsSaving(true);
       setError(null);
       await onSave(updates);
+      onSaveSuccess?.();
     } catch (err) {
       if (err instanceof ApiError) {
         setError(err.message);

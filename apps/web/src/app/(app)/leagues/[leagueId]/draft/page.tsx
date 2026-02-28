@@ -1,13 +1,15 @@
 'use client';
 
+import { useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Settings } from 'lucide-react';
 import { useDraftRoom } from '@/features/drafts/hooks/useDraftRoom';
 import { DraftBoard } from '@/features/drafts/components/DraftBoard';
 import { AuctionBoard } from '@/features/drafts/components/AuctionBoard';
 import { SlowAuctionBoard } from '@/features/drafts/components/SlowAuctionBoard';
 import { SlowAuctionControls } from '@/features/drafts/components/SlowAuctionControls';
 import { DraftSettingsForm } from '@/features/drafts/components/DraftSettingsForm';
+import { DraftSettingsModal } from '@/features/drafts/components/DraftSettingsModal';
 import { DraftSidebar } from '@/features/drafts/components/DraftSidebar';
 import { DraftControls } from '@/features/drafts/components/DraftControls';
 import { AuctionControls } from '@/features/drafts/components/AuctionControls';
@@ -27,6 +29,7 @@ export default function DraftRoomPage() {
 
   const room = useDraftRoom(leagueId);
   const { draft, picks, members, rosters, queue, isLoading, error, user, accessToken } = room;
+  const [isDraftSettingsOpen, setIsDraftSettingsOpen] = useState(false);
 
   if (isLoading) {
     return (
@@ -114,9 +117,18 @@ export default function DraftRoomPage() {
         {/* Pre-Draft Setup */}
         {draft.status === 'pre_draft' && room.isCommissioner && (
           <div className="rounded-lg bg-white dark:bg-gray-800 p-6 shadow">
-            <h2 className="mb-4 text-lg font-bold text-gray-900 dark:text-white">Draft Setup</h2>
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="text-lg font-bold text-gray-900 dark:text-white">Draft Setup</h2>
+              <button
+                onClick={() => setIsDraftSettingsOpen(true)}
+                className="rounded p-2 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-700 dark:hover:text-gray-300"
+                title="Edit Draft Settings"
+              >
+                <Settings className="h-5 w-5" />
+              </button>
+            </div>
             <div className="space-y-6">
-              <DraftSettingsForm draft={draft} onSave={room.handleUpdateSettings} readOnly={false} />
+              <DraftSettingsForm draft={draft} onSave={room.handleUpdateSettings} readOnly={true} />
 
               {!room.isSlowAuction && (
                 <div className="border-t border-gray-200 dark:border-gray-700 pt-4">
@@ -148,6 +160,13 @@ export default function DraftRoomPage() {
                 </div>
               )}
             </div>
+
+            <DraftSettingsModal
+              isOpen={isDraftSettingsOpen}
+              onClose={() => setIsDraftSettingsOpen(false)}
+              draft={draft}
+              onSave={room.handleUpdateSettings}
+            />
           </div>
         )}
 

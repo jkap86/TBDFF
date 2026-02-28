@@ -6,6 +6,7 @@ import { Settings, MessageSquare, ArrowLeftRight, ClipboardList, Activity } from
 import { leagueApi, draftApi, matchupApi, ApiError, type League, type LeagueMember, type Roster, type UpdateLeagueRequest, type Draft, type Matchup } from '@/lib/api';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import { LeagueSettingsModal } from '@/features/leagues/components/LeagueSettingsModal';
+import { DraftSettingsModal } from '@/features/drafts/components/DraftSettingsModal';
 import { useConversations } from '@/features/chat/hooks/useConversations';
 import { useChatPanel } from '@/features/chat/context/ChatPanelContext';
 
@@ -30,6 +31,7 @@ export default function LeagueDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [matchups, setMatchups] = useState<Matchup[]>([]);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isDraftSettingsOpen, setIsDraftSettingsOpen] = useState(false);
   const [isCreatingDraft, setIsCreatingDraft] = useState(false);
   const [isGeneratingMatchups, setIsGeneratingMatchups] = useState(false);
   const [selectedWeek, setSelectedWeek] = useState(1);
@@ -121,6 +123,13 @@ export default function LeagueDetailPage() {
     } finally {
       setIsCreatingDraft(false);
     }
+  };
+
+  const handleUpdateDraft = async (updates: import('@/lib/api').UpdateDraftRequest) => {
+    if (!accessToken || !activeDraft) return;
+
+    const result = await draftApi.update(activeDraft.id, updates, accessToken);
+    setDrafts((prev) => prev.map((d) => (d.id === result.draft.id ? result.draft : d)));
   };
 
   const handleGenerateMatchups = async () => {
@@ -313,12 +322,23 @@ export default function LeagueDetailPage() {
                   </button>
                 )}
                 {activeDraft.status === 'pre_draft' && (
-                  <button
-                    onClick={() => router.push(`/leagues/${leagueId}/draft`)}
-                    className="rounded-lg bg-gray-600 px-4 py-2 text-sm font-medium text-white hover:bg-gray-700"
-                  >
-                    Draft Settings
-                  </button>
+                  <>
+                    {isCommissioner && (
+                      <button
+                        onClick={() => setIsDraftSettingsOpen(true)}
+                        className="rounded-lg bg-gray-600 px-4 py-2 text-sm font-medium text-white hover:bg-gray-700 flex items-center gap-2"
+                      >
+                        <Settings className="h-4 w-4" />
+                        Draft Settings
+                      </button>
+                    )}
+                    <button
+                      onClick={() => router.push(`/leagues/${leagueId}/draft`)}
+                      className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+                    >
+                      Enter Draft Room
+                    </button>
+                  </>
                 )}
               </div>
             </div>
@@ -565,6 +585,16 @@ export default function LeagueDetailPage() {
           </div>
         </div>
       </div>
+
+      {/* Draft Settings Modal */}
+      {activeDraft && (
+        <DraftSettingsModal
+          isOpen={isDraftSettingsOpen}
+          onClose={() => setIsDraftSettingsOpen(false)}
+          draft={activeDraft}
+          onSave={handleUpdateDraft}
+        />
+      )}
 
       {/* Settings Modal */}
       {league && (
