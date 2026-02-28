@@ -409,6 +409,7 @@ export class SlowAuctionService {
             proxyBid.rosterId,
             price,
             {
+              lot_id: lotId,
               full_name: player?.fullName,
               first_name: player?.firstName,
               last_name: player?.lastName,
@@ -435,6 +436,7 @@ export class SlowAuctionService {
               lot.draftId, lot.playerId, pickedByUserId || draft.createdBy,
               proxyBid.rosterId, round, pickNo, 1, price,
               JSON.stringify({
+                lot_id: lotId,
                 full_name: player?.fullName,
                 first_name: player?.firstName,
                 last_name: player?.lastName,

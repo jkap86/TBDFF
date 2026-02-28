@@ -205,6 +205,7 @@ export default function DraftRoomPage() {
                   picks={picks}
                   currentUserId={user?.id}
                   myRosterId={room.userRosterId}
+                  accessToken={room.accessToken}
                   onSetMaxBid={room.handleSlowSetMaxBid}
                 />
               </div>
@@ -256,6 +257,7 @@ export default function DraftRoomPage() {
                 picks={picks}
                 currentUserId={user?.id}
                 myRosterId={room.userRosterId}
+                accessToken={room.accessToken}
                 onSetMaxBid={room.handleSlowSetMaxBid}
               />
             : room.isAuction

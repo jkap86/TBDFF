@@ -1,7 +1,9 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import type { AuctionLot, RosterBudget, LeagueMember, Draft, DraftPick } from '@/lib/api';
+import { ChevronDown, ChevronUp } from 'lucide-react';
+import type { AuctionLot, AuctionBidHistoryEntry, RosterBudget, LeagueMember, Draft, DraftPick } from '@/lib/api';
+import { draftApi } from '@/lib/api';
 import { SlowBidDialog } from './SlowBidDialog';
 
 interface SlowAuctionBoardProps {
@@ -12,6 +14,7 @@ interface SlowAuctionBoardProps {
   picks: DraftPick[];
   currentUserId: string | undefined;
   myRosterId: number | undefined;
+  accessToken: string | null;
   onSetMaxBid: (lotId: string, maxBid: number) => Promise<void>;
 }
 
@@ -42,9 +45,13 @@ export function SlowAuctionBoard({
   picks,
   currentUserId,
   myRosterId,
+  accessToken,
   onSetMaxBid,
 }: SlowAuctionBoardProps) {
   const [bidDialogLot, setBidDialogLot] = useState<AuctionLot | null>(null);
+  const [expandedLotId, setExpandedLotId] = useState<string | null>(null);
+  const [bidHistory, setBidHistory] = useState<AuctionBidHistoryEntry[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
   const formatCountdown = useCountdown(lots);
 
   // Build roster_id -> display name mapping
@@ -58,6 +65,73 @@ export function SlowAuctionBoard({
   }
 
   const myBudget = budgets.find((b) => b.roster_id === myRosterId) ?? null;
+
+  const toggleBidHistory = async (lotId: string) => {
+    if (expandedLotId === lotId) {
+      setExpandedLotId(null);
+      setBidHistory([]);
+      return;
+    }
+    setExpandedLotId(lotId);
+    setBidHistory([]);
+    if (!accessToken) return;
+    setHistoryLoading(true);
+    try {
+      const result = await draftApi.getSlowAuctionLotHistory(draft.id, lotId, accessToken);
+      setExpandedLotId((current) => {
+        if (current === lotId) setBidHistory(result.history);
+        return current;
+      });
+    } catch {
+      // Non-critical
+    } finally {
+      setHistoryLoading(false);
+    }
+  };
+
+  const formatHistoryTime = (dateStr: string) => {
+    const d = new Date(dateStr);
+    const now = new Date();
+    const diffMs = now.getTime() - d.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    if (diffMins < 1) return 'just now';
+    if (diffMins < 60) return `${diffMins}m ago`;
+    const diffHours = Math.floor(diffMins / 60);
+    if (diffHours < 24) return `${diffHours}h ago`;
+    const diffDays = Math.floor(diffHours / 24);
+    return `${diffDays}d ago`;
+  };
+
+  const renderBidHistory = () => {
+    if (historyLoading) {
+      return <div className="text-xs text-gray-400 py-2">Loading bid history...</div>;
+    }
+    if (bidHistory.length === 0) {
+      return <div className="text-xs text-gray-400 py-2">No bid history</div>;
+    }
+    return (
+      <div className="space-y-1 pt-2">
+        {bidHistory.map((entry) => (
+          <div key={entry.id} className="flex items-center justify-between text-xs">
+            <div className="flex items-center gap-1.5">
+              <span className="font-medium text-gray-700 dark:text-gray-300">
+                {rosterToUser[entry.roster_id] || entry.username || `Team ${entry.roster_id}`}
+              </span>
+              {entry.is_proxy && (
+                <span className="text-[10px] px-1 rounded bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400">
+                  auto
+                </span>
+              )}
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="font-medium text-green-700">${entry.bid_amount}</span>
+              <span className="text-gray-400 dark:text-gray-500">{formatHistoryTime(entry.created_at)}</span>
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  };
 
   const activeLots = lots.filter((l) => l.status === 'active').sort(
     (a, b) => new Date(a.bid_deadline).getTime() - new Date(b.bid_deadline).getTime()
@@ -147,6 +221,21 @@ export function SlowAuctionBoard({
                       {iHaveBid ? 'Update Max Bid' : 'Place Bid'}
                     </button>
                   )}
+
+                  {/* Bid history toggle */}
+                  {lot.bid_count > 0 && (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => toggleBidHistory(lot.id)}
+                        className="w-full flex items-center justify-center gap-1 mt-2 pt-2 border-t border-gray-100 dark:border-gray-700 text-xs text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
+                      >
+                        Bid History
+                        {expandedLotId === lot.id ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                      </button>
+                      {expandedLotId === lot.id && renderBidHistory()}
+                    </>
+                  )}
                 </div>
               );
             })}
@@ -208,12 +297,27 @@ export function SlowAuctionBoard({
               <tbody>
                 {completedPicks.map((pick, idx) => {
                   const isUserPick = rosterToUserId[pick.roster_id] === currentUserId;
+                  const lotId = pick.metadata?.lot_id as string | undefined;
+                  const isExpanded = lotId != null && expandedLotId === lotId;
                   return (
                     <tr
                       key={pick.id}
                       className={`border-b border-gray-100 dark:border-gray-700 ${isUserPick ? 'bg-blue-50 dark:bg-blue-900/10' : ''}`}
                     >
-                      <td className="py-1.5 text-xs text-gray-400 dark:text-gray-500">{completedPicks.length - idx}</td>
+                      <td className="py-1.5 text-xs text-gray-400 dark:text-gray-500">
+                        {lotId ? (
+                          <button
+                            type="button"
+                            onClick={() => toggleBidHistory(lotId)}
+                            className="flex items-center gap-0.5 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+                          >
+                            {isExpanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+                            {completedPicks.length - idx}
+                          </button>
+                        ) : (
+                          completedPicks.length - idx
+                        )}
+                      </td>
                       <td className="py-1.5">
                         <span className="text-sm font-medium text-gray-900 dark:text-white">
                           {pick.metadata?.full_name || pick.player_id}
@@ -233,6 +337,19 @@ export function SlowAuctionBoard({
                       </td>
                     </tr>
                   );
+                }).flatMap((row, idx) => {
+                  const pick = completedPicks[idx];
+                  const lotId = pick.metadata?.lot_id as string | undefined;
+                  if (lotId && expandedLotId === lotId) {
+                    return [row, (
+                      <tr key={`${pick.id}-history`} className="bg-gray-50 dark:bg-gray-900/30">
+                        <td colSpan={5} className="px-4 py-2">
+                          {renderBidHistory()}
+                        </td>
+                      </tr>
+                    )];
+                  }
+                  return [row];
                 })}
               </tbody>
             </table>
