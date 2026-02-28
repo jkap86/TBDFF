@@ -77,7 +77,7 @@ export class SlowAuctionService {
     draftId: string,
     userId: string,
     playerId: string,
-  ): Promise<{ lot: AuctionLot; draft: Draft }> {
+  ): Promise<{ lot: AuctionLot; draft: Draft; playerMetadata?: Record<string, unknown> }> {
     const draft = await this.draftRepo.findById(draftId);
     if (!draft) throw new NotFoundException('Draft not found');
     if (draft.status !== 'drafting') throw new ValidationException('Draft is not active');
@@ -153,7 +153,7 @@ export class SlowAuctionService {
       lot: lot.toSafeObject(undefined, this.buildPlayerMeta(player)),
     });
 
-    return { lot, draft };
+    return { lot, draft, playerMetadata: this.buildPlayerMeta(player) };
   }
 
   // ---- Set Max Bid ----

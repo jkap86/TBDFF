@@ -37,7 +37,7 @@ export interface PriceResolutionOutput {
 /**
  * Resolve auction price using second-price sealed-bid rules.
  *
- * - Highest bidder wins at second-highest + minIncrement (capped at their max)
+ * - Highest bidder wins at second-highest price (true second-price / Vickrey)
  * - Single bidder: wins at max(currentBid, minBid)
  * - Monotonic guard: resolved price never decreases below currentBid
  * - Returns null if no bids
@@ -61,7 +61,7 @@ export function resolveSecondPrice(
     const highest = proxyBids[0];
     const secondHighest = proxyBids[1];
     newLeader = highest.rosterId;
-    newPrice = Math.min(highest.maxBid, secondHighest.maxBid + minIncrement);
+    newPrice = secondHighest.maxBid;
   }
 
   // Monotonic guard

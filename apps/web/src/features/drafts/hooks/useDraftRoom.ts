@@ -255,7 +255,7 @@ export function useDraftRoom(leagueId: string) {
 
   // Auto-pick / auction resolve when timer expires
   useEffect(() => {
-    if (timer.timeRemaining !== 0 || !draft || !accessToken || timer.autoPickTriggered.current) return;
+    if (timer.timeRemaining !== 0 || !draft || !accessToken || timer.autoPickTriggered.current || draft.type === 'slow_auction') return;
 
     // For auction drafts, verify the actual deadline has passed before acting.
     // Guards against stale timeRemaining=0 racing with a newly created nomination.
@@ -462,7 +462,11 @@ export function useDraftRoom(leagueId: string) {
       setIsNominating(true);
       setPickError(null);
       const result = await draftApi.slowNominate(draft.id, { player_id: pid.trim() }, accessToken);
-      setSlowAuctionLots((prev) => [...prev, result.lot]);
+      setSlowAuctionLots((prev) => {
+        const existing = prev.find((l) => l.id === result.lot.id);
+        if (existing) return prev.map((l) => (l.id === result.lot.id ? result.lot : l));
+        return [...prev, result.lot];
+      });
       setNominatePlayerId('');
       // Refresh stats
       const statsResult = await draftApi.getNominationStats(draft.id, accessToken);

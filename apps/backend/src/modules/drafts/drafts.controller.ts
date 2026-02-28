@@ -345,7 +345,7 @@ export class DraftController {
 
     const result = await this.slowAuctionService.nominate(draftId, userId, body.player_id);
     res.status(201).json({
-      lot: result.lot.toSafeObject(),
+      lot: result.lot.toSafeObject(undefined, result.playerMetadata),
     });
   };
 
