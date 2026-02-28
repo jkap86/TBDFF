@@ -19,8 +19,8 @@ export class AuctionLotRepository {
   ): Promise<AuctionLot> {
     const conn = client ?? this.db;
     const result = await conn.query(
-      `INSERT INTO auction_lots (draft_id, player_id, nominator_roster_id, current_bid, bid_deadline, nomination_date, status)
-       VALUES ($1, $2, $3, $4, $5, $6, 'active')
+      `INSERT INTO auction_lots (draft_id, player_id, nominator_roster_id, current_bid, bid_deadline, nomination_date, status, bid_count)
+       VALUES ($1, $2, $3, $4, $5, $6, 'active', 1)
        RETURNING *`,
       [data.draftId, data.playerId, data.nominatorRosterId, data.currentBid, data.bidDeadline, data.nominationDate],
     );
