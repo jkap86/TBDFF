@@ -36,6 +36,7 @@ export default function LeagueDetailPage() {
   const [isDraftSettingsOpen, setIsDraftSettingsOpen] = useState(false);
   const [showReRandomizeConfirm, setShowReRandomizeConfirm] = useState(false);
   const [isDraftOrderExpanded, setIsDraftOrderExpanded] = useState(false);
+  const [isDerbyResultsExpanded, setIsDerbyResultsExpanded] = useState(false);
   const [shuffleDisplay, setShuffleDisplay] = useState<{ lockedCount: number; displayUserIds: string[] } | null>(null);
   const shuffleIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [isCreatingDraft, setIsCreatingDraft] = useState(false);
@@ -475,7 +476,7 @@ export default function LeagueDetailPage() {
                         Draft Settings
                       </button>
                     )}
-                    {isCommissioner && activeDraft.type !== 'slow_auction' && (activeDraft.metadata?.derby as any)?.status !== 'active' && (
+                    {isCommissioner && activeDraft.type !== 'slow_auction' && !(activeDraft.metadata?.derby as any)?.status && (
                       <button
                         onClick={() => {
                           const hasOrder = Object.keys(activeDraft.draft_order ?? {}).length > 0;
@@ -495,7 +496,7 @@ export default function LeagueDetailPage() {
                     )}
                     {isCommissioner && (activeDraft.metadata?.order_method ?? 'randomize') === 'derby'
                       && Object.keys(activeDraft.draft_order ?? {}).length > 0
-                      && (activeDraft.metadata?.derby as any)?.status !== 'active' && (
+                      && !(activeDraft.metadata?.derby as any)?.status && (
                       <button
                         onClick={handleStartDerby}
                         disabled={isStartingDerby}
@@ -526,6 +527,49 @@ export default function LeagueDetailPage() {
                 />
               )}
 
+              {/* Derby Results — collapsible, shown after derby completes */}
+              {(activeDraft.metadata?.derby as any)?.status === 'complete' && (() => {
+                const derby = activeDraft.metadata?.derby as any;
+                return (
+                  <div className="rounded-lg border border-gray-200 dark:border-gray-600">
+                    <button
+                      type="button"
+                      onClick={() => setIsDerbyResultsExpanded(!isDerbyResultsExpanded)}
+                      className="flex w-full items-center justify-between px-4 py-3 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50 rounded-lg"
+                    >
+                      <span>Derby Results ({derby.picks.length} picks)</span>
+                      <ChevronDown className={`h-4 w-4 transition-transform ${isDerbyResultsExpanded ? 'rotate-180' : ''}`} />
+                    </button>
+                    {isDerbyResultsExpanded && (
+                      <div className="border-t border-gray-200 dark:border-gray-600 px-4 py-3">
+                        <ol className="space-y-1">
+                          {derby.derby_order.map((entry: any, index: number) => {
+                            const pick = derby.picks.find((p: any) => p.user_id === entry.user_id);
+                            const member = members.find((m) => m.user_id === entry.user_id);
+                            return (
+                              <li
+                                key={entry.user_id}
+                                className="flex items-center justify-between text-sm"
+                              >
+                                <div className="flex items-center gap-2">
+                                  <span className="w-6 text-right font-medium text-gray-500 dark:text-gray-400">{index + 1}.</span>
+                                  <span className="text-gray-900 dark:text-white">{member?.display_name || entry.username}</span>
+                                </div>
+                                {pick && (
+                                  <span className="text-xs font-medium text-green-600 dark:text-green-400">
+                                    Slot #{pick.selected_slot}
+                                  </span>
+                                )}
+                              </li>
+                            );
+                          })}
+                        </ol>
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
+
               {(activeDraft.metadata?.derby as any)?.status !== 'active' && (Object.keys(activeDraft.draft_order ?? {}).length > 0 || shuffleDisplay) && (
                 <div className="rounded-lg border border-gray-200 dark:border-gray-600">
                   <button
@@ -533,7 +577,7 @@ export default function LeagueDetailPage() {
                     onClick={() => setIsDraftOrderExpanded(!isDraftOrderExpanded)}
                     className="flex w-full items-center justify-between px-4 py-3 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50 rounded-lg"
                   >
-                    <span>{(activeDraft.metadata?.order_method ?? 'randomize') === 'derby' ? 'Derby' : 'Draft'} Order ({Object.keys(activeDraft.draft_order ?? {}).length} teams)</span>
+                    <span>Draft Order ({Object.keys(activeDraft.draft_order ?? {}).length} teams)</span>
                     <ChevronDown className={`h-4 w-4 transition-transform ${isDraftOrderExpanded ? 'rotate-180' : ''}`} />
                   </button>
                   {isDraftOrderExpanded && (
