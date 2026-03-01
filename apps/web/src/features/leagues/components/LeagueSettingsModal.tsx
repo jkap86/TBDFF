@@ -2,9 +2,10 @@
 
 import { useState, useEffect } from 'react';
 import { ApiError } from '@/lib/api';
-import type { League, LeagueMember, Roster, UpdateLeagueRequest, LeagueStatus } from '@tbdff/shared';
+import type { League, LeagueMember, Roster, UpdateLeagueRequest, LeagueStatus, LeagueType } from '@tbdff/shared';
 import { positionArrayToCounts, countsToPositionArray } from '../config/roster-config';
 import { scoringFromLeague } from '../config/scoring-config';
+import { ChevronDown } from 'lucide-react';
 import { RosterPositionsEditor } from './RosterPositionsEditor';
 import { ScoringSettingsEditor } from './ScoringSettingsEditor';
 import { RosterAssignments } from './RosterAssignments';
@@ -30,6 +31,8 @@ export function LeagueSettingsModal({
   const [name, setName] = useState(league.name);
   const [totalRosters, setTotalRosters] = useState(league.total_rosters);
   const [status, setStatus] = useState<LeagueStatus>(league.status);
+  const [leagueType, setLeagueType] = useState<LeagueType>((league.settings?.type ?? 0) as LeagueType);
+  const [bestBall, setBestBall] = useState(league.settings?.best_ball === 1);
   const [isPublic, setIsPublic] = useState(league.settings?.public === 1);
   const [memberCanInvite, setMemberCanInvite] = useState(league.settings?.member_can_invite === 1);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -42,6 +45,14 @@ export function LeagueSettingsModal({
   const [showRoster, setShowRoster] = useState(false);
   const [scoring, setScoring] = useState<Record<string, number>>(() => scoringFromLeague(league));
   const [showScoring, setShowScoring] = useState(false);
+  const [showWaivers, setShowWaivers] = useState(false);
+  const [waiverType, setWaiverType] = useState(league.settings?.waiver_type ?? 2);
+  const [waiverBudget, setWaiverBudget] = useState(league.settings?.waiver_budget ?? 100);
+  const [waiverBidMin, setWaiverBidMin] = useState(league.settings?.waiver_bid_min ?? 0);
+  const [waiverDayOfWeek, setWaiverDayOfWeek] = useState(league.settings?.waiver_day_of_week ?? 3);
+  const [waiverClearDays, setWaiverClearDays] = useState(league.settings?.waiver_clear_days ?? 2);
+  const [dailyWaivers, setDailyWaivers] = useState(league.settings?.daily_waivers === 1);
+  const [dailyWaiversHour, setDailyWaiversHour] = useState(league.settings?.daily_waivers_hour ?? 0);
   const [showPayments, setShowPayments] = useState(false);
 
   // Reset form when league changes or modal opens
@@ -50,12 +61,22 @@ export function LeagueSettingsModal({
       setName(league.name);
       setTotalRosters(league.total_rosters);
       setStatus(league.status);
+      setLeagueType((league.settings?.type ?? 0) as LeagueType);
+      setBestBall(league.settings?.best_ball === 1);
       setIsPublic(league.settings?.public === 1);
       setMemberCanInvite(league.settings?.member_can_invite === 1);
       setRosterCounts(positionArrayToCounts(league.roster_positions ?? []));
       setShowRoster(false);
       setScoring(scoringFromLeague(league));
       setShowScoring(false);
+      setShowWaivers(false);
+      setWaiverType(league.settings?.waiver_type ?? 2);
+      setWaiverBudget(league.settings?.waiver_budget ?? 100);
+      setWaiverBidMin(league.settings?.waiver_bid_min ?? 0);
+      setWaiverDayOfWeek(league.settings?.waiver_day_of_week ?? 3);
+      setWaiverClearDays(league.settings?.waiver_clear_days ?? 2);
+      setDailyWaivers(league.settings?.daily_waivers === 1);
+      setDailyWaiversHour(league.settings?.daily_waivers_hour ?? 0);
       setShowPayments(false);
       setError(null);
       setShowDeleteConfirmation(false);
@@ -93,10 +114,35 @@ export function LeagueSettingsModal({
     }
     const currentIsPublic = league.settings?.public === 1;
     const currentMemberCanInvite = league.settings?.member_can_invite === 1;
-    if (isPublic !== currentIsPublic || memberCanInvite !== currentMemberCanInvite) {
+    const currentLeagueType = (league.settings?.type ?? 0) as LeagueType;
+    const currentBestBall = league.settings?.best_ball === 1;
+    const currentWaiverType = league.settings?.waiver_type ?? 2;
+    const currentWaiverBudget = league.settings?.waiver_budget ?? 100;
+    const currentWaiverBidMin = league.settings?.waiver_bid_min ?? 0;
+    const currentWaiverDayOfWeek = league.settings?.waiver_day_of_week ?? 3;
+    const currentWaiverClearDays = league.settings?.waiver_clear_days ?? 2;
+    const currentDailyWaivers = league.settings?.daily_waivers === 1;
+    const currentDailyWaiversHour = league.settings?.daily_waivers_hour ?? 0;
+    if (
+      isPublic !== currentIsPublic || memberCanInvite !== currentMemberCanInvite ||
+      leagueType !== currentLeagueType || bestBall !== currentBestBall ||
+      waiverType !== currentWaiverType || waiverBudget !== currentWaiverBudget ||
+      waiverBidMin !== currentWaiverBidMin || waiverDayOfWeek !== currentWaiverDayOfWeek ||
+      waiverClearDays !== currentWaiverClearDays || dailyWaivers !== currentDailyWaivers ||
+      dailyWaiversHour !== currentDailyWaiversHour
+    ) {
       updates.settings = {
         public: isPublic ? 1 : 0,
         member_can_invite: memberCanInvite ? 1 : 0,
+        type: leagueType,
+        best_ball: bestBall ? 1 : 0,
+        waiver_type: waiverType,
+        waiver_budget: waiverBudget,
+        waiver_bid_min: waiverBidMin,
+        waiver_day_of_week: waiverDayOfWeek,
+        waiver_clear_days: waiverClearDays,
+        daily_waivers: dailyWaivers ? 1 : 0,
+        daily_waivers_hour: dailyWaiversHour,
       };
     }
 
@@ -259,6 +305,39 @@ export function LeagueSettingsModal({
             </div>
           )}
 
+          <div className="mb-4">
+            <label htmlFor="leagueType" className="mb-1 block text-sm font-medium text-accent-foreground">
+              League Type
+            </label>
+            <select
+              id="leagueType"
+              value={leagueType}
+              onChange={(e) => setLeagueType(parseInt(e.target.value, 10) as LeagueType)}
+              className="w-full rounded border border-input px-3 py-2 text-foreground bg-muted focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
+              disabled={isSubmitting}
+            >
+              <option value={0}>Redraft</option>
+              <option value={2} disabled>Dynasty (Coming Soon)</option>
+              <option value={1} disabled>Keeper (Coming Soon)</option>
+            </select>
+          </div>
+
+          <div className="mb-4">
+            <label className="flex items-center gap-3">
+              <input
+                type="checkbox"
+                checked={bestBall}
+                onChange={(e) => setBestBall(e.target.checked)}
+                className="h-4 w-4 rounded border-input text-primary focus:ring-ring"
+                disabled={isSubmitting}
+              />
+              <span className="text-sm font-medium text-accent-foreground">Best Ball</span>
+            </label>
+            <p className="mt-1 ml-7 text-xs text-muted-foreground">
+              Lineups are automatically optimized each week — no need to set starters
+            </p>
+          </div>
+
           <RosterPositionsEditor
             rosterCounts={rosterCounts}
             onCountChange={(key, value) => setRosterCounts((prev) => ({ ...prev, [key]: value }))}
@@ -274,6 +353,146 @@ export function LeagueSettingsModal({
             onToggle={() => setShowScoring(!showScoring)}
             isSubmitting={isSubmitting}
           />
+
+          {/* Waiver Settings (collapsible) */}
+          <div className="mb-4 rounded-lg border border-border">
+            <button
+              type="button"
+              onClick={() => setShowWaivers(!showWaivers)}
+              className="flex w-full items-center justify-between px-4 py-3 text-sm font-medium text-accent-foreground hover:bg-accent rounded-lg"
+            >
+              <span>Waiver Settings</span>
+              <ChevronDown className={`h-4 w-4 transition-transform ${showWaivers ? 'rotate-180' : ''}`} />
+            </button>
+            {showWaivers && (
+              <div className="border-t border-border px-4 py-3 space-y-4">
+                <div>
+                  <label htmlFor="waiverType" className="mb-1 block text-sm font-medium text-accent-foreground">
+                    Waiver Type
+                  </label>
+                  <select
+                    id="waiverType"
+                    value={waiverType}
+                    onChange={(e) => setWaiverType(parseInt(e.target.value, 10))}
+                    className="w-full rounded border border-input px-3 py-2 text-foreground bg-muted focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
+                    disabled={isSubmitting}
+                  >
+                    <option value={2}>FAAB (Free Agent Auction Budget)</option>
+                    <option value={0}>Normal (Reverse Standings)</option>
+                    <option value={1}>Rolling Waivers</option>
+                  </select>
+                </div>
+
+                {waiverType === 2 && (
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label htmlFor="waiverBudget" className="mb-1 block text-sm font-medium text-accent-foreground">
+                        FAAB Budget
+                      </label>
+                      <input
+                        id="waiverBudget"
+                        type="number"
+                        value={waiverBudget}
+                        onChange={(e) => setWaiverBudget(Math.max(0, parseInt(e.target.value) || 0))}
+                        min={0}
+                        className="w-full rounded border border-input px-3 py-2 text-foreground bg-muted focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
+                        disabled={isSubmitting}
+                      />
+                    </div>
+                    <div>
+                      <label htmlFor="waiverBidMin" className="mb-1 block text-sm font-medium text-accent-foreground">
+                        Min Bid
+                      </label>
+                      <input
+                        id="waiverBidMin"
+                        type="number"
+                        value={waiverBidMin}
+                        onChange={(e) => setWaiverBidMin(Math.max(0, parseInt(e.target.value) || 0))}
+                        min={0}
+                        className="w-full rounded border border-input px-3 py-2 text-foreground bg-muted focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
+                        disabled={isSubmitting}
+                      />
+                    </div>
+                  </div>
+                )}
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label htmlFor="waiverDayOfWeek" className="mb-1 block text-sm font-medium text-accent-foreground">
+                      Waiver Process Day
+                    </label>
+                    <select
+                      id="waiverDayOfWeek"
+                      value={waiverDayOfWeek}
+                      onChange={(e) => setWaiverDayOfWeek(parseInt(e.target.value, 10))}
+                      className="w-full rounded border border-input px-3 py-2 text-foreground bg-muted focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
+                      disabled={isSubmitting}
+                    >
+                      <option value={0}>Sunday</option>
+                      <option value={1}>Monday</option>
+                      <option value={2}>Tuesday</option>
+                      <option value={3}>Wednesday</option>
+                      <option value={4}>Thursday</option>
+                      <option value={5}>Friday</option>
+                      <option value={6}>Saturday</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label htmlFor="waiverClearDays" className="mb-1 block text-sm font-medium text-accent-foreground">
+                      Clear Period (Days)
+                    </label>
+                    <input
+                      id="waiverClearDays"
+                      type="number"
+                      value={waiverClearDays}
+                      onChange={(e) => setWaiverClearDays(Math.max(0, Math.min(7, parseInt(e.target.value) || 0)))}
+                      min={0}
+                      max={7}
+                      className="w-full rounded border border-input px-3 py-2 text-foreground bg-muted focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
+                      disabled={isSubmitting}
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="flex items-center gap-3">
+                    <input
+                      type="checkbox"
+                      checked={dailyWaivers}
+                      onChange={(e) => setDailyWaivers(e.target.checked)}
+                      className="h-4 w-4 rounded border-input text-primary focus:ring-ring"
+                      disabled={isSubmitting}
+                    />
+                    <span className="text-sm font-medium text-accent-foreground">Daily Waivers</span>
+                  </label>
+                  <p className="mt-1 ml-7 text-xs text-muted-foreground">
+                    Process waivers every day instead of once per week
+                  </p>
+                </div>
+
+                {dailyWaivers && (
+                  <div>
+                    <label htmlFor="dailyWaiversHour" className="mb-1 block text-sm font-medium text-accent-foreground">
+                      Daily Process Hour
+                    </label>
+                    <select
+                      id="dailyWaiversHour"
+                      value={dailyWaiversHour}
+                      onChange={(e) => setDailyWaiversHour(parseInt(e.target.value, 10))}
+                      className="w-full rounded border border-input px-3 py-2 text-foreground bg-muted focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
+                      disabled={isSubmitting}
+                    >
+                      {[...Array(24)].map((_, h) => (
+                        <option key={h} value={h}>
+                          {h === 0 ? '12:00 AM' : h < 12 ? `${h}:00 AM` : h === 12 ? '12:00 PM' : `${h - 12}:00 PM`}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
 
           {isOwner && (
             <PaymentsSettings

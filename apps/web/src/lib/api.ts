@@ -7,7 +7,7 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
 initApiClient({ baseUrl: API_URL, clientType: 'web' });
 
 export { apiClient, authApi, leagueApi, draftApi, matchupApi, scoringApi, playerApi, tradeApi, transactionApi, paymentApi, tokenManager, ApiError } from '@tbdff/shared';
-export type { User, AuthResponse, UserResponse, League, LeagueMember, CreateLeagueRequest, UpdateLeagueRequest, LeagueInvite, PublicLeague, PublicLeaguesResponse, Roster, RosterSettings, RosterListResponse, RosterPosition, LeagueScoringSettings, LeagueSettings } from '@tbdff/shared';
+export type { User, AuthResponse, UserResponse, League, LeagueMember, CreateLeagueRequest, UpdateLeagueRequest, LeagueInvite, PublicLeague, PublicLeaguesResponse, Roster, RosterSettings, RosterListResponse, RosterPosition, LeagueScoringSettings, LeagueSettings, LeagueType } from '@tbdff/shared';
 export type { Draft, DraftPick, DraftType, DraftStatus, DraftSettings, CreateDraftRequest, UpdateDraftRequest, SetDraftOrderRequest, MakeDraftPickRequest, ToggleAutoPickResponse, NominateDraftPickRequest, PlaceBidRequest, NominationResponse, BidResponse, DraftQueueItem, SetDraftQueueRequest, AddToQueueRequest, UpdateQueueMaxBidRequest, DraftQueueResponse, AuctionLot, AuctionBidHistoryEntry, RosterBudget, NominationStatsResponse, DerbyState } from '@tbdff/shared';
 export type { Player, PlayersListResponse } from '@tbdff/shared';
 export type { Matchup, MatchupListResponse } from '@tbdff/shared';

@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ChevronDown } from 'lucide-react';
 import { leagueApi, ApiError } from '@/lib/api';
-import type { RosterPosition } from '@/lib/api';
+import type { RosterPosition, LeagueType } from '@/lib/api';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 
 const CURRENT_SEASON = new Date().getFullYear().toString();
@@ -140,6 +140,8 @@ export function CreateTab() {
   const { accessToken } = useAuth();
   const [name, setName] = useState('');
   const [totalRosters, setTotalRosters] = useState(12);
+  const [leagueType, setLeagueType] = useState<LeagueType>(0);
+  const [bestBall, setBestBall] = useState(false);
   const [isPublic, setIsPublic] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -151,6 +153,16 @@ export function CreateTab() {
   // Scoring settings
   const [scoring, setScoring] = useState<Record<string, number>>({ ...DEFAULT_SCORING });
   const [showScoring, setShowScoring] = useState(false);
+
+  // Waiver settings
+  const [showWaivers, setShowWaivers] = useState(false);
+  const [waiverType, setWaiverType] = useState(2); // 0=Normal, 1=Rolling, 2=FAAB
+  const [waiverBudget, setWaiverBudget] = useState(100);
+  const [waiverBidMin, setWaiverBidMin] = useState(0);
+  const [waiverDayOfWeek, setWaiverDayOfWeek] = useState(3); // Wednesday
+  const [waiverClearDays, setWaiverClearDays] = useState(2);
+  const [dailyWaivers, setDailyWaivers] = useState(false);
+  const [dailyWaiversHour, setDailyWaiversHour] = useState(0);
 
   const updateRosterCount = (key: string, value: number) => {
     setRosterCounts((prev) => ({ ...prev, [key]: value }));
@@ -191,7 +203,18 @@ export function CreateTab() {
           name: name.trim(),
           season: CURRENT_SEASON,
           total_rosters: totalRosters,
-          settings: { public: isPublic ? 1 : 0 },
+          settings: {
+            public: isPublic ? 1 : 0,
+            type: leagueType,
+            best_ball: bestBall ? 1 : 0,
+            waiver_type: waiverType,
+            waiver_budget: waiverBudget,
+            waiver_bid_min: waiverBidMin,
+            waiver_day_of_week: waiverDayOfWeek,
+            waiver_clear_days: waiverClearDays,
+            daily_waivers: dailyWaivers ? 1 : 0,
+            daily_waivers_hour: dailyWaiversHour,
+          },
           roster_positions: rosterPositions,
           ...(Object.keys(scoringSettings).length > 0 ? { scoring_settings: scoringSettings } : {}),
         },
@@ -274,6 +297,37 @@ export function CreateTab() {
           </select>
         </div>
 
+        <div className="mb-4">
+          <label htmlFor="leagueType" className={labelClass}>League Type</label>
+          <select
+            id="leagueType"
+            value={leagueType}
+            onChange={(e) => setLeagueType(parseInt(e.target.value, 10) as LeagueType)}
+            className={inputClass}
+            disabled={isSubmitting}
+          >
+            <option value={0}>Redraft</option>
+            <option value={2} disabled>Dynasty (Coming Soon)</option>
+            <option value={1} disabled>Keeper (Coming Soon)</option>
+          </select>
+        </div>
+
+        <div className="mb-4">
+          <label className="flex items-center gap-3">
+            <input
+              type="checkbox"
+              checked={bestBall}
+              onChange={(e) => setBestBall(e.target.checked)}
+              className="h-4 w-4 rounded border-input text-primary focus:ring-ring"
+              disabled={isSubmitting}
+            />
+            <span className="text-sm font-medium text-accent-foreground">Best Ball</span>
+          </label>
+          <p className="mt-1 ml-7 text-xs text-muted-foreground">
+            Lineups are automatically optimized each week — no need to set starters
+          </p>
+        </div>
+
         {/* Roster Positions (collapsible) */}
         <div className="mb-4 rounded-lg border border-border">
           <button
@@ -307,7 +361,7 @@ export function CreateTab() {
         </div>
 
         {/* Scoring Settings (collapsible) */}
-        <div className="mb-6 rounded-lg border border-border">
+        <div className="mb-4 rounded-lg border border-border">
           <button
             type="button"
             onClick={() => setShowScoring(!showScoring)}
@@ -340,6 +394,134 @@ export function CreateTab() {
                   </div>
                 </div>
               ))}
+            </div>
+          )}
+        </div>
+
+        {/* Waiver Settings (collapsible) */}
+        <div className="mb-6 rounded-lg border border-border">
+          <button
+            type="button"
+            onClick={() => setShowWaivers(!showWaivers)}
+            className="flex w-full items-center justify-between px-4 py-3 text-sm font-medium text-accent-foreground hover:bg-accent rounded-lg"
+          >
+            <span>Waiver Settings</span>
+            <ChevronDown className={`h-4 w-4 transition-transform ${showWaivers ? 'rotate-180' : ''}`} />
+          </button>
+          {showWaivers && (
+            <div className="border-t border-border px-4 py-3 space-y-4">
+              <div>
+                <label htmlFor="waiverType" className={labelClass}>Waiver Type</label>
+                <select
+                  id="waiverType"
+                  value={waiverType}
+                  onChange={(e) => setWaiverType(parseInt(e.target.value, 10))}
+                  className={inputClass}
+                  disabled={isSubmitting}
+                >
+                  <option value={2}>FAAB (Free Agent Auction Budget)</option>
+                  <option value={0}>Normal (Reverse Standings)</option>
+                  <option value={1}>Rolling Waivers</option>
+                </select>
+              </div>
+
+              {waiverType === 2 && (
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label htmlFor="waiverBudget" className={labelClass}>FAAB Budget</label>
+                    <input
+                      id="waiverBudget"
+                      type="number"
+                      value={waiverBudget}
+                      onChange={(e) => setWaiverBudget(Math.max(0, parseInt(e.target.value) || 0))}
+                      min={0}
+                      className={inputClass}
+                      disabled={isSubmitting}
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="waiverBidMin" className={labelClass}>Min Bid</label>
+                    <input
+                      id="waiverBidMin"
+                      type="number"
+                      value={waiverBidMin}
+                      onChange={(e) => setWaiverBidMin(Math.max(0, parseInt(e.target.value) || 0))}
+                      min={0}
+                      className={inputClass}
+                      disabled={isSubmitting}
+                    />
+                  </div>
+                </div>
+              )}
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label htmlFor="waiverDayOfWeek" className={labelClass}>Waiver Process Day</label>
+                  <select
+                    id="waiverDayOfWeek"
+                    value={waiverDayOfWeek}
+                    onChange={(e) => setWaiverDayOfWeek(parseInt(e.target.value, 10))}
+                    className={inputClass}
+                    disabled={isSubmitting}
+                  >
+                    <option value={0}>Sunday</option>
+                    <option value={1}>Monday</option>
+                    <option value={2}>Tuesday</option>
+                    <option value={3}>Wednesday</option>
+                    <option value={4}>Thursday</option>
+                    <option value={5}>Friday</option>
+                    <option value={6}>Saturday</option>
+                  </select>
+                </div>
+                <div>
+                  <label htmlFor="waiverClearDays" className={labelClass}>Clear Period (Days)</label>
+                  <input
+                    id="waiverClearDays"
+                    type="number"
+                    value={waiverClearDays}
+                    onChange={(e) => setWaiverClearDays(Math.max(0, Math.min(7, parseInt(e.target.value) || 0)))}
+                    min={0}
+                    max={7}
+                    className={inputClass}
+                    disabled={isSubmitting}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="flex items-center gap-3">
+                  <input
+                    type="checkbox"
+                    checked={dailyWaivers}
+                    onChange={(e) => setDailyWaivers(e.target.checked)}
+                    className="h-4 w-4 rounded border-input text-primary focus:ring-ring"
+                    disabled={isSubmitting}
+                  />
+                  <span className="text-sm font-medium text-accent-foreground">Daily Waivers</span>
+                </label>
+                <p className="mt-1 ml-7 text-xs text-muted-foreground">
+                  Process waivers every day instead of once per week
+                </p>
+              </div>
+
+              {dailyWaivers && (
+                <div>
+                  <label htmlFor="dailyWaiversHour" className={labelClass}>Daily Process Hour</label>
+                  <select
+                    id="dailyWaiversHour"
+                    value={dailyWaiversHour}
+                    onChange={(e) => setDailyWaiversHour(parseInt(e.target.value, 10))}
+                    className={inputClass}
+                    disabled={isSubmitting}
+                  >
+                    {[...Array(24)].map((_, h) => (
+                      <option key={h} value={h}>
+                        {h === 0 ? '12:00 AM' : h < 12 ? `${h}:00 AM` : h === 12 ? '12:00 PM' : `${h - 12}:00 PM`}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
             </div>
           )}
         </div>

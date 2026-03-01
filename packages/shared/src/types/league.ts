@@ -32,6 +32,7 @@ export interface LeagueSettings {
   trade_deadline: number;
   trade_review_days: number;
   type: number; // 0=redraft, 1=keeper, 2=dynasty
+  best_ball: number; // 0=off, 1=on
   waiver_bid_min: number;
   waiver_budget: number;
   waiver_clear_days: number;
