@@ -51,6 +51,13 @@ const MAX_LOT_DURATION_PRESETS = [
   { label: '14 days', value: 1209600 },
 ];
 
+const DERBY_TIMER_PRESETS = [
+  { label: '30s', value: 30 },
+  { label: '1m', value: 60 },
+  { label: '2m', value: 120 },
+  { label: '5m', value: 300 },
+];
+
 interface DraftSettingsFormProps {
   draft: Draft;
   onSave: (updates: UpdateDraftRequest) => Promise<void>;
@@ -75,12 +82,16 @@ export function DraftSettingsForm({ draft, onSave, onSaveSuccess, readOnly }: Dr
   const [minIncrement, setMinIncrement] = useState(draft.settings.min_increment ?? 1);
   const [maxLotDurationSeconds, setMaxLotDurationSeconds] = useState(draft.settings.max_lot_duration_seconds ?? 0);
   const [orderMethod, setOrderMethod] = useState<'randomize' | 'derby'>(draft.metadata?.order_method ?? 'randomize');
+  // Derby settings
+  const [derbyTimer, setDerbyTimer] = useState(draft.settings.derby_timer ?? 60);
+  const [derbyTimeoutAction, setDerbyTimeoutAction] = useState(draft.settings.derby_timeout_action ?? 0);
 
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [customTimer, setCustomTimer] = useState('');
   const [customNomTimer, setCustomNomTimer] = useState('');
   const [customOfferingTimer, setCustomOfferingTimer] = useState('');
+  const [customDerbyTimer, setCustomDerbyTimer] = useState('');
 
   // Reset form when draft changes
   useEffect(() => {
@@ -99,6 +110,8 @@ export function DraftSettingsForm({ draft, onSave, onSaveSuccess, readOnly }: Dr
     setMinIncrement(draft.settings.min_increment ?? 1);
     setMaxLotDurationSeconds(draft.settings.max_lot_duration_seconds ?? 0);
     setOrderMethod(draft.metadata?.order_method ?? 'randomize');
+    setDerbyTimer(draft.settings.derby_timer ?? 60);
+    setDerbyTimeoutAction(draft.settings.derby_timeout_action ?? 0);
     setError(null);
   }, [draft]);
 
@@ -109,6 +122,7 @@ export function DraftSettingsForm({ draft, onSave, onSaveSuccess, readOnly }: Dr
   const isPresetNomTimer = NOMINATION_TIMER_PRESETS.some((p) => p.value === nominationTimer);
   const isPresetOfferingTimer = OFFERING_TIMER_PRESETS.some((p) => p.value === offeringTimer);
   const isPresetBidWindow = BID_WINDOW_PRESETS.some((p) => p.value === bidWindowSeconds);
+  const isPresetDerbyTimer = DERBY_TIMER_PRESETS.some((p) => p.value === derbyTimer);
 
   const handleSave = async () => {
     const updates: UpdateDraftRequest = {};
@@ -133,6 +147,12 @@ export function DraftSettingsForm({ draft, onSave, onSaveSuccess, readOnly }: Dr
       if (minBid !== (draft.settings.min_bid ?? 1)) settingsUpdates.min_bid = minBid;
       if (minIncrement !== (draft.settings.min_increment ?? 1)) settingsUpdates.min_increment = minIncrement;
       if (maxLotDurationSeconds !== (draft.settings.max_lot_duration_seconds ?? 0)) settingsUpdates.max_lot_duration_seconds = maxLotDurationSeconds;
+    }
+
+    // Derby settings
+    if (orderMethod === 'derby') {
+      if (derbyTimer !== (draft.settings.derby_timer ?? 60)) settingsUpdates.derby_timer = derbyTimer;
+      if (derbyTimeoutAction !== (draft.settings.derby_timeout_action ?? 0)) settingsUpdates.derby_timeout_action = derbyTimeoutAction;
     }
 
     if (Object.keys(settingsUpdates).length > 0) {
@@ -184,6 +204,16 @@ export function DraftSettingsForm({ draft, onSave, onSaveSuccess, readOnly }: Dr
               <>
                 <div className="text-gray-500 dark:text-gray-400">Draft Order</div>
                 <div className="font-medium text-gray-900 dark:text-white capitalize">{draft.metadata?.order_method ?? 'randomize'}</div>
+              </>
+            )}
+            {(draft.metadata?.order_method ?? 'randomize') === 'derby' && (
+              <>
+                <div className="text-gray-500 dark:text-gray-400">Derby Timer</div>
+                <div className="font-medium text-gray-900 dark:text-white">{formatTimer(draft.settings.derby_timer ?? 60)}</div>
+                <div className="text-gray-500 dark:text-gray-400">Timer Expiry</div>
+                <div className="font-medium text-gray-900 dark:text-white">
+                  {(draft.settings.derby_timeout_action ?? 0) === 0 ? 'Autopick' : 'Skip'}
+                </div>
               </>
             )}
             {draft.type !== 'auction' && draft.type !== 'slow_auction' && (
@@ -292,6 +322,74 @@ export function DraftSettingsForm({ draft, onSave, onSaveSuccess, readOnly }: Dr
                 ))}
               </div>
             </div>
+          )}
+
+          {/* Derby Settings (shown when Derby selected) */}
+          {orderMethod === 'derby' && !isSlowAuction && (
+            <>
+              <div>
+                <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Derby Pick Timer</label>
+                <div className="flex flex-wrap gap-1.5">
+                  {DERBY_TIMER_PRESETS.map((preset) => (
+                    <button
+                      key={preset.value}
+                      type="button"
+                      onClick={() => { setDerbyTimer(preset.value); setCustomDerbyTimer(''); }}
+                      className={`rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors ${
+                        derbyTimer === preset.value && isPresetDerbyTimer
+                          ? 'border-blue-300 bg-blue-100 text-blue-700'
+                          : 'border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
+                      }`}
+                    >
+                      {preset.label}
+                    </button>
+                  ))}
+                  <div className="flex items-center gap-1">
+                    <input
+                      type="number"
+                      value={!isPresetDerbyTimer ? derbyTimer : customDerbyTimer}
+                      onChange={(e) => {
+                        const val = parseInt(e.target.value) || 0;
+                        setCustomDerbyTimer(e.target.value);
+                        if (val >= 5) setDerbyTimer(Math.min(86400, val));
+                      }}
+                      placeholder="Custom"
+                      min={5}
+                      max={86400}
+                      className="w-20 rounded-lg border border-gray-300 dark:border-gray-600 px-3 py-1.5 text-xs text-gray-900 dark:text-white dark:bg-gray-700 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    />
+                    <span className="text-xs text-gray-400 dark:text-gray-500">sec</span>
+                  </div>
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Timer Expiry Action</label>
+                <div className="flex gap-1.5">
+                  {([
+                    { value: 0, label: 'Autopick' },
+                    { value: 1, label: 'Skip' },
+                  ] as const).map((opt) => (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      onClick={() => setDerbyTimeoutAction(opt.value)}
+                      className={`rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors ${
+                        derbyTimeoutAction === opt.value
+                          ? 'border-blue-300 bg-blue-100 text-blue-700'
+                          : 'border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
+                      }`}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+                <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
+                  {derbyTimeoutAction === 0
+                    ? 'Random slot assigned when timer expires'
+                    : 'User is skipped and can pick later at any time'}
+                </p>
+              </div>
+            </>
           )}
 
           {/* Max Players Per Team (any auction) */}

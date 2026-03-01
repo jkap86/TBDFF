@@ -35,17 +35,6 @@ export class DerbyService {
       throw new ValidationException('Can only start a derby before the draft starts');
     }
 
-    // Don't allow starting a derby if draft order is already set
-    if (Object.keys(draft.draftOrder).length > 0) {
-      throw new ValidationException('Draft order is already set. Clear it before starting a derby.');
-    }
-
-    // Don't allow if a derby is already active
-    const existingDerby = draft.metadata?.derby as DerbyState | undefined;
-    if (existingDerby?.status === 'active') {
-      throw new ConflictException('A derby is already in progress');
-    }
-
     // Fetch assigned rosters
     const rosters = await this.leagueRepository.findRostersByLeagueId(draft.leagueId);
     const assignedRosters = rosters.filter((r) => r.ownerId);
@@ -69,7 +58,8 @@ export class DerbyService {
     const shuffled = this.shuffle(entries);
 
     const now = new Date();
-    const pickTimer = draft.settings.pick_timer;
+    const pickTimer = draft.settings.derby_timer ?? draft.settings.pick_timer;
+    const timeoutAction = draft.settings.derby_timeout_action ?? 0;
 
     const derbyState: DerbyState = {
       status: 'active',
@@ -79,9 +69,13 @@ export class DerbyService {
       pick_timer: pickTimer,
       pick_deadline: new Date(now.getTime() + pickTimer * 1000).toISOString(),
       started_at: now.toISOString(),
+      skipped_users: [],
+      timeout_action: timeoutAction,
     };
 
     const updated = await this.draftRepository.update(draftId, {
+      draftOrder: {},
+      slotToRosterId: {},
       metadata: { ...draft.metadata, derby: derbyState },
     });
     if (!updated) throw new NotFoundException('Draft not found');
@@ -172,7 +166,18 @@ export class DerbyService {
         }
       }
 
-      // Determine available slots
+      const currentPicker = freshDerby.derby_order[freshDerby.current_pick_index];
+      if (!currentPicker) {
+        throw new ValidationException('No more picks remaining in the derby');
+      }
+
+      // Check timeout action: skip or autopick
+      if ((freshDerby.timeout_action ?? 0) === 1) {
+        // Skip: add current picker to skipped list and advance turn
+        return this.executeSkip(freshDraft, freshDerby, client);
+      }
+
+      // Autopick: pick random remaining slot
       const totalSlots = freshDerby.derby_order.length;
       const takenSlots = new Set(freshDerby.picks.map((p) => p.selected_slot));
       const availableSlots: number[] = [];
@@ -184,7 +189,6 @@ export class DerbyService {
         throw new ValidationException('No available slots remaining');
       }
 
-      // Pick random remaining slot
       const randomSlot = availableSlots[Math.floor(Math.random() * availableSlots.length)];
 
       return this.executePick(freshDraft, freshDerby, userId, true, randomSlot, client);
@@ -200,6 +204,44 @@ export class DerbyService {
     return updated;
   }
 
+  private async executeSkip(
+    draft: Draft,
+    derby: DerbyState,
+    client: any,
+  ): Promise<Draft> {
+    const currentPicker = derby.derby_order[derby.current_pick_index];
+    const skippedUsers = derby.skipped_users ?? [];
+
+    // Add user to skipped list if not already there
+    const newSkippedUsers = skippedUsers.includes(currentPicker.user_id)
+      ? [...skippedUsers]
+      : [...skippedUsers, currentPicker.user_id];
+
+    const newIndex = derby.current_pick_index + 1;
+    const totalSlots = derby.derby_order.length;
+
+    // If we've passed all turns and there are still skipped users, stay active with no timer
+    const pastAllTurns = newIndex >= totalSlots;
+    const isComplete = pastAllTurns && newSkippedUsers.length === 0;
+
+    const updatedDerby: DerbyState = {
+      ...derby,
+      current_pick_index: newIndex,
+      skipped_users: newSkippedUsers,
+      status: isComplete ? 'complete' : 'active',
+      pick_deadline: isComplete || pastAllTurns
+        ? derby.pick_deadline // No timer when waiting for skipped users
+        : new Date(Date.now() + derby.pick_timer * 1000).toISOString(),
+    };
+
+    const updated = await this.draftRepository.update(draft.id, {
+      metadata: { ...draft.metadata, derby: updatedDerby },
+    }, client);
+    if (!updated) throw new NotFoundException('Draft not found');
+
+    return updated;
+  }
+
   // ---- Private helpers ----
 
   private async executePick(
@@ -210,18 +252,29 @@ export class DerbyService {
     slot: number,
     client: any,
   ): Promise<Draft> {
+    const totalSlots = derby.derby_order.length;
     const currentPicker = derby.derby_order[derby.current_pick_index];
-    if (!currentPicker) {
-      throw new ValidationException('No more picks remaining in the derby');
-    }
+    const skippedUsers = derby.skipped_users ?? [];
+    const isSkippedUser = skippedUsers.includes(userId);
 
-    // Turn validation: must be current picker or commissioner
-    if (!isCommissioner && currentPicker.user_id !== userId) {
+    // Determine who is picking
+    let pickingEntry: DerbyOrderEntry;
+
+    if (isSkippedUser) {
+      // Skipped user picking out of turn
+      const entry = derby.derby_order.find((e) => e.user_id === userId);
+      if (!entry) throw new ForbiddenException('User not in derby');
+      if (derby.picks.some((p) => p.user_id === userId)) {
+        throw new ConflictException('You have already made your derby pick');
+      }
+      pickingEntry = entry;
+    } else if (currentPicker && (isCommissioner || currentPicker.user_id === userId)) {
+      pickingEntry = currentPicker;
+    } else {
       throw new ForbiddenException('It is not your turn to pick');
     }
 
     // Slot range validation
-    const totalSlots = derby.derby_order.length;
     if (slot < 1 || slot > totalSlots) {
       throw new ValidationException(`Slot must be between 1 and ${totalSlots}`);
     }
@@ -232,24 +285,39 @@ export class DerbyService {
     }
 
     const pick: DerbyPick = {
-      user_id: currentPicker.user_id,
-      roster_id: currentPicker.roster_id,
+      user_id: pickingEntry.user_id,
+      roster_id: pickingEntry.roster_id,
       selected_slot: slot,
       picked_at: new Date().toISOString(),
     };
 
     const newPicks = [...derby.picks, pick];
-    const newIndex = derby.current_pick_index + 1;
-    const isComplete = newIndex >= totalSlots;
+
+    // Remove from skipped list if they were skipped
+    const newSkippedUsers = skippedUsers.filter((id) => id !== pickingEntry.user_id);
+
+    // Advance index only for normal turn picks (not skipped user picks)
+    let newIndex = derby.current_pick_index;
+    if (!isSkippedUser) {
+      newIndex = derby.current_pick_index + 1;
+    }
+
+    // Derby complete when all users have picked, or all turns exhausted with no skipped remaining
+    const allPicked = newPicks.length >= totalSlots;
+    const pastAllTurns = newIndex >= totalSlots && newSkippedUsers.length === 0;
+    const isComplete = allPicked || pastAllTurns;
 
     const updatedDerby: DerbyState = {
       ...derby,
       picks: newPicks,
       current_pick_index: newIndex,
+      skipped_users: newSkippedUsers,
       status: isComplete ? 'complete' : 'active',
       pick_deadline: isComplete
         ? derby.pick_deadline
-        : new Date(Date.now() + derby.pick_timer * 1000).toISOString(),
+        : isSkippedUser
+          ? derby.pick_deadline // Don't reset timer when a skipped user picks
+          : new Date(Date.now() + derby.pick_timer * 1000).toISOString(),
     };
 
     const updateData: Record<string, any> = {

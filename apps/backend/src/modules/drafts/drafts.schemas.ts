@@ -35,6 +35,9 @@ const draftSettingsPartialSchema = z.object({
   min_bid: z.number().int().min(1).max(999).optional(),
   min_increment: z.number().int().min(1).max(100).optional(),
   max_lot_duration_seconds: z.number().int().min(0).max(2592000).optional(), // 0 = no cap, max 30 days
+  // Derby settings
+  derby_timer: z.number().int().min(5).max(86400).optional(),
+  derby_timeout_action: z.number().int().min(0).max(1).optional(), // 0=autopick, 1=skip
 }).passthrough();
 
 export const createDraftSchema = z.object({

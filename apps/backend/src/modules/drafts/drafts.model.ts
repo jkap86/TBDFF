@@ -50,6 +50,8 @@ export interface DerbyState {
   pick_timer: number;
   pick_deadline: string;
   started_at: string;
+  skipped_users: string[];
+  timeout_action: number; // 0 = autopick, 1 = skip
 }
 
 export interface DraftMetadata {
@@ -121,6 +123,9 @@ export const DEFAULT_DRAFT_SETTINGS: DraftSettings = {
   daily_nomination_limit: 0,      // 0 = unlimited
   min_bid: 1,
   min_increment: 1,
+  // Derby settings
+  derby_timer: 60,
+  derby_timeout_action: 0, // 0=autopick, 1=skip
 };
 
 export class Draft {

@@ -36,6 +36,9 @@ export interface DraftSettings {
   daily_nomination_limit: number;
   min_bid: number;
   min_increment: number;
+  // Derby settings
+  derby_timer: number;
+  derby_timeout_action: number; // 0=autopick, 1=skip
   [key: string]: number;
 }
 
@@ -92,6 +95,8 @@ export interface DerbyState {
   pick_timer: number;
   pick_deadline: string;
   started_at: string;
+  skipped_users: string[];
+  timeout_action: number; // 0 = autopick, 1 = skip
 }
 
 export interface DerbyPickRequest {
