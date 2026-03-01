@@ -52,6 +52,7 @@ export class DraftGateway {
       draft: data.draft.toSafeObject(),
       pick: data.pick?.toSafeObject(),
       chained_picks: data.chained_picks?.map((p) => p.toSafeObject()),
+      server_time: data.server_time,
     });
   }
 

@@ -133,9 +133,12 @@ export function useDraftRoom(leagueId: string) {
       setDraft(data.draft);
       // Update clock offset whenever we get a server timestamp
       if (data.server_time) timer.updateClockOffset(data.server_time);
-      if (data.pick) {
+      if (data.pick || data.chained_picks?.length) {
         setPicks((prev) => {
-          let updated = prev.map((p) => (p.id === data.pick!.id ? data.pick! : p));
+          let updated = prev;
+          if (data.pick) {
+            updated = updated.map((p) => (p.id === data.pick!.id ? data.pick! : p));
+          }
           if (data.chained_picks?.length) {
             updated = applyChainedPicks(updated, data.chained_picks);
           }
@@ -320,6 +323,15 @@ export function useDraftRoom(leagueId: string) {
           if (err instanceof ApiError && !err.message.includes('already')) {
             toast.error(err.message);
           }
+          // Refresh state so timer recalculates correctly after another client handled the pick
+          try {
+            const [draftResult, picksResult] = await Promise.all([
+              draftApi.getById(draft.id, accessToken),
+              draftApi.getPicks(draft.id, accessToken),
+            ]);
+            setDraft(draftResult.draft);
+            setPicks(picksResult.picks);
+          } catch { /* socket/polling will catch up */ }
         }
       })();
     }

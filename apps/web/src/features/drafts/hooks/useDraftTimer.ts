@@ -40,12 +40,12 @@ export function useDraftTimer(draft: Draft | null) {
 
     if (!deadline) { setTimeRemaining(null); return; }
 
-    // Only reset autoPickTriggered when the deadline is actually in the future.
-    // This prevents a race where stale timeRemaining=0 triggers resolve on a new nomination.
+    // Reset autoPickTriggered whenever the timer effect re-runs (dependencies changed
+    // = new pick cycle). The server validates timer expiry server-side, so spurious
+    // client-side triggers are harmlessly rejected.
+    autoPickTriggered.current = false;
+
     const clientNow = () => Date.now() + clockOffsetRef.current;
-    if (deadline > clientNow()) {
-      autoPickTriggered.current = false;
-    }
 
     const tickInterval = draft.type === 'auction' ? 250 : 1000;
     const tick = () => {

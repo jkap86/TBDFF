@@ -665,7 +665,35 @@ export class DraftService {
       if (completed) break;
     }
 
+    // If we hit the batch limit, schedule a server-side continuation so we
+    // don't rely on clients to trigger the next batch of auto-picks.
+    if (chainedPicks.length >= MAX_CHAIN) {
+      setImmediate(() => {
+        this.continueAutoPickChain(draftId).catch((err) => {
+          console.error(`[DraftService] auto-pick continuation failed for draft ${draftId}:`, err);
+        });
+      });
+    }
+
     return chainedPicks;
+  }
+
+  /**
+   * Continue processing auto-picks after a chain hit MAX_CHAIN.
+   * Broadcasts its own results so clients stay updated.
+   */
+  private async continueAutoPickChain(draftId: string): Promise<void> {
+    const chainedPicks = await this.scheduleAutoPickChain(draftId);
+    if (chainedPicks.length > 0) {
+      const draft = await this.draftRepository.findById(draftId);
+      if (draft && draft.status === 'drafting') {
+        this.draftGateway?.broadcast(draftId, 'draft:state_updated', {
+          draft,
+          chained_picks: chainedPicks,
+          server_time: new Date().toISOString(),
+        });
+      }
+    }
   }
 
   /**
