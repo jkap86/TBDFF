@@ -25,7 +25,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
       </head>
-      <body className="bg-white text-gray-900 dark:bg-gray-900 dark:text-white font-sans antialiased">
+      <body className="bg-background text-foreground font-sans antialiased">
         <ThemeProvider>
           <AuthProvider>
             <ErrorBoundary>

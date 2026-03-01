@@ -104,22 +104,22 @@ export default function TradesPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-6">
+    <div className="min-h-screen bg-surface p-6">
       <div className="mx-auto max-w-4xl space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <button
               onClick={() => router.push(`/leagues/${leagueId}`)}
-              className="rounded p-2 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
+              className="rounded p-2 text-muted-foreground hover:bg-muted"
             >
               <ArrowLeft className="h-5 w-5" />
             </button>
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Trade Center</h1>
+            <h1 className="text-2xl font-bold text-foreground">Trade Center</h1>
           </div>
           <button
             onClick={() => setIsComposerOpen(true)}
-            className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+            className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary-hover"
           >
             <Plus className="h-4 w-4" />
             Propose Trade
@@ -134,8 +134,8 @@ export default function TradesPage() {
               onClick={() => handleFilterChange(filter.value)}
               className={`rounded-full px-3 py-1 text-sm font-medium whitespace-nowrap ${
                 statusFilter === filter.value
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+                  ? 'bg-primary text-primary-foreground'
+                  : 'bg-muted text-accent-foreground hover:bg-muted-hover'
               }`}
             >
               {filter.label}
@@ -145,16 +145,16 @@ export default function TradesPage() {
 
         {/* Error */}
         {error && (
-          <div className="rounded bg-red-50 dark:bg-red-900/30 p-4 text-red-600 dark:text-red-400">{error}</div>
+          <div className="rounded bg-destructive p-4 text-destructive-foreground">{error}</div>
         )}
 
         {/* Trades List */}
         {isLoading ? (
-          <p className="text-center text-gray-500 dark:text-gray-400 py-8">Loading trades...</p>
+          <p className="text-center text-muted-foreground py-8">Loading trades...</p>
         ) : trades.length === 0 ? (
-          <div className="rounded-lg bg-white dark:bg-gray-800 p-8 shadow text-center">
-            <p className="text-gray-500 dark:text-gray-400">No trades found</p>
-            <p className="text-sm text-gray-400 mt-1">Click &quot;Propose Trade&quot; to get started</p>
+          <div className="rounded-lg bg-card p-8 shadow text-center">
+            <p className="text-muted-foreground">No trades found</p>
+            <p className="text-sm text-disabled mt-1">Click &quot;Propose Trade&quot; to get started</p>
           </div>
         ) : (
           <div className="space-y-3">
@@ -193,21 +193,21 @@ export default function TradesPage() {
       {/* Confirmation Dialog */}
       {confirmAction && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="rounded-lg bg-white dark:bg-gray-800 p-6 shadow-xl max-w-sm w-full">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">Confirm Action</h3>
-            <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+          <div className="rounded-lg bg-card p-6 shadow-xl max-w-sm w-full">
+            <h3 className="text-lg font-semibold text-foreground mb-2">Confirm Action</h3>
+            <p className="text-sm text-muted-foreground mb-4">
               Are you sure you want to <strong>{confirmAction.label.toLowerCase()}</strong> this trade? This action cannot be undone.
             </p>
             <div className="flex justify-end gap-3">
               <button
                 onClick={() => setConfirmAction(null)}
-                className="rounded-lg px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                className="rounded-lg px-4 py-2 text-sm font-medium text-accent-foreground hover:bg-muted"
               >
                 Cancel
               </button>
               <button
                 onClick={() => handleAction(confirmAction.action, confirmAction.tradeId)}
-                className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+                className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary-hover"
               >
                 {confirmAction.label}
               </button>

@@ -46,14 +46,14 @@ export function DraftSidebar({
   height = 'calc(100vh - 200px)',
 }: DraftSidebarProps) {
   return (
-    <div className="rounded-lg bg-white dark:bg-gray-800 shadow flex flex-col" style={{ height }}>
-      <div className="flex border-b border-gray-200 dark:border-gray-700">
+    <div className="rounded-lg bg-card shadow flex flex-col" style={{ height }}>
+      <div className="flex border-b border-border">
         <button
           onClick={() => onTabChange('players')}
           className={`flex-1 px-3 py-2.5 text-sm font-medium transition-colors ${
             sidebarTab === 'players'
-              ? 'border-b-2 border-blue-600 text-blue-600'
-              : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
+              ? 'border-b-2 border-primary text-primary'
+              : 'text-muted-foreground hover:text-accent-foreground'
           }`}
         >
           Players
@@ -62,8 +62,8 @@ export function DraftSidebar({
           onClick={() => onTabChange('queue')}
           className={`flex-1 px-3 py-2.5 text-sm font-medium transition-colors ${
             sidebarTab === 'queue'
-              ? 'border-b-2 border-blue-600 text-blue-600'
-              : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
+              ? 'border-b-2 border-primary text-primary'
+              : 'text-muted-foreground hover:text-accent-foreground'
           }`}
         >
           My Queue

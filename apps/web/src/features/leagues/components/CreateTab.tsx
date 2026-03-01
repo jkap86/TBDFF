@@ -209,16 +209,16 @@ export function CreateTab() {
     }
   };
 
-  const inputClass = 'w-full rounded border border-gray-300 dark:border-gray-600 px-3 py-2 dark:bg-gray-700 dark:text-white focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500';
-  const labelClass = 'mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300';
-  const numInputClass = 'w-16 rounded border border-gray-300 dark:border-gray-600 px-2 py-1.5 text-sm text-center dark:bg-gray-700 dark:text-white focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500';
+  const inputClass = 'w-full rounded border border-input px-3 py-2 bg-muted text-foreground focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring';
+  const labelClass = 'mb-1 block text-sm font-medium text-accent-foreground';
+  const numInputClass = 'w-16 rounded border border-input px-2 py-1.5 text-sm text-center bg-muted text-foreground focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring';
 
   return (
-    <div className="rounded-lg bg-white dark:bg-gray-800 p-6 shadow">
-      <h2 className="mb-4 text-lg font-semibold text-gray-900 dark:text-white">Create New League</h2>
+    <div className="rounded-lg bg-card p-6 shadow">
+      <h2 className="mb-4 text-lg font-semibold text-foreground">Create New League</h2>
 
       {error && (
-        <div className="mb-4 rounded bg-red-50 dark:bg-red-900/30 p-3 text-sm text-red-600 dark:text-red-400">{error}</div>
+        <div className="mb-4 rounded bg-destructive p-3 text-sm text-destructive-foreground">{error}</div>
       )}
 
       <form onSubmit={handleSubmit}>
@@ -238,7 +238,7 @@ export function CreateTab() {
 
         <div className="mb-4">
           <label className={labelClass}>Season</label>
-          <div className="rounded border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700/50 px-3 py-2 text-sm text-gray-700 dark:text-gray-300">
+          <div className="rounded border border-border bg-surface px-3 py-2 text-sm text-accent-foreground">
             {CURRENT_SEASON}
           </div>
         </div>
@@ -249,12 +249,12 @@ export function CreateTab() {
               type="checkbox"
               checked={isPublic}
               onChange={(e) => setIsPublic(e.target.checked)}
-              className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+              className="h-4 w-4 rounded border-input text-primary focus:ring-ring"
               disabled={isSubmitting}
             />
-            <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Public league</span>
+            <span className="text-sm font-medium text-accent-foreground">Public league</span>
           </label>
-          <p className="mt-1 ml-7 text-xs text-gray-500 dark:text-gray-400">
+          <p className="mt-1 ml-7 text-xs text-muted-foreground">
             Anyone can browse and join public leagues
           </p>
         </div>
@@ -275,21 +275,21 @@ export function CreateTab() {
         </div>
 
         {/* Roster Positions (collapsible) */}
-        <div className="mb-4 rounded-lg border border-gray-200 dark:border-gray-600">
+        <div className="mb-4 rounded-lg border border-border">
           <button
             type="button"
             onClick={() => setShowRoster(!showRoster)}
-            className="flex w-full items-center justify-between px-4 py-3 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50 rounded-lg"
+            className="flex w-full items-center justify-between px-4 py-3 text-sm font-medium text-accent-foreground hover:bg-accent rounded-lg"
           >
             <span>Roster Positions</span>
             <ChevronDown className={`h-4 w-4 transition-transform ${showRoster ? 'rotate-180' : ''}`} />
           </button>
           {showRoster && (
-            <div className="border-t border-gray-200 dark:border-gray-600 px-4 py-3">
+            <div className="border-t border-border px-4 py-3">
               <div className="grid grid-cols-2 gap-3">
                 {ROSTER_POSITION_CONFIG.map((pos) => (
                   <div key={pos.key} className="flex items-center justify-between gap-2">
-                    <span className="text-sm text-gray-600 dark:text-gray-400 truncate">{pos.label}</span>
+                    <span className="text-sm text-muted-foreground truncate">{pos.label}</span>
                     <input
                       type="number"
                       value={rosterCounts[pos.key] ?? 0}
@@ -307,26 +307,26 @@ export function CreateTab() {
         </div>
 
         {/* Scoring Settings (collapsible) */}
-        <div className="mb-6 rounded-lg border border-gray-200 dark:border-gray-600">
+        <div className="mb-6 rounded-lg border border-border">
           <button
             type="button"
             onClick={() => setShowScoring(!showScoring)}
-            className="flex w-full items-center justify-between px-4 py-3 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50 rounded-lg"
+            className="flex w-full items-center justify-between px-4 py-3 text-sm font-medium text-accent-foreground hover:bg-accent rounded-lg"
           >
             <span>Scoring Settings</span>
             <ChevronDown className={`h-4 w-4 transition-transform ${showScoring ? 'rotate-180' : ''}`} />
           </button>
           {showScoring && (
-            <div className="border-t border-gray-200 dark:border-gray-600 px-4 py-3 space-y-4">
+            <div className="border-t border-border px-4 py-3 space-y-4">
               {SCORING_CATEGORIES.map((cat) => (
                 <div key={cat.title}>
-                  <h4 className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                  <h4 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                     {cat.title}
                   </h4>
                   <div className="grid grid-cols-2 gap-2">
                     {cat.fields.map((f) => (
                       <div key={f.key} className="flex items-center justify-between gap-2">
-                        <span className="text-sm text-gray-600 dark:text-gray-400 truncate">{f.label}</span>
+                        <span className="text-sm text-muted-foreground truncate">{f.label}</span>
                         <input
                           type="number"
                           step="any"
@@ -346,7 +346,7 @@ export function CreateTab() {
 
         <button
           type="submit"
-          className="w-full rounded bg-blue-600 px-4 py-2 font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+          className="w-full rounded bg-primary px-4 py-2 font-medium text-primary-foreground hover:bg-primary-hover disabled:opacity-50"
           disabled={isSubmitting}
         >
           {isSubmitting ? 'Creating...' : 'Create League'}

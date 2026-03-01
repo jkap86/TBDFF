@@ -324,26 +324,26 @@ export default function LeagueDetailPage() {
   if (isLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center">
-        <div className="text-gray-500 dark:text-gray-400">Loading league...</div>
+        <div className="text-muted-foreground">Loading league...</div>
       </div>
     );
   }
 
   if (error || !league) {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-6">
+      <div className="min-h-screen bg-surface p-6">
         <div className="mx-auto max-w-4xl">
-          <div className="rounded bg-red-50 dark:bg-red-900/30 p-4 text-red-600 dark:text-red-400">{error || 'League not found'}</div>
+          <div className="rounded bg-destructive p-4 text-destructive-foreground">{error || 'League not found'}</div>
         </div>
       </div>
     );
   }
 
   const statusColors: Record<string, string> = {
-    pre_draft: 'bg-gray-100 text-gray-700',
-    drafting: 'bg-blue-100 text-blue-700',
-    in_season: 'bg-green-100 text-green-700',
-    complete: 'bg-gray-100 text-gray-500',
+    pre_draft: 'bg-muted text-accent-foreground',
+    drafting: 'bg-primary/10 text-primary',
+    in_season: 'bg-success text-success-foreground',
+    complete: 'bg-muted text-muted-foreground',
   };
 
   const statusLabels: Record<string, string> = {
@@ -354,15 +354,15 @@ export default function LeagueDetailPage() {
   };
 
   const roleColors: Record<string, string> = {
-    commissioner: 'bg-blue-100 text-blue-700',
-    member: 'bg-gray-100 text-gray-600',
-    spectator: 'bg-yellow-100 text-yellow-700',
+    commissioner: 'bg-primary/10 text-primary',
+    member: 'bg-muted text-muted-foreground',
+    spectator: 'bg-warning text-warning-foreground',
   };
 
   const draftStatusColors: Record<string, string> = {
-    pre_draft: 'bg-yellow-100 text-yellow-700',
-    drafting: 'bg-blue-100 text-blue-700',
-    complete: 'bg-green-100 text-green-700',
+    pre_draft: 'bg-warning text-warning-foreground',
+    drafting: 'bg-primary/10 text-primary',
+    complete: 'bg-success text-success-foreground',
   };
 
   const draftStatusLabels: Record<string, string> = {
@@ -372,17 +372,17 @@ export default function LeagueDetailPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-6">
+    <div className="min-h-screen bg-surface p-6">
       <div className="mx-auto max-w-4xl space-y-6">
         {/* League Header */}
-        <div className="rounded-lg bg-white dark:bg-gray-800 p-6 shadow">
+        <div className="rounded-lg bg-card p-6 shadow">
           <div className="mb-4 flex items-start justify-between">
             <div className="flex items-center gap-3">
-              <h1 className="text-3xl font-bold text-gray-900 dark:text-white">{league.name}</h1>
+              <h1 className="text-3xl font-bold text-foreground">{league.name}</h1>
               {isCommissioner && (
                 <button
                   onClick={() => setIsSettingsOpen(true)}
-                  className="rounded p-2 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-700 dark:hover:text-gray-300"
+                  className="rounded p-2 text-muted-foreground hover:bg-muted hover:text-accent-foreground"
                   title="League Settings"
                 >
                   <Settings className="h-5 w-5" />
@@ -398,16 +398,16 @@ export default function LeagueDetailPage() {
 
           <div className="grid gap-4 sm:grid-cols-2">
             <div>
-              <p className="text-sm text-gray-500 dark:text-gray-400">Season</p>
-              <p className="text-lg font-medium text-gray-900 dark:text-white">{league.season}</p>
+              <p className="text-sm text-muted-foreground">Season</p>
+              <p className="text-lg font-medium text-foreground">{league.season}</p>
             </div>
             <div>
-              <p className="text-sm text-gray-500 dark:text-gray-400">Teams</p>
-              <p className="text-lg font-medium text-gray-900 dark:text-white">{league.total_rosters}</p>
+              <p className="text-sm text-muted-foreground">Teams</p>
+              <p className="text-lg font-medium text-foreground">{league.total_rosters}</p>
             </div>
             <div>
-              <p className="text-sm text-gray-500 dark:text-gray-400">League Type</p>
-              <p className="text-lg font-medium text-gray-900 dark:text-white">
+              <p className="text-sm text-muted-foreground">League Type</p>
+              <p className="text-lg font-medium text-foreground">
                 {league.settings?.type === 0
                   ? 'Redraft'
                   : league.settings?.type === 1
@@ -416,8 +416,8 @@ export default function LeagueDetailPage() {
               </p>
             </div>
             <div>
-              <p className="text-sm text-gray-500 dark:text-gray-400">Scoring</p>
-              <p className="text-lg font-medium text-gray-900 dark:text-white">
+              <p className="text-sm text-muted-foreground">Scoring</p>
+              <p className="text-lg font-medium text-foreground">
                 {league.scoring_settings?.rec === 1
                   ? 'PPR'
                   : league.scoring_settings?.rec === 0.5
@@ -429,9 +429,9 @@ export default function LeagueDetailPage() {
         </div>
 
         {/* Draft Card */}
-        <div className="rounded-lg bg-white dark:bg-gray-800 p-6 shadow">
+        <div className="rounded-lg bg-card p-6 shadow">
           <div className="mb-4 flex items-center justify-between">
-            <h2 className="text-xl font-bold text-gray-900 dark:text-white">Draft</h2>
+            <h2 className="text-xl font-bold text-foreground">Draft</h2>
             {activeDraft && (
               <span className={`rounded-full px-3 py-1 text-sm font-medium ${draftStatusColors[activeDraft.status]}`}>
                 {draftStatusLabels[activeDraft.status]}
@@ -443,16 +443,16 @@ export default function LeagueDetailPage() {
             <div className="space-y-4">
               <div className="grid gap-4 sm:grid-cols-3">
                 <div>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">Type</p>
-                  <p className="font-medium text-gray-900 dark:text-white">{draftTypeLabels[activeDraft.type] || activeDraft.type}</p>
+                  <p className="text-sm text-muted-foreground">Type</p>
+                  <p className="font-medium text-foreground">{draftTypeLabels[activeDraft.type] || activeDraft.type}</p>
                 </div>
                 <div>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">Rounds</p>
-                  <p className="font-medium text-gray-900 dark:text-white">{activeDraft.settings.rounds}</p>
+                  <p className="text-sm text-muted-foreground">Rounds</p>
+                  <p className="font-medium text-foreground">{activeDraft.settings.rounds}</p>
                 </div>
                 <div>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">Pick Timer</p>
-                  <p className="font-medium text-gray-900 dark:text-white">{activeDraft.settings.pick_timer}s</p>
+                  <p className="text-sm text-muted-foreground">Pick Timer</p>
+                  <p className="font-medium text-foreground">{activeDraft.settings.pick_timer}s</p>
                 </div>
               </div>
 
@@ -460,7 +460,7 @@ export default function LeagueDetailPage() {
                 {activeDraft.status === 'drafting' && (
                   <button
                     onClick={() => router.push(`/leagues/${leagueId}/draft`)}
-                    className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+                    className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary-hover"
                   >
                     Enter Draft Room
                   </button>
@@ -470,7 +470,7 @@ export default function LeagueDetailPage() {
                     {isCommissioner && (
                       <button
                         onClick={() => setIsDraftSettingsOpen(true)}
-                        className="rounded-lg bg-gray-600 px-4 py-2 text-sm font-medium text-white hover:bg-gray-700 flex items-center gap-2"
+                        className="rounded-lg bg-secondary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-secondary-hover flex items-center gap-2"
                       >
                         <Settings className="h-4 w-4" />
                         Draft Settings
@@ -487,7 +487,7 @@ export default function LeagueDetailPage() {
                           handleRandomizeDraftOrder();
                         }}
                         disabled={shuffleDisplay !== null}
-                        className="rounded-lg bg-gray-600 px-4 py-2 text-sm font-medium text-white hover:bg-gray-700 disabled:opacity-50"
+                        className="rounded-lg bg-secondary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-secondary-hover disabled:opacity-50"
                       >
                         {(activeDraft.metadata?.order_method ?? 'randomize') === 'derby'
                           ? (Object.keys(activeDraft.draft_order ?? {}).length > 0 ? 'Re-randomize Derby Order' : 'Randomize Derby Order')
@@ -507,7 +507,7 @@ export default function LeagueDetailPage() {
                     )}
                     <button
                       onClick={() => router.push(`/leagues/${leagueId}/draft`)}
-                      className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+                      className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary-hover"
                     >
                       Enter Draft Room
                     </button>
@@ -531,17 +531,17 @@ export default function LeagueDetailPage() {
               {(activeDraft.metadata?.derby as any)?.status === 'complete' && (() => {
                 const derby = activeDraft.metadata?.derby as any;
                 return (
-                  <div className="rounded-lg border border-gray-200 dark:border-gray-600">
+                  <div className="rounded-lg border border-border">
                     <button
                       type="button"
                       onClick={() => setIsDerbyResultsExpanded(!isDerbyResultsExpanded)}
-                      className="flex w-full items-center justify-between px-4 py-3 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50 rounded-lg"
+                      className="flex w-full items-center justify-between px-4 py-3 text-sm font-medium text-accent-foreground hover:bg-accent rounded-lg"
                     >
                       <span>Derby Results ({derby.picks.length} picks)</span>
                       <ChevronDown className={`h-4 w-4 transition-transform ${isDerbyResultsExpanded ? 'rotate-180' : ''}`} />
                     </button>
                     {isDerbyResultsExpanded && (
-                      <div className="border-t border-gray-200 dark:border-gray-600 px-4 py-3">
+                      <div className="border-t border-border px-4 py-3">
                         <ol className="space-y-1">
                           {derby.derby_order.map((entry: any, index: number) => {
                             const pick = derby.picks.find((p: any) => p.user_id === entry.user_id);
@@ -552,11 +552,11 @@ export default function LeagueDetailPage() {
                                 className="flex items-center justify-between text-sm"
                               >
                                 <div className="flex items-center gap-2">
-                                  <span className="w-6 text-right font-medium text-gray-500 dark:text-gray-400">{index + 1}.</span>
-                                  <span className="text-gray-900 dark:text-white">{member?.display_name || entry.username}</span>
+                                  <span className="w-6 text-right font-medium text-muted-foreground">{index + 1}.</span>
+                                  <span className="text-foreground">{member?.display_name || entry.username}</span>
                                 </div>
                                 {pick && (
-                                  <span className="text-xs font-medium text-green-600 dark:text-green-400">
+                                  <span className="text-xs font-medium text-success-foreground">
                                     Slot #{pick.selected_slot}
                                   </span>
                                 )}
@@ -571,17 +571,17 @@ export default function LeagueDetailPage() {
               })()}
 
               {(activeDraft.metadata?.derby as any)?.status !== 'active' && (Object.keys(activeDraft.draft_order ?? {}).length > 0 || shuffleDisplay) && (
-                <div className="rounded-lg border border-gray-200 dark:border-gray-600">
+                <div className="rounded-lg border border-border">
                   <button
                     type="button"
                     onClick={() => setIsDraftOrderExpanded(!isDraftOrderExpanded)}
-                    className="flex w-full items-center justify-between px-4 py-3 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50 rounded-lg"
+                    className="flex w-full items-center justify-between px-4 py-3 text-sm font-medium text-accent-foreground hover:bg-accent rounded-lg"
                   >
                     <span>Draft Order ({Object.keys(activeDraft.draft_order ?? {}).length} teams)</span>
                     <ChevronDown className={`h-4 w-4 transition-transform ${isDraftOrderExpanded ? 'rotate-180' : ''}`} />
                   </button>
                   {isDraftOrderExpanded && (
-                    <div className="border-t border-gray-200 dark:border-gray-600 px-4 py-3">
+                    <div className="border-t border-border px-4 py-3">
                       <ol className="space-y-1">
                         {(shuffleDisplay
                           ? shuffleDisplay.displayUserIds.map((userId, index) => ({
@@ -599,11 +599,11 @@ export default function LeagueDetailPage() {
                               key={`slot-${slot}`}
                               className={`flex items-center gap-2 text-sm transition-colors duration-150 ${
                                 isLocked
-                                  ? 'text-gray-900 dark:text-white font-medium'
-                                  : 'text-gray-400 dark:text-gray-500'
+                                  ? 'text-foreground font-medium'
+                                  : 'text-disabled'
                               }`}
                             >
-                              <span className="w-6 text-right font-medium text-gray-500 dark:text-gray-400">{slot}.</span>
+                              <span className="w-6 text-right font-medium text-muted-foreground">{slot}.</span>
                               <span>{member?.display_name || member?.username || 'Unknown'}</span>
                             </li>
                           );
@@ -617,16 +617,16 @@ export default function LeagueDetailPage() {
           ) : (
             <div className="text-center py-4">
               {completedDrafts.length === 0 && (
-                <p className="mb-3 text-gray-500 dark:text-gray-400">No draft has been created yet.</p>
+                <p className="mb-3 text-muted-foreground">No draft has been created yet.</p>
               )}
               {completedDrafts.length > 0 && (
-                <p className="mb-3 text-gray-500 dark:text-gray-400">No active draft.</p>
+                <p className="mb-3 text-muted-foreground">No active draft.</p>
               )}
               {isCommissioner && (
                 <button
                   onClick={handleCreateDraft}
                   disabled={isCreatingDraft}
-                  className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+                  className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary-hover disabled:opacity-50"
                 >
                   {isCreatingDraft ? 'Creating...' : 'Create Draft'}
                 </button>
@@ -635,20 +635,20 @@ export default function LeagueDetailPage() {
           )}
 
           {completedDrafts.length > 0 && (
-            <div className="mt-4 border-t border-gray-200 dark:border-gray-700 pt-4">
-              <h3 className="mb-3 text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Completed Drafts</h3>
+            <div className="mt-4 border-t border-border pt-4">
+              <h3 className="mb-3 text-sm font-semibold text-muted-foreground uppercase tracking-wide">Completed Drafts</h3>
               <div className="space-y-2">
                 {completedDrafts.map((draft) => (
                   <div
                     key={draft.id}
-                    className="flex items-center justify-between rounded border border-gray-200 dark:border-gray-700 p-3"
+                    className="flex items-center justify-between rounded border border-border p-3"
                   >
                     <div className="flex items-center gap-3">
                       <div>
-                        <p className="font-medium text-gray-900 dark:text-white">
+                        <p className="font-medium text-foreground">
                           {draftTypeLabels[draft.type] || draft.type} &middot; {draft.season}
                         </p>
-                        <p className="text-sm text-gray-500 dark:text-gray-400">
+                        <p className="text-sm text-muted-foreground">
                           {draft.settings.rounds} rounds
                         </p>
                       </div>
@@ -659,7 +659,7 @@ export default function LeagueDetailPage() {
                       </span>
                       <button
                         onClick={() => router.push(`/leagues/${leagueId}/draft`)}
-                        className="rounded-lg bg-gray-100 dark:bg-gray-700 px-3 py-1.5 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
+                        className="rounded-lg bg-muted px-3 py-1.5 text-sm font-medium text-accent-foreground hover:bg-muted-hover"
                       >
                         View Results
                       </button>
@@ -673,14 +673,14 @@ export default function LeagueDetailPage() {
 
         {/* Matchups Card */}
         {(league.status === 'in_season' || league.status === 'complete') && (
-          <div className="rounded-lg bg-white dark:bg-gray-800 p-6 shadow">
+          <div className="rounded-lg bg-card p-6 shadow">
             <div className="mb-4 flex items-center justify-between">
-              <h2 className="text-xl font-bold text-gray-900 dark:text-white">Matchups</h2>
+              <h2 className="text-xl font-bold text-foreground">Matchups</h2>
               {isCommissioner && league.status === 'in_season' && (
                 <button
                   onClick={handleGenerateMatchups}
                   disabled={isGeneratingMatchups}
-                  className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+                  className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary-hover disabled:opacity-50"
                 >
                   {isGeneratingMatchups
                     ? 'Generating...'
@@ -703,8 +703,8 @@ export default function LeagueDetailPage() {
                         onClick={() => setSelectedWeek(week)}
                         className={`rounded-full px-3 py-1 text-sm font-medium whitespace-nowrap ${
                           selectedWeek === week
-                            ? 'bg-blue-600 text-white'
-                            : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
+                            ? 'bg-primary text-primary-foreground'
+                            : 'bg-muted text-accent-foreground hover:bg-muted-hover'
                         }`}
                       >
                         Wk {week}
@@ -742,13 +742,13 @@ export default function LeagueDetailPage() {
                         {Object.values(grouped).map((pair) => (
                           <div
                             key={pair[0].id}
-                            className="flex items-center justify-between rounded border border-gray-200 dark:border-gray-700 p-3"
+                            className="flex items-center justify-between rounded border border-border p-3"
                           >
-                            <span className="font-medium text-gray-900 dark:text-white">
+                            <span className="font-medium text-foreground">
                               {getRosterLabel(pair[0].roster_id)}
                             </span>
-                            <span className="text-sm text-gray-400">vs</span>
-                            <span className="font-medium text-gray-900 dark:text-white">
+                            <span className="text-sm text-disabled">vs</span>
+                            <span className="font-medium text-foreground">
                               {pair[1] ? getRosterLabel(pair[1].roster_id) : 'BYE'}
                             </span>
                           </div>
@@ -756,12 +756,12 @@ export default function LeagueDetailPage() {
                         {byes.map((bye) => (
                           <div
                             key={bye.id}
-                            className="flex items-center justify-between rounded border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 p-3"
+                            className="flex items-center justify-between rounded border border-border bg-surface p-3"
                           >
-                            <span className="font-medium text-gray-900 dark:text-white">
+                            <span className="font-medium text-foreground">
                               {getRosterLabel(bye.roster_id)}
                             </span>
-                            <span className="text-sm italic text-gray-400">BYE</span>
+                            <span className="text-sm italic text-disabled">BYE</span>
                           </div>
                         ))}
                       </>
@@ -770,7 +770,7 @@ export default function LeagueDetailPage() {
                 </div>
               </div>
             ) : (
-              <p className="py-4 text-center text-gray-500 dark:text-gray-400">
+              <p className="py-4 text-center text-muted-foreground">
                 {isCommissioner
                   ? 'No matchups generated yet. Click the button above to generate the schedule.'
                   : 'No matchups have been generated yet.'}
@@ -782,13 +782,13 @@ export default function LeagueDetailPage() {
         {/* Trades Card - always visible for draft pick trading */}
         <button
           onClick={() => router.push(`/leagues/${leagueId}/trades`)}
-          className="w-full rounded-lg bg-white dark:bg-gray-800 p-6 shadow hover:shadow-md transition-shadow text-left"
+          className="w-full rounded-lg bg-card p-6 shadow hover:shadow-md transition-shadow text-left"
         >
           <div className="flex items-center gap-3 mb-2">
-            <ArrowLeftRight className="h-5 w-5 text-blue-600" />
-            <h3 className="text-lg font-bold text-gray-900 dark:text-white">Trades</h3>
+            <ArrowLeftRight className="h-5 w-5 text-link" />
+            <h3 className="text-lg font-bold text-foreground">Trades</h3>
           </div>
-          <p className="text-sm text-gray-500 dark:text-gray-400">Trade draft picks and manage trades with other teams</p>
+          <p className="text-sm text-muted-foreground">Trade draft picks and manage trades with other teams</p>
         </button>
 
         {/* Waivers & Activity Cards - only during/after season */}
@@ -796,31 +796,31 @@ export default function LeagueDetailPage() {
           <div className="grid gap-4 sm:grid-cols-2">
             <button
               onClick={() => router.push(`/leagues/${leagueId}/waivers`)}
-              className="rounded-lg bg-white dark:bg-gray-800 p-6 shadow hover:shadow-md transition-shadow text-left"
+              className="rounded-lg bg-card p-6 shadow hover:shadow-md transition-shadow text-left"
             >
               <div className="flex items-center gap-3 mb-2">
-                <ClipboardList className="h-5 w-5 text-purple-600" />
-                <h3 className="text-lg font-bold text-gray-900 dark:text-white">Waivers</h3>
+                <ClipboardList className="h-5 w-5 text-info-foreground" />
+                <h3 className="text-lg font-bold text-foreground">Waivers</h3>
               </div>
-              <p className="text-sm text-gray-500 dark:text-gray-400">Add free agents and manage waiver claims</p>
+              <p className="text-sm text-muted-foreground">Add free agents and manage waiver claims</p>
             </button>
 
             <button
               onClick={() => router.push(`/leagues/${leagueId}/transactions`)}
-              className="rounded-lg bg-white dark:bg-gray-800 p-6 shadow hover:shadow-md transition-shadow text-left"
+              className="rounded-lg bg-card p-6 shadow hover:shadow-md transition-shadow text-left"
             >
               <div className="flex items-center gap-3 mb-2">
-                <Activity className="h-5 w-5 text-green-600" />
-                <h3 className="text-lg font-bold text-gray-900 dark:text-white">Activity</h3>
+                <Activity className="h-5 w-5 text-success-foreground" />
+                <h3 className="text-lg font-bold text-foreground">Activity</h3>
               </div>
-              <p className="text-sm text-gray-500 dark:text-gray-400">View all trades, waivers, and roster moves</p>
+              <p className="text-sm text-muted-foreground">View all trades, waivers, and roster moves</p>
             </button>
           </div>
         )}
 
         {/* Members List */}
-        <div className="rounded-lg bg-white dark:bg-gray-800 p-6 shadow">
-          <h2 className="mb-4 text-xl font-bold text-gray-900 dark:text-white">
+        <div className="rounded-lg bg-card p-6 shadow">
+          <h2 className="mb-4 text-xl font-bold text-foreground">
             Members ({members.length}/{league.total_rosters})
           </h2>
 
@@ -828,19 +828,19 @@ export default function LeagueDetailPage() {
             {members.map((member) => (
               <div
                 key={member.id}
-                className="flex items-center justify-between rounded border border-gray-200 dark:border-gray-700 p-3"
+                className="flex items-center justify-between rounded border border-border p-3"
               >
                 <div>
-                  <p className="font-medium text-gray-900 dark:text-white">{member.username}</p>
+                  <p className="font-medium text-foreground">{member.username}</p>
                   {member.display_name && (
-                    <p className="text-sm text-gray-500 dark:text-gray-400">{member.display_name}</p>
+                    <p className="text-sm text-muted-foreground">{member.display_name}</p>
                   )}
                 </div>
                 <div className="flex items-center gap-2">
                   {member.user_id !== user?.id && (
                     <button
                       onClick={() => handleStartDM(member.user_id)}
-                      className="rounded p-1.5 text-gray-400 hover:bg-gray-100 hover:text-blue-600 dark:hover:bg-gray-700 dark:hover:text-blue-400"
+                      className="rounded p-1.5 text-disabled hover:bg-muted hover:text-link"
                       title={`Message ${member.username}`}
                     >
                       <MessageSquare className="h-4 w-4" />
@@ -888,15 +888,15 @@ export default function LeagueDetailPage() {
       {/* Re-randomize Confirmation Dialog */}
       {showReRandomizeConfirm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="rounded-lg bg-white dark:bg-gray-800 p-6 shadow-xl max-w-sm w-full">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">Confirm Action</h3>
-            <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+          <div className="rounded-lg bg-card p-6 shadow-xl max-w-sm w-full">
+            <h3 className="text-lg font-semibold text-foreground mb-2">Confirm Action</h3>
+            <p className="text-sm text-muted-foreground mb-4">
               Draft order is already set. Are you sure you want to re-randomize?
             </p>
             <div className="flex justify-end gap-3">
               <button
                 onClick={() => setShowReRandomizeConfirm(false)}
-                className="rounded-lg bg-gray-200 dark:bg-gray-700 px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600"
+                className="rounded-lg bg-muted-hover px-4 py-2 text-sm font-medium text-accent-foreground hover:bg-muted-hover"
               >
                 Cancel
               </button>
@@ -905,7 +905,7 @@ export default function LeagueDetailPage() {
                   setShowReRandomizeConfirm(false);
                   handleRandomizeDraftOrder();
                 }}
-                className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+                className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary-hover"
               >
                 Re-randomize
               </button>

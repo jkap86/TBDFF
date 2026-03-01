@@ -194,64 +194,64 @@ export function DraftSettingsForm({ draft, onSave, onSaveSuccess, readOnly }: Dr
     return (
       <div className="space-y-4">
         <div>
-          <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Draft Format</h3>
+          <h3 className="text-sm font-semibold text-accent-foreground mb-2">Draft Format</h3>
           <div className="grid grid-cols-2 gap-x-6 gap-y-1 text-sm">
-            <div className="text-gray-500 dark:text-gray-400">Type</div>
-            <div className="font-medium text-gray-900 dark:text-white">{DRAFT_TYPE_OPTIONS.find((o) => o.value === draft.type)?.label}</div>
-            <div className="text-gray-500 dark:text-gray-400">Rounds</div>
-            <div className="font-medium text-gray-900 dark:text-white">{draft.settings.rounds}</div>
+            <div className="text-muted-foreground">Type</div>
+            <div className="font-medium text-foreground">{DRAFT_TYPE_OPTIONS.find((o) => o.value === draft.type)?.label}</div>
+            <div className="text-muted-foreground">Rounds</div>
+            <div className="font-medium text-foreground">{draft.settings.rounds}</div>
             {draft.type !== 'slow_auction' && (
               <>
-                <div className="text-gray-500 dark:text-gray-400">Draft Order</div>
-                <div className="font-medium text-gray-900 dark:text-white capitalize">{draft.metadata?.order_method ?? 'randomize'}</div>
+                <div className="text-muted-foreground">Draft Order</div>
+                <div className="font-medium text-foreground capitalize">{draft.metadata?.order_method ?? 'randomize'}</div>
               </>
             )}
             {(draft.metadata?.order_method ?? 'randomize') === 'derby' && (
               <>
-                <div className="text-gray-500 dark:text-gray-400">Derby Timer</div>
-                <div className="font-medium text-gray-900 dark:text-white">{formatTimer(draft.settings.derby_timer ?? 60)}</div>
-                <div className="text-gray-500 dark:text-gray-400">Timer Expiry</div>
-                <div className="font-medium text-gray-900 dark:text-white">
+                <div className="text-muted-foreground">Derby Timer</div>
+                <div className="font-medium text-foreground">{formatTimer(draft.settings.derby_timer ?? 60)}</div>
+                <div className="text-muted-foreground">Timer Expiry</div>
+                <div className="font-medium text-foreground">
                   {(draft.settings.derby_timeout_action ?? 0) === 0 ? 'Autopick' : 'Skip'}
                 </div>
               </>
             )}
             {draft.type !== 'auction' && draft.type !== 'slow_auction' && (
               <>
-                <div className="text-gray-500 dark:text-gray-400">Pick Timer</div>
-                <div className="font-medium text-gray-900 dark:text-white">{formatTimer(draft.settings.pick_timer)}</div>
+                <div className="text-muted-foreground">Pick Timer</div>
+                <div className="font-medium text-foreground">{formatTimer(draft.settings.pick_timer)}</div>
               </>
             )}
             {draft.type === 'auction' && (
               <>
-                <div className="text-gray-500 dark:text-gray-400">Max Players / Team</div>
-                <div className="font-medium text-gray-900 dark:text-white">
+                <div className="text-muted-foreground">Max Players / Team</div>
+                <div className="font-medium text-foreground">
                   {draft.settings.max_players_per_team ? draft.settings.max_players_per_team : `${draft.settings.rounds} (same as rounds)`}
                 </div>
-                <div className="text-gray-500 dark:text-gray-400">Offering Timer</div>
-                <div className="font-medium text-gray-900 dark:text-white">{formatTimer(draft.settings.offering_timer ?? 120)}</div>
-                <div className="text-gray-500 dark:text-gray-400">Bid Timer</div>
-                <div className="font-medium text-gray-900 dark:text-white">{formatTimer(draft.settings.nomination_timer)}</div>
-                <div className="text-gray-500 dark:text-gray-400">Budget</div>
-                <div className="font-medium text-gray-900 dark:text-white">${draft.settings.budget}</div>
+                <div className="text-muted-foreground">Offering Timer</div>
+                <div className="font-medium text-foreground">{formatTimer(draft.settings.offering_timer ?? 120)}</div>
+                <div className="text-muted-foreground">Bid Timer</div>
+                <div className="font-medium text-foreground">{formatTimer(draft.settings.nomination_timer)}</div>
+                <div className="text-muted-foreground">Budget</div>
+                <div className="font-medium text-foreground">${draft.settings.budget}</div>
               </>
             )}
             {draft.type === 'slow_auction' && (
               <>
-                <div className="text-gray-500 dark:text-gray-400">Budget</div>
-                <div className="font-medium text-gray-900 dark:text-white">${draft.settings.budget}</div>
-                <div className="text-gray-500 dark:text-gray-400">Bid Window</div>
-                <div className="font-medium text-gray-900 dark:text-white">{(draft.settings.bid_window_seconds ?? 43200) / 3600}h</div>
-                <div className="text-gray-500 dark:text-gray-400">Max Noms / Team</div>
-                <div className="font-medium text-gray-900 dark:text-white">{draft.settings.max_nominations_per_team ?? 2}</div>
-                <div className="text-gray-500 dark:text-gray-400">Max Active Global</div>
-                <div className="font-medium text-gray-900 dark:text-white">{draft.settings.max_nominations_global ?? 25}</div>
-                <div className="text-gray-500 dark:text-gray-400">Min Bid</div>
-                <div className="font-medium text-gray-900 dark:text-white">${draft.settings.min_bid ?? 1}</div>
+                <div className="text-muted-foreground">Budget</div>
+                <div className="font-medium text-foreground">${draft.settings.budget}</div>
+                <div className="text-muted-foreground">Bid Window</div>
+                <div className="font-medium text-foreground">{(draft.settings.bid_window_seconds ?? 43200) / 3600}h</div>
+                <div className="text-muted-foreground">Max Noms / Team</div>
+                <div className="font-medium text-foreground">{draft.settings.max_nominations_per_team ?? 2}</div>
+                <div className="text-muted-foreground">Max Active Global</div>
+                <div className="font-medium text-foreground">{draft.settings.max_nominations_global ?? 25}</div>
+                <div className="text-muted-foreground">Min Bid</div>
+                <div className="font-medium text-foreground">${draft.settings.min_bid ?? 1}</div>
                 {(draft.settings.max_lot_duration_seconds ?? 0) > 0 && (
                   <>
-                    <div className="text-gray-500 dark:text-gray-400">Max Lot Duration</div>
-                    <div className="font-medium text-gray-900 dark:text-white">
+                    <div className="text-muted-foreground">Max Lot Duration</div>
+                    <div className="font-medium text-foreground">
                       {Math.round((draft.settings.max_lot_duration_seconds ?? 0) / 86400)} days
                     </div>
                   </>
@@ -269,15 +269,15 @@ export function DraftSettingsForm({ draft, onSave, onSaveSuccess, readOnly }: Dr
     <div className="space-y-5">
       {/* Draft Format */}
       <div>
-        <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">Draft Format</h3>
+        <h3 className="text-sm font-semibold text-accent-foreground mb-3">Draft Format</h3>
         <div className="space-y-3">
           {/* Type */}
           <div>
-            <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Type</label>
+            <label className="block text-xs font-medium text-muted-foreground mb-1">Type</label>
             <select
               value={draftType}
               onChange={(e) => setDraftType(e.target.value as DraftType)}
-              className="rounded-lg border border-gray-300 dark:border-gray-600 px-3 py-2 text-sm text-gray-900 dark:text-white dark:bg-gray-700 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              className="rounded-lg border border-input px-3 py-2 text-sm text-foreground bg-card focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
             >
               {DRAFT_TYPE_OPTIONS.map((opt) => (
                 <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -287,21 +287,21 @@ export function DraftSettingsForm({ draft, onSave, onSaveSuccess, readOnly }: Dr
 
           {/* Rounds */}
           <div>
-            <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Rounds</label>
+            <label className="block text-xs font-medium text-muted-foreground mb-1">Rounds</label>
             <input
               type="number"
               value={rounds}
               onChange={(e) => setRounds(Math.max(1, Math.min(50, parseInt(e.target.value) || 1)))}
               min={1}
               max={50}
-              className="w-20 rounded-lg border border-gray-300 dark:border-gray-600 px-3 py-2 text-sm text-gray-900 dark:text-white dark:bg-gray-700 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              className="w-20 rounded-lg border border-input px-3 py-2 text-sm text-foreground bg-card focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
             />
           </div>
 
           {/* Draft Order Method (non-slow_auction only) */}
           {!isSlowAuction && (
             <div>
-              <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Draft Order</label>
+              <label className="block text-xs font-medium text-muted-foreground mb-1">Draft Order</label>
               <div className="flex gap-1.5">
                 {([
                   { value: 'randomize' as const, label: 'Randomize' },
@@ -313,8 +313,8 @@ export function DraftSettingsForm({ draft, onSave, onSaveSuccess, readOnly }: Dr
                     onClick={() => setOrderMethod(opt.value)}
                     className={`rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors ${
                       orderMethod === opt.value
-                        ? 'border-blue-300 bg-blue-100 text-blue-700'
-                        : 'border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
+                        ? 'bg-primary text-primary-foreground ring-2 ring-ring'
+                        : 'bg-muted text-accent-foreground hover:bg-muted-hover'
                     }`}
                   >
                     {opt.label}
@@ -328,7 +328,7 @@ export function DraftSettingsForm({ draft, onSave, onSaveSuccess, readOnly }: Dr
           {orderMethod === 'derby' && !isSlowAuction && (
             <>
               <div>
-                <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Derby Pick Timer</label>
+                <label className="block text-xs font-medium text-muted-foreground mb-1">Derby Pick Timer</label>
                 <div className="flex flex-wrap gap-1.5">
                   {DERBY_TIMER_PRESETS.map((preset) => (
                     <button
@@ -337,8 +337,8 @@ export function DraftSettingsForm({ draft, onSave, onSaveSuccess, readOnly }: Dr
                       onClick={() => { setDerbyTimer(preset.value); setCustomDerbyTimer(''); }}
                       className={`rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors ${
                         derbyTimer === preset.value && isPresetDerbyTimer
-                          ? 'border-blue-300 bg-blue-100 text-blue-700'
-                          : 'border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
+                          ? 'bg-primary text-primary-foreground ring-2 ring-ring'
+                          : 'bg-muted text-accent-foreground hover:bg-muted-hover'
                       }`}
                     >
                       {preset.label}
@@ -356,14 +356,14 @@ export function DraftSettingsForm({ draft, onSave, onSaveSuccess, readOnly }: Dr
                       placeholder="Custom"
                       min={5}
                       max={86400}
-                      className="w-20 rounded-lg border border-gray-300 dark:border-gray-600 px-3 py-1.5 text-xs text-gray-900 dark:text-white dark:bg-gray-700 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                      className="w-20 rounded-lg border border-input px-3 py-1.5 text-xs text-foreground bg-card focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
                     />
-                    <span className="text-xs text-gray-400 dark:text-gray-500">sec</span>
+                    <span className="text-xs text-disabled">sec</span>
                   </div>
                 </div>
               </div>
               <div>
-                <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Timer Expiry Action</label>
+                <label className="block text-xs font-medium text-muted-foreground mb-1">Timer Expiry Action</label>
                 <div className="flex gap-1.5">
                   {([
                     { value: 0, label: 'Autopick' },
@@ -375,15 +375,15 @@ export function DraftSettingsForm({ draft, onSave, onSaveSuccess, readOnly }: Dr
                       onClick={() => setDerbyTimeoutAction(opt.value)}
                       className={`rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors ${
                         derbyTimeoutAction === opt.value
-                          ? 'border-blue-300 bg-blue-100 text-blue-700'
-                          : 'border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
+                          ? 'bg-primary text-primary-foreground ring-2 ring-ring'
+                          : 'bg-muted text-accent-foreground hover:bg-muted-hover'
                       }`}
                     >
                       {opt.label}
                     </button>
                   ))}
                 </div>
-                <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
+                <p className="text-xs text-disabled mt-1">
                   {derbyTimeoutAction === 0
                     ? 'Random slot assigned when timer expires'
                     : 'User is skipped and can pick later at any time'}
@@ -395,7 +395,7 @@ export function DraftSettingsForm({ draft, onSave, onSaveSuccess, readOnly }: Dr
           {/* Max Players Per Team (any auction) */}
           {isAnyAuction && (
             <div>
-              <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Max Players / Team</label>
+              <label className="block text-xs font-medium text-muted-foreground mb-1">Max Players / Team</label>
               <div className="flex items-center gap-2">
                 <input
                   type="number"
@@ -403,16 +403,16 @@ export function DraftSettingsForm({ draft, onSave, onSaveSuccess, readOnly }: Dr
                   onChange={(e) => setMaxPlayersPerTeam(Math.max(0, Math.min(50, parseInt(e.target.value) || 0)))}
                   min={0}
                   max={50}
-                  className="w-20 rounded-lg border border-gray-300 dark:border-gray-600 px-3 py-2 text-sm text-gray-900 dark:text-white dark:bg-gray-700 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  className="w-20 rounded-lg border border-input px-3 py-2 text-sm text-foreground bg-card focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
                 />
-                <span className="text-xs text-gray-400 dark:text-gray-500">0 = same as rounds</span>
+                <span className="text-xs text-disabled">0 = same as rounds</span>
               </div>
             </div>
           )}
 
           {/* Pick Timer (non-auction only) */}
           {!isAnyAuction && <div>
-            <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Pick Timer</label>
+            <label className="block text-xs font-medium text-muted-foreground mb-1">Pick Timer</label>
             <div className="flex flex-wrap gap-1.5">
               {PICK_TIMER_PRESETS.map((preset) => (
                 <button
@@ -421,8 +421,8 @@ export function DraftSettingsForm({ draft, onSave, onSaveSuccess, readOnly }: Dr
                   onClick={() => { setPickTimer(preset.value); setCustomTimer(''); }}
                   className={`rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors ${
                     pickTimer === preset.value
-                      ? 'border-blue-300 bg-blue-100 text-blue-700'
-                      : 'border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
+                      ? 'bg-primary text-primary-foreground ring-2 ring-ring'
+                      : 'bg-muted text-accent-foreground hover:bg-muted-hover'
                   }`}
                 >
                   {preset.label}
@@ -440,9 +440,9 @@ export function DraftSettingsForm({ draft, onSave, onSaveSuccess, readOnly }: Dr
                   placeholder="Custom"
                   min={0}
                   max={86400}
-                  className="w-20 rounded-lg border border-gray-300 dark:border-gray-600 px-2 py-1.5 text-xs text-gray-900 dark:text-white dark:bg-gray-700 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  className="w-20 rounded-lg border border-input px-2 py-1.5 text-xs text-foreground bg-card focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
                 />
-                <span className="text-xs text-gray-400 dark:text-gray-500">sec</span>
+                <span className="text-xs text-disabled">sec</span>
               </div>
             </div>
           </div>}
@@ -450,7 +450,7 @@ export function DraftSettingsForm({ draft, onSave, onSaveSuccess, readOnly }: Dr
           {/* Offering Timer (auction only) */}
           {isAuction && (
             <div>
-              <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Offering Timer</label>
+              <label className="block text-xs font-medium text-muted-foreground mb-1">Offering Timer</label>
               <div className="flex flex-wrap gap-1.5">
                 {OFFERING_TIMER_PRESETS.map((preset) => (
                   <button
@@ -459,8 +459,8 @@ export function DraftSettingsForm({ draft, onSave, onSaveSuccess, readOnly }: Dr
                     onClick={() => { setOfferingTimer(preset.value); setCustomOfferingTimer(''); }}
                     className={`rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors ${
                       offeringTimer === preset.value
-                        ? 'border-blue-300 bg-blue-100 text-blue-700'
-                        : 'border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
+                        ? 'bg-primary text-primary-foreground ring-2 ring-ring'
+                        : 'bg-muted text-accent-foreground hover:bg-muted-hover'
                     }`}
                   >
                     {preset.label}
@@ -478,9 +478,9 @@ export function DraftSettingsForm({ draft, onSave, onSaveSuccess, readOnly }: Dr
                     placeholder="Custom"
                     min={0}
                     max={86400}
-                    className="w-20 rounded-lg border border-gray-300 dark:border-gray-600 px-2 py-1.5 text-xs text-gray-900 dark:text-white dark:bg-gray-700 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    className="w-20 rounded-lg border border-input px-2 py-1.5 text-xs text-foreground bg-card focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
                   />
-                  <span className="text-xs text-gray-400 dark:text-gray-500">sec</span>
+                  <span className="text-xs text-disabled">sec</span>
                 </div>
               </div>
             </div>
@@ -489,7 +489,7 @@ export function DraftSettingsForm({ draft, onSave, onSaveSuccess, readOnly }: Dr
           {/* Bid Timer (auction only) */}
           {isAuction && (
             <div>
-              <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Bid Timer</label>
+              <label className="block text-xs font-medium text-muted-foreground mb-1">Bid Timer</label>
               <div className="flex flex-wrap gap-1.5">
                 {NOMINATION_TIMER_PRESETS.map((preset) => (
                   <button
@@ -498,8 +498,8 @@ export function DraftSettingsForm({ draft, onSave, onSaveSuccess, readOnly }: Dr
                     onClick={() => { setNominationTimer(preset.value); setCustomNomTimer(''); }}
                     className={`rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors ${
                       nominationTimer === preset.value
-                        ? 'border-blue-300 bg-blue-100 text-blue-700'
-                        : 'border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
+                        ? 'bg-primary text-primary-foreground ring-2 ring-ring'
+                        : 'bg-muted text-accent-foreground hover:bg-muted-hover'
                     }`}
                   >
                     {preset.label}
@@ -517,9 +517,9 @@ export function DraftSettingsForm({ draft, onSave, onSaveSuccess, readOnly }: Dr
                     placeholder="Custom"
                     min={0}
                     max={86400}
-                    className="w-20 rounded-lg border border-gray-300 dark:border-gray-600 px-2 py-1.5 text-xs text-gray-900 dark:text-white dark:bg-gray-700 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    className="w-20 rounded-lg border border-input px-2 py-1.5 text-xs text-foreground bg-card focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
                   />
-                  <span className="text-xs text-gray-400 dark:text-gray-500">sec</span>
+                  <span className="text-xs text-disabled">sec</span>
                 </div>
               </div>
             </div>
@@ -528,16 +528,16 @@ export function DraftSettingsForm({ draft, onSave, onSaveSuccess, readOnly }: Dr
           {/* Budget (any auction) */}
           {isAnyAuction && (
             <div>
-              <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Auction Budget</label>
+              <label className="block text-xs font-medium text-muted-foreground mb-1">Auction Budget</label>
               <div className="flex items-center gap-1">
-                <span className="text-sm text-gray-500 dark:text-gray-400">$</span>
+                <span className="text-sm text-muted-foreground">$</span>
                 <input
                   type="number"
                   value={budget}
                   onChange={(e) => setBudget(Math.max(1, Math.min(9999, parseInt(e.target.value) || 1)))}
                   min={1}
                   max={9999}
-                  className="w-24 rounded-lg border border-gray-300 dark:border-gray-600 px-3 py-2 text-sm text-gray-900 dark:text-white dark:bg-gray-700 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  className="w-24 rounded-lg border border-input px-3 py-2 text-sm text-foreground bg-card focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
                 />
               </div>
             </div>
@@ -547,7 +547,7 @@ export function DraftSettingsForm({ draft, onSave, onSaveSuccess, readOnly }: Dr
           {isSlowAuction && (
             <>
               <div>
-                <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Bid Window</label>
+                <label className="block text-xs font-medium text-muted-foreground mb-1">Bid Window</label>
                 <div className="flex flex-wrap gap-1.5">
                   {BID_WINDOW_PRESETS.map((preset) => (
                     <button
@@ -556,44 +556,44 @@ export function DraftSettingsForm({ draft, onSave, onSaveSuccess, readOnly }: Dr
                       onClick={() => setBidWindowSeconds(preset.value)}
                       className={`rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors ${
                         bidWindowSeconds === preset.value
-                          ? 'border-blue-300 bg-blue-100 text-blue-700'
-                          : 'border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
+                          ? 'bg-primary text-primary-foreground ring-2 ring-ring'
+                          : 'bg-muted text-accent-foreground hover:bg-muted-hover'
                       }`}
                     >
                       {preset.label}
                     </button>
                   ))}
                   {!isPresetBidWindow && (
-                    <span className="text-xs text-gray-500 self-center">{Math.round(bidWindowSeconds / 3600)}h</span>
+                    <span className="text-xs text-muted-foreground self-center">{Math.round(bidWindowSeconds / 3600)}h</span>
                   )}
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Max Noms / Team</label>
+                  <label className="block text-xs font-medium text-muted-foreground mb-1">Max Noms / Team</label>
                   <input
                     type="number"
                     value={maxNominationsPerTeam}
                     onChange={(e) => setMaxNominationsPerTeam(Math.max(1, Math.min(50, parseInt(e.target.value) || 1)))}
                     min={1}
                     max={50}
-                    className="w-20 rounded-lg border border-gray-300 dark:border-gray-600 px-3 py-2 text-sm text-gray-900 dark:text-white dark:bg-gray-700 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    className="w-20 rounded-lg border border-input px-3 py-2 text-sm text-foreground bg-card focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Max Active Global</label>
+                  <label className="block text-xs font-medium text-muted-foreground mb-1">Max Active Global</label>
                   <input
                     type="number"
                     value={maxNominationsGlobal}
                     onChange={(e) => setMaxNominationsGlobal(Math.max(1, Math.min(200, parseInt(e.target.value) || 1)))}
                     min={1}
                     max={200}
-                    className="w-20 rounded-lg border border-gray-300 dark:border-gray-600 px-3 py-2 text-sm text-gray-900 dark:text-white dark:bg-gray-700 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    className="w-20 rounded-lg border border-input px-3 py-2 text-sm text-foreground bg-card focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Daily Nom Limit</label>
+                  <label className="block text-xs font-medium text-muted-foreground mb-1">Daily Nom Limit</label>
                   <div className="flex items-center gap-2">
                     <input
                       type="number"
@@ -601,43 +601,43 @@ export function DraftSettingsForm({ draft, onSave, onSaveSuccess, readOnly }: Dr
                       onChange={(e) => setDailyNominationLimit(Math.max(0, Math.min(100, parseInt(e.target.value) || 0)))}
                       min={0}
                       max={100}
-                      className="w-20 rounded-lg border border-gray-300 dark:border-gray-600 px-3 py-2 text-sm text-gray-900 dark:text-white dark:bg-gray-700 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                      className="w-20 rounded-lg border border-input px-3 py-2 text-sm text-foreground bg-card focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
                     />
-                    <span className="text-xs text-gray-400 dark:text-gray-500">0 = unlimited</span>
+                    <span className="text-xs text-disabled">0 = unlimited</span>
                   </div>
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Min Bid</label>
+                  <label className="block text-xs font-medium text-muted-foreground mb-1">Min Bid</label>
                   <div className="flex items-center gap-1">
-                    <span className="text-sm text-gray-500 dark:text-gray-400">$</span>
+                    <span className="text-sm text-muted-foreground">$</span>
                     <input
                       type="number"
                       value={minBid}
                       onChange={(e) => setMinBid(Math.max(1, Math.min(999, parseInt(e.target.value) || 1)))}
                       min={1}
                       max={999}
-                      className="w-20 rounded-lg border border-gray-300 dark:border-gray-600 px-3 py-2 text-sm text-gray-900 dark:text-white dark:bg-gray-700 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                      className="w-20 rounded-lg border border-input px-3 py-2 text-sm text-foreground bg-card focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
                     />
                   </div>
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Min Increment</label>
+                  <label className="block text-xs font-medium text-muted-foreground mb-1">Min Increment</label>
                   <div className="flex items-center gap-1">
-                    <span className="text-sm text-gray-500 dark:text-gray-400">$</span>
+                    <span className="text-sm text-muted-foreground">$</span>
                     <input
                       type="number"
                       value={minIncrement}
                       onChange={(e) => setMinIncrement(Math.max(1, Math.min(100, parseInt(e.target.value) || 1)))}
                       min={1}
                       max={100}
-                      className="w-20 rounded-lg border border-gray-300 dark:border-gray-600 px-3 py-2 text-sm text-gray-900 dark:text-white dark:bg-gray-700 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                      className="w-20 rounded-lg border border-input px-3 py-2 text-sm text-foreground bg-card focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
                     />
                   </div>
                 </div>
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Max Lot Duration</label>
+                <label className="block text-xs font-medium text-muted-foreground mb-1">Max Lot Duration</label>
                 <div className="flex flex-wrap gap-1.5">
                   {MAX_LOT_DURATION_PRESETS.map((preset) => (
                     <button
@@ -646,15 +646,15 @@ export function DraftSettingsForm({ draft, onSave, onSaveSuccess, readOnly }: Dr
                       onClick={() => setMaxLotDurationSeconds(preset.value)}
                       className={`rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors ${
                         maxLotDurationSeconds === preset.value
-                          ? 'border-blue-300 bg-blue-100 text-blue-700'
-                          : 'border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
+                          ? 'bg-primary text-primary-foreground ring-2 ring-ring'
+                          : 'bg-muted text-accent-foreground hover:bg-muted-hover'
                       }`}
                     >
                       {preset.label}
                     </button>
                   ))}
                 </div>
-                <span className="text-xs text-gray-400 dark:text-gray-500 mt-1 block">
+                <span className="text-xs text-disabled mt-1 block">
                   0 = lots can extend indefinitely
                 </span>
               </div>
@@ -665,13 +665,13 @@ export function DraftSettingsForm({ draft, onSave, onSaveSuccess, readOnly }: Dr
 
       {/* Error + Save */}
       {error && (
-        <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
+        <p className="text-sm text-destructive-foreground">{error}</p>
       )}
       <button
         type="button"
         onClick={handleSave}
         disabled={isSaving}
-        className="rounded-lg bg-blue-600 px-5 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+        className="rounded-lg bg-primary px-5 py-2 text-sm font-medium text-primary-foreground hover:bg-primary-hover disabled:opacity-50"
       >
         {isSaving ? 'Saving...' : 'Save Settings'}
       </button>

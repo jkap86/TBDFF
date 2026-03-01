@@ -32,22 +32,22 @@ export default function DraftRoomPage() {
   if (isLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center">
-        <div className="text-gray-500 dark:text-gray-400">Loading draft...</div>
+        <div className="text-muted-foreground">Loading draft...</div>
       </div>
     );
   }
 
   if (error || !draft) {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-6">
+      <div className="min-h-screen bg-surface p-6">
         <div className="mx-auto max-w-6xl">
           <button
             onClick={() => router.push(`/leagues/${leagueId}`)}
-            className="mb-4 flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300"
+            className="mb-4 flex items-center gap-2 text-sm text-muted-foreground hover:text-accent-foreground"
           >
             <ArrowLeft className="h-4 w-4" /> Back to League
           </button>
-          <div className="rounded bg-red-50 dark:bg-red-900/30 p-4 text-red-600 dark:text-red-400">{error || 'Draft not found'}</div>
+          <div className="rounded bg-destructive p-4 text-destructive-foreground">{error || 'Draft not found'}</div>
         </div>
       </div>
     );
@@ -85,12 +85,12 @@ export default function DraftRoomPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-4">
+    <div className="min-h-screen bg-surface p-4">
       <div className="mx-auto max-w-7xl space-y-4">
         {/* Header */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Draft Room</h1>
+            <h1 className="text-2xl font-bold text-foreground">Draft Room</h1>
             <span className={`rounded-full px-3 py-1 text-sm font-medium ${
               draft.status === 'drafting'
                 ? 'bg-blue-100 text-blue-700'
@@ -115,7 +115,7 @@ export default function DraftRoomPage() {
                 {isStarting ? 'Starting...' : 'Start Draft'}
               </button>
             )}
-            <div className="text-sm text-gray-500 dark:text-gray-400">
+            <div className="text-sm text-muted-foreground">
               {draftTypeLabels[draft.type]} | {draft.settings.rounds} rounds | {
               room.isSlowAuction
                 ? `$${draft.settings.budget} budget | ${Math.round((draft.settings.bid_window_seconds ?? 43200) / 3600)}h bid window`

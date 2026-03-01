@@ -42,9 +42,9 @@ function NominationMaxBid({ nomination, queue, budget, teams, onUpdateMaxBid }: 
   };
 
   return (
-    <div className="flex items-center gap-1 border-l border-gray-200 dark:border-gray-700 pl-2 ml-1">
-      <span className="text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap">Auto-bid up to</span>
-      <span className="text-xs text-gray-400 dark:text-gray-500">$</span>
+    <div className="flex items-center gap-1 border-l border-border pl-2 ml-1">
+      <span className="text-xs text-muted-foreground whitespace-nowrap">Auto-bid up to</span>
+      <span className="text-xs text-disabled">$</span>
       <input
         type="text"
         inputMode="numeric"
@@ -55,7 +55,7 @@ function NominationMaxBid({ nomination, queue, budget, teams, onUpdateMaxBid }: 
         onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
         placeholder={defaultBid != null ? String(defaultBid) : '—'}
         title={defaultBid != null ? `Default: $${defaultBid} (80% of AAV $${aav})` : 'Set max auto-bid'}
-        className="w-14 rounded border border-gray-200 dark:border-gray-600 px-1 py-1 text-center text-sm text-gray-700 dark:text-gray-300 dark:bg-gray-700 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+        className="w-14 rounded border border-border px-1 py-1 text-center text-sm text-accent-foreground bg-card focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
       />
     </div>
   );
@@ -101,19 +101,19 @@ export function AuctionControls({
   onNominationMaxBid,
 }: AuctionControlsProps) {
   return (
-    <div className="rounded-lg bg-white dark:bg-gray-800 p-4 shadow">
+    <div className="rounded-lg bg-card p-4 shadow">
       <div className="flex flex-wrap items-center gap-4">
         {/* Timer */}
         {timeRemaining !== null && (
           <div className={`flex items-center gap-2 rounded-lg px-4 py-2 font-mono text-lg font-bold ${
             timeRemaining <= 10
-              ? 'bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-400'
+              ? 'bg-destructive text-destructive-foreground'
               : timeRemaining <= 20
-                ? 'bg-yellow-100 text-yellow-700'
-                : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300'
+                ? 'bg-warning text-warning-foreground'
+                : 'bg-muted text-accent-foreground'
           }`}>
             {formatTime(timeRemaining)}
-            <span className="text-xs font-normal dark:text-gray-300">
+            <span className="text-xs font-normal text-accent-foreground">
               {draft.metadata?.current_nomination ? 'Bidding' : 'Nominate'}
             </span>
           </div>
@@ -126,7 +126,7 @@ export function AuctionControls({
             className={`rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
               isAutoPick
                 ? 'bg-orange-100 text-orange-700 hover:bg-orange-200'
-                : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600'
+                : 'bg-muted text-muted-foreground hover:bg-muted-hover'
             } disabled:opacity-50`}
           >
             {isTogglingAutoPick ? '...' : isAutoPick ? 'Auto: ON' : 'Auto: OFF'}
@@ -136,20 +136,20 @@ export function AuctionControls({
         {/* Nomination (no active nomination, user's turn) */}
         {!draft.metadata?.current_nomination && isMyTurn && !isAutoPick && (
           <div className="flex flex-1 items-center gap-2">
-            <span className="rounded-full bg-green-100 px-3 py-1 text-sm font-medium text-green-700">
+            <span className="rounded-full bg-success px-3 py-1 text-sm font-medium text-success-foreground">
               Your Nomination!
             </span>
             <div className="flex items-center gap-1">
-              <span className="text-sm text-gray-500 dark:text-gray-400">Starting bid: $</span>
+              <span className="text-sm text-muted-foreground">Starting bid: $</span>
               <input
                 type="number"
                 value={nominateAmount}
                 onChange={(e) => setNominateAmount(Math.max(1, parseInt(e.target.value) || 1))}
                 min={1}
-                className="w-20 rounded-lg border border-gray-300 dark:border-gray-600 px-2 py-2 text-sm text-gray-900 dark:text-white dark:bg-gray-700 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                className="w-20 rounded-lg border border-input px-2 py-2 text-sm text-foreground bg-card focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
               />
             </div>
-            <span className="text-sm text-gray-400 dark:text-gray-500">
+            <span className="text-sm text-disabled">
               Select a player from the Players tab
             </span>
           </div>
@@ -157,7 +157,7 @@ export function AuctionControls({
 
         {/* Waiting for nomination */}
         {!draft.metadata?.current_nomination && !isMyTurn && (
-          <span className="text-sm text-gray-500 dark:text-gray-400">
+          <span className="text-sm text-muted-foreground">
             Waiting for nomination...
           </span>
         )}
@@ -165,8 +165,8 @@ export function AuctionControls({
         {/* Bidding Controls (active nomination) */}
         {draft.metadata?.current_nomination && userSlot !== undefined && (
           <div className="flex flex-1 items-center gap-2">
-            <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-              Current: <span className="text-green-700 font-bold">${draft.metadata.current_nomination.current_bid}</span>
+            <span className="text-sm font-medium text-accent-foreground">
+              Current: <span className="text-success-foreground font-bold">${draft.metadata.current_nomination.current_bid}</span>
             </span>
             <button
               onClick={() => onBid(draft.metadata.current_nomination!.current_bid + 1)}
@@ -190,20 +190,20 @@ export function AuctionControls({
               +$10
             </button>
             <div className="flex items-center gap-1">
-              <span className="text-sm text-gray-500 dark:text-gray-400">$</span>
+              <span className="text-sm text-muted-foreground">$</span>
               <input
                 type="number"
                 value={bidAmount || ''}
                 onChange={(e) => setBidAmount(parseInt(e.target.value) || 0)}
                 placeholder="Custom"
                 min={1}
-                className="w-20 rounded-lg border border-gray-300 dark:border-gray-600 px-2 py-2 text-sm text-gray-900 dark:text-white dark:bg-gray-700 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                className="w-20 rounded-lg border border-input px-2 py-2 text-sm text-foreground bg-card focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
               />
             </div>
             <button
               onClick={() => onBid()}
               disabled={isBidding || bidAmount < 1}
-              className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+              className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary-hover disabled:opacity-50"
             >
               {isBidding ? 'Bidding...' : 'Bid'}
             </button>
@@ -218,7 +218,7 @@ export function AuctionControls({
         )}
       </div>
       {pickError && (
-        <p className="mt-2 text-sm text-red-600 dark:text-red-400">{pickError}</p>
+        <p className="mt-2 text-sm text-destructive-foreground">{pickError}</p>
       )}
     </div>
   );

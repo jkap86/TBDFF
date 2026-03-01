@@ -53,7 +53,7 @@ export function MessageList({ messages, currentUserId, onLoadMore, hasMore }: Pr
   if (messages.length === 0) {
     return (
       <div className="flex flex-1 items-center justify-center p-4">
-        <p className="text-sm text-gray-400 dark:text-gray-500">No messages yet. Say hello!</p>
+        <p className="text-sm text-disabled">No messages yet. Say hello!</p>
       </div>
     );
   }
@@ -63,7 +63,7 @@ export function MessageList({ messages, currentUserId, onLoadMore, hasMore }: Pr
       {hasMore && (
         <button
           onClick={onLoadMore}
-          className="mb-2 self-center text-xs text-blue-500 hover:underline"
+          className="mb-2 self-center text-xs text-link hover:underline"
         >
           Load older messages
         </button>
@@ -78,20 +78,20 @@ export function MessageList({ messages, currentUserId, onLoadMore, hasMore }: Pr
         return (
           <div key={msg.id} className={`flex flex-col ${isOwn ? 'items-end' : 'items-start'}`}>
             {!isOwn && (
-              <span className="mb-0.5 text-xs font-medium text-gray-500 dark:text-gray-400">
+              <span className="mb-0.5 text-xs font-medium text-muted-foreground">
                 {msg.sender_username}
               </span>
             )}
             <div
               className={`max-w-[75%] rounded-2xl px-3 py-2 text-sm break-words ${
                 isOwn
-                  ? 'rounded-tr-sm bg-blue-600 text-white'
-                  : 'rounded-tl-sm bg-gray-100 text-gray-900 dark:bg-gray-700 dark:text-white'
+                  ? 'rounded-tr-sm bg-primary text-primary-foreground'
+                  : 'rounded-tl-sm bg-muted text-foreground'
               }`}
             >
               {msg.content}
             </div>
-            <span className="mt-0.5 text-xs text-gray-400">{time}</span>
+            <span className="mt-0.5 text-xs text-disabled">{time}</span>
           </div>
         );
       })}

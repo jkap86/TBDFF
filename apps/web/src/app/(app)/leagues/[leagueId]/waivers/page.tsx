@@ -88,26 +88,26 @@ export default function WaiversPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-6">
+    <div className="min-h-screen bg-surface p-6">
       <div className="mx-auto max-w-4xl space-y-6">
         {/* Header */}
         <div className="flex items-center gap-3">
           <button
             onClick={() => router.push(`/leagues/${leagueId}`)}
-            className="rounded p-2 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
+            className="rounded p-2 text-muted-foreground hover:bg-muted"
           >
             <ArrowLeft className="h-5 w-5" />
           </button>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Waivers & Free Agents</h1>
+          <h1 className="text-2xl font-bold text-foreground">Waivers & Free Agents</h1>
         </div>
 
         {addError && (
-          <div className="rounded bg-red-50 dark:bg-red-900/30 p-3 text-sm text-red-600 dark:text-red-400">{addError}</div>
+          <div className="rounded bg-destructive p-3 text-sm text-destructive-foreground">{addError}</div>
         )}
 
         {/* My Pending Claims */}
-        <div className="rounded-lg bg-white dark:bg-gray-800 p-6 shadow">
-          <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-4">My Pending Claims</h2>
+        <div className="rounded-lg bg-card p-6 shadow">
+          <h2 className="text-lg font-bold text-foreground mb-4">My Pending Claims</h2>
           <MyWaiverClaims
             claims={claims}
             playerNames={{ ...rosterPlayerNames, ...claimPlayerNames }}
@@ -135,25 +135,25 @@ export default function WaiversPage() {
 
         {/* My Roster */}
         {myRoster && (
-          <div className="rounded-lg bg-white dark:bg-gray-800 p-6 shadow">
-            <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-4">My Roster</h2>
+          <div className="rounded-lg bg-card p-6 shadow">
+            <h2 className="text-lg font-bold text-foreground mb-4">My Roster</h2>
             <div className="space-y-2">
               {myRoster.players.map((playerId) => (
                 <div
                   key={playerId}
-                  className="flex items-center justify-between rounded border border-gray-200 dark:border-gray-700 p-3"
+                  className="flex items-center justify-between rounded border border-border p-3"
                 >
-                  <span className="text-sm font-medium text-gray-900 dark:text-white">{rosterPlayerNames[playerId] || playerId}</span>
+                  <span className="text-sm font-medium text-foreground">{rosterPlayerNames[playerId] || playerId}</span>
                   <button
                     onClick={() => handleDropPlayer(playerId)}
-                    className="rounded bg-red-100 px-2 py-1 text-xs font-medium text-red-700 hover:bg-red-200"
+                    className="rounded bg-destructive px-2 py-1 text-xs font-medium text-destructive-foreground hover:bg-destructive/80"
                   >
                     Drop
                   </button>
                 </div>
               ))}
               {myRoster.players.length === 0 && (
-                <p className="text-sm text-gray-500 dark:text-gray-400">No players on roster</p>
+                <p className="text-sm text-muted-foreground">No players on roster</p>
               )}
             </div>
           </div>

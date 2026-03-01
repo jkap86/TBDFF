@@ -67,14 +67,14 @@ export function DraftBoard({ draft, picks, members, currentUserId }: DraftBoardP
       <table className="min-w-full border-collapse">
         <thead>
           <tr>
-            <th className="sticky left-0 z-10 border border-gray-300 dark:border-gray-600 bg-gray-100 dark:bg-gray-700 px-3 py-2 text-xs font-medium text-gray-600 dark:text-gray-400">
+            <th className="sticky left-0 z-10 border border-input bg-muted px-3 py-2 text-xs font-medium text-muted-foreground">
               Rd
             </th>
             {Array.from({ length: teams }, (_, i) => i + 1).map((slot) => (
               <th
                 key={slot}
-                className={`border border-gray-300 dark:border-gray-600 px-3 py-2 text-xs font-medium ${
-                  slot === userSlot ? 'bg-blue-100 dark:bg-blue-900/40 text-blue-800 dark:text-blue-300' : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400'
+                className={`border border-input px-3 py-2 text-xs font-medium ${
+                  slot === userSlot ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground'
                 }`}
               >
                 <div className="flex items-center justify-center gap-1">
@@ -90,7 +90,7 @@ export function DraftBoard({ draft, picks, members, currentUserId }: DraftBoardP
         <tbody>
           {grid.map((row, rIdx) => (
             <tr key={rIdx}>
-              <td className="sticky left-0 z-10 border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-800 px-3 py-2 text-center text-xs font-medium text-gray-600 dark:text-gray-400">
+              <td className="sticky left-0 z-10 border border-input bg-surface px-3 py-2 text-center text-xs font-medium text-muted-foreground">
                 {rIdx + 1}
               </td>
               {row.map((pick, sIdx) => {
@@ -105,41 +105,41 @@ export function DraftBoard({ draft, picks, members, currentUserId }: DraftBoardP
                 return (
                   <td
                     key={sIdx}
-                    className={`border border-gray-300 dark:border-gray-600 px-2 py-1.5 text-center text-xs ${
+                    className={`border border-input px-2 py-1.5 text-center text-xs ${
                       isNextPick
-                        ? 'bg-yellow-100 dark:bg-yellow-900/30 ring-2 ring-inset ring-yellow-400 dark:ring-yellow-600'
+                        ? 'bg-highlight ring-2 ring-inset ring-highlight-ring'
                         : isFilled
                           ? isUserPick
-                            ? 'bg-blue-50 dark:bg-blue-900/20'
-                            : 'bg-white dark:bg-gray-800'
+                            ? 'bg-primary/10'
+                            : 'bg-card'
                           : isTraded
-                            ? 'bg-purple-50 dark:bg-purple-900/20'
-                            : 'bg-gray-50 dark:bg-gray-800'
+                            ? 'bg-info'
+                            : 'bg-surface'
                     }`}
                   >
                     {isFilled ? (
                       <div>
-                        <span className="font-medium text-gray-900 dark:text-white">
+                        <span className="font-medium text-foreground">
                           {pick.metadata?.first_name?.[0]}. {pick.metadata?.last_name || pick.player_id}
                         </span>
                         {pick.metadata?.position && (
-                          <span className="ml-1 text-gray-400 dark:text-gray-500">{pick.metadata.position}</span>
+                          <span className="ml-1 text-disabled">{pick.metadata.position}</span>
                         )}
                         {isTraded && tradedOwnerName && (
-                          <div className="text-[10px] text-purple-500 dark:text-purple-400">{tradedOwnerName}</div>
+                          <div className="text-[10px] text-info-foreground">{tradedOwnerName}</div>
                         )}
                       </div>
                     ) : isNextPick ? (
                       <div>
-                        <span className="text-yellow-600 font-medium">OTC</span>
+                        <span className="text-highlight-foreground font-medium">OTC</span>
                         {isTraded && tradedOwnerName && (
-                          <div className="text-[10px] text-purple-500 dark:text-purple-400">→ {tradedOwnerName}</div>
+                          <div className="text-[10px] text-info-foreground">&rarr; {tradedOwnerName}</div>
                         )}
                       </div>
                     ) : isTraded && tradedOwnerName ? (
-                      <span className="text-[10px] text-purple-500 dark:text-purple-400">→ {tradedOwnerName}</span>
+                      <span className="text-[10px] text-info-foreground">&rarr; {tradedOwnerName}</span>
                     ) : (
-                      <span className="text-gray-300 dark:text-gray-600">&mdash;</span>
+                      <span className="text-disabled">&mdash;</span>
                     )}
                   </td>
                 );

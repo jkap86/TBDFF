@@ -87,9 +87,9 @@ export function RosterAssignments({
   };
 
   return (
-    <div className="mb-4 border-t border-gray-200 dark:border-gray-700 pt-4">
+    <div className="mb-4 border-t border-border pt-4">
       <div className="mb-3 flex items-center justify-between">
-        <h3 className="text-sm font-semibold text-gray-900 dark:text-white">Roster Assignments</h3>
+        <h3 className="text-sm font-semibold text-foreground">Roster Assignments</h3>
         {spectators.length > 0 && rosters.some((r) => !r.owner_id) && (
           <button
             type="button"
@@ -102,7 +102,7 @@ export function RosterAssignments({
         )}
       </div>
       {spectators.length > 0 && (
-        <p className="mb-2 text-xs text-gray-500 dark:text-gray-400">
+        <p className="mb-2 text-xs text-muted-foreground">
           {spectators.length} spectator{spectators.length !== 1 ? 's' : ''} waiting for roster assignment
         </p>
       )}
@@ -115,14 +115,14 @@ export function RosterAssignments({
             return (
               <div
                 key={roster.roster_id}
-                className="flex items-center gap-2 rounded border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-900 p-2"
+                className="flex items-center gap-2 rounded border border-input bg-surface p-2"
               >
-                <span className="w-16 shrink-0 text-xs font-bold text-gray-700 dark:text-gray-300">
+                <span className="w-16 shrink-0 text-xs font-bold text-accent-foreground">
                   Roster {roster.roster_id}
                 </span>
                 {roster.owner_id ? (
                   <div className="flex flex-1 items-center justify-between">
-                    <span className="text-sm font-medium text-gray-900 dark:text-white">
+                    <span className="text-sm font-medium text-foreground">
                       {getMemberUsername(roster.owner_id)}
                     </span>
                     {!isCommissionerRoster && (
@@ -130,7 +130,7 @@ export function RosterAssignments({
                         type="button"
                         onClick={() => handleUnassign(roster.roster_id)}
                         disabled={assigningRosterId === roster.roster_id || isAssigningAll}
-                        className="rounded px-2 py-1 text-xs text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 disabled:opacity-50"
+                        className="rounded px-2 py-1 text-xs text-destructive-foreground hover:bg-destructive disabled:opacity-50"
                       >
                         {assigningRosterId === roster.roster_id ? '...' : 'Unassign'}
                       </button>
@@ -146,7 +146,7 @@ export function RosterAssignments({
                           [roster.roster_id]: e.target.value,
                         }))
                       }
-                      className="flex-1 rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-2 py-1 text-sm text-gray-900 dark:text-white focus:border-blue-500 focus:outline-none"
+                      className="flex-1 rounded border border-input bg-card px-2 py-1 text-sm text-foreground focus:border-ring focus:outline-none"
                       disabled={assigningRosterId === roster.roster_id || isAssigningAll}
                     >
                       <option value="">Select spectator...</option>
@@ -160,7 +160,7 @@ export function RosterAssignments({
                       type="button"
                       onClick={() => handleAssign(roster.roster_id)}
                       disabled={!rosterAssignments[roster.roster_id] || assigningRosterId === roster.roster_id || isAssigningAll}
-                      className="rounded bg-blue-600 px-2 py-1 text-xs font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+                      className="rounded bg-primary px-2 py-1 text-xs font-medium text-primary-foreground hover:bg-primary-hover disabled:opacity-50"
                     >
                       {assigningRosterId === roster.roster_id ? '...' : 'Assign'}
                     </button>

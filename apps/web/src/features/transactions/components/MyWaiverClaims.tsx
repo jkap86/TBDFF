@@ -12,11 +12,11 @@ interface MyWaiverClaimsProps {
 
 export function MyWaiverClaims({ claims, playerNames, isLoading, onCancel }: MyWaiverClaimsProps) {
   if (isLoading) {
-    return <p className="text-sm text-gray-500 dark:text-gray-400">Loading claims...</p>;
+    return <p className="text-sm text-muted-foreground">Loading claims...</p>;
   }
 
   if (claims.length === 0) {
-    return <p className="text-sm text-gray-500 dark:text-gray-400">No pending waiver claims</p>;
+    return <p className="text-sm text-muted-foreground">No pending waiver claims</p>;
   }
 
   return (
@@ -24,27 +24,27 @@ export function MyWaiverClaims({ claims, playerNames, isLoading, onCancel }: MyW
       {claims.map((claim) => (
         <div
           key={claim.id}
-          className="flex items-center justify-between rounded border border-gray-200 dark:border-gray-700 p-3 bg-white dark:bg-gray-800"
+          className="flex items-center justify-between rounded border border-border p-3 bg-card"
         >
           <div className="flex-1">
             <div className="flex items-center gap-2">
-              <span className="font-medium text-sm text-gray-900 dark:text-white">{playerNames?.[claim.player_id] || claim.player_id}</span>
+              <span className="font-medium text-sm text-foreground">{playerNames?.[claim.player_id] || claim.player_id}</span>
               {claim.faab_amount > 0 && (
-                <span className="text-xs text-gray-500 dark:text-gray-400">${claim.faab_amount}</span>
+                <span className="text-xs text-muted-foreground">${claim.faab_amount}</span>
               )}
             </div>
             {claim.drop_player_id && (
-              <p className="text-xs text-gray-500 dark:text-gray-400">Dropping: {playerNames?.[claim.drop_player_id] || claim.drop_player_id}</p>
+              <p className="text-xs text-muted-foreground">Dropping: {playerNames?.[claim.drop_player_id] || claim.drop_player_id}</p>
             )}
             {claim.process_at && (
-              <p className="text-xs text-gray-400">
+              <p className="text-xs text-disabled">
                 Processes: {new Date(claim.process_at).toLocaleDateString()}
               </p>
             )}
           </div>
           <button
             onClick={() => onCancel(claim.id)}
-            className="rounded p-1 text-gray-400 hover:text-red-500 hover:bg-gray-100 dark:hover:bg-gray-700"
+            className="rounded p-1 text-disabled hover:text-destructive-foreground hover:bg-muted"
             title="Cancel claim"
           >
             <X className="h-4 w-4" />

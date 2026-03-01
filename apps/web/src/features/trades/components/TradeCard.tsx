@@ -3,15 +3,15 @@
 import type { TradeProposal, TradeItem, FutureDraftPick, Player } from '@/lib/api';
 
 const statusColors: Record<string, string> = {
-  pending: 'bg-yellow-100 text-yellow-700',
-  accepted: 'bg-blue-100 text-blue-700',
-  review: 'bg-blue-100 text-blue-700',
-  declined: 'bg-red-100 text-red-700',
-  withdrawn: 'bg-gray-100 text-gray-500',
-  vetoed: 'bg-red-100 text-red-700',
-  completed: 'bg-green-100 text-green-700',
-  countered: 'bg-purple-100 text-purple-700',
-  expired: 'bg-gray-100 text-gray-500',
+  pending: 'bg-warning text-warning-foreground',
+  accepted: 'bg-primary/10 text-primary',
+  review: 'bg-primary/10 text-primary',
+  declined: 'bg-destructive text-destructive-foreground',
+  withdrawn: 'bg-muted text-muted-foreground',
+  vetoed: 'bg-destructive text-destructive-foreground',
+  completed: 'bg-success text-success-foreground',
+  countered: 'bg-info text-info-foreground',
+  expired: 'bg-muted text-muted-foreground',
 };
 
 interface TradeCardProps {
@@ -71,16 +71,16 @@ export function TradeCard({
 
   return (
     <div
-      className="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4 cursor-pointer hover:border-blue-300 dark:hover:border-blue-600 transition-colors"
+      className="rounded-lg border border-border bg-card p-4 cursor-pointer hover:border-ring transition-colors"
       onClick={() => onViewDetail?.(trade)}
     >
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
-          <span className="font-medium text-gray-900 dark:text-white">
+          <span className="font-medium text-foreground">
             {trade.proposed_by_username ?? 'Unknown'}
           </span>
-          <span className="text-gray-400 text-sm">to</span>
-          <span className="font-medium text-gray-900 dark:text-white">
+          <span className="text-disabled text-sm">to</span>
+          <span className="font-medium text-foreground">
             {trade.proposed_to_username ?? 'Unknown'}
           </span>
         </div>
@@ -91,21 +91,21 @@ export function TradeCard({
 
       <div className="grid grid-cols-2 gap-4 text-sm mb-3">
         <div>
-          <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">{trade.proposed_by_username} gives</p>
+          <p className="text-xs text-muted-foreground mb-1">{trade.proposed_by_username} gives</p>
           {proposerItems.map((item: TradeItem) => (
-            <p key={item.id} className="text-gray-700 dark:text-gray-300">{formatItem(item)}</p>
+            <p key={item.id} className="text-accent-foreground">{formatItem(item)}</p>
           ))}
         </div>
         <div>
-          <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">{trade.proposed_to_username} gives</p>
+          <p className="text-xs text-muted-foreground mb-1">{trade.proposed_to_username} gives</p>
           {receiverItems.map((item: TradeItem) => (
-            <p key={item.id} className="text-gray-700 dark:text-gray-300">{formatItem(item)}</p>
+            <p key={item.id} className="text-accent-foreground">{formatItem(item)}</p>
           ))}
         </div>
       </div>
 
       {trade.message && (
-        <p className="text-sm text-gray-500 dark:text-gray-400 italic mb-3">&quot;{trade.message}&quot;</p>
+        <p className="text-sm text-muted-foreground italic mb-3">&quot;{trade.message}&quot;</p>
       )}
 
       {trade.status === 'pending' && (
@@ -129,7 +129,7 @@ export function TradeCard({
           {isProposer && (
             <button
               onClick={() => onWithdraw?.(trade.id)}
-              className="rounded bg-gray-600 px-3 py-1 text-xs font-medium text-white hover:bg-gray-700"
+              className="rounded bg-secondary px-3 py-1 text-xs font-medium text-primary-foreground hover:bg-secondary-hover"
             >
               Withdraw
             </button>
@@ -154,7 +154,7 @@ export function TradeCard({
         </div>
       )}
 
-      <p className="text-xs text-gray-400 mt-2">
+      <p className="text-xs text-disabled mt-2">
         {new Date(trade.created_at).toLocaleDateString()}
       </p>
     </div>

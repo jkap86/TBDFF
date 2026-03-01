@@ -194,19 +194,19 @@ export function PaymentsSettings({
       {entries.map((entry) => (
         <div
           key={`${entry.category}-${entry.position}`}
-          className="flex items-center justify-between rounded border border-gray-200 dark:border-gray-700 px-3 py-2"
+          className="flex items-center justify-between rounded border border-border px-3 py-2"
         >
-          <span className="text-sm font-medium text-gray-900 dark:text-white">
+          <span className="text-sm font-medium text-foreground">
             {ordinal(entry.position)}
           </span>
           <div className="flex items-center gap-2">
-            <span className="text-sm font-medium text-green-600">
+            <span className="text-sm font-medium text-success-foreground">
               {entry.is_percentage ? `${entry.value}%` : `$${entry.value.toFixed(2)}`}
             </span>
             <button
               type="button"
               onClick={() => handleRemoveEntry(entry.category, entry.position)}
-              className="rounded p-1 text-gray-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/20 dark:hover:text-red-400"
+              className="rounded p-1 text-disabled hover:bg-destructive hover:text-destructive-foreground"
               title="Remove"
             >
               <Trash2 className="h-3.5 w-3.5" />
@@ -218,11 +218,11 @@ export function PaymentsSettings({
   );
 
   return (
-    <div className="mb-4 rounded-lg border border-gray-200 dark:border-gray-600">
+    <div className="mb-4 rounded-lg border border-border">
       <button
         type="button"
         onClick={onToggle}
-        className="flex w-full items-center justify-between px-4 py-3 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50 rounded-lg"
+        className="flex w-full items-center justify-between px-4 py-3 text-sm font-medium text-accent-foreground hover:bg-accent rounded-lg"
       >
         <div className="flex items-center gap-2">
           <DollarSign className="h-4 w-4" />
@@ -232,17 +232,17 @@ export function PaymentsSettings({
       </button>
 
       {isOpen && (
-        <div className="border-t border-gray-200 dark:border-gray-600 px-4 py-4 space-y-5">
+        <div className="border-t border-border px-4 py-4 space-y-5">
           {isLoading ? (
-            <p className="text-sm text-gray-500 dark:text-gray-400">Loading...</p>
+            <p className="text-sm text-muted-foreground">Loading...</p>
           ) : (
             <>
               {/* Buy-in Amount */}
               <div>
                 <div className="flex items-center justify-between mb-2">
-                  <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300">Buy-in Amount</h4>
+                  <h4 className="text-sm font-semibold text-accent-foreground">Buy-in Amount</h4>
                   {buyInAmount != null && (
-                    <span className="text-xs text-gray-500 dark:text-gray-400">
+                    <span className="text-xs text-muted-foreground">
                       {paidUserIds.size}/{totalRosters} paid · ${totalCollected.toFixed(2)} collected
                     </span>
                   )}
@@ -250,14 +250,14 @@ export function PaymentsSettings({
 
                 {isEditingBuyIn ? (
                   <div className="flex items-center gap-2">
-                    <span className="text-gray-500 dark:text-gray-400">$</span>
+                    <span className="text-muted-foreground">$</span>
                     <input
                       type="number"
                       min="0"
                       step="0.01"
                       value={buyInInput}
                       onChange={(e) => setBuyInInput(e.target.value)}
-                      className="w-28 rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-2 py-1 text-sm text-gray-900 dark:text-white"
+                      className="w-28 rounded border border-input bg-card px-2 py-1 text-sm text-foreground"
                       autoFocus
                       onKeyDown={(e) => {
                         if (e.key === 'Enter') { e.preventDefault(); handleSaveBuyIn(); }
@@ -275,14 +275,14 @@ export function PaymentsSettings({
                     <button
                       type="button"
                       onClick={() => setIsEditingBuyIn(false)}
-                      className="rounded bg-gray-300 dark:bg-gray-600 p-1 text-gray-700 dark:text-gray-300 hover:bg-gray-400 dark:hover:bg-gray-500"
+                      className="rounded bg-muted-hover p-1 text-accent-foreground hover:bg-muted-hover"
                     >
                       <X className="h-4 w-4" />
                     </button>
                   </div>
                 ) : (
                   <div className="flex items-center gap-2">
-                    <span className="text-lg font-medium text-gray-900 dark:text-white">
+                    <span className="text-lg font-medium text-foreground">
                       {buyInAmount != null ? `$${buyInAmount.toFixed(2)}` : 'Not set'}
                     </span>
                     <button
@@ -291,7 +291,7 @@ export function PaymentsSettings({
                         setBuyInInput(buyInAmount != null ? String(buyInAmount) : '');
                         setIsEditingBuyIn(true);
                       }}
-                      className="rounded p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                      className="rounded p-1 text-disabled hover:text-accent-foreground"
                       title="Edit buy-in"
                     >
                       <Pencil className="h-3.5 w-3.5" />
@@ -303,7 +303,7 @@ export function PaymentsSettings({
               {/* Buy-in Status */}
               {buyInAmount != null && activeMembers.length > 0 && (
                 <div>
-                  <h4 className="mb-2 text-sm font-semibold text-gray-700 dark:text-gray-300">Buy-in Status</h4>
+                  <h4 className="mb-2 text-sm font-semibold text-accent-foreground">Buy-in Status</h4>
                   <div className="space-y-1">
                     {activeMembers.map((member) => {
                       const buyInPayment = buyIns.find((p) => p.user_id === member.user_id);
@@ -312,21 +312,21 @@ export function PaymentsSettings({
                       return (
                         <div
                           key={member.user_id}
-                          className="flex items-center justify-between rounded border border-gray-200 dark:border-gray-700 px-3 py-2"
+                          className="flex items-center justify-between rounded border border-border px-3 py-2"
                         >
-                          <span className="text-sm font-medium text-gray-900 dark:text-white">
+                          <span className="text-sm font-medium text-foreground">
                             {member.display_name || member.username}
                           </span>
                           <div className="flex items-center gap-2">
                             {isPaid ? (
                               <>
-                                <span className="rounded-full bg-green-100 dark:bg-green-900/30 px-2 py-0.5 text-xs font-medium text-green-700 dark:text-green-400">
+                                <span className="rounded-full bg-success px-2 py-0.5 text-xs font-medium text-success-foreground">
                                   Paid
                                 </span>
                                 <button
                                   type="button"
                                   onClick={() => handleMarkUnpaid(buyInPayment.id)}
-                                  className="rounded p-1 text-gray-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/20 dark:hover:text-red-400"
+                                  className="rounded p-1 text-disabled hover:bg-destructive hover:text-destructive-foreground"
                                   title="Remove payment"
                                 >
                                   <X className="h-3.5 w-3.5" />
@@ -334,13 +334,13 @@ export function PaymentsSettings({
                               </>
                             ) : (
                               <>
-                                <span className="rounded-full bg-gray-100 dark:bg-gray-700 px-2 py-0.5 text-xs font-medium text-gray-500 dark:text-gray-400">
+                                <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
                                   Unpaid
                                 </span>
                                 <button
                                   type="button"
                                   onClick={() => handleMarkPaid(member.user_id)}
-                                  className="rounded p-1 text-gray-400 hover:bg-green-50 hover:text-green-600 dark:hover:bg-green-900/20 dark:hover:text-green-400"
+                                  className="rounded p-1 text-disabled hover:bg-success hover:text-success-foreground"
                                   title="Mark as paid"
                                 >
                                   <Check className="h-3.5 w-3.5" />
@@ -358,12 +358,12 @@ export function PaymentsSettings({
               {/* Payout Structure */}
               <div>
                 <div className="mb-2 flex items-center justify-between">
-                  <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300">Payout Structure</h4>
+                  <h4 className="text-sm font-semibold text-accent-foreground">Payout Structure</h4>
                   {!showPayoutForm && (
                     <button
                       type="button"
                       onClick={() => setShowPayoutForm(true)}
-                      className="flex items-center gap-1 rounded px-2 py-1 text-xs font-medium text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20"
+                      className="flex items-center gap-1 rounded px-2 py-1 text-xs font-medium text-link hover:bg-primary/10"
                     >
                       <Plus className="h-3.5 w-3.5" />
                       Add Payout
@@ -373,12 +373,12 @@ export function PaymentsSettings({
 
                 {/* Add payout form */}
                 {showPayoutForm && (
-                  <div className="mb-3 rounded border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-900/10 p-3 space-y-2">
+                  <div className="mb-3 rounded border border-primary/20 bg-primary/10 p-3 space-y-2">
                     <div className="flex gap-2">
                       <select
                         value={newCategory}
                         onChange={(e) => setNewCategory(e.target.value as PayoutCategory)}
-                        className="rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-2 py-1.5 text-sm text-gray-900 dark:text-white"
+                        className="rounded border border-input bg-card px-2 py-1.5 text-sm text-foreground"
                       >
                         <option value="place">Place Finish</option>
                         <option value="points">Points Finish</option>
@@ -390,12 +390,12 @@ export function PaymentsSettings({
                         placeholder="Position (1, 2, 3...)"
                         value={newPosition}
                         onChange={(e) => setNewPosition(e.target.value)}
-                        className="w-full flex-1 rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-2 py-1.5 text-sm text-gray-900 dark:text-white"
+                        className="w-full flex-1 rounded border border-input bg-card px-2 py-1.5 text-sm text-foreground"
                       />
                     </div>
                     <div className="flex gap-2">
                       <div className="flex items-center gap-1 flex-1">
-                        <span className="text-sm text-gray-500 dark:text-gray-400">
+                        <span className="text-sm text-muted-foreground">
                           {newIsPercentage ? '%' : '$'}
                         </span>
                         <input
@@ -405,13 +405,13 @@ export function PaymentsSettings({
                           placeholder="Amount"
                           value={newValue}
                           onChange={(e) => setNewValue(e.target.value)}
-                          className="w-full rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-2 py-1.5 text-sm text-gray-900 dark:text-white"
+                          className="w-full rounded border border-input bg-card px-2 py-1.5 text-sm text-foreground"
                         />
                       </div>
                       <select
                         value={newIsPercentage ? 'percent' : 'dollar'}
                         onChange={(e) => setNewIsPercentage(e.target.value === 'percent')}
-                        className="rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-2 py-1.5 text-sm text-gray-900 dark:text-white"
+                        className="rounded border border-input bg-card px-2 py-1.5 text-sm text-foreground"
                       >
                         <option value="dollar">$</option>
                         <option value="percent">%</option>
@@ -425,14 +425,14 @@ export function PaymentsSettings({
                           setNewPosition('');
                           setNewValue('');
                         }}
-                        className="rounded px-3 py-1.5 text-xs font-medium text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
+                        className="rounded px-3 py-1.5 text-xs font-medium text-muted-foreground hover:bg-muted"
                       >
                         Cancel
                       </button>
                       <button
                         type="button"
                         onClick={handleAddEntry}
-                        className="rounded bg-blue-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-blue-700"
+                        className="rounded bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary-hover"
                       >
                         Add
                       </button>
@@ -443,7 +443,7 @@ export function PaymentsSettings({
                 {/* Place Finish */}
                 {placeEntries.length > 0 && (
                   <div className="mb-3">
-                    <div className="mb-1 flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                    <div className="mb-1 flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">
                       <Trophy className="h-3 w-3" />
                       Place Finish
                     </div>
@@ -454,7 +454,7 @@ export function PaymentsSettings({
                 {/* Points Finish */}
                 {pointsEntries.length > 0 && (
                   <div className="mb-3">
-                    <div className="mb-1 flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                    <div className="mb-1 flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">
                       <TrendingUp className="h-3 w-3" />
                       Points Finish
                     </div>
@@ -463,7 +463,7 @@ export function PaymentsSettings({
                 )}
 
                 {payoutEntries.length === 0 && !showPayoutForm && (
-                  <p className="py-2 text-center text-sm text-gray-500 dark:text-gray-400">
+                  <p className="py-2 text-center text-sm text-muted-foreground">
                     No payouts configured yet.
                   </p>
                 )}
@@ -474,7 +474,7 @@ export function PaymentsSettings({
                     type="button"
                     onClick={handleSavePayouts}
                     disabled={isSavingPayouts}
-                    className="mt-2 w-full rounded bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+                    className="mt-2 w-full rounded bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:bg-primary-hover disabled:opacity-50"
                   >
                     {isSavingPayouts ? 'Saving...' : 'Save Payout Structure'}
                   </button>

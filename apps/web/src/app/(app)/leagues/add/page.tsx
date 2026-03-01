@@ -19,27 +19,27 @@ export default function AddLeaguePage() {
   const [activeTab, setActiveTab] = useState<Tab>('create');
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-6">
+    <div className="min-h-screen bg-surface p-6">
       <div className="mx-auto max-w-2xl">
         <button
           onClick={() => router.push('/leagues')}
-          className="mb-4 text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300"
+          className="mb-4 text-sm text-muted-foreground hover:text-accent-foreground"
         >
           &larr; Back to Leagues
         </button>
 
-        <h1 className="mb-6 text-3xl font-bold text-gray-900 dark:text-white">Add League</h1>
+        <h1 className="mb-6 text-3xl font-bold text-foreground">Add League</h1>
 
         {/* Tabs */}
-        <div className="mb-6 flex border-b border-gray-200 dark:border-gray-700">
+        <div className="mb-6 flex border-b border-border">
           {tabs.map((tab) => (
             <button
               key={tab.key}
               onClick={() => setActiveTab(tab.key)}
               className={`px-4 py-2 text-sm font-medium ${
                 activeTab === tab.key
-                  ? 'border-b-2 border-blue-600 text-blue-600'
-                  : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
+                  ? 'border-b-2 border-primary text-primary'
+                  : 'text-muted-foreground hover:text-accent-foreground'
               }`}
             >
               {tab.label}

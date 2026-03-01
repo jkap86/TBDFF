@@ -51,44 +51,44 @@ export function AuctionBoard({ draft, picks, members, currentUserId }: AuctionBo
     <div className="space-y-4">
       {/* Active Nomination Panel */}
       {nomination && (
-        <div className="rounded-lg bg-white dark:bg-gray-800 p-5 shadow border-l-4 border-yellow-400">
+        <div className="rounded-lg bg-card p-5 shadow border-l-4 border-yellow-400">
           <div className="flex items-center justify-between mb-3">
-            <h3 className="text-lg font-bold text-gray-900 dark:text-white">Current Nomination</h3>
-            <span className="text-xs text-gray-500 dark:text-gray-400">Nominated by {nominatorName}</span>
+            <h3 className="text-lg font-bold text-foreground">Current Nomination</h3>
+            <span className="text-xs text-muted-foreground">Nominated by {nominatorName}</span>
           </div>
           <div className="flex items-center gap-6">
             <div className="flex-1">
-              <div className="text-xl font-bold text-gray-900 dark:text-white">
+              <div className="text-xl font-bold text-foreground">
                 {nomination.player_metadata?.full_name || nomination.player_id}
               </div>
               <div className="flex items-center gap-2 mt-1">
                 {nomination.player_metadata?.position && (
-                  <span className="rounded bg-gray-100 dark:bg-gray-700 px-2 py-0.5 text-xs font-medium text-gray-700 dark:text-gray-300">
+                  <span className="rounded bg-muted px-2 py-0.5 text-xs font-medium text-accent-foreground">
                     {nomination.player_metadata.position}
                   </span>
                 )}
                 {nomination.player_metadata?.team && (
-                  <span className="text-sm text-gray-500 dark:text-gray-400">
+                  <span className="text-sm text-muted-foreground">
                     {nomination.player_metadata.team}
                   </span>
                 )}
               </div>
             </div>
             <div className="text-right">
-              <div className="text-3xl font-bold text-green-700">${nomination.current_bid}</div>
-              <div className="text-sm text-gray-500 dark:text-gray-400">{currentBidderName}</div>
+              <div className="text-3xl font-bold text-success-foreground">${nomination.current_bid}</div>
+              <div className="text-sm text-muted-foreground">{currentBidderName}</div>
             </div>
           </div>
 
           {/* Bid History */}
           {nomination.bid_history && nomination.bid_history.length > 1 && (
-            <div className="mt-3 border-t dark:border-gray-700 pt-2">
-              <div className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Bid History</div>
+            <div className="mt-3 border-t border-border pt-2">
+              <div className="text-xs font-medium text-muted-foreground mb-1">Bid History</div>
               <div className="flex flex-wrap gap-2">
                 {[...nomination.bid_history].reverse().map((bid: any, i: number) => {
                   const bidder = members.find((m) => m.user_id === bid.user_id);
                   return (
-                    <span key={i} className={`rounded px-2 py-0.5 text-xs ${i === 0 ? 'bg-green-100 text-green-800 font-medium' : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400'}`}>
+                    <span key={i} className={`rounded px-2 py-0.5 text-xs ${i === 0 ? 'bg-success text-success-foreground font-medium' : 'bg-muted text-muted-foreground'}`}>
                       {bidder?.display_name || bidder?.username || 'Unknown'}: ${bid.amount}
                     </span>
                   );
@@ -101,14 +101,14 @@ export function AuctionBoard({ draft, picks, members, currentUserId }: AuctionBo
 
       {/* No active nomination message */}
       {!nomination && draft.status === 'drafting' && (
-        <div className="rounded-lg bg-white dark:bg-gray-800 p-5 shadow text-center">
-          <p className="text-gray-500 dark:text-gray-400">Waiting for nomination...</p>
+        <div className="rounded-lg bg-card p-5 shadow text-center">
+          <p className="text-muted-foreground">Waiting for nomination...</p>
         </div>
       )}
 
       {/* Team Budgets Grid */}
-      <div className="rounded-lg bg-white dark:bg-gray-800 p-4 shadow">
-        <h3 className="text-sm font-bold text-gray-700 dark:text-gray-300 mb-3">Team Budgets</h3>
+      <div className="rounded-lg bg-card p-4 shadow">
+        <h3 className="text-sm font-bold text-accent-foreground mb-3">Team Budgets</h3>
         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-2">
           {Object.entries(budgets)
             .sort(([, a], [, b]) => b - a)
@@ -120,19 +120,19 @@ export function AuctionBoard({ draft, picks, members, currentUserId }: AuctionBo
                   key={rosterId}
                   className={`rounded-lg border p-2 text-center ${
                     isHighBidder
-                      ? 'border-yellow-400 bg-yellow-50'
+                      ? 'border-highlight-ring bg-highlight'
                       : isCurrentUser
-                        ? 'border-blue-300 bg-blue-50'
-                        : 'border-gray-200 dark:border-gray-700'
+                        ? 'border-primary/30 bg-primary/10'
+                        : 'border-border'
                   }`}
                 >
-                  <div className="text-xs font-medium text-gray-600 dark:text-gray-400 truncate">
+                  <div className="text-xs font-medium text-muted-foreground truncate">
                     {rosterToUser[Number(rosterId)] || `Team ${rosterId}`}
                   </div>
-                  <div className={`text-lg font-bold ${budget > 0 ? 'text-green-700' : 'text-red-600 dark:text-red-400'}`}>
+                  <div className={`text-lg font-bold ${budget > 0 ? 'text-success-foreground' : 'text-destructive-foreground'}`}>
                     ${budget}
                   </div>
-                  <div className="text-[10px] text-gray-400 dark:text-gray-500">
+                  <div className="text-[10px] text-disabled">
                     {teamPicks[Number(rosterId)]?.length ?? 0}/{draft.settings.rounds} picks
                   </div>
                 </div>
@@ -142,22 +142,22 @@ export function AuctionBoard({ draft, picks, members, currentUserId }: AuctionBo
       </div>
 
       {/* Completed Picks */}
-      <div className="rounded-lg bg-white dark:bg-gray-800 p-4 shadow">
-        <h3 className="text-sm font-bold text-gray-700 dark:text-gray-300 mb-3">
+      <div className="rounded-lg bg-card p-4 shadow">
+        <h3 className="text-sm font-bold text-accent-foreground mb-3">
           Completed Picks ({completedPicks.length})
         </h3>
         {completedPicks.length === 0 ? (
-          <p className="text-sm text-gray-400 dark:text-gray-500">No picks yet</p>
+          <p className="text-sm text-disabled">No picks yet</p>
         ) : (
           <div className="overflow-x-auto">
             <table className="min-w-full">
               <thead>
-                <tr className="border-b border-gray-200 dark:border-gray-700">
-                  <th className="pb-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400">#</th>
-                  <th className="pb-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400">Player</th>
-                  <th className="pb-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400">Pos</th>
-                  <th className="pb-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400">Team</th>
-                  <th className="pb-2 text-right text-xs font-medium text-gray-500 dark:text-gray-400">Amount</th>
+                <tr className="border-b border-border">
+                  <th className="pb-2 text-left text-xs font-medium text-muted-foreground">#</th>
+                  <th className="pb-2 text-left text-xs font-medium text-muted-foreground">Player</th>
+                  <th className="pb-2 text-left text-xs font-medium text-muted-foreground">Pos</th>
+                  <th className="pb-2 text-left text-xs font-medium text-muted-foreground">Team</th>
+                  <th className="pb-2 text-right text-xs font-medium text-muted-foreground">Amount</th>
                 </tr>
               </thead>
               <tbody>
@@ -166,24 +166,24 @@ export function AuctionBoard({ draft, picks, members, currentUserId }: AuctionBo
                   return (
                     <tr
                       key={pick.id}
-                      className={`border-b border-gray-100 dark:border-gray-700 ${isUserPick ? 'bg-blue-50' : ''}`}
+                      className={`border-b border-border ${isUserPick ? 'bg-primary/10' : ''}`}
                     >
-                      <td className="py-1.5 text-xs text-gray-400 dark:text-gray-500">{completedPicks.length - idx}</td>
+                      <td className="py-1.5 text-xs text-disabled">{completedPicks.length - idx}</td>
                       <td className="py-1.5">
-                        <span className="text-sm font-medium text-gray-900 dark:text-white">
+                        <span className="text-sm font-medium text-foreground">
                           {pick.metadata?.full_name || pick.player_id}
                         </span>
-                        <span className="ml-2 text-xs text-gray-400 dark:text-gray-500">
+                        <span className="ml-2 text-xs text-disabled">
                           {rosterToUser[pick.roster_id]}
                         </span>
                       </td>
-                      <td className="py-1.5 text-xs text-gray-600 dark:text-gray-400">
+                      <td className="py-1.5 text-xs text-muted-foreground">
                         {pick.metadata?.position}
                       </td>
-                      <td className="py-1.5 text-xs text-gray-600 dark:text-gray-400">
+                      <td className="py-1.5 text-xs text-muted-foreground">
                         {pick.metadata?.team}
                       </td>
-                      <td className="py-1.5 text-right text-sm font-bold text-green-700">
+                      <td className="py-1.5 text-right text-sm font-bold text-success-foreground">
                         ${pick.amount}
                       </td>
                     </tr>

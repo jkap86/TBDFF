@@ -77,8 +77,8 @@ export function InvitesTab() {
 
   if (isLoading) {
     return (
-      <div className="rounded-lg bg-white dark:bg-gray-800 p-6 shadow">
-        <p className="text-center text-gray-500 dark:text-gray-400">Loading invites...</p>
+      <div className="rounded-lg bg-card p-6 shadow">
+        <p className="text-center text-muted-foreground">Loading invites...</p>
       </div>
     );
   }
@@ -86,22 +86,22 @@ export function InvitesTab() {
   return (
     <div className="space-y-4">
       {error && (
-        <div className="rounded bg-red-50 dark:bg-red-900/30 p-3 text-sm text-red-600 dark:text-red-400">{error}</div>
+        <div className="rounded bg-destructive p-3 text-sm text-destructive-foreground">{error}</div>
       )}
 
       {invites.length === 0 ? (
-        <div className="rounded-lg bg-white dark:bg-gray-800 p-8 text-center shadow">
-          <p className="text-gray-500 dark:text-gray-400">No pending invites.</p>
+        <div className="rounded-lg bg-card p-8 text-center shadow">
+          <p className="text-muted-foreground">No pending invites.</p>
         </div>
       ) : (
         invites.map((invite) => (
           <div
             key={invite.id}
-            className="flex items-center justify-between rounded-lg bg-white dark:bg-gray-800 p-4 shadow"
+            className="flex items-center justify-between rounded-lg bg-card p-4 shadow"
           >
             <div>
-              <h3 className="font-semibold text-gray-900 dark:text-white">{invite.league_name}</h3>
-              <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+              <h3 className="font-semibold text-foreground">{invite.league_name}</h3>
+              <p className="mt-1 text-sm text-muted-foreground">
                 Invited by {invite.inviter_username}
               </p>
             </div>
@@ -110,14 +110,14 @@ export function InvitesTab() {
               <button
                 onClick={() => handleDecline(invite.id)}
                 disabled={actionId !== null}
-                className="rounded border border-gray-300 dark:border-gray-600 px-3 py-1.5 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-50"
+                className="rounded border border-input px-3 py-1.5 text-sm font-medium text-accent-foreground hover:bg-accent disabled:opacity-50"
               >
                 Decline
               </button>
               <button
                 onClick={() => handleAccept(invite.id, invite.league_id)}
                 disabled={actionId !== null}
-                className="rounded bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+                className="rounded bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:bg-primary-hover disabled:opacity-50"
               >
                 {actionId === invite.id ? 'Accepting...' : 'Accept'}
               </button>

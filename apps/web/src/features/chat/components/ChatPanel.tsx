@@ -54,7 +54,7 @@ export function ChatPanel() {
       <button
         onClick={handleToggle}
         aria-label="Open messages"
-        className="fixed bottom-6 right-6 z-50 flex h-12 w-12 items-center justify-center rounded-full bg-blue-600 text-white shadow-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+        className="fixed bottom-6 right-6 z-50 flex h-12 w-12 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg hover:bg-primary-hover focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
       >
         <MessageSquare className="h-5 w-5" />
       </button>
@@ -62,7 +62,7 @@ export function ChatPanel() {
       {/* Panel */}
       {isOpen && (
         <div
-          className="fixed z-50 flex flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl dark:border-gray-700 dark:bg-gray-800"
+          className="fixed z-50 flex flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-2xl"
           style={{
             left: panelRect.x,
             top: panelRect.y,
@@ -72,7 +72,7 @@ export function ChatPanel() {
         >
           {/* Header — drag handle */}
           <div
-            className="flex shrink-0 items-center justify-between border-b border-gray-200 px-4 py-3 dark:border-gray-700"
+            className="flex shrink-0 items-center justify-between border-b border-border px-4 py-3"
             style={{
               cursor: isDragging ? 'grabbing' : 'grab',
               touchAction: 'none',
@@ -85,24 +85,24 @@ export function ChatPanel() {
                 <button
                   onClick={handleBack}
                   onPointerDown={(e) => e.stopPropagation()}
-                  className="rounded p-0.5 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
+                  className="rounded p-0.5 text-muted-foreground hover:text-accent-foreground"
                   aria-label="Back to conversations"
                 >
                   <ChevronLeft className="h-5 w-5" />
                 </button>
-                <span className="text-sm font-semibold text-gray-900 dark:text-white">
+                <span className="text-sm font-semibold text-foreground">
                   {activeConversation.other_username}
                 </span>
               </div>
             ) : (
-              <span className="text-sm font-semibold text-gray-900 dark:text-white">
+              <span className="text-sm font-semibold text-foreground">
                 {headerTitle}
               </span>
             )}
             <button
               onClick={closePanel}
               onPointerDown={(e) => e.stopPropagation()}
-              className="rounded p-0.5 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
+              className="rounded p-0.5 text-muted-foreground hover:text-accent-foreground"
               aria-label="Close messages"
             >
               <X className="h-5 w-5" />
@@ -111,13 +111,13 @@ export function ChatPanel() {
 
           {/* Tabs */}
           {showTabs && (
-            <div className="flex shrink-0 border-b border-gray-200 dark:border-gray-700">
+            <div className="flex shrink-0 border-b border-border">
               <button
                 onClick={() => setActiveTab('league')}
                 className={`flex-1 py-2 text-center text-sm font-medium transition-colors ${
                   activeTab === 'league'
-                    ? 'border-b-2 border-blue-600 text-blue-600'
-                    : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'
+                    ? 'border-b-2 border-primary text-primary'
+                    : 'text-muted-foreground hover:text-accent-foreground'
                 }`}
               >
                 League Chat
@@ -126,8 +126,8 @@ export function ChatPanel() {
                 onClick={() => setActiveTab('dms')}
                 className={`flex-1 py-2 text-center text-sm font-medium transition-colors ${
                   activeTab === 'dms'
-                    ? 'border-b-2 border-blue-600 text-blue-600'
-                    : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'
+                    ? 'border-b-2 border-primary text-primary'
+                    : 'text-muted-foreground hover:text-accent-foreground'
                 }`}
               >
                 DMs
@@ -165,7 +165,7 @@ export function ChatPanel() {
             style={{ touchAction: 'none' }}
           >
             <svg
-              className="h-3 w-3 text-gray-400 dark:text-gray-500"
+              className="h-3 w-3 text-disabled"
               viewBox="0 0 6 6"
               fill="currentColor"
             >

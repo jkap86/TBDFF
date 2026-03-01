@@ -53,28 +53,28 @@ export function SlowBidDialog({ lot, myBudget, minBid, minIncrement, onSubmit, o
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={onClose}>
       <div
-        className="w-full max-w-md rounded-xl bg-white dark:bg-gray-800 p-6 shadow-xl"
+        className="w-full max-w-md rounded-xl bg-card p-6 shadow-xl"
         onClick={(e) => e.stopPropagation()}
       >
-        <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-1">
+        <h3 className="text-lg font-bold text-foreground mb-1">
           Set Max Bid
         </h3>
-        <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
+        <p className="text-sm text-muted-foreground mb-4">
           Your max bid is sealed. You'll pay just enough to win (second-price).
         </p>
 
         {/* Player info */}
-        <div className="rounded-lg bg-gray-50 dark:bg-gray-700 p-3 mb-4">
-          <div className="font-medium text-gray-900 dark:text-white">
+        <div className="rounded-lg bg-surface p-3 mb-4">
+          <div className="font-medium text-foreground">
             {(lot.player_metadata?.full_name as string) || lot.player_id}
           </div>
           {!!lot.player_metadata?.position && (
-            <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">
+            <div className="text-xs text-muted-foreground mb-1">
               {String(lot.player_metadata.position)} - {String(lot.player_metadata.team)}
             </div>
           )}
-          <div className="flex items-center gap-4 mt-1 text-sm text-gray-600 dark:text-gray-400">
-            <span>Current bid: <span className="font-bold text-green-700">${currentBid}</span></span>
+          <div className="flex items-center gap-4 mt-1 text-sm text-muted-foreground">
+            <span>Current bid: <span className="font-bold text-success-foreground">${currentBid}</span></span>
             <span>Bids: {lot.bid_count}</span>
             <span>
               {hoursRemaining > 1
@@ -83,7 +83,7 @@ export function SlowBidDialog({ lot, myBudget, minBid, minIncrement, onSubmit, o
             </span>
           </div>
           {myMaxBid != null && (
-            <div className="mt-1 text-sm text-blue-600 dark:text-blue-400">
+            <div className="mt-1 text-sm text-link">
               Your current max bid: ${myMaxBid}
             </div>
           )}
@@ -91,17 +91,17 @@ export function SlowBidDialog({ lot, myBudget, minBid, minIncrement, onSubmit, o
 
         {/* Budget info */}
         {myBudget && (
-          <div className="flex gap-4 text-xs text-gray-500 dark:text-gray-400 mb-4">
+          <div className="flex gap-4 text-xs text-muted-foreground mb-4">
             <span>Budget: ${myBudget.total_budget}</span>
             <span>Spent: ${myBudget.spent}</span>
-            <span>Available: <span className="font-medium text-gray-900 dark:text-white">${myBudget.available}</span></span>
+            <span>Available: <span className="font-medium text-foreground">${myBudget.available}</span></span>
             <span>Players: {myBudget.won_count}/{myBudget.total_slots}</span>
           </div>
         )}
 
         {/* Bid input */}
         <div className="flex items-center gap-2 mb-2">
-          <span className="text-lg text-gray-500 dark:text-gray-400">$</span>
+          <span className="text-lg text-muted-foreground">$</span>
           <input
             type="text"
             inputMode="numeric"
@@ -109,7 +109,7 @@ export function SlowBidDialog({ lot, myBudget, minBid, minIncrement, onSubmit, o
             onChange={(e) => setBidValue(e.target.value.replace(/[^0-9]/g, ''))}
             onKeyDown={(e) => { if (e.key === 'Enter' && isValid) handleSubmit(); }}
             autoFocus
-            className="w-32 rounded-lg border border-gray-300 dark:border-gray-600 px-3 py-2 text-xl font-bold text-gray-900 dark:text-white dark:bg-gray-700 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            className="w-32 rounded-lg border border-input px-3 py-2 text-xl font-bold text-foreground bg-card focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
           />
           {parsedBid > maxAffordable && (
             <span className="text-xs text-red-500">Exceeds budget</span>
@@ -125,8 +125,8 @@ export function SlowBidDialog({ lot, myBudget, minBid, minIncrement, onSubmit, o
               onClick={() => setBidValue(String(val))}
               className={`rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors ${
                 parsedBid === val
-                  ? 'border-blue-300 bg-blue-100 text-blue-700'
-                  : 'border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
+                  ? 'bg-primary text-primary-foreground ring-2 ring-ring'
+                  : 'bg-muted text-accent-foreground hover:bg-muted-hover'
               }`}
             >
               ${val}
@@ -135,7 +135,7 @@ export function SlowBidDialog({ lot, myBudget, minBid, minIncrement, onSubmit, o
         </div>
 
         {error && (
-          <p className="text-sm text-red-600 dark:text-red-400 mb-3">{error}</p>
+          <p className="text-sm text-destructive-foreground mb-3">{error}</p>
         )}
 
         {/* Actions */}
@@ -143,7 +143,7 @@ export function SlowBidDialog({ lot, myBudget, minBid, minIncrement, onSubmit, o
           <button
             type="button"
             onClick={onClose}
-            className="rounded-lg border border-gray-300 dark:border-gray-600 px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
+            className="rounded-lg border border-input px-4 py-2 text-sm font-medium text-accent-foreground hover:bg-accent"
           >
             Cancel
           </button>
@@ -151,7 +151,7 @@ export function SlowBidDialog({ lot, myBudget, minBid, minIncrement, onSubmit, o
             type="button"
             onClick={handleSubmit}
             disabled={!isValid || isSubmitting}
-            className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+            className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary-hover disabled:opacity-50"
           >
             {isSubmitting ? 'Placing Bid...' : `Set Max Bid $${isValid ? parsedBid : '—'}`}
           </button>

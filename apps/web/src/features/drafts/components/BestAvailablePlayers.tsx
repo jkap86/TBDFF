@@ -102,13 +102,13 @@ export function BestAvailablePlayers({
       {/* Search input */}
       <div className="px-3 pt-3 pb-2">
         <div className="relative">
-          <Search className="absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-gray-400 dark:text-gray-500" />
+          <Search className="absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-disabled" />
           <input
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Filter by name..."
-            className="w-full rounded border border-gray-300 dark:border-gray-600 py-1.5 pl-7 pr-2 text-sm text-gray-900 dark:text-white dark:bg-gray-700 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            className="w-full rounded border border-input py-1.5 pl-7 pr-2 text-sm text-foreground bg-card focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
           />
         </div>
       </div>
@@ -121,8 +121,8 @@ export function BestAvailablePlayers({
             onClick={() => setPosition(pos)}
             className={`rounded-full px-2.5 py-0.5 text-xs font-medium transition-colors ${
               position === pos
-                ? 'bg-blue-600 text-white'
-                : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600'
+                ? 'bg-primary text-primary-foreground'
+                : 'bg-muted text-muted-foreground hover:bg-muted-hover'
             }`}
           >
             {pos}
@@ -134,10 +134,10 @@ export function BestAvailablePlayers({
       <div
         ref={scrollRef}
         onScroll={handleScroll}
-        className="flex-1 overflow-y-auto divide-y divide-gray-100 dark:divide-gray-700"
+        className="flex-1 overflow-y-auto divide-y divide-border"
       >
         {players.length === 0 && !isLoading && (
-          <div className="px-4 py-6 text-center text-sm text-gray-400 dark:text-gray-500">
+          <div className="px-4 py-6 text-center text-sm text-disabled">
             No players found
           </div>
         )}
@@ -146,16 +146,16 @@ export function BestAvailablePlayers({
           return (
             <div
               key={player.id}
-              className="flex items-center gap-2 px-3 py-1.5 hover:bg-gray-50 dark:hover:bg-gray-800"
+              className="flex items-center gap-2 px-3 py-1.5 hover:bg-accent"
             >
-              <span className="w-6 text-right text-xs font-medium text-gray-400 dark:text-gray-500">
+              <span className="w-6 text-right text-xs font-medium text-disabled">
                 {player.search_rank ?? index + 1}
               </span>
               <div className="flex-1 min-w-0">
-                <div className="truncate text-sm font-medium text-gray-900 dark:text-white">
+                <div className="truncate text-sm font-medium text-foreground">
                   {player.full_name}
                 </div>
-                <div className="text-xs text-gray-500 dark:text-gray-400">
+                <div className="text-xs text-muted-foreground">
                   {player.position}{player.team ? ` - ${player.team}` : ''}
                 </div>
               </div>
@@ -166,7 +166,7 @@ export function BestAvailablePlayers({
                   className={`rounded px-1.5 py-0.5 text-xs font-medium transition-colors ${
                     isMyTurn && !isPicking
                       ? 'bg-green-600 text-white hover:bg-green-700'
-                      : 'bg-gray-200 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed'
+                      : 'bg-muted-hover text-disabled cursor-not-allowed'
                   }`}
                   title={!isMyTurn ? 'Not your turn' : `${actionLabel} player`}
                 >
@@ -179,7 +179,7 @@ export function BestAvailablePlayers({
                 className={`rounded p-1 ${
                   isQueued
                     ? 'text-green-500'
-                    : 'text-gray-400 dark:text-gray-500 hover:bg-blue-50 hover:text-blue-600'
+                    : 'text-disabled hover:bg-blue-50 hover:text-blue-600'
                 }`}
                 title={isQueued ? 'Already in queue' : 'Add to queue'}
               >
@@ -190,7 +190,7 @@ export function BestAvailablePlayers({
         })}
         {isLoading && (
           <div className="flex justify-center py-3">
-            <div className="h-4 w-4 animate-spin rounded-full border-2 border-gray-300 dark:border-gray-600 border-t-blue-500" />
+            <div className="h-4 w-4 animate-spin rounded-full border-2 border-input border-t-primary" />
           </div>
         )}
       </div>

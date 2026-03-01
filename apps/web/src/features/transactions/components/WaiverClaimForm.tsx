@@ -36,34 +36,34 @@ export function WaiverClaimForm({ playerId, playerName, roster, playerNames, wai
   };
 
   return (
-    <div className="space-y-3 p-4 border border-gray-200 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-900">
-      <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300">Waiver Claim for {playerName || playerId}</h4>
+    <div className="space-y-3 p-4 border border-border rounded-lg bg-surface">
+      <h4 className="text-sm font-medium text-accent-foreground">Waiver Claim for {playerName || playerId}</h4>
 
       {error && (
-        <p className="text-xs text-red-600 dark:text-red-400">{error}</p>
+        <p className="text-xs text-destructive-foreground">{error}</p>
       )}
 
       {/* FAAB bid for FAAB leagues */}
       {waiverType === 2 && (
         <div>
-          <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">FAAB Bid ($)</label>
+          <label className="block text-xs font-medium text-muted-foreground mb-1">FAAB Bid ($)</label>
           <input
             type="number"
             min={0}
             value={faabAmount}
             onChange={(e) => setFaabAmount(parseInt(e.target.value) || 0)}
-            className="w-full rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-2 py-1 text-sm text-gray-900 dark:text-white"
+            className="w-full rounded border border-input bg-card px-2 py-1 text-sm text-foreground"
           />
         </div>
       )}
 
       {/* Drop player selector */}
       <div>
-        <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Drop Player (optional)</label>
+        <label className="block text-xs font-medium text-muted-foreground mb-1">Drop Player (optional)</label>
         <select
           value={dropPlayerId}
           onChange={(e) => setDropPlayerId(e.target.value)}
-          className="w-full rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-2 py-1 text-sm text-gray-900 dark:text-white"
+          className="w-full rounded border border-input bg-card px-2 py-1 text-sm text-foreground"
         >
           <option value="">None</option>
           {roster.players.map((pid) => (
@@ -75,14 +75,14 @@ export function WaiverClaimForm({ playerId, playerName, roster, playerNames, wai
       <div className="flex justify-end gap-2">
         <button
           onClick={onCancel}
-          className="rounded px-3 py-1 text-xs font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700"
+          className="rounded px-3 py-1 text-xs font-medium text-accent-foreground hover:bg-muted-hover"
         >
           Cancel
         </button>
         <button
           onClick={handleSubmit}
           disabled={isSubmitting}
-          className="rounded bg-blue-600 px-3 py-1 text-xs font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+          className="rounded bg-primary px-3 py-1 text-xs font-medium text-primary-foreground hover:bg-primary-hover disabled:opacity-50"
         >
           {isSubmitting ? 'Placing...' : 'Place Claim'}
         </button>

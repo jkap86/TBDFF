@@ -26,16 +26,16 @@ export function DraftControls({
   onToggleAutoPick,
 }: DraftControlsProps) {
   return (
-    <div className="rounded-lg bg-white dark:bg-gray-800 p-4 shadow">
+    <div className="rounded-lg bg-card p-4 shadow">
       <div className="flex items-center gap-4">
         {/* Timer */}
         {timeRemaining !== null && (
           <div className={`flex items-center gap-2 rounded-lg px-4 py-2 font-mono text-lg font-bold ${
             timeRemaining <= 30
-              ? 'bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-400'
+              ? 'bg-destructive text-destructive-foreground'
               : timeRemaining <= 60
-                ? 'bg-yellow-100 text-yellow-700'
-                : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300'
+                ? 'bg-warning text-warning-foreground'
+                : 'bg-muted text-accent-foreground'
           }`}>
             {formatTime(timeRemaining)}
           </div>
@@ -48,14 +48,14 @@ export function DraftControls({
             className={`rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
               isAutoPick
                 ? 'bg-orange-100 text-orange-700 hover:bg-orange-200'
-                : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600'
+                : 'bg-muted text-muted-foreground hover:bg-muted-hover'
             } disabled:opacity-50`}
           >
             {isTogglingAutoPick ? '...' : isAutoPick ? 'Auto: ON' : 'Auto: OFF'}
           </button>
         )}
         {isMyTurn && !isAutoPick && (
-          <span className="rounded-full bg-green-100 px-3 py-1 text-sm font-medium text-green-700">
+          <span className="rounded-full bg-success px-3 py-1 text-sm font-medium text-success-foreground">
             Your Pick!
           </span>
         )}
@@ -65,13 +65,13 @@ export function DraftControls({
           </span>
         )}
         {nextPick && !isMyTurn && (
-          <span className="text-sm text-gray-500 dark:text-gray-400">
+          <span className="text-sm text-muted-foreground">
             Waiting for pick #{nextPick.pick_no} (Round {nextPick.round})
           </span>
         )}
       </div>
       {pickError && (
-        <p className="mt-2 text-sm text-red-600 dark:text-red-400">{pickError}</p>
+        <p className="mt-2 text-sm text-destructive-foreground">{pickError}</p>
       )}
     </div>
   );

@@ -161,16 +161,16 @@ export function LeagueSettingsModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-      <div className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-lg bg-white dark:bg-gray-800 p-6 shadow-xl">
-        <h2 className="mb-4 text-xl font-bold text-gray-900 dark:text-white">League Settings</h2>
+      <div className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-lg bg-card p-6 shadow-xl">
+        <h2 className="mb-4 text-xl font-bold text-foreground">League Settings</h2>
 
         {error && (
-          <div className="mb-4 rounded bg-red-50 dark:bg-red-900/30 p-3 text-sm text-red-600 dark:text-red-400">{error}</div>
+          <div className="mb-4 rounded bg-destructive p-3 text-sm text-destructive-foreground">{error}</div>
         )}
 
         <form onSubmit={handleSubmit}>
           <div className="mb-4">
-            <label htmlFor="name" className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
+            <label htmlFor="name" className="mb-1 block text-sm font-medium text-accent-foreground">
               League Name
             </label>
             <input
@@ -178,7 +178,7 @@ export function LeagueSettingsModal({
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="w-full rounded border border-gray-300 dark:border-gray-600 px-3 py-2 text-gray-900 dark:text-white dark:bg-gray-700 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              className="w-full rounded border border-input px-3 py-2 text-foreground bg-muted focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
               placeholder="My League"
               disabled={isSubmitting}
               maxLength={100}
@@ -186,14 +186,14 @@ export function LeagueSettingsModal({
           </div>
 
           <div className="mb-4">
-            <label htmlFor="totalRosters" className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
+            <label htmlFor="totalRosters" className="mb-1 block text-sm font-medium text-accent-foreground">
               Number of Teams
             </label>
             <select
               id="totalRosters"
               value={totalRosters}
               onChange={(e) => setTotalRosters(parseInt(e.target.value, 10))}
-              className="w-full rounded border border-gray-300 dark:border-gray-600 px-3 py-2 text-gray-900 dark:text-white dark:bg-gray-700 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              className="w-full rounded border border-input px-3 py-2 text-foreground bg-muted focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
               disabled={isSubmitting}
             >
               {[...Array(31)].map((_, i) => {
@@ -208,14 +208,14 @@ export function LeagueSettingsModal({
           </div>
 
           <div className="mb-4">
-            <label htmlFor="status" className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
+            <label htmlFor="status" className="mb-1 block text-sm font-medium text-accent-foreground">
               League Status
             </label>
             <select
               id="status"
               value={status}
               onChange={(e) => setStatus(e.target.value as LeagueStatus)}
-              className="w-full rounded border border-gray-300 dark:border-gray-600 px-3 py-2 text-gray-900 dark:text-white dark:bg-gray-700 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              className="w-full rounded border border-input px-3 py-2 text-foreground bg-muted focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
               disabled={isSubmitting}
             >
               <option value="pre_draft">Pre-Draft</option>
@@ -226,14 +226,14 @@ export function LeagueSettingsModal({
           </div>
 
           <div className="mb-4">
-            <label htmlFor="visibility" className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
+            <label htmlFor="visibility" className="mb-1 block text-sm font-medium text-accent-foreground">
               League Visibility
             </label>
             <select
               id="visibility"
               value={isPublic ? 'public' : 'private'}
               onChange={(e) => setIsPublic(e.target.value === 'public')}
-              className="w-full rounded border border-gray-300 dark:border-gray-600 px-3 py-2 text-gray-900 dark:text-white dark:bg-gray-700 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              className="w-full rounded border border-input px-3 py-2 text-foreground bg-muted focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
               disabled={isSubmitting}
             >
               <option value="public">Public - Anyone can find and join</option>
@@ -243,14 +243,14 @@ export function LeagueSettingsModal({
 
           {!isPublic && (
             <div className="mb-4">
-              <label htmlFor="invitePermission" className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
+              <label htmlFor="invitePermission" className="mb-1 block text-sm font-medium text-accent-foreground">
                 Who can send invites?
               </label>
               <select
                 id="invitePermission"
                 value={memberCanInvite ? 'anyone' : 'commissioner'}
                 onChange={(e) => setMemberCanInvite(e.target.value === 'anyone')}
-                className="w-full rounded border border-gray-300 dark:border-gray-600 px-3 py-2 text-gray-900 dark:text-white dark:bg-gray-700 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                className="w-full rounded border border-input px-3 py-2 text-foreground bg-muted focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
                 disabled={isSubmitting}
               >
                 <option value="commissioner">Commissioner only</option>
@@ -298,21 +298,21 @@ export function LeagueSettingsModal({
           )}
 
           {isOwner && (
-            <div className="mb-6 border-t border-gray-300 dark:border-gray-600 pt-6">
-              <h3 className="mb-2 text-sm font-semibold text-red-600 dark:text-red-400">Danger Zone</h3>
+            <div className="mb-6 border-t border-input pt-6">
+              <h3 className="mb-2 text-sm font-semibold text-destructive-foreground">Danger Zone</h3>
 
               {!showDeleteConfirmation ? (
                 <button
                   type="button"
                   onClick={() => setShowDeleteConfirmation(true)}
-                  className="w-full rounded border border-red-300 bg-white dark:bg-gray-800 px-4 py-2 text-sm font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 disabled:opacity-50"
+                  className="w-full rounded border border-destructive-foreground/30 bg-card px-4 py-2 text-sm font-medium text-destructive-foreground hover:bg-destructive disabled:opacity-50"
                   disabled={isSubmitting || isDeleting}
                 >
                   Delete League
                 </button>
               ) : (
                 <div className="space-y-3">
-                  <div className="rounded bg-red-50 dark:bg-red-900/30 p-3 text-sm text-red-800 dark:text-red-300">
+                  <div className="rounded bg-destructive p-3 text-sm text-destructive-foreground">
                     <p className="font-medium">Are you sure you want to delete this league?</p>
                     <p className="mt-1">This action cannot be undone. All league data will be permanently deleted.</p>
                   </div>
@@ -320,7 +320,7 @@ export function LeagueSettingsModal({
                     <button
                       type="button"
                       onClick={() => setShowDeleteConfirmation(false)}
-                      className="flex-1 rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-50"
+                      className="flex-1 rounded border border-input bg-card px-4 py-2 text-sm font-medium text-accent-foreground hover:bg-accent disabled:opacity-50"
                       disabled={isDeleting}
                     >
                       Cancel
@@ -328,7 +328,7 @@ export function LeagueSettingsModal({
                     <button
                       type="button"
                       onClick={handleDelete}
-                      className="flex-1 rounded bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50"
+                      className="flex-1 rounded bg-red-600 px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-red-700 disabled:opacity-50"
                       disabled={isDeleting}
                     >
                       {isDeleting ? 'Deleting...' : 'Confirm Delete'}
@@ -343,14 +343,14 @@ export function LeagueSettingsModal({
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 rounded bg-gray-200 dark:bg-gray-700 px-4 py-2 font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600 disabled:opacity-50"
+              className="flex-1 rounded bg-muted-hover px-4 py-2 font-medium text-accent-foreground hover:bg-muted-hover disabled:opacity-50"
               disabled={isSubmitting || isDeleting}
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="flex-1 rounded bg-blue-600 px-4 py-2 font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+              className="flex-1 rounded bg-primary px-4 py-2 font-medium text-primary-foreground hover:bg-primary-hover disabled:opacity-50"
               disabled={isSubmitting || isDeleting}
             >
               {isSubmitting ? 'Saving...' : 'Save Changes'}
