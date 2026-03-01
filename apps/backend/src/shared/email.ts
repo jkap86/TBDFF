@@ -1,11 +1,21 @@
 import { Resend } from 'resend';
 import { config } from '../config';
 
-const resend = new Resend(config.RESEND_API_KEY);
-
 export class EmailService {
+  private resend: Resend | null = null;
+
+  private getClient(): Resend {
+    if (!this.resend) {
+      if (!config.RESEND_API_KEY) {
+        throw new Error('RESEND_API_KEY is not configured');
+      }
+      this.resend = new Resend(config.RESEND_API_KEY);
+    }
+    return this.resend;
+  }
+
   async sendPasswordResetEmail(to: string, resetUrl: string): Promise<void> {
-    await resend.emails.send({
+    await this.getClient().emails.send({
       from: config.EMAIL_FROM,
       to,
       subject: 'Reset your TBDFF password',
