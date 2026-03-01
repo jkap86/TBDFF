@@ -28,4 +28,7 @@ export const config = {
   ],
   ENABLE_JOBS: parseBoolean(process.env.ENABLE_JOBS, true),
   ENABLE_DRAFT_RECOVERY: parseBoolean(process.env.ENABLE_DRAFT_RECOVERY, true),
+  RESEND_API_KEY: process.env.RESEND_API_KEY || '',
+  APP_URL: process.env.APP_URL || 'http://localhost:3000',
+  EMAIL_FROM: process.env.EMAIL_FROM || 'noreply@yourdomain.com',
 } as const;

@@ -8,6 +8,8 @@ import {
   ConflictException,
 } from '../../shared/exceptions';
 import { signToken, verifyToken } from '../../shared/jwt';
+import { EmailService } from '../../shared/email';
+import { config } from '../../config';
 
 function hashToken(token: string): string {
   return crypto.createHash('sha256').update(token).digest('hex');
@@ -29,8 +31,12 @@ export interface AuthResult {
 export class AuthService {
   private readonly ACCESS_TOKEN_EXPIRY = '15m';
   private readonly REFRESH_TOKEN_EXPIRY = '30d';
+  private readonly RESET_TOKEN_EXPIRY_MS = 60 * 60 * 1000; // 1 hour
 
-  constructor(private readonly userRepository: UserRepository) {}
+  constructor(
+    private readonly userRepository: UserRepository,
+    private readonly emailService: EmailService,
+  ) {}
 
   async register(username: string, email: string, password: string): Promise<AuthResult> {
     const normalizedEmail = email.toLowerCase().trim();
@@ -137,6 +143,39 @@ export class AuthService {
 
   async logout(userId: string): Promise<void> {
     await this.userRepository.clearRefreshToken(userId);
+  }
+
+  async requestPasswordReset(email: string): Promise<void> {
+    const user = await this.userRepository.findByEmail(email.toLowerCase().trim());
+    if (!user) return; // Silent — no email enumeration
+
+    const rawToken = crypto.randomBytes(32).toString('hex');
+    const hashedToken = hashToken(rawToken);
+    const expiresAt = new Date(Date.now() + this.RESET_TOKEN_EXPIRY_MS);
+
+    await this.userRepository.setPasswordResetToken(user.userId, hashedToken, expiresAt);
+
+    const resetUrl = `${config.APP_URL}/reset-password?token=${rawToken}`;
+    await this.emailService.sendPasswordResetEmail(user.email, resetUrl);
+  }
+
+  async resetPassword(token: string, newPassword: string): Promise<void> {
+    if (newPassword.length < User.MIN_PASSWORD_LENGTH) {
+      throw new ValidationException(
+        `Password must be at least ${User.MIN_PASSWORD_LENGTH} characters`
+      );
+    }
+
+    const hashedToken = hashToken(token);
+    const user = await this.userRepository.findByPasswordResetToken(hashedToken);
+    if (!user) {
+      throw new InvalidCredentialsException('Invalid or expired reset token');
+    }
+
+    const passwordHash = await bcrypt.hash(newPassword, 10);
+    await this.userRepository.updatePassword(user.userId, passwordHash);
+    await this.userRepository.clearPasswordResetToken(user.userId);
+    await this.userRepository.clearRefreshToken(user.userId);
   }
 
   private generateAccessToken(user: User): string {

@@ -39,6 +39,12 @@ export default function LoginPage() {
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
+          {searchParams.get('reset') === 'success' && (
+            <div className="rounded-md bg-primary/10 px-4 py-3 text-sm text-foreground">
+              Password reset successfully. Log in with your new password.
+            </div>
+          )}
+
           {error && (
             <div className="rounded-md bg-destructive px-4 py-3 text-sm text-destructive-foreground">
               {error}
@@ -61,9 +67,14 @@ export default function LoginPage() {
           </div>
 
           <div>
-            <label htmlFor="password" className="block text-sm font-medium text-accent-foreground">
-              Password
-            </label>
+            <div className="flex items-center justify-between">
+              <label htmlFor="password" className="block text-sm font-medium text-accent-foreground">
+                Password
+              </label>
+              <Link href="/forgot-password" className="text-xs text-link hover:underline">
+                Forgot password?
+              </Link>
+            </div>
             <input
               id="password"
               type="password"

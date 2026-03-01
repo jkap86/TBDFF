@@ -72,4 +72,41 @@ export class UserRepository {
       expiresAt: result.rows[0].refresh_token_expires_at,
     };
   }
+
+  async findByEmail(email: string): Promise<User | null> {
+    const result = await this.db.query(
+      'SELECT * FROM users WHERE LOWER(email) = LOWER($1)',
+      [email]
+    );
+    return result.rows.length > 0 ? User.fromDatabase(result.rows[0]) : null;
+  }
+
+  async setPasswordResetToken(userId: string, hashedToken: string, expiresAt: Date): Promise<void> {
+    await this.db.query(
+      'UPDATE users SET password_reset_token = $1, password_reset_expires_at = $2 WHERE id = $3',
+      [hashedToken, expiresAt, userId]
+    );
+  }
+
+  async findByPasswordResetToken(hashedToken: string): Promise<User | null> {
+    const result = await this.db.query(
+      'SELECT * FROM users WHERE password_reset_token = $1 AND password_reset_expires_at > NOW()',
+      [hashedToken]
+    );
+    return result.rows.length > 0 ? User.fromDatabase(result.rows[0]) : null;
+  }
+
+  async clearPasswordResetToken(userId: string): Promise<void> {
+    await this.db.query(
+      'UPDATE users SET password_reset_token = NULL, password_reset_expires_at = NULL WHERE id = $1',
+      [userId]
+    );
+  }
+
+  async updatePassword(userId: string, passwordHash: string): Promise<void> {
+    await this.db.query(
+      'UPDATE users SET password_hash = $1 WHERE id = $2',
+      [passwordHash, userId]
+    );
+  }
 }

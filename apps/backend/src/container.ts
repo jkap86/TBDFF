@@ -19,6 +19,9 @@ import { TradeRepository } from './modules/trades/trades.repository';
 import { TransactionRepository } from './modules/transactions/transactions.repository';
 import { PaymentRepository } from './modules/payments/payments.repository';
 
+// Shared
+import { EmailService } from './shared/email';
+
 // Services
 import { AuthService } from './modules/auth/auth.service';
 import { LeagueService } from './modules/leagues/leagues.service';
@@ -91,8 +94,11 @@ export function createContainer() {
   const transactionRepository = new TransactionRepository(pool);
   const paymentRepository = new PaymentRepository(pool);
 
+  // Shared
+  const emailService = new EmailService();
+
   // Services
-  const authService = new AuthService(userRepository);
+  const authService = new AuthService(userRepository, emailService);
   const leagueService = new LeagueService(leagueRepository, draftRepository);
   const playerService = new PlayerService(playerRepository, sleeperPlayerProvider);
   const scoringService = new ScoringService(
