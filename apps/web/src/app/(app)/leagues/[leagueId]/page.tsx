@@ -744,11 +744,10 @@ export default function LeagueDetailPage() {
         )}
 
         {/* Matchups Card */}
-        {(league.status === 'in_season' || league.status === 'complete') && (
-          <div className="rounded-lg bg-card p-6 shadow">
+        <div className="rounded-lg bg-card p-6 shadow">
             <div className="mb-4 flex items-center justify-between">
               <h2 className="text-xl font-bold text-foreground">Matchups</h2>
-              {isCommissioner && league.status === 'in_season' && (
+              {isCommissioner && (
                 <button
                   onClick={handleGenerateMatchups}
                   disabled={isGeneratingMatchups}
@@ -849,7 +848,6 @@ export default function LeagueDetailPage() {
               </p>
             )}
           </div>
-        )}
 
         {/* Trades Card - always visible for draft pick trading */}
         <Link
