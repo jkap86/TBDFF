@@ -38,6 +38,7 @@ export interface LeagueSettings {
   waiver_clear_days: number;
   waiver_day_of_week: number;
   waiver_type: number;
+  matchup_type: number; // 0=randomize, 1=derby
   [key: string]: number; // Allow additional keys for extensibility
 }
 

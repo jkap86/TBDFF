@@ -28,6 +28,7 @@ const DEFAULT_VALUES: LeagueFormValues = {
   dailyWaivers: false,
   dailyWaiversHour: 0,
   draftSetup: 0,
+  matchupType: 0,
 };
 
 export function CreateTab() {

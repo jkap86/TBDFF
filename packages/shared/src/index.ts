@@ -115,6 +115,11 @@ export type {
 export type {
   Matchup,
   MatchupListResponse,
+  MatchupDerbyOrderEntry,
+  MatchupDerbyPick,
+  MatchupDerbyState,
+  MatchupDerbyPickRequest,
+  MatchupDerbyResponse,
 } from './types/matchup';
 export type {
   NflStateResponse,

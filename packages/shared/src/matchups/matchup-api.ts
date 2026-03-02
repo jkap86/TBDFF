@@ -1,5 +1,5 @@
 import { apiClient } from '../api/client';
-import type { MatchupListResponse } from '../types/matchup';
+import type { MatchupListResponse, MatchupDerbyResponse, MatchupDerbyPickRequest } from '../types/matchup';
 
 export const matchupApi = {
   generate: (leagueId: string, token: string) =>
@@ -18,6 +18,34 @@ export const matchupApi = {
   getByWeek: (leagueId: string, week: number, token: string) =>
     apiClient.get<MatchupListResponse>(
       `/leagues/${leagueId}/matchups/${week}`,
+      token
+    ),
+
+  // Matchup Derby
+  startDerby: (leagueId: string, token: string) =>
+    apiClient.post<MatchupDerbyResponse>(
+      `/leagues/${leagueId}/matchups/derby/start`,
+      undefined,
+      token
+    ),
+
+  getDerby: (leagueId: string, token: string) =>
+    apiClient.get<MatchupDerbyResponse>(
+      `/leagues/${leagueId}/matchups/derby`,
+      token
+    ),
+
+  makeDerbyPick: (leagueId: string, body: MatchupDerbyPickRequest, token: string) =>
+    apiClient.post<MatchupDerbyResponse>(
+      `/leagues/${leagueId}/matchups/derby/pick`,
+      body,
+      token
+    ),
+
+  derbyAutoPick: (leagueId: string, token: string) =>
+    apiClient.post<MatchupDerbyResponse>(
+      `/leagues/${leagueId}/matchups/derby/autopick`,
+      undefined,
       token
     ),
 };

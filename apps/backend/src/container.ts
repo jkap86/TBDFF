@@ -14,6 +14,7 @@ import { ScoringRepository } from './modules/scoring/scoring.repository';
 import { DraftRepository } from './modules/drafts/drafts.repository';
 import { AuctionLotRepository } from './modules/drafts/auction-lot.repository';
 import { MatchupRepository } from './modules/matchups/matchups.repository';
+import { MatchupDerbyRepository } from './modules/matchups/matchup-derby.repository';
 import { ChatRepository } from './modules/chat/chat.repository';
 import { TradeRepository } from './modules/trades/trades.repository';
 import { TransactionRepository } from './modules/transactions/transactions.repository';
@@ -32,6 +33,7 @@ import { AuctionService } from './modules/drafts/auction.service';
 import { SlowAuctionService } from './modules/drafts/slow-auction.service';
 import { DerbyService } from './modules/drafts/derby.service';
 import { MatchupService } from './modules/matchups/matchups.service';
+import { MatchupDerbyService } from './modules/matchups/matchup-derby.service';
 import { ChatService } from './modules/chat/chat.service';
 import { TradeService } from './modules/trades/trades.service';
 import { TransactionService } from './modules/transactions/transactions.service';
@@ -89,6 +91,7 @@ export function createContainer() {
   const draftRepository = new DraftRepository(pool);
   const auctionLotRepository = new AuctionLotRepository(pool);
   const matchupRepository = new MatchupRepository(pool);
+  const matchupDerbyRepository = new MatchupDerbyRepository(pool);
   const chatRepository = new ChatRepository(pool);
   const tradeRepository = new TradeRepository(pool);
   const transactionRepository = new TransactionRepository(pool);
@@ -112,6 +115,7 @@ export function createContainer() {
   const slowAuctionService = new SlowAuctionService(auctionLotRepository, draftRepository, leagueRepository, playerRepository, pool);
   const derbyService = new DerbyService(draftRepository, leagueRepository);
   const matchupService = new MatchupService(matchupRepository, leagueRepository);
+  const matchupDerbyService = new MatchupDerbyService(matchupDerbyRepository, matchupRepository, leagueRepository);
   const chatService = new ChatService(chatRepository);
   const tradeService = new TradeService(tradeRepository, leagueRepository, draftRepository);
   const transactionService = new TransactionService(transactionRepository, leagueRepository, playerRepository);
@@ -123,7 +127,7 @@ export function createContainer() {
   const playerController = new PlayerController(playerService);
   const scoringController = new ScoringController(scoringService);
   const draftController = new DraftController(draftService, auctionService, slowAuctionService, derbyService);
-  const matchupController = new MatchupController(matchupService);
+  const matchupController = new MatchupController(matchupService, matchupDerbyService);
   const chatController = new ChatController(chatService);
   const tradeController = new TradeController(tradeService);
   const transactionController = new TransactionController(transactionService);
@@ -141,6 +145,7 @@ export function createContainer() {
     pool,
     repositories: {
       draftRepository,
+      leagueRepository,
     },
     services: {
       chatService,
@@ -148,6 +153,7 @@ export function createContainer() {
       auctionService,
       slowAuctionService,
       derbyService,
+      matchupDerbyService,
       tradeService,
       transactionService,
     },

@@ -747,7 +747,7 @@ export default function LeagueDetailPage() {
         <div className="rounded-lg bg-card p-6 shadow">
             <div className="mb-4 flex items-center justify-between">
               <h2 className="text-xl font-bold text-foreground">Matchups</h2>
-              {isCommissioner && (
+              {isCommissioner && (league.settings?.matchup_type ?? 0) === 0 && (
                 <button
                   onClick={handleGenerateMatchups}
                   disabled={isGeneratingMatchups}
@@ -759,6 +759,22 @@ export default function LeagueDetailPage() {
                       ? 'Re-Randomize Schedule'
                       : 'Generate Schedule'}
                 </button>
+              )}
+              {isCommissioner && (league.settings?.matchup_type ?? 0) === 1 && matchups.length === 0 && (
+                <Link
+                  href={`/leagues/${leagueId}/matchup-derby`}
+                  className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary-hover"
+                >
+                  Start Matchup Derby
+                </Link>
+              )}
+              {(league.settings?.matchup_type ?? 0) === 1 && matchups.length > 0 && isCommissioner && (
+                <Link
+                  href={`/leagues/${leagueId}/matchup-derby`}
+                  className="rounded-lg bg-muted px-4 py-2 text-sm font-medium text-accent-foreground hover:bg-muted-hover"
+                >
+                  Restart Derby
+                </Link>
               )}
             </div>
 
@@ -843,7 +859,9 @@ export default function LeagueDetailPage() {
             ) : (
               <p className="py-4 text-center text-muted-foreground">
                 {isCommissioner
-                  ? 'No matchups generated yet. Click the button above to generate the schedule.'
+                  ? (league.settings?.matchup_type ?? 0) === 1
+                    ? 'No matchups yet. Start a matchup derby to let owners choose their schedule.'
+                    : 'No matchups generated yet. Click the button above to generate the schedule.'
                   : 'No matchups have been generated yet.'}
               </p>
             )}

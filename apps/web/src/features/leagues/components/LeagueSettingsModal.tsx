@@ -85,6 +85,7 @@ export function LeagueSettingsModal({
     const currentDailyWaivers = league.settings?.daily_waivers === 1;
     const currentDailyWaiversHour = league.settings?.daily_waivers_hour ?? 0;
     const currentDraftSetup = league.settings?.draft_setup ?? 0;
+    const currentMatchupType = league.settings?.matchup_type ?? 0;
     if (
       values.isPublic !== currentIsPublic || values.memberCanInvite !== currentMemberCanInvite ||
       values.leagueType !== currentLeagueType || values.bestBall !== currentBestBall ||
@@ -92,7 +93,8 @@ export function LeagueSettingsModal({
       values.waiverBidMin !== currentWaiverBidMin || values.waiverDayOfWeek !== currentWaiverDayOfWeek ||
       values.waiverClearDays !== currentWaiverClearDays || values.dailyWaivers !== currentDailyWaivers ||
       values.dailyWaiversHour !== currentDailyWaiversHour ||
-      values.draftSetup !== currentDraftSetup
+      values.draftSetup !== currentDraftSetup ||
+      values.matchupType !== currentMatchupType
     ) {
       updates.settings = {
         public: values.isPublic ? 1 : 0,
@@ -107,6 +109,7 @@ export function LeagueSettingsModal({
         daily_waivers: values.dailyWaivers ? 1 : 0,
         daily_waivers_hour: values.dailyWaiversHour,
         draft_setup: values.draftSetup,
+        matchup_type: values.matchupType,
       };
     }
 

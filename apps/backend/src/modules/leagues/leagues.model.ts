@@ -41,6 +41,7 @@ export interface LeagueSettings {
   public: number; // 0 = private, 1 = public
   best_ball: number; // 0 = off, 1 = on
   draft_setup: number; // 0 = combined, 1 = vet + rookie split
+  matchup_type: number; // 0 = randomize, 1 = derby
 }
 
 // League scoring settings interface (Sleeper-compatible)
@@ -146,6 +147,7 @@ export const DEFAULT_SETTINGS: LeagueSettings = {
   public: 0, // Default: private league
   best_ball: 0, // Default: off
   draft_setup: 0, // Default: combined
+  matchup_type: 0, // Default: randomize
 };
 
 // Default PPR scoring settings

@@ -5,6 +5,7 @@ import { createApp } from './app';
 import { createChatGateway } from './modules/chat/chat.gateway';
 import { createDraftGateway } from './modules/drafts/draft.gateway';
 import { createTransactionsGateway } from './modules/transactions/transactions.gateway';
+import { createMatchupDerbyGateway } from './modules/matchups/matchup-derby.gateway';
 
 const container = createContainer();
 const app = createApp(container);
@@ -23,6 +24,13 @@ container.services.draftService.setGateway(draftGateway);
 container.services.auctionService.setGateway(draftGateway);
 container.services.slowAuctionService.setGateway(draftGateway);
 container.services.derbyService.setGateway(draftGateway);
+
+// Attach matchup derby gateway and inject into service
+const matchupDerbyGateway = createMatchupDerbyGateway(
+  io,
+  container.repositories.leagueRepository,
+);
+container.services.matchupDerbyService.setGateway(matchupDerbyGateway);
 
 // Attach transactions gateway and inject into services
 const transactionsGateway = createTransactionsGateway(io);

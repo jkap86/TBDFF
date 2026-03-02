@@ -10,7 +10,7 @@ import {
 } from 'react';
 import { io, Socket } from 'socket.io-client';
 import { useAuth } from '@/features/auth/hooks/useAuth';
-import type { ChatMessage, ChatJoinedEvent, ChatErrorEvent, Draft, DraftPick, AuctionLot } from '@tbdff/shared';
+import type { ChatMessage, ChatJoinedEvent, ChatErrorEvent, Draft, DraftPick, AuctionLot, MatchupDerbyState } from '@tbdff/shared';
 
 interface DraftStateUpdate {
   draft: Draft;
@@ -28,6 +28,7 @@ interface ServerToClientEvents {
   'slow_auction:lot_won': (data: { lot: AuctionLot; winner_roster_id: number; price: number }) => void;
   'slow_auction:lot_passed': (data: { lot: AuctionLot }) => void;
   'slow_auction:outbid': (data: { lot_id: string; player_id: string; new_bid: number }) => void;
+  'matchup_derby:state_updated': (data: { derby: MatchupDerbyState; server_time: string }) => void;
 }
 
 interface ClientToServerEvents {
@@ -38,6 +39,8 @@ interface ClientToServerEvents {
   'chat:send': (payload: { type: 'league' | 'dm'; roomId: string; content: string }) => void;
   'draft:join': (draftId: string) => void;
   'draft:leave': (draftId: string) => void;
+  'matchup_derby:join': (leagueId: string) => void;
+  'matchup_derby:leave': (leagueId: string) => void;
 }
 
 type AppSocket = Socket<ServerToClientEvents, ClientToServerEvents>;

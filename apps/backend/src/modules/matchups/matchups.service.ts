@@ -28,6 +28,12 @@ export class MatchupService {
       );
     }
 
+    if ((league.settings.matchup_type ?? 0) === 1) {
+      throw new ValidationException(
+        'This league uses the matchup derby. Start a matchup derby to generate the schedule.'
+      );
+    }
+
     const rosters = await this.leagueRepository.findRostersByLeagueId(leagueId);
     const rosterIds = rosters.map((r) => r.rosterId);
 

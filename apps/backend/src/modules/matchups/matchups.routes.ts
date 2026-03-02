@@ -19,5 +19,11 @@ export function createMatchupRoutes(controller: MatchupController): Router {
   // Get matchups for a specific week
   router.get('/:leagueId/matchups/:week', asyncHandler(controller.getByWeek));
 
+  // Matchup Derby
+  router.post('/:leagueId/matchups/derby/start', asyncHandler(controller.startDerby));
+  router.get('/:leagueId/matchups/derby', asyncHandler(controller.getDerbyState));
+  router.post('/:leagueId/matchups/derby/pick', asyncHandler(controller.makeDerbyPick));
+  router.post('/:leagueId/matchups/derby/autopick', asyncHandler(controller.derbyAutoPick));
+
   return router;
 }

@@ -8,6 +8,7 @@ import { RosterPositionsEditor } from './RosterPositionsEditor';
 import { ScoringSettingsEditor } from './ScoringSettingsEditor';
 import { WaiverSettingsEditor } from './WaiverSettingsEditor';
 import { DraftSetupEditor } from './DraftSetupEditor';
+import { MatchupSetupEditor } from './MatchupSetupEditor';
 
 const CURRENT_SEASON = new Date().getFullYear().toString();
 
@@ -28,6 +29,7 @@ export interface LeagueFormValues {
   dailyWaivers: boolean;
   dailyWaiversHour: number;
   draftSetup: number;
+  matchupType: number;
 }
 
 export function leagueToFormValues(league: League): LeagueFormValues {
@@ -48,6 +50,7 @@ export function leagueToFormValues(league: League): LeagueFormValues {
     dailyWaivers: league.settings?.daily_waivers === 1,
     dailyWaiversHour: league.settings?.daily_waivers_hour ?? 0,
     draftSetup: league.settings?.draft_setup ?? 0,
+    matchupType: league.settings?.matchup_type ?? 0,
   };
 }
 
@@ -74,6 +77,7 @@ export function LeagueSettingsForm({
   const [showRoster, setShowRoster] = useState(false);
   const [showScoring, setShowScoring] = useState(false);
   const [showWaivers, setShowWaivers] = useState(false);
+  const [showMatchupSetup, setShowMatchupSetup] = useState(false);
 
   const update = <K extends keyof LeagueFormValues>(key: K, value: LeagueFormValues[K]) => {
     onChange({ ...values, [key]: value });
@@ -256,6 +260,15 @@ export function LeagueSettingsForm({
         onDailyWaiversHourChange={(v) => update('dailyWaiversHour', v)}
         showWaivers={showWaivers}
         onToggle={() => setShowWaivers(!showWaivers)}
+        isSubmitting={isSubmitting}
+      />
+
+      {/* Matchup Generation */}
+      <MatchupSetupEditor
+        matchupType={values.matchupType}
+        onMatchupTypeChange={(v) => update('matchupType', v)}
+        showMatchups={showMatchupSetup}
+        onToggle={() => setShowMatchupSetup(!showMatchupSetup)}
         isSubmitting={isSubmitting}
       />
 
