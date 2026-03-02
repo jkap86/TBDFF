@@ -119,12 +119,24 @@ export function DraftQueue({ queue, draftedPlayerIds, onReorder, onRemove, onUpd
               >
                 <span className="w-5 text-center text-xs font-medium text-disabled">{index + 1}</span>
                 <div className={`flex-1 min-w-0 ${isDrafted ? 'line-through' : ''}`}>
-                  <div className="truncate text-sm font-medium text-foreground">
-                    {item.full_name || item.player_id}
-                  </div>
-                  <div className="text-xs text-muted-foreground">
-                    {item.position}{item.team ? ` - ${item.team}` : ''}
-                  </div>
+                  {item.player_id.startsWith('rpick:') ? (() => {
+                    const [, r, p] = item.player_id.split(':');
+                    return <>
+                      <div className="truncate text-sm font-medium text-amber-700">
+                        {r}.{p.padStart(2, '0')}
+                      </div>
+                      <div className="text-xs text-amber-600/70">Rookie Draft Pick</div>
+                    </>;
+                  })() : (
+                    <>
+                      <div className="truncate text-sm font-medium text-foreground">
+                        {item.full_name || item.player_id}
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        {item.position}{item.team ? ` - ${item.team}` : ''}
+                      </div>
+                    </>
+                  )}
                 </div>
                 {isDrafted && (
                   <span className="shrink-0 rounded bg-muted-hover px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">

@@ -75,6 +75,8 @@ export function DraftSettingsForm({ draft, onSave, onSaveSuccess, readOnly }: Dr
   // Derby settings
   const [derbyTimer, setDerbyTimer] = useState(draft.settings.derby_timer ?? 60);
   const [derbyTimeoutAction, setDerbyTimeoutAction] = useState(draft.settings.derby_timeout_action ?? 0);
+  // Rookie picks in vet draft
+  const [includeRookiePicks, setIncludeRookiePicks] = useState(draft.settings.include_rookie_picks ?? 0);
 
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -100,6 +102,7 @@ export function DraftSettingsForm({ draft, onSave, onSaveSuccess, readOnly }: Dr
     setOrderMethod(draft.metadata?.order_method ?? 'randomize');
     setDerbyTimer(draft.settings.derby_timer ?? 60);
     setDerbyTimeoutAction(draft.settings.derby_timeout_action ?? 0);
+    setIncludeRookiePicks(draft.settings.include_rookie_picks ?? 0);
     setError(null);
   }, [draft]);
 
@@ -138,6 +141,11 @@ export function DraftSettingsForm({ draft, onSave, onSaveSuccess, readOnly }: Dr
     if (orderMethod === 'derby') {
       if (derbyTimer !== (draft.settings.derby_timer ?? 60)) settingsUpdates.derby_timer = derbyTimer;
       if (derbyTimeoutAction !== (draft.settings.derby_timeout_action ?? 0)) settingsUpdates.derby_timeout_action = derbyTimeoutAction;
+    }
+
+    // Rookie picks setting (vet draft only)
+    if (draft.settings.player_type === 2 && includeRookiePicks !== (draft.settings.include_rookie_picks ?? 0)) {
+      settingsUpdates.include_rookie_picks = includeRookiePicks;
     }
 
     if (Object.keys(settingsUpdates).length > 0) {
@@ -245,6 +253,14 @@ export function DraftSettingsForm({ draft, onSave, onSaveSuccess, readOnly }: Dr
                 )}
               </>
             )}
+            {draft.settings.player_type === 2 && (
+              <>
+                <div className="text-muted-foreground">Rookie Picks</div>
+                <div className="font-medium text-foreground">
+                  {(draft.settings.include_rookie_picks ?? 0) === 1 ? 'Included in pool' : 'Off'}
+                </div>
+              </>
+            )}
           </div>
         </div>
       </div>
@@ -280,6 +296,24 @@ export function DraftSettingsForm({ draft, onSave, onSaveSuccess, readOnly }: Dr
             </p>
             <p className="text-xs text-disabled mt-0.5">Managed in league settings</p>
           </div>
+
+          {/* Include Rookie Picks (vet draft only) */}
+          {draft.settings.player_type === 2 && (
+            <div>
+              <label className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={includeRookiePicks === 1}
+                  onChange={(e) => setIncludeRookiePicks(e.target.checked ? 1 : 0)}
+                  className="h-4 w-4 rounded border-input text-primary focus:ring-ring"
+                />
+                <span className="text-sm font-medium text-accent-foreground">Include Rookie Draft Picks</span>
+              </label>
+              <p className="text-xs text-disabled mt-0.5 ml-6">
+                Rookie draft picks (1.01, 1.02, etc.) appear in the player pool
+              </p>
+            </div>
+          )}
 
           {/* Rounds */}
           <div>

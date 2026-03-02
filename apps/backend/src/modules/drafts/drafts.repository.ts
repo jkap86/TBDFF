@@ -407,6 +407,7 @@ export class DraftRepository {
          FROM draft_picks dp
          WHERE dp.draft_id = $1
            AND dp.player_id IS NOT NULL
+           AND dp.player_id NOT LIKE 'rpick:%'
          GROUP BY dp.roster_id
        ) sub
        WHERE r.league_id = $2
@@ -642,10 +643,11 @@ export class DraftRepository {
   async getQueue(draftId: string, userId: string): Promise<any[]> {
     const result = await this.db.query(
       `SELECT dq.player_id, dq.rank, dq.max_bid,
-              p.full_name, p.first_name, p.last_name,
+              COALESCE(p.full_name, dq.player_id) AS full_name,
+              p.first_name, p.last_name,
               p.position, p.team, p.search_rank, p.auction_value
        FROM draft_queue dq
-       JOIN players p ON p.id::text = dq.player_id
+       LEFT JOIN players p ON p.id::text = dq.player_id
        WHERE dq.draft_id = $1 AND dq.user_id = $2
        ORDER BY dq.rank ASC`,
       [draftId, userId]

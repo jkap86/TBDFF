@@ -119,11 +119,19 @@ export function DraftBoard({ draft, picks, members, currentUserId }: DraftBoardP
                   >
                     {isFilled ? (
                       <div>
-                        <span className="font-medium text-foreground">
-                          {pick.metadata?.first_name?.[0]}. {pick.metadata?.last_name || pick.player_id}
-                        </span>
-                        {pick.metadata?.position && (
-                          <span className="ml-1 text-disabled">{pick.metadata.position}</span>
+                        {pick.metadata?.rookie_pick ? (
+                          <span className="font-bold text-amber-600">
+                            {pick.metadata.last_name}
+                          </span>
+                        ) : (
+                          <>
+                            <span className="font-medium text-foreground">
+                              {pick.metadata?.first_name?.[0]}. {pick.metadata?.last_name || pick.player_id}
+                            </span>
+                            {pick.metadata?.position && (
+                              <span className="ml-1 text-disabled">{pick.metadata.position}</span>
+                            )}
+                          </>
                         )}
                         {isTraded && tradedOwnerName && (
                           <div className="text-[10px] text-info-foreground">{tradedOwnerName}</div>

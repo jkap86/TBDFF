@@ -64,6 +64,7 @@ export default function DraftRoomPage() {
     isAuction: room.isAuction,
     budget: draft.settings.budget,
     teams: draft.settings.teams,
+    includeRookiePicks: draft.settings.include_rookie_picks === 1,
     ...(room.isAuction ? {
       onDraft: room.handleNominate,
       isMyTurn: !!room.isMyTurn && !draft.metadata?.current_nomination && !room.isAutoPick,
@@ -145,11 +146,9 @@ export default function DraftRoomPage() {
                   : <DraftBoard draft={draft} picks={picks} members={members} currentUserId={user?.id} />
               }
             </div>
-            {room.userSlot !== undefined && (
-              <div className="w-80 shrink-0">
-                <DraftSidebar {...sidebarProps} />
-              </div>
-            )}
+            <div className="w-80 shrink-0">
+              <DraftSidebar {...sidebarProps} />
+            </div>
           </div>
         )}
 
@@ -180,11 +179,9 @@ export default function DraftRoomPage() {
               <div className="flex-1 min-w-0">
                 <AuctionBoard draft={draft} picks={picks} members={members} currentUserId={user?.id} />
               </div>
-              {room.userSlot !== undefined && (
-                <div className="w-80 shrink-0">
-                  <DraftSidebar {...sidebarProps} />
-                </div>
-              )}
+              <div className="w-80 shrink-0">
+                <DraftSidebar {...sidebarProps} />
+              </div>
             </div>
           </>
         )}
@@ -211,11 +208,9 @@ export default function DraftRoomPage() {
                   onSetMaxBid={room.handleSlowSetMaxBid}
                 />
               </div>
-              {room.userSlot !== undefined && (
-                <div className="w-80 shrink-0">
-                  <DraftSidebar {...sidebarProps} />
-                </div>
-              )}
+              <div className="w-80 shrink-0">
+                <DraftSidebar {...sidebarProps} />
+              </div>
             </div>
           </>
         )}
@@ -239,11 +234,9 @@ export default function DraftRoomPage() {
               <div className="flex-1 min-w-0">
                 <DraftBoard draft={draft} picks={picks} members={members} currentUserId={user?.id} />
               </div>
-              {room.userSlot !== undefined && (
-                <div className="w-80 shrink-0">
-                  <DraftSidebar {...sidebarProps} />
-                </div>
-              )}
+              <div className="w-80 shrink-0">
+                <DraftSidebar {...sidebarProps} />
+              </div>
             </div>
           </>
         )}

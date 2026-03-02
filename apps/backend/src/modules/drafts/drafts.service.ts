@@ -238,8 +238,8 @@ export class DraftService {
       throw new ValidationException('Draft has already started or is complete');
     }
 
-    // For slow auctions, auto-generate draft order from roster assignments
-    if (draft.type === 'slow_auction' && Object.keys(draft.draftOrder).length === 0) {
+    // For slow auctions or rookie drafts with vet-assigned picks, auto-generate draft order
+    if ((draft.type === 'slow_auction' || draft.settings.player_type === 1) && Object.keys(draft.draftOrder).length === 0) {
       const rosters = await this.leagueRepository.findRostersByLeagueId(draft.leagueId);
       const assignedRosters = rosters
         .filter((r) => r.ownerId)
@@ -288,6 +288,38 @@ export class DraftService {
         const originalSlot = userToSlot[fp.originalOwnerId];
         if (originalSlot !== undefined) {
           pickOverrides.set(`${fp.round}:${originalSlot}`, fp.rosterId);
+        }
+      }
+    }
+
+    // For rookie drafts, apply pick assignments from the vet draft's rpick: selections
+    if (draft.settings.player_type === 1) {
+      const leagueDrafts = await this.draftRepository.findByLeagueId(draft.leagueId);
+      const vetDraft = leagueDrafts.find(
+        (d) => d.settings.player_type === 2 && d.id !== draftId
+          && d.settings.include_rookie_picks === 1,
+      );
+      if (vetDraft) {
+        const vetPicks = await this.draftRepository.findPicksByDraftId(vetDraft.id);
+        // Build reverse map: slot → rosterId for the rookie draft
+        const rosterSlotMap: Record<string, number> = {};
+        for (const [uid, slot] of Object.entries(draft.draftOrder)) {
+          const rid = draft.slotToRosterId[String(slot)];
+          if (rid !== undefined) rosterSlotMap[uid] = rid;
+        }
+
+        for (const vp of vetPicks) {
+          if (vp.playerId?.startsWith('rpick:') && vp.pickedBy) {
+            const parts = vp.playerId.split(':');
+            const rpRound = parseInt(parts[1], 10);
+            const rpPickInRound = parseInt(parts[2], 10);
+            // Find the rosterId of whoever drafted this pick in the vet draft
+            const vetPickerRosterId = findRosterIdByUserId(vetDraft, vp.pickedBy);
+            if (vetPickerRosterId !== null) {
+              // Override this specific pick position in the rookie draft
+              pickOverrides.set(`${rpRound}:${rpPickInRound}`, vetPickerRosterId);
+            }
+          }
         }
       }
     }
@@ -415,17 +447,36 @@ export class DraftService {
         ? (findUserByRosterId(draft.draftOrder, draft.slotToRosterId, nextPick.rosterId) ?? userId)
         : userId;
 
-    // Look up player for metadata
-    const player = await this.playerRepository.findById(playerId);
-    const pickMetadata = player
-      ? {
-          first_name: player.firstName,
-          last_name: player.lastName,
-          full_name: player.fullName,
-          position: player.position,
-          team: player.team,
-        }
-      : {};
+    // Build pick metadata
+    let pickMetadata: Record<string, any>;
+    if (playerId.startsWith('rpick:')) {
+      // Rookie draft pick — parse round:pick from ID
+      const parts = playerId.split(':');
+      const rpRound = parseInt(parts[1], 10);
+      const rpPick = parseInt(parts[2], 10);
+      const pickLabel = `${rpRound}.${String(rpPick).padStart(2, '0')}`;
+      pickMetadata = {
+        rookie_pick: true,
+        first_name: 'Rookie Pick',
+        last_name: pickLabel,
+        full_name: `Rookie Pick ${pickLabel}`,
+        position: 'PICK',
+        team: null,
+        rookie_pick_round: rpRound,
+        rookie_pick_number: rpPick,
+      };
+    } else {
+      const player = await this.playerRepository.findById(playerId);
+      pickMetadata = player
+        ? {
+            first_name: player.firstName,
+            last_name: player.lastName,
+            full_name: player.fullName,
+            position: player.position,
+            team: player.team,
+          }
+        : {};
+    }
 
     // Make the pick
     const pick = await this.draftRepository.makePick(
@@ -723,18 +774,139 @@ export class DraftService {
     draftId: string,
     userId: string,
     options: { position?: string; query?: string; limit?: number; offset?: number },
-  ): Promise<Player[]> {
+  ): Promise<(Player | Record<string, any>)[]> {
     const draft = await this.draftRepository.findById(draftId);
     if (!draft) throw new NotFoundException('Draft not found');
 
     const member = await this.leagueRepository.findMember(draft.leagueId, userId);
     if (!member) throw new ForbiddenException('You are not a member of this league');
 
+    const limit = Math.min(options.limit ?? 50, 200);
+    const offset = options.offset ?? 0;
+
+    // If vet draft with include_rookie_picks, mix in rookie draft picks
+    if (draft.settings.include_rookie_picks === 1 && draft.settings.player_type === 2) {
+      return this.getAvailableWithRookiePicks(draft, draftId, { ...options, limit, offset });
+    }
+
     return this.draftRepository.findAvailablePlayers(draftId, {
       position: options.position,
       query: options.query,
-      limit: Math.min(options.limit ?? 50, 200),
-      offset: options.offset ?? 0,
+      limit,
+      offset,
+      playerType: draft.settings.player_type,
+    });
+  }
+
+  private async getAvailableWithRookiePicks(
+    draft: Draft,
+    draftId: string,
+    options: { position?: string; query?: string; limit: number; offset: number },
+  ): Promise<(Player | Record<string, any>)[]> {
+    // If filtering by a real position, return only real players
+    if (options.position && options.position !== 'PICK') {
+      return this.draftRepository.findAvailablePlayers(draftId, {
+        position: options.position,
+        query: options.query,
+        limit: options.limit,
+        offset: options.offset,
+        playerType: draft.settings.player_type,
+      });
+    }
+
+    // Find the rookie draft for this league
+    const leagueDrafts = await this.draftRepository.findByLeagueId(draft.leagueId);
+    const rookieDraft = leagueDrafts.find(
+      (d) => d.settings.player_type === 1 && d.id !== draftId,
+    );
+
+    if (!rookieDraft) {
+      // No rookie draft found — return normal players
+      if (options.position === 'PICK') return [];
+      return this.draftRepository.findAvailablePlayers(draftId, {
+        position: options.position,
+        query: options.query,
+        limit: options.limit,
+        offset: options.offset,
+        playerType: draft.settings.player_type,
+      });
+    }
+
+    // Generate all rookie pick items
+    const rookieRounds = rookieDraft.settings.rounds;
+    const rookieTeams = rookieDraft.settings.teams;
+    const allRookiePicks: Record<string, any>[] = [];
+    for (let round = 1; round <= rookieRounds; round++) {
+      for (let pick = 1; pick <= rookieTeams; pick++) {
+        const pickLabel = `${round}.${String(pick).padStart(2, '0')}`;
+        allRookiePicks.push({
+          id: `rpick:${round}:${pick}`,
+          first_name: 'Rookie Pick',
+          last_name: pickLabel,
+          full_name: `Rookie Pick ${pickLabel}`,
+          position: 'PICK',
+          fantasy_positions: [],
+          team: `R${round}`,
+          active: true,
+          injury_status: null,
+          years_exp: null,
+          age: null,
+          jersey_number: null,
+          search_rank: round * 100 + pick, // sort by round then pick
+          auction_value: null,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        });
+      }
+    }
+
+    // Filter out already-drafted rookie picks in this vet draft
+    const vetPicks = await this.draftRepository.findPicksByDraftId(draftId);
+    const draftedRpickIds = new Set(
+      vetPicks.filter((p) => p.playerId?.startsWith('rpick:')).map((p) => p.playerId),
+    );
+    let availableRookiePicks = allRookiePicks.filter((rp) => !draftedRpickIds.has(rp.id));
+
+    // Apply search query filter to rookie picks
+    if (options.query) {
+      const q = options.query.toLowerCase();
+      availableRookiePicks = availableRookiePicks.filter(
+        (rp) => rp.full_name.toLowerCase().includes(q) || rp.last_name.toLowerCase().includes(q),
+      );
+    }
+
+    // If filtering by PICK position, return only rookie picks
+    if (options.position === 'PICK') {
+      return availableRookiePicks.slice(options.offset, options.offset + options.limit);
+    }
+
+    // Mix: rookie picks first, then real players
+    const totalRookiePicks = availableRookiePicks.length;
+
+    if (options.offset < totalRookiePicks) {
+      // Some rookie picks still need to be shown
+      const rookieSlice = availableRookiePicks.slice(options.offset, options.offset + options.limit);
+      const remaining = options.limit - rookieSlice.length;
+      if (remaining > 0) {
+        const players = await this.draftRepository.findAvailablePlayers(draftId, {
+          position: options.position,
+          query: options.query,
+          limit: remaining,
+          offset: 0,
+          playerType: draft.settings.player_type,
+        });
+        return [...rookieSlice, ...players];
+      }
+      return rookieSlice;
+    }
+
+    // Past the rookie picks, return only real players with adjusted offset
+    const playerOffset = options.offset - totalRookiePicks;
+    return this.draftRepository.findAvailablePlayers(draftId, {
+      position: options.position,
+      query: options.query,
+      limit: options.limit,
+      offset: playerOffset,
       playerType: draft.settings.player_type,
     });
   }

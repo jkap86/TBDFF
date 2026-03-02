@@ -88,6 +88,7 @@ export interface DraftSettings {
   slots_bn: number;
   budget: number;
   max_players_per_team: number;
+  include_rookie_picks: number; // 0=no, 1=yes (vet draft includes rookie draft picks in player pool)
   [key: string]: number;
 }
 
@@ -116,6 +117,7 @@ export const DEFAULT_DRAFT_SETTINGS: DraftSettings = {
   slots_bn: 5,
   budget: 200,
   max_players_per_team: 0,
+  include_rookie_picks: 0,
   // Slow auction settings
   bid_window_seconds: 43200,      // 12 hours
   max_nominations_per_team: 2,

@@ -27,6 +27,7 @@ const draftSettingsPartialSchema = z.object({
   slots_bn: z.number().int().min(0).max(20).optional(),
   budget: z.number().int().min(1).max(9999).optional(),
   max_players_per_team: z.number().int().min(0).max(50).optional(),
+  include_rookie_picks: z.number().int().min(0).max(1).optional(),
   // Slow auction settings
   bid_window_seconds: z.number().int().min(60).max(604800).optional(),
   max_nominations_per_team: z.number().int().min(1).max(50).optional(),

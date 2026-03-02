@@ -23,6 +23,7 @@ interface DraftSidebarProps {
   budget: number;
   teams: number;
   height?: string;
+  includeRookiePicks?: boolean;
 }
 
 export function DraftSidebar({
@@ -44,6 +45,7 @@ export function DraftSidebar({
   budget,
   teams,
   height = 'calc(100vh - 200px)',
+  includeRookiePicks,
 }: DraftSidebarProps) {
   return (
     <div className="rounded-lg bg-card shadow flex flex-col" style={{ height }}>
@@ -81,6 +83,7 @@ export function DraftSidebar({
             isPicking={isPicking}
             actionLabel={actionLabel}
             accessToken={accessToken}
+            includeRookiePicks={includeRookiePicks}
           />
         ) : (
           <DraftQueue

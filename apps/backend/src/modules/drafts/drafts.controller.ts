@@ -234,7 +234,7 @@ export class DraftController {
       offset,
     });
 
-    res.status(200).json({ players: players.map((p) => p.toSafeObject()) });
+    res.status(200).json({ players: players.map((p) => 'toSafeObject' in p ? p.toSafeObject() : p) });
   };
 
   // ---- Queue ----

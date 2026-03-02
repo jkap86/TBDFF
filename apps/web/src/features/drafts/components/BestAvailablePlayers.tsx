@@ -5,7 +5,7 @@ import { Plus, Check, Search } from 'lucide-react';
 import type { Player } from '@/lib/api';
 import { draftApi } from '@/lib/api';
 
-const POSITIONS = ['ALL', 'QB', 'RB', 'WR', 'TE', 'K', 'DEF'] as const;
+const BASE_POSITIONS = ['ALL', 'QB', 'RB', 'WR', 'TE', 'K', 'DEF'] as const;
 const PAGE_SIZE = 50;
 
 interface BestAvailablePlayersProps {
@@ -18,6 +18,7 @@ interface BestAvailablePlayersProps {
   isPicking?: boolean;
   actionLabel?: string;
   accessToken: string;
+  includeRookiePicks?: boolean;
 }
 
 export function BestAvailablePlayers({
@@ -30,6 +31,7 @@ export function BestAvailablePlayers({
   isPicking = false,
   actionLabel = 'Draft',
   accessToken,
+  includeRookiePicks = false,
 }: BestAvailablePlayersProps) {
   const [players, setPlayers] = useState<Player[]>([]);
   const [position, setPosition] = useState<string>('ALL');
@@ -39,6 +41,10 @@ export function BestAvailablePlayers({
   const [offset, setOffset] = useState(0);
   const scrollRef = useRef<HTMLDivElement>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
+
+  const positions = includeRookiePicks
+    ? [...BASE_POSITIONS, 'PICK'] as const
+    : BASE_POSITIONS;
 
   const fetchPlayers = useCallback(async (reset: boolean) => {
     const currentOffset = reset ? 0 : offset;
@@ -97,6 +103,8 @@ export function BestAvailablePlayers({
     }
   };
 
+  const isRookiePick = (id: string) => id.startsWith('rpick:');
+
   return (
     <div className="flex h-full flex-col">
       {/* Search input */}
@@ -115,7 +123,7 @@ export function BestAvailablePlayers({
 
       {/* Position filter pills */}
       <div className="flex gap-1 px-3 pb-2 flex-wrap">
-        {POSITIONS.map((pos) => (
+        {positions.map((pos) => (
           <button
             key={pos}
             onClick={() => setPosition(pos)}
@@ -143,21 +151,41 @@ export function BestAvailablePlayers({
         )}
         {players.map((player, index) => {
           const isQueued = queuedPlayerIds.has(player.id);
+          const isRpick = isRookiePick(player.id);
           return (
             <div
               key={player.id}
-              className="flex items-center gap-2 px-3 py-1.5 hover:bg-accent"
+              className={`flex items-center gap-2 px-3 py-1.5 hover:bg-accent ${isRpick ? 'bg-amber-50/50' : ''}`}
             >
-              <span className="w-6 text-right text-xs font-medium text-disabled">
-                {player.search_rank ?? index + 1}
-              </span>
+              {isRpick ? (
+                <span className="w-6 text-right text-xs font-bold text-amber-600">
+                  R{player.team?.replace('R', '')}
+                </span>
+              ) : (
+                <span className="w-6 text-right text-xs font-medium text-disabled">
+                  {player.search_rank ?? index + 1}
+                </span>
+              )}
               <div className="flex-1 min-w-0">
-                <div className="truncate text-sm font-medium text-foreground">
-                  {player.full_name}
-                </div>
-                <div className="text-xs text-muted-foreground">
-                  {player.position}{player.team ? ` - ${player.team}` : ''}
-                </div>
+                {isRpick ? (
+                  <>
+                    <div className="truncate text-sm font-medium text-amber-700">
+                      {player.last_name}
+                    </div>
+                    <div className="text-xs text-amber-600/70">
+                      Rookie Draft Pick
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="truncate text-sm font-medium text-foreground">
+                      {player.full_name}
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      {player.position}{player.team ? ` - ${player.team}` : ''}
+                    </div>
+                  </>
+                )}
               </div>
               {onDraft && (
                 <button
@@ -168,7 +196,7 @@ export function BestAvailablePlayers({
                       ? 'bg-green-600 text-white hover:bg-green-700'
                       : 'bg-muted-hover text-disabled cursor-not-allowed'
                   }`}
-                  title={!isMyTurn ? 'Not your turn' : `${actionLabel} player`}
+                  title={!isMyTurn ? 'Not your turn' : `${actionLabel} ${isRpick ? 'pick' : 'player'}`}
                 >
                   {actionLabel}
                 </button>
