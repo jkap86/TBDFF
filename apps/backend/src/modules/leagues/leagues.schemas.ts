@@ -55,6 +55,7 @@ const leagueSettingsPartialSchema = z.object({
   waiver_type: z.number().int().min(0).optional(),
   member_can_invite: z.number().int().min(0).max(1).optional(),
   public: z.number().int().min(0).max(1).optional(),
+  best_ball: z.number().int().min(0).max(1).optional(),
 }).strict();
 
 /**
