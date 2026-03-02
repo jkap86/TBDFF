@@ -53,9 +53,10 @@ interface DraftSettingsFormProps {
   onSave: (updates: UpdateDraftRequest) => Promise<void>;
   onSaveSuccess?: () => void;
   readOnly: boolean;
+  vetDraftIncludesRookiePicks?: boolean;
 }
 
-export function DraftSettingsForm({ draft, onSave, onSaveSuccess, readOnly }: DraftSettingsFormProps) {
+export function DraftSettingsForm({ draft, onSave, onSaveSuccess, readOnly, vetDraftIncludesRookiePicks }: DraftSettingsFormProps) {
   const [draftType, setDraftType] = useState<DraftType>(draft.type);
   const [rounds, setRounds] = useState(draft.settings.rounds);
   const [pickTimer, setPickTimer] = useState(draft.settings.pick_timer);
@@ -198,7 +199,9 @@ export function DraftSettingsForm({ draft, onSave, onSaveSuccess, readOnly }: Dr
             {draft.type !== 'slow_auction' && (
               <>
                 <div className="text-muted-foreground">Draft Order</div>
-                <div className="font-medium text-foreground capitalize">{draft.metadata?.order_method ?? 'randomize'}</div>
+                <div className="font-medium text-foreground capitalize">
+                  {vetDraftIncludesRookiePicks ? 'From Vet Draft Picks' : draft.metadata?.order_method ?? 'randomize'}
+                </div>
               </>
             )}
             {(draft.metadata?.order_method ?? 'randomize') === 'derby' && (
@@ -332,25 +335,29 @@ export function DraftSettingsForm({ draft, onSave, onSaveSuccess, readOnly }: Dr
           {!isSlowAuction && (
             <div>
               <label className="block text-xs font-medium text-muted-foreground mb-1">Draft Order</label>
-              <div className="flex gap-1.5">
-                {([
-                  { value: 'randomize' as const, label: 'Randomize' },
-                  { value: 'derby' as const, label: 'Derby' },
-                ]).map((opt) => (
-                  <button
-                    key={opt.value}
-                    type="button"
-                    onClick={() => setOrderMethod(opt.value)}
-                    className={`rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors ${
-                      orderMethod === opt.value
-                        ? 'bg-primary text-primary-foreground ring-2 ring-ring'
-                        : 'bg-muted text-accent-foreground hover:bg-muted-hover'
-                    }`}
-                  >
-                    {opt.label}
-                  </button>
-                ))}
-              </div>
+              {vetDraftIncludesRookiePicks ? (
+                <p className="text-sm font-medium text-accent-foreground">Determined by Vet Draft Picks</p>
+              ) : (
+                <div className="flex gap-1.5">
+                  {([
+                    { value: 'randomize' as const, label: 'Randomize' },
+                    { value: 'derby' as const, label: 'Derby' },
+                  ]).map((opt) => (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      onClick={() => setOrderMethod(opt.value)}
+                      className={`rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors ${
+                        orderMethod === opt.value
+                          ? 'bg-primary text-primary-foreground ring-2 ring-ring'
+                          : 'bg-muted text-accent-foreground hover:bg-muted-hover'
+                      }`}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           )}
 

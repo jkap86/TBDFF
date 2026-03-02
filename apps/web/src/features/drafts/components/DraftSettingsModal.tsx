@@ -8,9 +8,10 @@ interface DraftSettingsModalProps {
   onClose: () => void;
   draft: Draft;
   onSave: (updates: UpdateDraftRequest) => Promise<void>;
+  vetDraftIncludesRookiePicks?: boolean;
 }
 
-export function DraftSettingsModal({ isOpen, onClose, draft, onSave }: DraftSettingsModalProps) {
+export function DraftSettingsModal({ isOpen, onClose, draft, onSave, vetDraftIncludesRookiePicks }: DraftSettingsModalProps) {
   if (!isOpen) return null;
 
   return (
@@ -34,6 +35,7 @@ export function DraftSettingsModal({ isOpen, onClose, draft, onSave }: DraftSett
           onSave={onSave}
           onSaveSuccess={onClose}
           readOnly={false}
+          vetDraftIncludesRookiePicks={vetDraftIncludesRookiePicks}
         />
       </div>
     </div>

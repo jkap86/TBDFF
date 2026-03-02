@@ -177,6 +177,18 @@ export class DraftService {
       throw new ValidationException('Can only set draft order before the draft starts');
     }
 
+    // Block manual order changes on rookie drafts when vet draft includes rookie picks
+    if (draft.settings.player_type === 1) {
+      const leagueDrafts = await this.draftRepository.findByLeagueId(draft.leagueId);
+      const vetDraftWithPicks = leagueDrafts.find(
+        (d) => d.settings.player_type === 2 && d.id !== draftId
+          && d.settings.include_rookie_picks === 1,
+      );
+      if (vetDraftWithPicks) {
+        throw new ValidationException('Rookie draft order is determined by vet draft picks');
+      }
+    }
+
     // Validate that we have the right number of slots
     const league = await this.leagueRepository.findById(draft.leagueId);
     if (!league) throw new NotFoundException('League not found');

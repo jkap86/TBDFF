@@ -499,7 +499,8 @@ export default function LeagueDetailPage() {
                         >
                           <Settings className="h-5 w-5" />
                         </button>
-                        {draft.type !== 'slow_auction' && !(draft.metadata?.derby as any)?.status && (
+                        {draft.type !== 'slow_auction' && !(draft.metadata?.derby as any)?.status
+                          && !(draft.settings.player_type === 1 && drafts.some((d) => d.settings.player_type === 2 && d.settings.include_rookie_picks === 1)) && (
                           <button
                             onClick={() => {
                               const hasOrder = Object.keys(draft.draft_order ?? {}).length > 0;
@@ -932,14 +933,18 @@ export default function LeagueDetailPage() {
       {/* Draft Settings Modal */}
       {editingDraftId && (() => {
         const editDraft = drafts.find((d) => d.id === editingDraftId);
-        return editDraft ? (
+        if (!editDraft) return null;
+        const vetDraftIncludesRookiePicks = editDraft.settings.player_type === 1
+          && drafts.some((d) => d.settings.player_type === 2 && d.settings.include_rookie_picks === 1);
+        return (
           <DraftSettingsModal
             isOpen={true}
             onClose={() => setEditingDraftId(null)}
             draft={editDraft}
             onSave={(updates) => handleUpdateDraft(editDraft.id, updates)}
+            vetDraftIncludesRookiePicks={vetDraftIncludesRookiePicks}
           />
-        ) : null;
+        );
       })()}
 
       {/* Settings Modal */}
