@@ -183,18 +183,14 @@ export class DraftService {
 
     const slots = Object.values(draftOrder);
 
-    if (slots.length !== league.totalRosters) {
-      throw new ValidationException(`Draft order must have exactly ${league.totalRosters} slots`);
-    }
-
-    // Validate slot values are unique sequential 1..N
+    // Validate slot values are unique and within 1..totalRosters
     const uniqueSlots = new Set(slots);
     if (uniqueSlots.size !== slots.length) {
       throw new ValidationException('Draft order slots must be unique');
     }
-    for (let i = 1; i <= league.totalRosters; i++) {
-      if (!uniqueSlots.has(i)) {
-        throw new ValidationException(`Draft order must include slot ${i}`);
+    for (const slot of slots) {
+      if (slot < 1 || slot > league.totalRosters) {
+        throw new ValidationException(`Draft order slot ${slot} is out of range (1-${league.totalRosters})`);
       }
     }
 

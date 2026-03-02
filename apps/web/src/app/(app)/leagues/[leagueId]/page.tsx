@@ -56,7 +56,7 @@ export default function LeagueDetailPage() {
   const [reRandomizeDraftId, setReRandomizeDraftId] = useState<string | null>(null);
   const [expandedDraftOrders, setExpandedDraftOrders] = useState<Set<string>>(new Set());
   const [expandedDerbyResults, setExpandedDerbyResults] = useState<Set<string>>(new Set());
-  const [shuffleDisplay, setShuffleDisplay] = useState<{ draftId: string; lockedCount: number; displayUserIds: string[] } | null>(null);
+  const [shuffleDisplay, setShuffleDisplay] = useState<{ draftId: string; lockedCount: number; displayRosterIds: number[] } | null>(null);
   const shuffleIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [isStartingDerby, setIsStartingDerby] = useState(false);
   const [isGeneratingMatchups, setIsGeneratingMatchups] = useState(false);
@@ -118,31 +118,34 @@ export default function LeagueDetailPage() {
     if (!accessToken) return;
 
     try {
-      const assignedRosters = rosters.filter((r) => r.owner_id);
+      const allRosters = [...rosters];
 
       // Fisher-Yates shuffle
-      for (let i = assignedRosters.length - 1; i > 0; i--) {
+      for (let i = allRosters.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
-        [assignedRosters[i], assignedRosters[j]] = [assignedRosters[j], assignedRosters[i]];
+        [allRosters[i], allRosters[j]] = [allRosters[j], allRosters[i]];
       }
 
       const draftOrder: Record<string, number> = {};
       const slotToRosterId: Record<string, number> = {};
 
-      assignedRosters.forEach((roster, index) => {
+      allRosters.forEach((roster, index) => {
         const slot = index + 1;
-        draftOrder[roster.owner_id!] = slot;
         slotToRosterId[String(slot)] = roster.roster_id;
+        if (roster.owner_id) {
+          draftOrder[roster.owner_id] = slot;
+        }
       });
 
       const result = await draftApi.setOrder(draft.id, { draft_order: draftOrder, slot_to_roster_id: slotToRosterId }, accessToken);
       updateDraftsCache((prev) => prev.map((d) => (d.id === result.draft.id ? result.draft : d)));
       setExpandedDraftOrders((prev) => new Set(prev).add(draft.id));
 
-      // Start shuffle animation
-      const finalEntries = Object.entries(result.draft.draft_order).sort(([, a], [, b]) => a - b);
-      const totalSlots = finalEntries.length;
-      const participantUserIds = finalEntries.map(([uid]) => uid);
+      // Start shuffle animation using slot_to_roster_id (includes all rosters)
+      const finalRosterIds = Object.entries(result.draft.slot_to_roster_id)
+        .sort(([a], [b]) => Number(a) - Number(b))
+        .map(([, rid]) => rid);
+      const totalSlots = finalRosterIds.length;
 
       if (shuffleIntervalRef.current) clearInterval(shuffleIntervalRef.current);
       let tickCount = 0;
@@ -160,15 +163,15 @@ export default function LeagueDetailPage() {
           );
         }
 
-        const lockedPart = finalEntries.slice(0, newLockedCount).map(([uid]) => uid);
-        const unlocked = participantUserIds.filter((uid) => !lockedPart.includes(uid));
+        const lockedPart = finalRosterIds.slice(0, newLockedCount);
+        const unlocked = finalRosterIds.filter((rid) => !lockedPart.includes(rid));
 
         for (let i = unlocked.length - 1; i > 0; i--) {
           const j = Math.floor(Math.random() * (i + 1));
           [unlocked[i], unlocked[j]] = [unlocked[j], unlocked[i]];
         }
 
-        setShuffleDisplay({ draftId: draft.id, lockedCount: newLockedCount, displayUserIds: [...lockedPart, ...unlocked] });
+        setShuffleDisplay({ draftId: draft.id, lockedCount: newLockedCount, displayRosterIds: [...lockedPart, ...unlocked] });
 
         if (newLockedCount >= totalSlots) {
           clearInterval(shuffleIntervalRef.current!);
@@ -633,44 +636,53 @@ export default function LeagueDetailPage() {
                     );
                   })()}
 
-                  {(draft.metadata?.derby as any)?.status !== 'active' && (Object.keys(draft.draft_order ?? {}).length > 0 || draftShuffle) && (
+                  {(draft.metadata?.derby as any)?.status !== 'active' && (Object.keys(draft.slot_to_roster_id ?? {}).length > 0 || draftShuffle) && (
                     <div className="rounded-lg border border-border">
                       <button
                         type="button"
                         onClick={toggleDraftOrder}
                         className="flex w-full items-center justify-between px-4 py-3 text-sm font-medium text-accent-foreground hover:bg-accent rounded-lg"
                       >
-                        <span>Draft Order ({Object.keys(draft.draft_order ?? {}).length} teams)</span>
+                        <span>Draft Order ({Object.keys(draft.slot_to_roster_id ?? {}).length} teams)</span>
                         <ChevronDown className={`h-4 w-4 transition-transform ${isDraftOrderOpen ? 'rotate-180' : ''}`} />
                       </button>
                       {isDraftOrderOpen && (
                         <div className="border-t border-border px-4 py-3">
                           <ol className="space-y-1">
-                            {(draftShuffle
-                              ? draftShuffle.displayUserIds.map((userId, index) => ({
-                                  userId,
-                                  slot: index + 1,
-                                  isLocked: index < draftShuffle.lockedCount,
-                                }))
-                              : Object.entries(draft.draft_order)
-                                  .sort(([, a], [, b]) => a - b)
-                                  .map(([userId, slot]) => ({ userId, slot, isLocked: true }))
-                            ).map(({ userId, slot, isLocked }) => {
-                              const member = members.find((m) => m.user_id === userId);
-                              return (
-                                <li
-                                  key={`slot-${slot}`}
-                                  className={`flex items-center gap-2 text-sm transition-colors duration-150 ${
-                                    isLocked
-                                      ? 'text-foreground font-medium'
-                                      : 'text-disabled'
-                                  }`}
-                                >
-                                  <span className="w-6 text-right font-medium text-muted-foreground">{slot}.</span>
-                                  <span>{member?.display_name || member?.username || 'Unknown'}</span>
-                                </li>
-                              );
-                            })}
+                            {draftShuffle
+                              ? draftShuffle.displayRosterIds.map((rosterId, index) => {
+                                  const roster = rosters.find((r) => r.roster_id === rosterId);
+                                  const member = roster?.owner_id ? members.find((m) => m.user_id === roster.owner_id) : null;
+                                  return (
+                                    <li
+                                      key={`slot-${index + 1}`}
+                                      className={`flex items-center gap-2 text-sm transition-colors duration-150 ${
+                                        index < draftShuffle.lockedCount
+                                          ? 'text-foreground font-medium'
+                                          : 'text-disabled'
+                                      }`}
+                                    >
+                                      <span className="w-6 text-right font-medium text-muted-foreground">{index + 1}.</span>
+                                      <span>{member ? (member.display_name || member.username) : <span className="italic text-muted-foreground">Team {rosterId}</span>}</span>
+                                    </li>
+                                  );
+                                })
+                              : Object.entries(draft.slot_to_roster_id)
+                                  .sort(([a], [b]) => Number(a) - Number(b))
+                                  .map(([slotStr, rosterId]) => {
+                                    const roster = rosters.find((r) => r.roster_id === rosterId);
+                                    const member = roster?.owner_id ? members.find((m) => m.user_id === roster.owner_id) : null;
+                                    return (
+                                      <li
+                                        key={`slot-${slotStr}`}
+                                        className="flex items-center gap-2 text-sm text-foreground font-medium"
+                                      >
+                                        <span className="w-6 text-right font-medium text-muted-foreground">{slotStr}.</span>
+                                        <span>{member ? (member.display_name || member.username) : <span className="italic text-muted-foreground">Team {rosterId}</span>}</span>
+                                      </li>
+                                    );
+                                  })
+                            }
                           </ol>
                         </div>
                       )}
