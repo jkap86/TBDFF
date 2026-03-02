@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Settings, MessageSquare, ArrowLeftRight, ClipboardList, Activity, ChevronDown, Trophy, Users2 } from 'lucide-react';
+import { Settings, MessageSquare, ArrowLeftRight, ClipboardList, Activity, ChevronDown, Trophy, Users2, Shuffle } from 'lucide-react';
 import { leagueApi, draftApi, matchupApi, ApiError, type UpdateLeagueRequest, type Draft, type Matchup } from '@/lib/api';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import { LeagueSettingsModal } from '@/features/leagues/components/LeagueSettingsModal';
@@ -480,7 +480,37 @@ export default function LeagueDetailPage() {
         {/* Draft Card */}
         <div className="rounded-lg bg-card p-6 shadow">
           <div className="mb-4 flex items-center justify-between">
-            <h2 className="text-xl font-bold text-foreground">Draft</h2>
+            <div className="flex items-center gap-3">
+              <h2 className="text-xl font-bold text-foreground">Draft</h2>
+              {isCommissioner && activeDraft?.status === 'pre_draft' && (
+                <>
+                  <button
+                    onClick={() => setIsDraftSettingsOpen(true)}
+                    className="rounded p-2 text-muted-foreground hover:bg-muted hover:text-accent-foreground"
+                    title="Draft Settings"
+                  >
+                    <Settings className="h-5 w-5" />
+                  </button>
+                  {activeDraft.type !== 'slow_auction' && !(activeDraft.metadata?.derby as any)?.status && (
+                    <button
+                      onClick={() => {
+                        const hasOrder = Object.keys(activeDraft.draft_order ?? {}).length > 0;
+                        if (hasOrder) {
+                          setShowReRandomizeConfirm(true);
+                          return;
+                        }
+                        handleRandomizeDraftOrder();
+                      }}
+                      disabled={shuffleDisplay !== null}
+                      className="rounded p-2 text-muted-foreground hover:bg-muted hover:text-accent-foreground disabled:opacity-50"
+                      title={Object.keys(activeDraft.draft_order ?? {}).length > 0 ? 'Re-randomize Draft Order' : 'Randomize Draft Order'}
+                    >
+                      <Shuffle className="h-5 w-5" />
+                    </button>
+                  )}
+                </>
+              )}
+            </div>
             {activeDraft && (
               <span className={`rounded-full px-3 py-1 text-sm font-medium ${draftStatusColors[activeDraft.status]}`}>
                 {draftStatusLabels[activeDraft.status]}
@@ -516,33 +546,6 @@ export default function LeagueDetailPage() {
                 )}
                 {activeDraft.status === 'pre_draft' && (
                   <>
-                    {isCommissioner && (
-                      <button
-                        onClick={() => setIsDraftSettingsOpen(true)}
-                        className="rounded-lg bg-secondary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-secondary-hover flex items-center gap-2"
-                      >
-                        <Settings className="h-4 w-4" />
-                        Draft Settings
-                      </button>
-                    )}
-                    {isCommissioner && activeDraft.type !== 'slow_auction' && !(activeDraft.metadata?.derby as any)?.status && (
-                      <button
-                        onClick={() => {
-                          const hasOrder = Object.keys(activeDraft.draft_order ?? {}).length > 0;
-                          if (hasOrder) {
-                            setShowReRandomizeConfirm(true);
-                            return;
-                          }
-                          handleRandomizeDraftOrder();
-                        }}
-                        disabled={shuffleDisplay !== null}
-                        className="rounded-lg bg-secondary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-secondary-hover disabled:opacity-50"
-                      >
-                        {(activeDraft.metadata?.order_method ?? 'randomize') === 'derby'
-                          ? (Object.keys(activeDraft.draft_order ?? {}).length > 0 ? 'Re-randomize Derby Order' : 'Randomize Derby Order')
-                          : (Object.keys(activeDraft.draft_order ?? {}).length > 0 ? 'Re-randomize Draft Order' : 'Randomize Draft Order')}
-                      </button>
-                    )}
                     {isCommissioner && (activeDraft.metadata?.order_method ?? 'randomize') === 'derby'
                       && Object.keys(activeDraft.draft_order ?? {}).length > 0
                       && !(activeDraft.metadata?.derby as any)?.status && (
