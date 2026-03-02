@@ -877,7 +877,9 @@ export class DraftService {
     const draftedRpickIds = new Set(
       vetPicks.filter((p) => p.playerId?.startsWith('rpick:')).map((p) => p.playerId),
     );
-    let availableRookiePicks = allRookiePicks.filter((rp) => !draftedRpickIds.has(rp.id));
+    const allAvailable = allRookiePicks.filter((rp) => !draftedRpickIds.has(rp.id));
+    // Only expose the next available pick, not all of them
+    let availableRookiePicks = allAvailable.length > 0 ? [allAvailable[0]] : [];
 
     // Apply search query filter to rookie picks
     if (options.query) {

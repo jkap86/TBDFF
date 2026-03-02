@@ -13,7 +13,7 @@ function applyChainedPicks(prev: DraftPick[], chainedPicks: DraftPick[]): DraftP
   return updated;
 }
 
-export function useDraftRoom(leagueId: string) {
+export function useDraftRoom(leagueId: string, preferredDraftId?: string) {
   const { accessToken, user } = useAuth();
   const { socket } = useSocket();
 
@@ -51,9 +51,12 @@ export function useDraftRoom(leagueId: string) {
     try {
       // First get the league's drafts to find the active one, falling back to the most recent completed draft
       const draftsResult = await draftApi.getByLeague(leagueId, accessToken);
-      const activeDraft = draftsResult.drafts.find(
-        (d: Draft) => d.status === 'pre_draft' || d.status === 'drafting'
-      ) ?? draftsResult.drafts.find((d: Draft) => d.status === 'complete');
+      const activeDraft = (preferredDraftId
+        ? draftsResult.drafts.find((d: Draft) => d.id === preferredDraftId)
+        : null)
+        ?? draftsResult.drafts.find(
+          (d: Draft) => d.status === 'pre_draft' || d.status === 'drafting'
+        ) ?? draftsResult.drafts.find((d: Draft) => d.status === 'complete');
 
       if (!activeDraft) {
         setError('No active draft found');

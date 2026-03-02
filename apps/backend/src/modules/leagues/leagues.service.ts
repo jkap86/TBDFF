@@ -593,6 +593,9 @@ export class LeagueService {
       );
     }
 
+    // 6. Sync draft_order for any active drafts that have this roster in slot_to_roster_id
+    await this.syncDraftOrderForRosterAssignment(leagueId, rosterId, targetUserId);
+
     return result;
   }
 
@@ -616,5 +619,43 @@ export class LeagueService {
 
     // 3. Unassign roster and demote to spectator (transactional)
     await this.leagueRepository.unassignRosterOwnerTransaction(leagueId, targetUserId);
+
+    // 4. Remove user from draft_order in any active drafts
+    await this.syncDraftOrderForRosterUnassignment(leagueId, targetUserId);
+  }
+
+  private async syncDraftOrderForRosterAssignment(
+    leagueId: string,
+    rosterId: number,
+    userId: string,
+  ): Promise<void> {
+    const drafts = await this.draftRepository.findByLeagueId(leagueId);
+    for (const draft of drafts) {
+      if (draft.status !== 'pre_draft' && draft.status !== 'drafting') continue;
+
+      // Find the slot assigned to this roster
+      const slotEntry = Object.entries(draft.slotToRosterId).find(
+        ([, rid]) => rid === rosterId,
+      );
+      if (!slotEntry) continue;
+
+      const slot = Number(slotEntry[0]);
+      const updatedOrder = { ...draft.draftOrder, [userId]: slot };
+      await this.draftRepository.update(draft.id, { draftOrder: updatedOrder });
+    }
+  }
+
+  private async syncDraftOrderForRosterUnassignment(
+    leagueId: string,
+    userId: string,
+  ): Promise<void> {
+    const drafts = await this.draftRepository.findByLeagueId(leagueId);
+    for (const draft of drafts) {
+      if (draft.status !== 'pre_draft' && draft.status !== 'drafting') continue;
+      if (!(userId in draft.draftOrder)) continue;
+
+      const { [userId]: _, ...updatedOrder } = draft.draftOrder;
+      await this.draftRepository.update(draft.id, { draftOrder: updatedOrder });
+    }
   }
 }

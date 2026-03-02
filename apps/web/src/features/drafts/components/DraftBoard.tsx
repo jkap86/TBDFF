@@ -1,16 +1,17 @@
 'use client';
 
 import { useMemo } from 'react';
-import type { Draft, DraftPick, LeagueMember } from '@/lib/api';
+import type { Draft, DraftPick, LeagueMember, Roster } from '@/lib/api';
 
 interface DraftBoardProps {
   draft: Draft;
   picks: DraftPick[];
   members: LeagueMember[];
+  rosters: Roster[];
   currentUserId: string | undefined;
 }
 
-export function DraftBoard({ draft, picks, members, currentUserId }: DraftBoardProps) {
+export function DraftBoard({ draft, picks, members, rosters, currentUserId }: DraftBoardProps) {
   const { settings, draft_order } = draft;
   const teams = settings.teams;
   const rounds = settings.rounds;
@@ -41,22 +42,24 @@ export function DraftBoard({ draft, picks, members, currentUserId }: DraftBoardP
   // Find the next pick
   const nextPick = picks.find((p) => !p.player_id);
 
-  // Build slot -> username and slot -> userId mapping from draft_order + members
+  // Build slot -> username and slot -> userId mapping from slot_to_roster_id -> rosters -> members
   const slotToUser: Record<number, string> = {};
   const slotToUserId: Record<number, string> = {};
-  for (const [userId, slot] of Object.entries(draft_order) as [string, number][]) {
-    const member = members.find((m) => m.user_id === userId);
-    slotToUser[slot] = member?.display_name || member?.username || `Slot ${slot}`;
-    slotToUserId[slot] = userId;
-  }
-
-  // Build roster_id -> display name for showing traded pick owners
   const rosterIdToName: Record<number, string> = {};
+  for (const [slotStr, rosterId] of Object.entries(draft.slot_to_roster_id ?? {})) {
+    const slot = Number(slotStr);
+    const roster = rosters.find((r) => r.roster_id === rosterId);
+    const member = roster?.owner_id ? members.find((m) => m.user_id === roster.owner_id) : null;
+    slotToUser[slot] = member?.display_name || member?.username || `Slot ${slot}`;
+    if (roster?.owner_id) slotToUserId[slot] = roster.owner_id;
+    rosterIdToName[rosterId] = member?.display_name || member?.username || `Team ${rosterId}`;
+  }
+  // Fallback: fill from draft_order for any slots not in slot_to_roster_id
   for (const [userId, slot] of Object.entries(draft_order) as [string, number][]) {
-    const rosterId = draft.slot_to_roster_id?.[String(slot)];
-    if (rosterId !== undefined) {
+    if (!slotToUser[slot]) {
       const member = members.find((m) => m.user_id === userId);
-      rosterIdToName[rosterId] = member?.display_name || member?.username || `Slot ${slot}`;
+      slotToUser[slot] = member?.display_name || member?.username || `Slot ${slot}`;
+      slotToUserId[slot] = userId;
     }
   }
 

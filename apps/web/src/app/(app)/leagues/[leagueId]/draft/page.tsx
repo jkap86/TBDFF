@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
 import { useDraftRoom } from '@/features/drafts/hooks/useDraftRoom';
@@ -24,9 +24,11 @@ const draftTypeLabels: Record<string, string> = {
 
 export default function DraftRoomPage() {
   const params = useParams();
+  const searchParams = useSearchParams();
   const leagueId = params.leagueId as string;
+  const draftId = searchParams.get('draftId') ?? undefined;
 
-  const room = useDraftRoom(leagueId);
+  const room = useDraftRoom(leagueId, draftId);
   const { draft, picks, members, rosters, queue, isLoading, error, user, accessToken } = room;
   const [isStarting, setIsStarting] = useState(false);
 
@@ -143,7 +145,7 @@ export default function DraftRoomPage() {
                   />
                 : room.isAuction
                   ? <AuctionBoard draft={draft} picks={picks} members={members} currentUserId={user?.id} />
-                  : <DraftBoard draft={draft} picks={picks} members={members} currentUserId={user?.id} />
+                  : <DraftBoard draft={draft} picks={picks} members={members} rosters={rosters} currentUserId={user?.id} />
               }
             </div>
             <div className="w-80 shrink-0">
@@ -232,7 +234,7 @@ export default function DraftRoomPage() {
 
             <div className="flex gap-4">
               <div className="flex-1 min-w-0">
-                <DraftBoard draft={draft} picks={picks} members={members} currentUserId={user?.id} />
+                <DraftBoard draft={draft} picks={picks} members={members} rosters={rosters} currentUserId={user?.id} />
               </div>
               <div className="w-80 shrink-0">
                 <DraftSidebar {...sidebarProps} />
@@ -257,7 +259,7 @@ export default function DraftRoomPage() {
               />
             : room.isAuction
               ? <AuctionBoard draft={draft} picks={picks} members={members} currentUserId={user?.id} />
-              : <DraftBoard draft={draft} picks={picks} members={members} currentUserId={user?.id} />
+              : <DraftBoard draft={draft} picks={picks} members={members} rosters={rosters} currentUserId={user?.id} />
         )}
 
       </div>

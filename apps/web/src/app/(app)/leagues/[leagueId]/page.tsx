@@ -553,7 +553,7 @@ export default function LeagueDetailPage() {
                   <div className="flex gap-3">
                     {draft.status === 'drafting' && (
                       <Link
-                        href={`/leagues/${leagueId}/draft`}
+                        href={`/leagues/${leagueId}/draft?draftId=${draft.id}`}
                         className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary-hover"
                       >
                         Enter Draft Room
@@ -573,7 +573,7 @@ export default function LeagueDetailPage() {
                           </button>
                         )}
                         <Link
-                          href={`/leagues/${leagueId}/draft`}
+                          href={`/leagues/${leagueId}/draft?draftId=${draft.id}`}
                           className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary-hover"
                         >
                           Enter Draft Room
@@ -731,7 +731,7 @@ export default function LeagueDetailPage() {
                       Complete
                     </span>
                     <Link
-                      href={`/leagues/${leagueId}/draft`}
+                      href={`/leagues/${leagueId}/draft?draftId=${draft.id}`}
                       className="rounded-lg bg-muted px-3 py-1.5 text-sm font-medium text-accent-foreground hover:bg-muted-hover"
                     >
                       View Results

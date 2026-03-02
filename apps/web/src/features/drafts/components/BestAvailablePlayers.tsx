@@ -173,7 +173,7 @@ export function BestAvailablePlayers({
                       {player.last_name}
                     </div>
                     <div className="text-xs text-amber-600/70">
-                      Rookie Draft Pick
+                      Next Available Pick
                     </div>
                   </>
                 ) : (
