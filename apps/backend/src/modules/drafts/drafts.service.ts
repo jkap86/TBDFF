@@ -306,33 +306,9 @@ export class DraftService {
 
     // For rookie drafts, apply pick assignments from the vet draft's rpick: selections
     if (draft.settings.player_type === 1) {
-      const leagueDrafts = await this.draftRepository.findByLeagueId(draft.leagueId);
-      const vetDraft = leagueDrafts.find(
-        (d) => d.settings.player_type === 2 && d.id !== draftId
-          && d.settings.include_rookie_picks === 1,
-      );
-      if (vetDraft) {
-        const vetPicks = await this.draftRepository.findPicksByDraftId(vetDraft.id);
-        // Build reverse map: slot → rosterId for the rookie draft
-        const rosterSlotMap: Record<string, number> = {};
-        for (const [uid, slot] of Object.entries(draft.draftOrder)) {
-          const rid = draft.slotToRosterId[String(slot)];
-          if (rid !== undefined) rosterSlotMap[uid] = rid;
-        }
-
-        for (const vp of vetPicks) {
-          if (vp.playerId?.startsWith('rpick:') && vp.pickedBy) {
-            const parts = vp.playerId.split(':');
-            const rpRound = parseInt(parts[1], 10);
-            const rpPickInRound = parseInt(parts[2], 10);
-            // Find the rosterId of whoever drafted this pick in the vet draft
-            const vetPickerRosterId = findRosterIdByUserId(vetDraft, vp.pickedBy);
-            if (vetPickerRosterId !== null) {
-              // Override this specific pick position in the rookie draft
-              pickOverrides.set(`${rpRound}:${rpPickInRound}`, vetPickerRosterId);
-            }
-          }
-        }
+      const rpickOverrides = await this.computeRpickOverrides(draft);
+      for (const [key, rosterId] of rpickOverrides) {
+        pickOverrides.set(key, rosterId);
       }
     }
 
@@ -405,6 +381,11 @@ export class DraftService {
     // Verify membership
     const member = await this.leagueRepository.findMember(draft.leagueId, userId);
     if (!member) throw new ForbiddenException('You are not a member of this league');
+
+    // For pre_draft, return projected picks so the board shows trade/rpick ownership
+    if (draft.status === 'pre_draft') {
+      return this.generateProjectedPicks(draft);
+    }
 
     return this.draftRepository.findPicksByDraftId(draftId);
   }
@@ -514,6 +495,9 @@ export class DraftService {
 
     // Atomically complete draft + league in one transaction
     const completed = await this.draftRepository.completeAndUpdateLeague(draftId, draft.leagueId);
+    if (completed) {
+      await this.setupRookieDraftAfterVetCompletion(draft);
+    }
 
     // Process auto-pick chain for subsequent autopick users
     const chainedPicks = completed ? [] : await this.scheduleAutoPickChain(draftId);
@@ -637,6 +621,9 @@ export class DraftService {
 
     // Atomically complete draft + league in one transaction
     const completed = await this.draftRepository.completeAndUpdateLeague(draftId, draft.leagueId);
+    if (completed) {
+      await this.setupRookieDraftAfterVetCompletion(draft);
+    }
 
     // Process auto-pick chain for subsequent autopick users
     const chainedPicks = completed ? [] : await this.scheduleAutoPickChain(draftId);
@@ -768,7 +755,10 @@ export class DraftService {
       chainedPicks.push(pick);
 
       const completed = await this.draftRepository.completeAndUpdateLeague(draftId, draft.leagueId);
-      if (completed) break;
+      if (completed) {
+        await this.setupRookieDraftAfterVetCompletion(draft);
+        break;
+      }
     }
 
     // If we hit the batch limit, schedule a server-side continuation so we
@@ -1034,5 +1024,149 @@ export class DraftService {
 
     await this.draftRepository.removeFromQueue(draftId, userId, playerId);
     return this.draftRepository.getQueue(draftId, userId);
+  }
+
+  /** Compute rpick overrides for a rookie draft from the completed vet draft's picks. */
+  private async computeRpickOverrides(draft: Draft): Promise<Map<string, number>> {
+    const overrides = new Map<string, number>();
+    if (draft.settings.player_type !== 1) return overrides;
+
+    const leagueDrafts = await this.draftRepository.findByLeagueId(draft.leagueId);
+    const vetDraft = leagueDrafts.find(
+      (d) => d.settings.player_type === 2 && d.id !== draft.id
+        && d.settings.include_rookie_picks === 1,
+    );
+    if (!vetDraft) return overrides;
+
+    const vetPicks = await this.draftRepository.findPicksByDraftId(vetDraft.id);
+    for (const vp of vetPicks) {
+      if (vp.playerId?.startsWith('rpick:') && vp.pickedBy) {
+        const parts = vp.playerId.split(':');
+        const rpRound = parseInt(parts[1], 10);
+        const rpPickInRound = parseInt(parts[2], 10);
+        const vetPickerRosterId = findRosterIdByUserId(vetDraft, vp.pickedBy);
+        if (vetPickerRosterId !== null) {
+          overrides.set(`${rpRound}:${rpPickInRound}`, vetPickerRosterId);
+        }
+      }
+    }
+    return overrides;
+  }
+
+  /** Auto-set the rookie draft's order after a vet draft with include_rookie_picks completes. */
+  private async setupRookieDraftAfterVetCompletion(completedDraft: Draft): Promise<void> {
+    if (completedDraft.settings.include_rookie_picks !== 1) return;
+
+    const leagueDrafts = await this.draftRepository.findByLeagueId(completedDraft.leagueId);
+    const rookieDraft = leagueDrafts.find(
+      (d) => d.settings.player_type === 1 && d.id !== completedDraft.id,
+    );
+    if (!rookieDraft || Object.keys(rookieDraft.slotToRosterId).length > 0) return;
+
+    const rosters = await this.leagueRepository.findRostersByLeagueId(completedDraft.leagueId);
+    const assigned = rosters
+      .filter((r) => r.ownerId)
+      .sort((a, b) => a.rosterId - b.rosterId);
+    if (assigned.length === 0) return;
+
+    const draftOrder: Record<string, number> = {};
+    const slotToRosterId: Record<string, number> = {};
+    assigned.forEach((roster, index) => {
+      const slot = index + 1;
+      draftOrder[roster.ownerId!] = slot;
+      slotToRosterId[String(slot)] = roster.rosterId;
+    });
+
+    await this.draftRepository.update(rookieDraft.id, { draftOrder, slotToRosterId });
+  }
+
+  /** Generate projected pick entries for a pre_draft board (not persisted). */
+  private async generateProjectedPicks(draft: Draft): Promise<DraftPick[]> {
+    const { rounds, teams } = draft.settings;
+    let slotToRosterId = draft.slotToRosterId;
+    let draftOrder = draft.draftOrder;
+
+    // Auto-compute if not set
+    if (Object.keys(slotToRosterId).length === 0) {
+      const rosters = await this.leagueRepository.findRostersByLeagueId(draft.leagueId);
+      const assigned = rosters.filter((r) => r.ownerId).sort((a, b) => a.rosterId - b.rosterId);
+      slotToRosterId = {};
+      draftOrder = {};
+      assigned.forEach((r, i) => {
+        slotToRosterId[String(i + 1)] = r.rosterId;
+        if (r.ownerId) draftOrder[r.ownerId] = i + 1;
+      });
+    }
+
+    // Compute overrides
+    const pickOverrides = new Map<string, number>();
+
+    // Trade overrides
+    const futurePicks = await this.draftRepository.findFutureDraftPicksByLeagueSeason(
+      draft.leagueId,
+      draft.season,
+    );
+    const userToSlot: Record<string, number> = {};
+    for (const [uid, slot] of Object.entries(draftOrder)) {
+      userToSlot[uid] = slot;
+    }
+    for (const fp of futurePicks) {
+      if (fp.originalOwnerId !== fp.currentOwnerId) {
+        const originalSlot = userToSlot[fp.originalOwnerId];
+        if (originalSlot !== undefined) {
+          pickOverrides.set(`${fp.round}:${originalSlot}`, fp.rosterId);
+        }
+      }
+    }
+
+    // Rpick overrides for rookie drafts
+    if (draft.settings.player_type === 1) {
+      const rpickOverrides = await this.computeRpickOverrides(draft);
+      for (const [key, rosterId] of rpickOverrides) {
+        pickOverrides.set(key, rosterId);
+      }
+    }
+
+    // Generate virtual picks
+    const picks: DraftPick[] = [];
+    for (let round = 1; round <= rounds; round++) {
+      for (let pickInRound = 1; pickInRound <= teams; pickInRound++) {
+        let draftSlot: number;
+        if (draft.type === 'snake') {
+          draftSlot = round % 2 === 1 ? pickInRound : teams - pickInRound + 1;
+        } else if (draft.type === '3rr') {
+          if (round <= 2) {
+            draftSlot = round % 2 === 1 ? pickInRound : teams - pickInRound + 1;
+          } else {
+            draftSlot = round % 2 === 0 ? pickInRound : teams - pickInRound + 1;
+          }
+        } else {
+          draftSlot = pickInRound;
+        }
+
+        const overallPick = (round - 1) * teams + pickInRound;
+        const rosterId = pickOverrides.get(`${round}:${draftSlot}`)
+          ?? slotToRosterId[String(draftSlot)]
+          ?? draftSlot;
+
+        picks.push(new DraftPick(
+          `projected-${round}-${draftSlot}`,
+          draft.id,
+          null,
+          null,
+          rosterId as number,
+          round,
+          overallPick,
+          draftSlot,
+          false,
+          null,
+          {},
+          null,
+          new Date(),
+        ));
+      }
+    }
+
+    return picks;
   }
 }

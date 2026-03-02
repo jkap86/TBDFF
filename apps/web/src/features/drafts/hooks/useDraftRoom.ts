@@ -77,11 +77,9 @@ export function useDraftRoom(leagueId: string, preferredDraftId?: string) {
       // Compute clock offset from server's current time so the timer stays in sync
       timer.updateClockOffset(draftResult.server_time);
 
-      // Fetch picks if the draft has started or is complete
-      if (draftResult.draft.status === 'drafting' || draftResult.draft.status === 'complete') {
-        const picksResult = await draftApi.getPicks(activeDraft.id, accessToken);
-        setPicks(picksResult.picks);
-      }
+      // Fetch picks (includes projected picks for pre_draft boards)
+      const picksResult = await draftApi.getPicks(activeDraft.id, accessToken);
+      setPicks(picksResult.picks);
 
       // Fetch queue if draft is not complete
       if (draftResult.draft.status !== 'complete') {
