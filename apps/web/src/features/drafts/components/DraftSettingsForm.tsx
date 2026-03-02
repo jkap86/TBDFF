@@ -12,6 +12,12 @@ const DRAFT_TYPE_OPTIONS: { value: DraftType; label: string }[] = [
   { value: 'slow_auction', label: 'Slow Auction' },
 ];
 
+const PLAYER_TYPE_LABELS: Record<number, string> = {
+  0: 'All Players',
+  1: 'Rookies Only',
+  2: 'Veterans Only',
+};
+
 const NOMINATION_TIMER_PRESETS = [
   { label: '15s', value: 15 },
   { label: '30s', value: 30 },
@@ -177,6 +183,8 @@ export function DraftSettingsForm({ draft, onSave, onSaveSuccess, readOnly }: Dr
           <div className="grid grid-cols-2 gap-x-6 gap-y-1 text-sm">
             <div className="text-muted-foreground">Type</div>
             <div className="font-medium text-foreground">{DRAFT_TYPE_OPTIONS.find((o) => o.value === draft.type)?.label}</div>
+            <div className="text-muted-foreground">Player Pool</div>
+            <div className="font-medium text-foreground">{PLAYER_TYPE_LABELS[draft.settings.player_type] ?? 'All Players'}</div>
             <div className="text-muted-foreground">Rounds</div>
             <div className="font-medium text-foreground">{draft.settings.rounds}</div>
             {draft.type !== 'slow_auction' && (
@@ -262,6 +270,15 @@ export function DraftSettingsForm({ draft, onSave, onSaveSuccess, readOnly }: Dr
                 <option key={opt.value} value={opt.value}>{opt.label}</option>
               ))}
             </select>
+          </div>
+
+          {/* Player Pool (read-only, managed by league settings) */}
+          <div>
+            <label className="block text-xs font-medium text-muted-foreground mb-1">Player Pool</label>
+            <p className="text-sm font-medium text-accent-foreground">
+              {PLAYER_TYPE_LABELS[draft.settings.player_type] ?? 'All Players'}
+            </p>
+            <p className="text-xs text-disabled mt-0.5">Managed in league settings</p>
           </div>
 
           {/* Rounds */}

@@ -52,11 +52,11 @@ export default function LeagueDetailPage() {
 
   // --- UI state ---
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const [isDraftSettingsOpen, setIsDraftSettingsOpen] = useState(false);
-  const [showReRandomizeConfirm, setShowReRandomizeConfirm] = useState(false);
-  const [isDraftOrderExpanded, setIsDraftOrderExpanded] = useState(false);
-  const [isDerbyResultsExpanded, setIsDerbyResultsExpanded] = useState(false);
-  const [shuffleDisplay, setShuffleDisplay] = useState<{ lockedCount: number; displayUserIds: string[] } | null>(null);
+  const [editingDraftId, setEditingDraftId] = useState<string | null>(null);
+  const [reRandomizeDraftId, setReRandomizeDraftId] = useState<string | null>(null);
+  const [expandedDraftOrders, setExpandedDraftOrders] = useState<Set<string>>(new Set());
+  const [expandedDerbyResults, setExpandedDerbyResults] = useState<Set<string>>(new Set());
+  const [shuffleDisplay, setShuffleDisplay] = useState<{ draftId: string; lockedCount: number; displayUserIds: string[] } | null>(null);
   const shuffleIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [isStartingDerby, setIsStartingDerby] = useState(false);
   const [isGeneratingMatchups, setIsGeneratingMatchups] = useState(false);
@@ -107,15 +107,15 @@ export default function LeagueDetailPage() {
     queryClient.invalidateQueries({ queryKey: ['members', leagueId] });
   };
 
-  const handleUpdateDraft = async (updates: import('@/lib/api').UpdateDraftRequest) => {
-    if (!accessToken || !activeDraft) return;
+  const handleUpdateDraft = async (draftId: string, updates: import('@/lib/api').UpdateDraftRequest) => {
+    if (!accessToken) return;
 
-    const result = await draftApi.update(activeDraft.id, updates, accessToken);
+    const result = await draftApi.update(draftId, updates, accessToken);
     updateDraftsCache((prev) => prev.map((d) => (d.id === result.draft.id ? result.draft : d)));
   };
 
-  const handleRandomizeDraftOrder = async () => {
-    if (!accessToken || !activeDraft) return;
+  const handleRandomizeDraftOrder = async (draft: Draft) => {
+    if (!accessToken) return;
 
     try {
       const assignedRosters = rosters.filter((r) => r.owner_id);
@@ -135,9 +135,9 @@ export default function LeagueDetailPage() {
         slotToRosterId[String(slot)] = roster.roster_id;
       });
 
-      const result = await draftApi.setOrder(activeDraft.id, { draft_order: draftOrder, slot_to_roster_id: slotToRosterId }, accessToken);
+      const result = await draftApi.setOrder(draft.id, { draft_order: draftOrder, slot_to_roster_id: slotToRosterId }, accessToken);
       updateDraftsCache((prev) => prev.map((d) => (d.id === result.draft.id ? result.draft : d)));
-      setIsDraftOrderExpanded(true);
+      setExpandedDraftOrders((prev) => new Set(prev).add(draft.id));
 
       // Start shuffle animation
       const finalEntries = Object.entries(result.draft.draft_order).sort(([, a], [, b]) => a - b);
@@ -168,7 +168,7 @@ export default function LeagueDetailPage() {
           [unlocked[i], unlocked[j]] = [unlocked[j], unlocked[i]];
         }
 
-        setShuffleDisplay({ lockedCount: newLockedCount, displayUserIds: [...lockedPart, ...unlocked] });
+        setShuffleDisplay({ draftId: draft.id, lockedCount: newLockedCount, displayUserIds: [...lockedPart, ...unlocked] });
 
         if (newLockedCount >= totalSlots) {
           clearInterval(shuffleIntervalRef.current!);
@@ -183,13 +183,13 @@ export default function LeagueDetailPage() {
     }
   };
 
-  const handleStartDerby = async () => {
-    if (!accessToken || !activeDraft) return;
+  const handleStartDerby = async (draft: Draft) => {
+    if (!accessToken) return;
 
     try {
       setIsStartingDerby(true);
       setMutationError(null);
-      const result = await draftApi.startDerby(activeDraft.id, accessToken);
+      const result = await draftApi.startDerby(draft.id, accessToken);
       updateDraftsCache((prev) => prev.map((d) => (d.id === result.draft.id ? result.draft : d)));
     } catch (err) {
       if (err instanceof ApiError) {
@@ -285,9 +285,15 @@ export default function LeagueDetailPage() {
   const isCommissioner = currentUserMember?.role === 'commissioner';
   const isOwner = isCommissioner; // Commissioner is the owner role
 
-  // Find the active draft (pre_draft or drafting)
-  const activeDraft = drafts.find((d) => d.status === 'pre_draft' || d.status === 'drafting');
+  // Find active drafts (pre_draft or drafting), sorted vet-first
+  const activeDrafts = drafts
+    .filter((d) => d.status === 'pre_draft' || d.status === 'drafting')
+    .sort((a, b) => b.settings.player_type - a.settings.player_type);
+  const activeDraft = activeDrafts[0] ?? null; // for derby/socket backward compat
   const completedDrafts = drafts.filter((d) => d.status === 'complete');
+
+  const playerPoolLabel = (pt: number) =>
+    pt === 2 ? 'Veteran Draft' : pt === 1 ? 'Rookie Draft' : 'Draft';
 
   if (isLoading) {
     return <LeagueDetailSkeleton />;
@@ -459,196 +465,224 @@ export default function LeagueDetailPage() {
           </div>
         </div>
 
-        {/* Draft Card */}
-        <div className="rounded-lg bg-card p-6 shadow">
-          <div className="mb-4 flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <h2 className="text-xl font-bold text-foreground">Draft</h2>
-              {isCommissioner && activeDraft?.status === 'pre_draft' && (
-                <>
-                  <button
-                    onClick={() => setIsDraftSettingsOpen(true)}
-                    className="rounded p-2 text-muted-foreground hover:bg-muted hover:text-accent-foreground"
-                    title="Draft Settings"
-                  >
-                    <Settings className="h-5 w-5" />
-                  </button>
-                  {activeDraft.type !== 'slow_auction' && !(activeDraft.metadata?.derby as any)?.status && (
-                    <button
-                      onClick={() => {
-                        const hasOrder = Object.keys(activeDraft.draft_order ?? {}).length > 0;
-                        if (hasOrder) {
-                          setShowReRandomizeConfirm(true);
-                          return;
-                        }
-                        handleRandomizeDraftOrder();
-                      }}
-                      disabled={shuffleDisplay !== null}
-                      className="rounded p-2 text-muted-foreground hover:bg-muted hover:text-accent-foreground disabled:opacity-50"
-                      title={Object.keys(activeDraft.draft_order ?? {}).length > 0 ? 'Re-randomize Draft Order' : 'Randomize Draft Order'}
-                    >
-                      <Shuffle className="h-5 w-5" />
-                    </button>
-                  )}
-                </>
-              )}
-            </div>
-            {activeDraft && (
-              <span className={`rounded-full px-3 py-1 text-sm font-medium ${draftStatusColors[activeDraft.status]}`}>
-                {draftStatusLabels[activeDraft.status]}
-              </span>
-            )}
-          </div>
+        {/* Draft Cards */}
+        {activeDrafts.length > 0 ? (
+          activeDrafts.map((draft) => {
+            const draftShuffle = shuffleDisplay?.draftId === draft.id ? shuffleDisplay : null;
+            const isDraftOrderOpen = expandedDraftOrders.has(draft.id);
+            const isDerbyResultsOpen = expandedDerbyResults.has(draft.id);
+            const toggleDraftOrder = () => setExpandedDraftOrders((prev) => {
+              const next = new Set(prev);
+              next.has(draft.id) ? next.delete(draft.id) : next.add(draft.id);
+              return next;
+            });
+            const toggleDerbyResults = () => setExpandedDerbyResults((prev) => {
+              const next = new Set(prev);
+              next.has(draft.id) ? next.delete(draft.id) : next.add(draft.id);
+              return next;
+            });
 
-          {activeDraft ? (
-            <div className="space-y-4">
-              <div className="grid gap-4 sm:grid-cols-3">
-                <div>
-                  <p className="text-sm text-muted-foreground">Type</p>
-                  <p className="font-medium text-foreground">{draftTypeLabels[activeDraft.type] || activeDraft.type}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Rounds</p>
-                  <p className="font-medium text-foreground">{activeDraft.settings.rounds}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Pick Timer</p>
-                  <p className="font-medium text-foreground">{activeDraft.settings.pick_timer}s</p>
-                </div>
-              </div>
-
-              <div className="flex gap-3">
-                {activeDraft.status === 'drafting' && (
-                  <Link
-                    href={`/leagues/${leagueId}/draft`}
-                    className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary-hover"
-                  >
-                    Enter Draft Room
-                  </Link>
-                )}
-                {activeDraft.status === 'pre_draft' && (
-                  <>
-                    {isCommissioner && (activeDraft.metadata?.order_method ?? 'randomize') === 'derby'
-                      && Object.keys(activeDraft.draft_order ?? {}).length > 0
-                      && !(activeDraft.metadata?.derby as any)?.status && (
-                      <button
-                        onClick={handleStartDerby}
-                        disabled={isStartingDerby}
-                        className="rounded-lg bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-50"
-                      >
-                        {isStartingDerby ? 'Starting...' : 'Start Derby'}
-                      </button>
-                    )}
-                    <Link
-                      href={`/leagues/${leagueId}/draft`}
-                      className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary-hover"
-                    >
-                      Enter Draft Room
-                    </Link>
-                  </>
-                )}
-              </div>
-
-              {/* Derby Pick Board — shown when derby is active */}
-              {(activeDraft.metadata?.derby as any)?.status === 'active' && (
-                <DerbyPickBoard
-                  draft={activeDraft}
-                  members={members}
-                  userId={user?.id}
-                  isCommissioner={isCommissioner}
-                  accessToken={accessToken!}
-                  onDraftUpdated={handleDraftUpdated}
-                />
-              )}
-
-              {/* Derby Results — collapsible, shown after derby completes */}
-              {(activeDraft.metadata?.derby as any)?.status === 'complete' && (() => {
-                const derby = activeDraft.metadata?.derby as any;
-                return (
-                  <div className="rounded-lg border border-border">
-                    <button
-                      type="button"
-                      onClick={() => setIsDerbyResultsExpanded(!isDerbyResultsExpanded)}
-                      className="flex w-full items-center justify-between px-4 py-3 text-sm font-medium text-accent-foreground hover:bg-accent rounded-lg"
-                    >
-                      <span>Derby Results ({derby.picks.length} picks)</span>
-                      <ChevronDown className={`h-4 w-4 transition-transform ${isDerbyResultsExpanded ? 'rotate-180' : ''}`} />
-                    </button>
-                    {isDerbyResultsExpanded && (
-                      <div className="border-t border-border px-4 py-3">
-                        <ol className="space-y-1">
-                          {derby.derby_order.map((entry: any, index: number) => {
-                            const pick = derby.picks.find((p: any) => p.user_id === entry.user_id);
-                            const member = members.find((m) => m.user_id === entry.user_id);
-                            return (
-                              <li
-                                key={entry.user_id}
-                                className="flex items-center justify-between text-sm"
-                              >
-                                <div className="flex items-center gap-2">
-                                  <span className="w-6 text-right font-medium text-muted-foreground">{index + 1}.</span>
-                                  <span className="text-foreground">{member?.display_name || entry.username}</span>
-                                </div>
-                                {pick && (
-                                  <span className="text-xs font-medium text-success-foreground">
-                                    Slot #{pick.selected_slot}
-                                  </span>
-                                )}
-                              </li>
-                            );
-                          })}
-                        </ol>
-                      </div>
+            return (
+              <div key={draft.id} className="rounded-lg bg-card p-6 shadow">
+                <div className="mb-4 flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <h2 className="text-xl font-bold text-foreground">{playerPoolLabel(draft.settings.player_type)}</h2>
+                    {isCommissioner && draft.status === 'pre_draft' && (
+                      <>
+                        <button
+                          onClick={() => setEditingDraftId(draft.id)}
+                          className="rounded p-2 text-muted-foreground hover:bg-muted hover:text-accent-foreground"
+                          title="Draft Settings"
+                        >
+                          <Settings className="h-5 w-5" />
+                        </button>
+                        {draft.type !== 'slow_auction' && !(draft.metadata?.derby as any)?.status && (
+                          <button
+                            onClick={() => {
+                              const hasOrder = Object.keys(draft.draft_order ?? {}).length > 0;
+                              if (hasOrder) {
+                                setReRandomizeDraftId(draft.id);
+                                return;
+                              }
+                              handleRandomizeDraftOrder(draft);
+                            }}
+                            disabled={draftShuffle !== null}
+                            className="rounded p-2 text-muted-foreground hover:bg-muted hover:text-accent-foreground disabled:opacity-50"
+                            title={Object.keys(draft.draft_order ?? {}).length > 0 ? 'Re-randomize Draft Order' : 'Randomize Draft Order'}
+                          >
+                            <Shuffle className="h-5 w-5" />
+                          </button>
+                        )}
+                      </>
                     )}
                   </div>
-                );
-              })()}
+                  <span className={`rounded-full px-3 py-1 text-sm font-medium ${draftStatusColors[draft.status]}`}>
+                    {draftStatusLabels[draft.status]}
+                  </span>
+                </div>
 
-              {(activeDraft.metadata?.derby as any)?.status !== 'active' && (Object.keys(activeDraft.draft_order ?? {}).length > 0 || shuffleDisplay) && (
-                <div className="rounded-lg border border-border">
-                  <button
-                    type="button"
-                    onClick={() => setIsDraftOrderExpanded(!isDraftOrderExpanded)}
-                    className="flex w-full items-center justify-between px-4 py-3 text-sm font-medium text-accent-foreground hover:bg-accent rounded-lg"
-                  >
-                    <span>Draft Order ({Object.keys(activeDraft.draft_order ?? {}).length} teams)</span>
-                    <ChevronDown className={`h-4 w-4 transition-transform ${isDraftOrderExpanded ? 'rotate-180' : ''}`} />
-                  </button>
-                  {isDraftOrderExpanded && (
-                    <div className="border-t border-border px-4 py-3">
-                      <ol className="space-y-1">
-                        {(shuffleDisplay
-                          ? shuffleDisplay.displayUserIds.map((userId, index) => ({
-                              userId,
-                              slot: index + 1,
-                              isLocked: index < shuffleDisplay.lockedCount,
-                            }))
-                          : Object.entries(activeDraft.draft_order)
-                              .sort(([, a], [, b]) => a - b)
-                              .map(([userId, slot]) => ({ userId, slot, isLocked: true }))
-                        ).map(({ userId, slot, isLocked }) => {
-                          const member = members.find((m) => m.user_id === userId);
-                          return (
-                            <li
-                              key={`slot-${slot}`}
-                              className={`flex items-center gap-2 text-sm transition-colors duration-150 ${
-                                isLocked
-                                  ? 'text-foreground font-medium'
-                                  : 'text-disabled'
-                              }`}
-                            >
-                              <span className="w-6 text-right font-medium text-muted-foreground">{slot}.</span>
-                              <span>{member?.display_name || member?.username || 'Unknown'}</span>
-                            </li>
-                          );
-                        })}
-                      </ol>
+                <div className="space-y-4">
+                  <div className="grid gap-4 sm:grid-cols-3">
+                    <div>
+                      <p className="text-sm text-muted-foreground">Type</p>
+                      <p className="font-medium text-foreground">{draftTypeLabels[draft.type] || draft.type}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">Rounds</p>
+                      <p className="font-medium text-foreground">{draft.settings.rounds}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">Pick Timer</p>
+                      <p className="font-medium text-foreground">
+                        {(() => {
+                          const t = draft.settings.pick_timer;
+                          if (t === 0) return 'Off';
+                          const h = Math.floor(t / 3600);
+                          const m = Math.floor((t % 3600) / 60);
+                          const s = t % 60;
+                          return h > 0 ? `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}` : m > 0 ? `${m}:${String(s).padStart(2, '0')}` : `0:${String(s).padStart(2, '0')}`;
+                        })()}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex gap-3">
+                    {draft.status === 'drafting' && (
+                      <Link
+                        href={`/leagues/${leagueId}/draft`}
+                        className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary-hover"
+                      >
+                        Enter Draft Room
+                      </Link>
+                    )}
+                    {draft.status === 'pre_draft' && (
+                      <>
+                        {isCommissioner && (draft.metadata?.order_method ?? 'randomize') === 'derby'
+                          && Object.keys(draft.draft_order ?? {}).length > 0
+                          && !(draft.metadata?.derby as any)?.status && (
+                          <button
+                            onClick={() => handleStartDerby(draft)}
+                            disabled={isStartingDerby}
+                            className="rounded-lg bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-50"
+                          >
+                            {isStartingDerby ? 'Starting...' : 'Start Derby'}
+                          </button>
+                        )}
+                        <Link
+                          href={`/leagues/${leagueId}/draft`}
+                          className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary-hover"
+                        >
+                          Enter Draft Room
+                        </Link>
+                      </>
+                    )}
+                  </div>
+
+                  {/* Derby Pick Board — shown when derby is active */}
+                  {(draft.metadata?.derby as any)?.status === 'active' && (
+                    <DerbyPickBoard
+                      draft={draft}
+                      members={members}
+                      userId={user?.id}
+                      isCommissioner={isCommissioner}
+                      accessToken={accessToken!}
+                      onDraftUpdated={handleDraftUpdated}
+                    />
+                  )}
+
+                  {/* Derby Results — collapsible, shown after derby completes */}
+                  {(draft.metadata?.derby as any)?.status === 'complete' && (() => {
+                    const derby = draft.metadata?.derby as any;
+                    return (
+                      <div className="rounded-lg border border-border">
+                        <button
+                          type="button"
+                          onClick={toggleDerbyResults}
+                          className="flex w-full items-center justify-between px-4 py-3 text-sm font-medium text-accent-foreground hover:bg-accent rounded-lg"
+                        >
+                          <span>Derby Results ({derby.picks.length} picks)</span>
+                          <ChevronDown className={`h-4 w-4 transition-transform ${isDerbyResultsOpen ? 'rotate-180' : ''}`} />
+                        </button>
+                        {isDerbyResultsOpen && (
+                          <div className="border-t border-border px-4 py-3">
+                            <ol className="space-y-1">
+                              {derby.derby_order.map((entry: any, index: number) => {
+                                const pick = derby.picks.find((p: any) => p.user_id === entry.user_id);
+                                const member = members.find((m) => m.user_id === entry.user_id);
+                                return (
+                                  <li
+                                    key={entry.user_id}
+                                    className="flex items-center justify-between text-sm"
+                                  >
+                                    <div className="flex items-center gap-2">
+                                      <span className="w-6 text-right font-medium text-muted-foreground">{index + 1}.</span>
+                                      <span className="text-foreground">{member?.display_name || entry.username}</span>
+                                    </div>
+                                    {pick && (
+                                      <span className="text-xs font-medium text-success-foreground">
+                                        Slot #{pick.selected_slot}
+                                      </span>
+                                    )}
+                                  </li>
+                                );
+                              })}
+                            </ol>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
+
+                  {(draft.metadata?.derby as any)?.status !== 'active' && (Object.keys(draft.draft_order ?? {}).length > 0 || draftShuffle) && (
+                    <div className="rounded-lg border border-border">
+                      <button
+                        type="button"
+                        onClick={toggleDraftOrder}
+                        className="flex w-full items-center justify-between px-4 py-3 text-sm font-medium text-accent-foreground hover:bg-accent rounded-lg"
+                      >
+                        <span>Draft Order ({Object.keys(draft.draft_order ?? {}).length} teams)</span>
+                        <ChevronDown className={`h-4 w-4 transition-transform ${isDraftOrderOpen ? 'rotate-180' : ''}`} />
+                      </button>
+                      {isDraftOrderOpen && (
+                        <div className="border-t border-border px-4 py-3">
+                          <ol className="space-y-1">
+                            {(draftShuffle
+                              ? draftShuffle.displayUserIds.map((userId, index) => ({
+                                  userId,
+                                  slot: index + 1,
+                                  isLocked: index < draftShuffle.lockedCount,
+                                }))
+                              : Object.entries(draft.draft_order)
+                                  .sort(([, a], [, b]) => a - b)
+                                  .map(([userId, slot]) => ({ userId, slot, isLocked: true }))
+                            ).map(({ userId, slot, isLocked }) => {
+                              const member = members.find((m) => m.user_id === userId);
+                              return (
+                                <li
+                                  key={`slot-${slot}`}
+                                  className={`flex items-center gap-2 text-sm transition-colors duration-150 ${
+                                    isLocked
+                                      ? 'text-foreground font-medium'
+                                      : 'text-disabled'
+                                  }`}
+                                >
+                                  <span className="w-6 text-right font-medium text-muted-foreground">{slot}.</span>
+                                  <span>{member?.display_name || member?.username || 'Unknown'}</span>
+                                </li>
+                              );
+                            })}
+                          </ol>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
-              )}
-            </div>
-          ) : (
+              </div>
+            );
+          })
+        ) : (
+          <div className="rounded-lg bg-card p-6 shadow">
+            <h2 className="mb-4 text-xl font-bold text-foreground">Draft</h2>
             <div className="text-center py-4">
               {completedDrafts.length === 0 && (
                 <p className="text-muted-foreground">No draft has been created yet.</p>
@@ -657,44 +691,44 @@ export default function LeagueDetailPage() {
                 <p className="text-muted-foreground">No active draft.</p>
               )}
             </div>
-          )}
+          </div>
+        )}
 
-          {completedDrafts.length > 0 && (
-            <div className="mt-4 border-t border-border pt-4">
-              <h3 className="mb-3 text-sm font-semibold text-muted-foreground uppercase tracking-wide">Completed Drafts</h3>
-              <div className="space-y-2">
-                {completedDrafts.map((draft) => (
-                  <div
-                    key={draft.id}
-                    className="flex items-center justify-between rounded border border-border p-3"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div>
-                        <p className="font-medium text-foreground">
-                          {draftTypeLabels[draft.type] || draft.type} &middot; {draft.season}
-                        </p>
-                        <p className="text-sm text-muted-foreground">
-                          {draft.settings.rounds} rounds
-                        </p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <span className={`rounded-full px-2 py-1 text-xs font-medium ${draftStatusColors.complete}`}>
-                        Complete
-                      </span>
-                      <Link
-                        href={`/leagues/${leagueId}/draft`}
-                        className="rounded-lg bg-muted px-3 py-1.5 text-sm font-medium text-accent-foreground hover:bg-muted-hover"
-                      >
-                        View Results
-                      </Link>
+        {completedDrafts.length > 0 && (
+          <div className="rounded-lg bg-card p-6 shadow">
+            <h3 className="mb-3 text-sm font-semibold text-muted-foreground uppercase tracking-wide">Completed Drafts</h3>
+            <div className="space-y-2">
+              {completedDrafts.map((draft) => (
+                <div
+                  key={draft.id}
+                  className="flex items-center justify-between rounded border border-border p-3"
+                >
+                  <div className="flex items-center gap-3">
+                    <div>
+                      <p className="font-medium text-foreground">
+                        {playerPoolLabel(draft.settings.player_type)} &middot; {draftTypeLabels[draft.type] || draft.type} &middot; {draft.season}
+                      </p>
+                      <p className="text-sm text-muted-foreground">
+                        {draft.settings.rounds} rounds
+                      </p>
                     </div>
                   </div>
-                ))}
-              </div>
+                  <div className="flex items-center gap-3">
+                    <span className={`rounded-full px-2 py-1 text-xs font-medium ${draftStatusColors.complete}`}>
+                      Complete
+                    </span>
+                    <Link
+                      href={`/leagues/${leagueId}/draft`}
+                      className="rounded-lg bg-muted px-3 py-1.5 text-sm font-medium text-accent-foreground hover:bg-muted-hover"
+                    >
+                      View Results
+                    </Link>
+                  </div>
+                </div>
+              ))}
             </div>
-          )}
-        </div>
+          </div>
+        )}
 
         {/* Matchups Card */}
         {(league.status === 'in_season' || league.status === 'complete') && (
@@ -884,14 +918,17 @@ export default function LeagueDetailPage() {
       </div>
 
       {/* Draft Settings Modal */}
-      {activeDraft && (
-        <DraftSettingsModal
-          isOpen={isDraftSettingsOpen}
-          onClose={() => setIsDraftSettingsOpen(false)}
-          draft={activeDraft}
-          onSave={handleUpdateDraft}
-        />
-      )}
+      {editingDraftId && (() => {
+        const editDraft = drafts.find((d) => d.id === editingDraftId);
+        return editDraft ? (
+          <DraftSettingsModal
+            isOpen={true}
+            onClose={() => setEditingDraftId(null)}
+            draft={editDraft}
+            onSave={(updates) => handleUpdateDraft(editDraft.id, updates)}
+          />
+        ) : null;
+      })()}
 
       {/* Settings Modal */}
       {league && (
@@ -911,33 +948,36 @@ export default function LeagueDetailPage() {
       )}
 
       {/* Re-randomize Confirmation Dialog */}
-      {showReRandomizeConfirm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="rounded-lg bg-card p-6 shadow-xl max-w-sm w-full">
-            <h3 className="text-lg font-semibold text-foreground mb-2">Confirm Action</h3>
-            <p className="text-sm text-muted-foreground mb-4">
-              Draft order is already set. Are you sure you want to re-randomize?
-            </p>
-            <div className="flex justify-end gap-3">
-              <button
-                onClick={() => setShowReRandomizeConfirm(false)}
-                className="rounded-lg bg-muted-hover px-4 py-2 text-sm font-medium text-accent-foreground hover:bg-muted-hover"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={() => {
-                  setShowReRandomizeConfirm(false);
-                  handleRandomizeDraftOrder();
-                }}
-                className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary-hover"
-              >
-                Re-randomize
-              </button>
+      {reRandomizeDraftId && (() => {
+        const reRandomizeDraft = drafts.find((d) => d.id === reRandomizeDraftId);
+        return reRandomizeDraft ? (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+            <div className="rounded-lg bg-card p-6 shadow-xl max-w-sm w-full">
+              <h3 className="text-lg font-semibold text-foreground mb-2">Confirm Action</h3>
+              <p className="text-sm text-muted-foreground mb-4">
+                Draft order is already set. Are you sure you want to re-randomize?
+              </p>
+              <div className="flex justify-end gap-3">
+                <button
+                  onClick={() => setReRandomizeDraftId(null)}
+                  className="rounded-lg bg-muted-hover px-4 py-2 text-sm font-medium text-accent-foreground hover:bg-muted-hover"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => {
+                    setReRandomizeDraftId(null);
+                    handleRandomizeDraftOrder(reRandomizeDraft);
+                  }}
+                  className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary-hover"
+                >
+                  Re-randomize
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        ) : null;
+      })()}
     </div>
   );
 }

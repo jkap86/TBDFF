@@ -199,11 +199,12 @@ export class LeagueService {
     const allDrafts = await this.draftRepository.findByLeagueId(leagueId);
     const preDraftDrafts = allDrafts.filter((d) => d.status === 'pre_draft');
 
-    // Compute desired draft configs
-    const desired: { player_type: number }[] =
+    // Compute desired draft configs with default rounds
+    const rosterSlots = (league.rosterPositions ?? []).filter((p) => p !== 'IR').length;
+    const desired: { player_type: number; rounds: number }[] =
       draftSetup === 1
-        ? [{ player_type: 2 }, { player_type: 1 }]
-        : [{ player_type: 0 }];
+        ? [{ player_type: 2, rounds: rosterSlots || DEFAULT_DRAFT_SETTINGS.rounds }, { player_type: 1, rounds: 4 }]
+        : [{ player_type: 0, rounds: rosterSlots || DEFAULT_DRAFT_SETTINGS.rounds }];
 
     // Match existing pre_draft drafts to desired configs
     const matched = new Set<string>();
@@ -238,6 +239,7 @@ export class LeagueService {
           settings: {
             ...DEFAULT_DRAFT_SETTINGS,
             teams: league.totalRosters,
+            rounds: config.rounds,
             player_type: config.player_type,
           },
           metadata: {},
