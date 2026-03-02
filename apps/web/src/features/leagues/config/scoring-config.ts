@@ -85,6 +85,13 @@ export const SCORING_CATEGORIES: { title: string; fields: { key: string; label: 
   },
 ];
 
+export const DEFAULT_SCORING: Record<string, number> = {};
+for (const cat of SCORING_CATEGORIES) {
+  for (const f of cat.fields) {
+    DEFAULT_SCORING[f.key] = f.defaultVal;
+  }
+}
+
 export function scoringFromLeague(league: League): Record<string, number> {
   const result: Record<string, number> = {};
   for (const cat of SCORING_CATEGORIES) {
