@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams } from 'next/navigation';
+import Link from 'next/link';
 import { ArrowLeft, Plus } from 'lucide-react';
 import { playerApi } from '@/lib/api';
 import type { Player, TradeProposal } from '@/lib/api';
@@ -15,7 +16,6 @@ import { Skeleton } from '@/components/ui/Skeleton';
 
 export default function TradesPage() {
   const params = useParams();
-  const router = useRouter();
   const leagueId = params.leagueId as string;
   const { accessToken, user } = useAuth();
 
@@ -108,12 +108,12 @@ export default function TradesPage() {
         {/* Header */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <button
-              onClick={() => router.push(`/leagues/${leagueId}`)}
+            <Link
+              href={`/leagues/${leagueId}`}
               className="rounded p-2 text-muted-foreground hover:bg-muted"
             >
               <ArrowLeft className="h-5 w-5" />
-            </button>
+            </Link>
             <h1 className="text-2xl font-bold text-foreground">Trade Center</h1>
           </div>
           <button

@@ -1,7 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams } from 'next/navigation';
+import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
 import { useDraftRoom } from '@/features/drafts/hooks/useDraftRoom';
 import { DraftBoard } from '@/features/drafts/components/DraftBoard';
@@ -23,7 +24,6 @@ const draftTypeLabels: Record<string, string> = {
 
 export default function DraftRoomPage() {
   const params = useParams();
-  const router = useRouter();
   const leagueId = params.leagueId as string;
 
   const room = useDraftRoom(leagueId);
@@ -38,12 +38,12 @@ export default function DraftRoomPage() {
     return (
       <div className="min-h-screen bg-surface p-6">
         <div className="mx-auto max-w-6xl">
-          <button
-            onClick={() => router.push(`/leagues/${leagueId}`)}
+          <Link
+            href={`/leagues/${leagueId}`}
             className="mb-4 flex items-center gap-2 text-sm text-muted-foreground hover:text-accent-foreground"
           >
             <ArrowLeft className="h-4 w-4" /> Back to League
-          </button>
+          </Link>
           <div className="rounded bg-destructive p-4 text-destructive-foreground">{error || 'Draft not found'}</div>
         </div>
       </div>

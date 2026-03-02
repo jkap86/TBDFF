@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Settings, MessageSquare, ArrowLeftRight, ClipboardList, Activity, ChevronDown } from 'lucide-react';
 import { leagueApi, draftApi, matchupApi, ApiError, type UpdateLeagueRequest, type Draft, type Matchup } from '@/lib/api';
@@ -435,12 +436,12 @@ export default function LeagueDetailPage() {
 
               <div className="flex gap-3">
                 {activeDraft.status === 'drafting' && (
-                  <button
-                    onClick={() => router.push(`/leagues/${leagueId}/draft`)}
+                  <Link
+                    href={`/leagues/${leagueId}/draft`}
                     className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary-hover"
                   >
                     Enter Draft Room
-                  </button>
+                  </Link>
                 )}
                 {activeDraft.status === 'pre_draft' && (
                   <>
@@ -482,12 +483,12 @@ export default function LeagueDetailPage() {
                         {isStartingDerby ? 'Starting...' : 'Start Derby'}
                       </button>
                     )}
-                    <button
-                      onClick={() => router.push(`/leagues/${leagueId}/draft`)}
+                    <Link
+                      href={`/leagues/${leagueId}/draft`}
                       className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary-hover"
                     >
                       Enter Draft Room
-                    </button>
+                    </Link>
                   </>
                 )}
               </div>
@@ -634,12 +635,12 @@ export default function LeagueDetailPage() {
                       <span className={`rounded-full px-2 py-1 text-xs font-medium ${draftStatusColors.complete}`}>
                         Complete
                       </span>
-                      <button
-                        onClick={() => router.push(`/leagues/${leagueId}/draft`)}
+                      <Link
+                        href={`/leagues/${leagueId}/draft`}
                         className="rounded-lg bg-muted px-3 py-1.5 text-sm font-medium text-accent-foreground hover:bg-muted-hover"
                       >
                         View Results
-                      </button>
+                      </Link>
                     </div>
                   </div>
                 ))}
@@ -757,22 +758,22 @@ export default function LeagueDetailPage() {
         )}
 
         {/* Trades Card - always visible for draft pick trading */}
-        <button
-          onClick={() => router.push(`/leagues/${leagueId}/trades`)}
-          className="w-full rounded-lg bg-card p-6 shadow hover:shadow-md transition-shadow text-left"
+        <Link
+          href={`/leagues/${leagueId}/trades`}
+          className="block w-full rounded-lg bg-card p-6 shadow hover:shadow-md transition-shadow text-left"
         >
           <div className="flex items-center gap-3 mb-2">
             <ArrowLeftRight className="h-5 w-5 text-link" />
             <h3 className="text-lg font-bold text-foreground">Trades</h3>
           </div>
           <p className="text-sm text-muted-foreground">Trade draft picks and manage trades with other teams</p>
-        </button>
+        </Link>
 
         {/* Waivers & Activity Cards - only during/after season */}
         {(league.status === 'in_season' || league.status === 'complete') && (
           <div className="grid gap-4 sm:grid-cols-2">
-            <button
-              onClick={() => router.push(`/leagues/${leagueId}/waivers`)}
+            <Link
+              href={`/leagues/${leagueId}/waivers`}
               className="rounded-lg bg-card p-6 shadow hover:shadow-md transition-shadow text-left"
             >
               <div className="flex items-center gap-3 mb-2">
@@ -780,10 +781,10 @@ export default function LeagueDetailPage() {
                 <h3 className="text-lg font-bold text-foreground">Waivers</h3>
               </div>
               <p className="text-sm text-muted-foreground">Add free agents and manage waiver claims</p>
-            </button>
+            </Link>
 
-            <button
-              onClick={() => router.push(`/leagues/${leagueId}/transactions`)}
+            <Link
+              href={`/leagues/${leagueId}/transactions`}
               className="rounded-lg bg-card p-6 shadow hover:shadow-md transition-shadow text-left"
             >
               <div className="flex items-center gap-3 mb-2">
@@ -791,7 +792,7 @@ export default function LeagueDetailPage() {
                 <h3 className="text-lg font-bold text-foreground">Activity</h3>
               </div>
               <p className="text-sm text-muted-foreground">View all trades, waivers, and roster moves</p>
-            </button>
+            </Link>
           </div>
         )}
 

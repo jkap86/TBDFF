@@ -1,14 +1,14 @@
 'use client';
 
 import { useCallback } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams } from 'next/navigation';
+import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
 import { useTransactions } from '@/features/transactions/hooks/useTransactions';
 import { TransactionFeed } from '@/features/transactions/components/TransactionFeed';
 
 export default function TransactionsPage() {
   const params = useParams();
-  const router = useRouter();
   const leagueId = params.leagueId as string;
 
   const { transactions, total, playerNames, isLoading, fetchTransactions } = useTransactions(leagueId);
@@ -26,12 +26,12 @@ export default function TransactionsPage() {
       <div className="mx-auto max-w-4xl space-y-6">
         {/* Header */}
         <div className="flex items-center gap-3">
-          <button
-            onClick={() => router.push(`/leagues/${leagueId}`)}
+          <Link
+            href={`/leagues/${leagueId}`}
             className="rounded p-2 text-muted-foreground hover:bg-muted"
           >
             <ArrowLeft className="h-5 w-5" />
-          </button>
+          </Link>
           <h1 className="text-2xl font-bold text-foreground">Activity Feed</h1>
         </div>
 

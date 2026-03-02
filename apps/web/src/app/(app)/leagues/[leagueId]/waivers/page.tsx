@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams } from 'next/navigation';
+import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
 import { playerApi } from '@/lib/api';
 import { useAuth } from '@/features/auth/hooks/useAuth';
@@ -13,7 +14,6 @@ import { MyWaiverClaims } from '@/features/transactions/components/MyWaiverClaim
 
 export default function WaiversPage() {
   const params = useParams();
-  const router = useRouter();
   const leagueId = params.leagueId as string;
   const { accessToken, user } = useAuth();
 
@@ -77,12 +77,12 @@ export default function WaiversPage() {
       <div className="mx-auto max-w-4xl space-y-6">
         {/* Header */}
         <div className="flex items-center gap-3">
-          <button
-            onClick={() => router.push(`/leagues/${leagueId}`)}
+          <Link
+            href={`/leagues/${leagueId}`}
             className="rounded p-2 text-muted-foreground hover:bg-muted"
           >
             <ArrowLeft className="h-5 w-5" />
-          </button>
+          </Link>
           <h1 className="text-2xl font-bold text-foreground">Waivers & Free Agents</h1>
         </div>
 
