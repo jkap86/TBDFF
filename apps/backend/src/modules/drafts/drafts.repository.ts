@@ -832,6 +832,28 @@ export class DraftRepository {
     return result.rows.length > 0 ? Player.fromDatabase(result.rows[0]) : null;
   }
 
+  async findFirstRookiePickFromQueue(
+    draftId: string,
+    userId: string,
+    client?: PoolClient,
+  ): Promise<string | null> {
+    const conn = client ?? this.db;
+    const result = await conn.query(
+      `SELECT dq.player_id FROM draft_queue dq
+       WHERE dq.draft_id = $1
+         AND dq.user_id = $2
+         AND dq.player_id LIKE 'rpick:%'
+         AND NOT EXISTS (
+           SELECT 1 FROM draft_picks dp
+           WHERE dp.draft_id = $1 AND dp.player_id = dq.player_id
+         )
+       ORDER BY dq.rank ASC
+       LIMIT 1`,
+      [draftId, userId],
+    );
+    return result.rows.length > 0 ? result.rows[0].player_id : null;
+  }
+
   // ── Auction Timer Methods (multi-instance safe scheduling) ──
 
   async upsertAuctionTimer(

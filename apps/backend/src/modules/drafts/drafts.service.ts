@@ -577,30 +577,55 @@ export class DraftService {
     console.log(`[auto-pick] draft=${draftId} slot=${nextPick.draftSlot} rosterId=${nextPick.rosterId} pickOwner=${pickOwner} triggeredBy=${userId}`);
     const queuedPlayer = await this.draftRepository.findFirstAvailableFromQueue(draftId, pickOwner, undefined, playerType);
     console.log(`[auto-pick] queueResult=${queuedPlayer ? `${queuedPlayer.fullName} (${queuedPlayer.id})` : 'null (no queued player)'}`);
-    const bestPlayer = queuedPlayer ?? (await this.draftRepository.findBestAvailable(draftId, undefined, playerType));
-    if (!bestPlayer) {
-      throw new ValidationException('No available players to auto-pick');
+
+    // Check for queued rookie pick (rpick: IDs aren't in the players table)
+    let rookiePickId: string | null = null;
+    if (!queuedPlayer && draft.settings.include_rookie_picks) {
+      rookiePickId = await this.draftRepository.findFirstRookiePickFromQueue(draftId, pickOwner);
     }
-    console.log(`[auto-pick] finalPick=${bestPlayer.fullName} (${bestPlayer.id}) source=${queuedPlayer ? 'queue' : 'BPA'}`);
 
-    // Make the pick using the selected player
-    const pickMetadata = {
-      first_name: bestPlayer.firstName,
-      last_name: bestPlayer.lastName,
-      full_name: bestPlayer.fullName,
-      position: bestPlayer.position,
-      team: bestPlayer.team,
-      auto_pick: true,
-    };
+    let pick: DraftPick;
+    let pickSource: string;
 
-    const pick = await this.draftRepository.makePick(
-      nextPick.id,
-      bestPlayer.id,
-      pickOwner,
-      pickMetadata,
-    );
-
-    if (!pick) throw new ConflictException('Pick was already made');
+    if (rookiePickId) {
+      // Rookie pick from queue — build metadata same as makePick()
+      const parts = rookiePickId.split(':');
+      const rpRound = parseInt(parts[1], 10);
+      const rpPick = parseInt(parts[2], 10);
+      const pickLabel = `${rpRound}.${String(rpPick).padStart(2, '0')}`;
+      const pickMetadata = {
+        rookie_pick: true,
+        first_name: 'Rookie Pick',
+        last_name: pickLabel,
+        full_name: `Rookie Pick ${pickLabel}`,
+        position: 'PICK',
+        team: null,
+        auto_pick: true,
+      };
+      console.log(`[auto-pick] finalPick=${pickLabel} source=queue(rpick)`);
+      const result = await this.draftRepository.makePick(nextPick.id, rookiePickId, pickOwner, pickMetadata);
+      if (!result) throw new ConflictException('Pick was already made');
+      pick = result;
+      pickSource = 'queue(rpick)';
+    } else {
+      const bestPlayer = queuedPlayer ?? (await this.draftRepository.findBestAvailable(draftId, undefined, playerType));
+      if (!bestPlayer) {
+        throw new ValidationException('No available players to auto-pick');
+      }
+      console.log(`[auto-pick] finalPick=${bestPlayer.fullName} (${bestPlayer.id}) source=${queuedPlayer ? 'queue' : 'BPA'}`);
+      const pickMetadata = {
+        first_name: bestPlayer.firstName,
+        last_name: bestPlayer.lastName,
+        full_name: bestPlayer.fullName,
+        position: bestPlayer.position,
+        team: bestPlayer.team,
+        auto_pick: true,
+      };
+      const result = await this.draftRepository.makePick(nextPick.id, bestPlayer.id, pickOwner, pickMetadata);
+      if (!result) throw new ConflictException('Pick was already made');
+      pick = result;
+      pickSource = queuedPlayer ? 'queue' : 'BPA';
+    }
 
     // Update last_picked timestamp
     await this.draftRepository.update(draftId, {
@@ -697,24 +722,42 @@ export class DraftService {
         undefined,
         chainPlayerType,
       );
-      const bestPlayer = queuedPlayer ?? (await this.draftRepository.findBestAvailable(draftId, undefined, chainPlayerType));
-      if (!bestPlayer) break;
 
-      const pickMetadata = {
-        first_name: bestPlayer.firstName,
-        last_name: bestPlayer.lastName,
-        full_name: bestPlayer.fullName,
-        position: bestPlayer.position,
-        team: bestPlayer.team,
-        auto_pick: true,
-      };
+      // Check for queued rookie pick (rpick: IDs aren't in the players table)
+      let rookiePickId: string | null = null;
+      if (!queuedPlayer && draft.settings.include_rookie_picks) {
+        rookiePickId = await this.draftRepository.findFirstRookiePickFromQueue(draftId, pickOwner);
+      }
 
-      const pick = await this.draftRepository.makePick(
-        nextPick.id,
-        bestPlayer.id,
-        pickOwner,
-        pickMetadata,
-      );
+      let pick: DraftPick | null;
+
+      if (rookiePickId) {
+        const parts = rookiePickId.split(':');
+        const rpRound = parseInt(parts[1], 10);
+        const rpPick = parseInt(parts[2], 10);
+        const pickLabel = `${rpRound}.${String(rpPick).padStart(2, '0')}`;
+        pick = await this.draftRepository.makePick(nextPick.id, rookiePickId, pickOwner, {
+          rookie_pick: true,
+          first_name: 'Rookie Pick',
+          last_name: pickLabel,
+          full_name: `Rookie Pick ${pickLabel}`,
+          position: 'PICK',
+          team: null,
+          auto_pick: true,
+        });
+      } else {
+        const bestPlayer = queuedPlayer ?? (await this.draftRepository.findBestAvailable(draftId, undefined, chainPlayerType));
+        if (!bestPlayer) break;
+
+        pick = await this.draftRepository.makePick(nextPick.id, bestPlayer.id, pickOwner, {
+          first_name: bestPlayer.firstName,
+          last_name: bestPlayer.lastName,
+          full_name: bestPlayer.fullName,
+          position: bestPlayer.position,
+          team: bestPlayer.team,
+          auto_pick: true,
+        });
+      }
 
       if (!pick) break;
 
