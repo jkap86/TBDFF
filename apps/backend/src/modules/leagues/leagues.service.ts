@@ -287,7 +287,16 @@ export class LeagueService {
     if (existing) throw new ConflictException('Already a member of this league');
 
     // Join as spectator — commissioner will assign a roster to promote to member
-    return this.leagueRepository.addMember(leagueId, userId, 'spectator');
+    try {
+      return await this.leagueRepository.addMember(leagueId, userId, 'spectator');
+    } catch (err: any) {
+      if (err.code === '23505') {
+        // Concurrent join raced — return the existing membership
+        const member = await this.leagueRepository.findMember(leagueId, userId);
+        if (member) return member;
+      }
+      throw err;
+    }
   }
 
   async leaveLeague(leagueId: string, userId: string): Promise<void> {

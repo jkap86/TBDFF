@@ -41,12 +41,14 @@ export function BestAvailablePlayers({
   const [offset, setOffset] = useState(0);
   const scrollRef = useRef<HTMLDivElement>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const fetchGenRef = useRef(0);
 
   const positions = includeRookiePicks
     ? [...BASE_POSITIONS, 'PICK'] as const
     : BASE_POSITIONS;
 
   const fetchPlayers = useCallback(async (reset: boolean) => {
+    const gen = ++fetchGenRef.current;
     const currentOffset = reset ? 0 : offset;
     setIsLoading(true);
     try {
@@ -56,6 +58,7 @@ export function BestAvailablePlayers({
         limit: PAGE_SIZE,
         offset: currentOffset,
       });
+      if (gen !== fetchGenRef.current) return; // Discard stale response
       if (reset) {
         setPlayers(result.players);
         setOffset(result.players.length);
@@ -71,7 +74,7 @@ export function BestAvailablePlayers({
     } catch {
       // Silently ignore
     } finally {
-      setIsLoading(false);
+      if (gen === fetchGenRef.current) setIsLoading(false);
     }
   }, [draftId, accessToken, position, searchQuery, offset]);
 

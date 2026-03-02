@@ -64,7 +64,20 @@ export class AuthService {
     }
 
     const passwordHash = await bcrypt.hash(password, 10);
-    const user = await this.userRepository.create(normalizedUsername, trimmedUsername, normalizedEmail, passwordHash);
+
+    let user: User;
+    try {
+      user = await this.userRepository.create(normalizedUsername, trimmedUsername, normalizedEmail, passwordHash);
+    } catch (err: any) {
+      if (err.code === '23505') {
+        const detail: string = err.detail ?? '';
+        if (detail.includes('username')) {
+          throw new ConflictException('Username already taken');
+        }
+        throw new ConflictException('Email already in use');
+      }
+      throw err;
+    }
 
     const accessToken = this.generateAccessToken(user);
     const refreshToken = this.generateRefreshToken(user);

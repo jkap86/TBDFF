@@ -249,6 +249,7 @@ export class DraftRepository {
     const result = await this.db.query(
       `INSERT INTO draft_picks (draft_id, roster_id, round, pick_no, draft_slot)
        VALUES ${pickValues.join(', ')}
+       ON CONFLICT (draft_id, round, pick_no) DO NOTHING
        RETURNING *`,
       params
     );

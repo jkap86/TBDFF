@@ -21,10 +21,20 @@ export class AuctionLotRepository {
     const result = await conn.query(
       `INSERT INTO auction_lots (draft_id, player_id, nominator_roster_id, current_bid, bid_deadline, nomination_date, status, bid_count)
        VALUES ($1, $2, $3, $4, $5, $6, 'active', 1)
+       ON CONFLICT (draft_id, player_id) WHERE status IN ('active', 'won')
+       DO NOTHING
        RETURNING *`,
       [data.draftId, data.playerId, data.nominatorRosterId, data.currentBid, data.bidDeadline, data.nominationDate],
     );
-    return AuctionLot.fromDatabase(result.rows[0]);
+    if (result.rows.length > 0) {
+      return AuctionLot.fromDatabase(result.rows[0]);
+    }
+    // Conflict — return the existing active/won lot
+    const existing = await conn.query(
+      `SELECT * FROM auction_lots WHERE draft_id = $1 AND player_id = $2 AND status IN ('active', 'won')`,
+      [data.draftId, data.playerId],
+    );
+    return AuctionLot.fromDatabase(existing.rows[0]);
   }
 
   async findLotById(lotId: string, client?: PoolClient): Promise<AuctionLot | null> {
