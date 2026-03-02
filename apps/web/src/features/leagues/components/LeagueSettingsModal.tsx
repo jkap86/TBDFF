@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { ApiError } from '@/lib/api';
-import type { League, LeagueMember, Roster, UpdateLeagueRequest, LeagueStatus, LeagueType } from '@tbdff/shared';
+import type { League, LeagueMember, Roster, UpdateLeagueRequest, LeagueType } from '@tbdff/shared';
 import { positionArrayToCounts, countsToPositionArray } from '../config/roster-config';
 import { scoringFromLeague } from '../config/scoring-config';
 import { ChevronDown } from 'lucide-react';
@@ -30,7 +30,6 @@ export function LeagueSettingsModal({
 }: LeagueSettingsModalProps) {
   const [name, setName] = useState(league.name);
   const [totalRosters, setTotalRosters] = useState(league.total_rosters);
-  const [status, setStatus] = useState<LeagueStatus>(league.status);
   const [leagueType, setLeagueType] = useState<LeagueType>((league.settings?.type ?? 0) as LeagueType);
   const [bestBall, setBestBall] = useState(league.settings?.best_ball === 1);
   const [isPublic, setIsPublic] = useState(league.settings?.public === 1);
@@ -60,7 +59,6 @@ export function LeagueSettingsModal({
     if (isOpen) {
       setName(league.name);
       setTotalRosters(league.total_rosters);
-      setStatus(league.status);
       setLeagueType((league.settings?.type ?? 0) as LeagueType);
       setBestBall(league.settings?.best_ball === 1);
       setIsPublic(league.settings?.public === 1);
@@ -108,9 +106,6 @@ export function LeagueSettingsModal({
         return;
       }
       updates.total_rosters = totalRosters;
-    }
-    if (status !== league.status) {
-      updates.status = status;
     }
     const currentIsPublic = league.settings?.public === 1;
     const currentMemberCanInvite = league.settings?.member_can_invite === 1;
@@ -250,24 +245,6 @@ export function LeagueSettingsModal({
                   </option>
                 );
               })}
-            </select>
-          </div>
-
-          <div className="mb-4">
-            <label htmlFor="status" className="mb-1 block text-sm font-medium text-accent-foreground">
-              League Status
-            </label>
-            <select
-              id="status"
-              value={status}
-              onChange={(e) => setStatus(e.target.value as LeagueStatus)}
-              className="w-full rounded border border-input px-3 py-2 text-foreground bg-muted focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
-              disabled={isSubmitting}
-            >
-              <option value="pre_draft">Pre-Draft</option>
-              <option value="drafting">Drafting</option>
-              <option value="in_season">In Season</option>
-              <option value="complete">Complete</option>
             </select>
           </div>
 

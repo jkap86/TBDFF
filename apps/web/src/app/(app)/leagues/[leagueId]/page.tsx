@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Settings, MessageSquare, ArrowLeftRight, ClipboardList, Activity, ChevronDown } from 'lucide-react';
+import { Settings, MessageSquare, ArrowLeftRight, ClipboardList, Activity, ChevronDown, Trophy, Users2 } from 'lucide-react';
 import { leagueApi, draftApi, matchupApi, ApiError, type UpdateLeagueRequest, type Draft, type Matchup } from '@/lib/api';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import { LeagueSettingsModal } from '@/features/leagues/components/LeagueSettingsModal';
@@ -15,6 +15,8 @@ import { useChatPanel } from '@/features/chat/context/ChatPanelContext';
 import { useSocket } from '@/features/chat/context/SocketProvider';
 import { LeagueDetailSkeleton } from '@/features/leagues/components/LeagueDetailSkeleton';
 import { useLeagueQuery, useMembersQuery, useRostersQuery } from '@/hooks/useLeagueQueries';
+import { SCORING_CATEGORIES, scoringFromLeague } from '@/features/leagues/config/scoring-config';
+import { ROSTER_POSITION_CONFIG, positionArrayToCounts } from '@/features/leagues/config/roster-config';
 
 const draftTypeLabels: Record<string, string> = {
   snake: 'Snake',
@@ -60,6 +62,8 @@ export default function LeagueDetailPage() {
   const [isStartingDerby, setIsStartingDerby] = useState(false);
   const [isGeneratingMatchups, setIsGeneratingMatchups] = useState(false);
   const [selectedWeek, setSelectedWeek] = useState(1);
+  const [isScoringExpanded, setIsScoringExpanded] = useState(false);
+  const [isRosterExpanded, setIsRosterExpanded] = useState(false);
   const [mutationError, setMutationError] = useState<string | null>(null);
   const { startConversation } = useConversations();
   const { openConversation } = useChatPanel();
@@ -394,15 +398,82 @@ export default function LeagueDetailPage() {
               </p>
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">Scoring</p>
+              <p className="text-sm text-muted-foreground">Starters</p>
               <p className="text-lg font-medium text-foreground">
-                {league.scoring_settings?.rec === 1
-                  ? 'PPR'
-                  : league.scoring_settings?.rec === 0.5
-                    ? 'Half-PPR'
-                    : 'Standard'}
+                {(league.roster_positions ?? []).filter(p => p !== 'BN' && p !== 'IR').length}
               </p>
             </div>
+          </div>
+
+          {/* Expandable Scoring Settings */}
+          <div className="mt-4 rounded-lg border border-border">
+            <button
+              type="button"
+              onClick={() => setIsScoringExpanded(!isScoringExpanded)}
+              className="flex w-full items-center justify-between px-4 py-3 text-sm font-medium text-accent-foreground hover:bg-accent rounded-lg"
+            >
+              <div className="flex items-center gap-2">
+                <Trophy className="h-4 w-4 text-muted-foreground" />
+                <span>Scoring Settings</span>
+                <span className="text-xs text-muted-foreground">
+                  ({league.scoring_settings?.rec === 1 ? 'PPR' : league.scoring_settings?.rec === 0.5 ? 'Half-PPR' : 'Standard'})
+                </span>
+              </div>
+              <ChevronDown className={`h-4 w-4 transition-transform ${isScoringExpanded ? 'rotate-180' : ''}`} />
+            </button>
+            {isScoringExpanded && (() => {
+              const scoring = scoringFromLeague(league);
+              return (
+                <div className="border-t border-border px-4 py-3 space-y-4">
+                  {SCORING_CATEGORIES.map((cat) => (
+                    <div key={cat.title}>
+                      <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-1">{cat.title}</h4>
+                      <div className="grid grid-cols-2 gap-x-4 gap-y-0.5">
+                        {cat.fields.map((f) => (
+                          <div key={f.key} className="flex items-center justify-between text-sm">
+                            <span className="text-accent-foreground">{f.label}</span>
+                            <span className="font-medium text-foreground">{scoring[f.key]}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              );
+            })()}
+          </div>
+
+          {/* Expandable Roster Positions */}
+          <div className="mt-2 rounded-lg border border-border">
+            <button
+              type="button"
+              onClick={() => setIsRosterExpanded(!isRosterExpanded)}
+              className="flex w-full items-center justify-between px-4 py-3 text-sm font-medium text-accent-foreground hover:bg-accent rounded-lg"
+            >
+              <div className="flex items-center gap-2">
+                <Users2 className="h-4 w-4 text-muted-foreground" />
+                <span>Roster Positions</span>
+                <span className="text-xs text-muted-foreground">
+                  ({(league.roster_positions ?? []).length} slots)
+                </span>
+              </div>
+              <ChevronDown className={`h-4 w-4 transition-transform ${isRosterExpanded ? 'rotate-180' : ''}`} />
+            </button>
+            {isRosterExpanded && (() => {
+              const counts = positionArrayToCounts(league.roster_positions ?? []);
+              return (
+                <div className="border-t border-border px-4 py-3">
+                  <div className="grid grid-cols-2 gap-x-4 gap-y-1">
+                    {ROSTER_POSITION_CONFIG.filter((pos) => counts[pos.key] > 0).map((pos) => (
+                      <div key={pos.key} className="flex items-center justify-between text-sm">
+                        <span className="text-accent-foreground">{pos.label}</span>
+                        <span className="font-medium text-foreground">{counts[pos.key]}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })()}
           </div>
         </div>
 
