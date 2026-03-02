@@ -1,15 +1,17 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { ArrowLeft, Plus } from 'lucide-react';
-import { leagueApi, playerApi, ApiError } from '@/lib/api';
-import type { LeagueMember, Player, Roster, TradeProposal } from '@/lib/api';
+import { playerApi } from '@/lib/api';
+import type { Player, TradeProposal } from '@/lib/api';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import { useTrades } from '@/features/trades/hooks/useTrades';
 import { useTradeSocket } from '@/features/trades/hooks/useTradeSocket';
+import { useMembersQuery, useRostersQuery } from '@/hooks/useLeagueQueries';
 import { TradeCard } from '@/features/trades/components/TradeCard';
 import { TradeComposer } from '@/features/trades/components/TradeComposer';
+import { Skeleton } from '@/components/ui/Skeleton';
 
 export default function TradesPage() {
   const params = useParams();
@@ -17,12 +19,13 @@ export default function TradesPage() {
   const leagueId = params.leagueId as string;
   const { accessToken, user } = useAuth();
 
-  const [members, setMembers] = useState<LeagueMember[]>([]);
-  const [rosters, setRosters] = useState<Roster[]>([]);
   const [playerMap, setPlayerMap] = useState<Record<string, Player>>({});
   const [isComposerOpen, setIsComposerOpen] = useState(false);
   const [statusFilter, setStatusFilter] = useState<string | undefined>(undefined);
   const [confirmAction, setConfirmAction] = useState<{ label: string; tradeId: string; action: (id: string) => Promise<any> } | null>(null);
+
+  const { data: members = [] } = useMembersQuery(leagueId);
+  const { data: rosters = [] } = useRostersQuery(leagueId);
 
   const {
     trades,
@@ -39,33 +42,29 @@ export default function TradesPage() {
     pushTrade,
   } = useTrades(leagueId);
 
-  useEffect(() => {
-    if (!accessToken) return;
-    Promise.all([
-      leagueApi.getMembers(leagueId, accessToken),
-      leagueApi.getRosters(leagueId, accessToken),
-    ]).then(([membersResult, rostersResult]) => {
-      setMembers(membersResult.members);
-      setRosters(rostersResult.rosters);
+  // Fetch player data for all rostered players
+  const allPlayerIds = useMemo(() => {
+    const ids = new Set<string>();
+    for (const r of rosters) {
+      for (const pid of r.players) ids.add(pid);
+    }
+    return Array.from(ids);
+  }, [rosters]);
 
-      // Fetch player data for all rostered players
-      const allPlayerIds = new Set<string>();
-      for (const r of rostersResult.rosters) {
-        for (const pid of r.players) allPlayerIds.add(pid);
+  useEffect(() => {
+    if (!accessToken || allPlayerIds.length === 0) return;
+    Promise.all(
+      allPlayerIds.map((pid) =>
+        playerApi.getById(pid, accessToken).then((res) => res.player).catch(() => null),
+      ),
+    ).then((players) => {
+      const map: Record<string, Player> = {};
+      for (const p of players) {
+        if (p) map[p.id] = p;
       }
-      Promise.all(
-        Array.from(allPlayerIds).map((pid) =>
-          playerApi.getById(pid, accessToken).then((res) => res.player).catch(() => null),
-        ),
-      ).then((players) => {
-        const map: Record<string, Player> = {};
-        for (const p of players) {
-          if (p) map[p.id] = p;
-        }
-        setPlayerMap(map);
-      });
-    }).catch(() => {});
-  }, [leagueId, accessToken]);
+      setPlayerMap(map);
+    });
+  }, [allPlayerIds, accessToken]);
 
   const handleTradeUpdate = useCallback((trade: TradeProposal) => {
     fetchTrades(statusFilter);
@@ -150,7 +149,26 @@ export default function TradesPage() {
 
         {/* Trades List */}
         {isLoading ? (
-          <p className="text-center text-muted-foreground py-8">Loading trades...</p>
+          <div className="space-y-3">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <div key={i} className="rounded-lg bg-card p-5 shadow">
+                <div className="flex items-center justify-between mb-3">
+                  <Skeleton className="h-5 w-32" />
+                  <Skeleton className="h-5 w-16 rounded-full" />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Skeleton className="h-4 w-24" />
+                    <Skeleton className="h-4 w-36" />
+                  </div>
+                  <div className="space-y-2">
+                    <Skeleton className="h-4 w-24" />
+                    <Skeleton className="h-4 w-36" />
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
         ) : trades.length === 0 ? (
           <div className="rounded-lg bg-card p-8 shadow text-center">
             <p className="text-muted-foreground">No trades found</p>

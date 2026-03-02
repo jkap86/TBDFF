@@ -1,13 +1,13 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { ArrowLeft } from 'lucide-react';
-import { leagueApi, playerApi, ApiError } from '@/lib/api';
-import type { Roster, League } from '@/lib/api';
+import { playerApi } from '@/lib/api';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import { useWaivers } from '@/features/transactions/hooks/useWaivers';
 import { useTransactions } from '@/features/transactions/hooks/useTransactions';
+import { useLeagueQuery, useRostersQuery } from '@/hooks/useLeagueQueries';
 import { WaiverClaimForm } from '@/features/transactions/components/WaiverClaimForm';
 import { MyWaiverClaims } from '@/features/transactions/components/MyWaiverClaims';
 
@@ -17,46 +17,40 @@ export default function WaiversPage() {
   const leagueId = params.leagueId as string;
   const { accessToken, user } = useAuth();
 
-  const [league, setLeague] = useState<League | null>(null);
-  const [rosters, setRosters] = useState<Roster[]>([]);
-  const [allPlayers, setAllPlayers] = useState<string[]>([]);
   const [rosterPlayerNames, setRosterPlayerNames] = useState<Record<string, string>>({});
   const [claimingPlayer, setClaimingPlayer] = useState<string | null>(null);
   const [addError, setAddError] = useState<string | null>(null);
 
+  const { data: league } = useLeagueQuery(leagueId);
+  const { data: rosters = [] } = useRostersQuery(leagueId);
+
   const { claims, playerNames: claimPlayerNames, isLoading: claimsLoading, fetchClaims, placeClaim, cancelClaim } = useWaivers(leagueId);
   const { addPlayer, dropPlayer } = useTransactions(leagueId);
 
+  // Collect all rostered player IDs
+  const allPlayerIds = useMemo(() => {
+    const ids = new Set<string>();
+    for (const r of rosters) {
+      for (const p of r.players) ids.add(p);
+    }
+    return Array.from(ids);
+  }, [rosters]);
+
+  // Fetch player names for roster display
   useEffect(() => {
-    if (!accessToken) return;
-    Promise.all([
-      leagueApi.getById(leagueId, accessToken),
-      leagueApi.getRosters(leagueId, accessToken),
-    ]).then(([leagueResult, rostersResult]) => {
-      setLeague(leagueResult.league);
-      setRosters(rostersResult.rosters);
-
-      // Collect all rostered players to identify free agents
-      const rostered = new Set<string>();
-      for (const r of rostersResult.rosters) {
-        for (const p of r.players) rostered.add(p);
+    if (!accessToken || allPlayerIds.length === 0) return;
+    Promise.all(
+      allPlayerIds.map((pid) =>
+        playerApi.getById(pid, accessToken).then((res) => res.player).catch(() => null),
+      ),
+    ).then((players) => {
+      const names: Record<string, string> = {};
+      for (const p of players) {
+        if (p) names[p.id] = p.full_name;
       }
-      setAllPlayers(Array.from(rostered));
-
-      // Fetch player names for roster display
-      Promise.all(
-        Array.from(rostered).map((pid) =>
-          playerApi.getById(pid, accessToken).then((res) => res.player).catch(() => null),
-        ),
-      ).then((players) => {
-        const names: Record<string, string> = {};
-        for (const p of players) {
-          if (p) names[p.id] = p.full_name;
-        }
-        setRosterPlayerNames(names);
-      });
-    }).catch(() => {});
-  }, [leagueId, accessToken]);
+      setRosterPlayerNames(names);
+    });
+  }, [allPlayerIds, accessToken]);
 
   const myRoster = rosters.find((r) => r.owner_id === user?.id);
 
@@ -64,11 +58,6 @@ export default function WaiversPage() {
     try {
       setAddError(null);
       await addPlayer(playerId);
-      // Refresh rosters
-      if (accessToken) {
-        const result = await leagueApi.getRosters(leagueId, accessToken);
-        setRosters(result.rosters);
-      }
     } catch (err: unknown) {
       setAddError(err instanceof Error ? err.message : 'Failed to add player');
     }
@@ -78,10 +67,6 @@ export default function WaiversPage() {
     try {
       setAddError(null);
       await dropPlayer(playerId);
-      if (accessToken) {
-        const result = await leagueApi.getRosters(leagueId, accessToken);
-        setRosters(result.rosters);
-      }
     } catch (err: unknown) {
       setAddError(err instanceof Error ? err.message : 'Failed to drop player');
     }

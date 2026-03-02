@@ -11,6 +11,7 @@ import { SlowAuctionControls } from '@/features/drafts/components/SlowAuctionCon
 import { DraftSidebar } from '@/features/drafts/components/DraftSidebar';
 import { DraftControls } from '@/features/drafts/components/DraftControls';
 import { AuctionControls } from '@/features/drafts/components/AuctionControls';
+import { DraftRoomSkeleton } from '@/features/drafts/components/DraftRoomSkeleton';
 
 const draftTypeLabels: Record<string, string> = {
   snake: 'Snake',
@@ -30,11 +31,7 @@ export default function DraftRoomPage() {
   const [isStarting, setIsStarting] = useState(false);
 
   if (isLoading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center">
-        <div className="text-muted-foreground">Loading draft...</div>
-      </div>
-    );
+    return <DraftRoomSkeleton />;
   }
 
   if (error || !draft) {

@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { AuthProvider } from '@/features/auth/context/AuthProvider';
 import { ThemeProvider } from '@/features/theme/ThemeProvider';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
+import { QueryProvider } from '@/components/QueryProvider';
 import { DevPanel } from '@/features/dev/DevPanel';
 import './globals.css';
 
@@ -27,12 +28,14 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body className="bg-background text-foreground font-sans antialiased">
         <ThemeProvider>
-          <AuthProvider>
-            <ErrorBoundary>
-              {children}
-            </ErrorBoundary>
-            <DevPanel />
-          </AuthProvider>
+          <QueryProvider>
+            <AuthProvider>
+              <ErrorBoundary>
+                {children}
+              </ErrorBoundary>
+              <DevPanel />
+            </AuthProvider>
+          </QueryProvider>
         </ThemeProvider>
       </body>
     </html>

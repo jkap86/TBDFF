@@ -1,61 +1,50 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
-import { transactionApi, ApiError } from '@/lib/api';
-import type { WaiverClaim, PlaceWaiverClaimRequest } from '@/lib/api';
+import { useCallback } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { transactionApi } from '@/lib/api';
+import type { PlaceWaiverClaimRequest } from '@/lib/api';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 
 export function useWaivers(leagueId: string) {
   const { accessToken } = useAuth();
-  const [claims, setClaims] = useState<WaiverClaim[]>([]);
-  const [playerNames, setPlayerNames] = useState<Record<string, string>>({});
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const queryClient = useQueryClient();
 
-  const fetchClaims = useCallback(async () => {
-    if (!accessToken) return;
-    try {
-      setIsLoading(true);
-      setError(null);
-      const result = await transactionApi.getWaiverClaims(leagueId, accessToken);
-      setClaims(result.claims);
-      if (result.player_names) setPlayerNames(result.player_names);
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Failed to load waiver claims');
-    } finally {
-      setIsLoading(false);
-    }
-  }, [leagueId, accessToken]);
+  const { data, isLoading, error: queryError } = useQuery({
+    queryKey: ['waiverClaims', leagueId],
+    queryFn: () => transactionApi.getWaiverClaims(leagueId, accessToken!),
+    enabled: !!accessToken,
+  });
 
-  useEffect(() => {
-    fetchClaims();
-  }, [fetchClaims]);
+  const fetchClaims = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: ['waiverClaims', leagueId] });
+  }, [leagueId, queryClient]);
 
-  const placeClaim = useCallback(async (data: PlaceWaiverClaimRequest) => {
+  const placeClaim = useCallback(async (claimData: PlaceWaiverClaimRequest) => {
     if (!accessToken) throw new Error('Not authenticated');
-    const result = await transactionApi.placeWaiverClaim(leagueId, data, accessToken);
-    setClaims((prev) => [...prev, result.claim]);
+    const result = await transactionApi.placeWaiverClaim(leagueId, claimData, accessToken);
+    queryClient.invalidateQueries({ queryKey: ['waiverClaims', leagueId] });
     return result.claim;
-  }, [leagueId, accessToken]);
+  }, [leagueId, accessToken, queryClient]);
 
-  const updateClaim = useCallback(async (claimId: string, data: { drop_player_id?: string | null; faab_amount?: number }) => {
+  const updateClaim = useCallback(async (claimId: string, updates: { drop_player_id?: string | null; faab_amount?: number }) => {
     if (!accessToken) throw new Error('Not authenticated');
-    const result = await transactionApi.updateWaiverClaim(leagueId, claimId, data, accessToken);
-    setClaims((prev) => prev.map((c) => (c.id === claimId ? result.claim : c)));
+    const result = await transactionApi.updateWaiverClaim(leagueId, claimId, updates, accessToken);
+    queryClient.invalidateQueries({ queryKey: ['waiverClaims', leagueId] });
     return result.claim;
-  }, [leagueId, accessToken]);
+  }, [leagueId, accessToken, queryClient]);
 
   const cancelClaim = useCallback(async (claimId: string) => {
     if (!accessToken) throw new Error('Not authenticated');
     await transactionApi.cancelWaiverClaim(leagueId, claimId, accessToken);
-    setClaims((prev) => prev.filter((c) => c.id !== claimId));
-  }, [leagueId, accessToken]);
+    queryClient.invalidateQueries({ queryKey: ['waiverClaims', leagueId] });
+  }, [leagueId, accessToken, queryClient]);
 
   return {
-    claims,
-    playerNames,
+    claims: data?.claims ?? [],
+    playerNames: data?.player_names ?? {},
     isLoading,
-    error,
+    error: queryError ? (queryError as Error).message : null,
     fetchClaims,
     placeClaim,
     updateClaim,

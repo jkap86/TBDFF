@@ -2,8 +2,9 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Settings, MessageSquare, ArrowLeftRight, ClipboardList, Activity, ChevronDown } from 'lucide-react';
-import { leagueApi, draftApi, matchupApi, ApiError, type League, type LeagueMember, type Roster, type UpdateLeagueRequest, type Draft, type Matchup } from '@/lib/api';
+import { leagueApi, draftApi, matchupApi, ApiError, type UpdateLeagueRequest, type Draft, type Matchup } from '@/lib/api';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import { LeagueSettingsModal } from '@/features/leagues/components/LeagueSettingsModal';
 import { DraftSettingsModal } from '@/features/drafts/components/DraftSettingsModal';
@@ -11,6 +12,8 @@ import { DerbyPickBoard } from '@/features/drafts/components/DerbyPickBoard';
 import { useConversations } from '@/features/chat/hooks/useConversations';
 import { useChatPanel } from '@/features/chat/context/ChatPanelContext';
 import { useSocket } from '@/features/chat/context/SocketProvider';
+import { LeagueDetailSkeleton } from '@/features/leagues/components/LeagueDetailSkeleton';
+import { useLeagueQuery, useMembersQuery, useRostersQuery } from '@/hooks/useLeagueQueries';
 
 const draftTypeLabels: Record<string, string> = {
   snake: 'Snake',
@@ -24,14 +27,27 @@ export default function LeagueDetailPage() {
   const router = useRouter();
   const leagueId = params.leagueId as string;
   const { accessToken, user } = useAuth();
+  const queryClient = useQueryClient();
 
-  const [league, setLeague] = useState<League | null>(null);
-  const [members, setMembers] = useState<LeagueMember[]>([]);
-  const [rosters, setRosters] = useState<Roster[]>([]);
-  const [drafts, setDrafts] = useState<Draft[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [matchups, setMatchups] = useState<Matchup[]>([]);
+  // --- Data queries (cached, instant on revisit) ---
+  const { data: league, isLoading, error: leagueError } = useLeagueQuery(leagueId);
+  const { data: members = [] } = useMembersQuery(leagueId);
+  const { data: rosters = [] } = useRostersQuery(leagueId);
+  const { data: draftsData } = useQuery({
+    queryKey: ['drafts', leagueId],
+    queryFn: () => draftApi.getByLeague(leagueId, accessToken!),
+    enabled: !!accessToken,
+  });
+  const drafts = draftsData?.drafts ?? [];
+  const { data: matchupsData } = useQuery({
+    queryKey: ['matchups', leagueId],
+    queryFn: () => matchupApi.getAll(leagueId, accessToken!).catch(() => ({ matchups: [] as Matchup[] })),
+    enabled: !!accessToken,
+  });
+  const matchups = matchupsData?.matchups ?? [];
+  const error = leagueError ? (leagueError as Error).message : null;
+
+  // --- UI state ---
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isDraftSettingsOpen, setIsDraftSettingsOpen] = useState(false);
   const [showReRandomizeConfirm, setShowReRandomizeConfirm] = useState(false);
@@ -43,79 +59,48 @@ export default function LeagueDetailPage() {
   const [isStartingDerby, setIsStartingDerby] = useState(false);
   const [isGeneratingMatchups, setIsGeneratingMatchups] = useState(false);
   const [selectedWeek, setSelectedWeek] = useState(1);
+  const [mutationError, setMutationError] = useState<string | null>(null);
   const { startConversation } = useConversations();
   const { openConversation } = useChatPanel();
   const { socket } = useSocket();
 
-  useEffect(() => {
-    const fetchData = async () => {
-      if (!accessToken) return;
-
-      try {
-        setIsLoading(true);
-        setError(null);
-
-        const [leagueResult, membersResult, rostersResult, draftsResult, matchupsResult] = await Promise.all([
-          leagueApi.getById(leagueId, accessToken),
-          leagueApi.getMembers(leagueId, accessToken),
-          leagueApi.getRosters(leagueId, accessToken),
-          draftApi.getByLeague(leagueId, accessToken),
-          matchupApi.getAll(leagueId, accessToken).catch(() => ({ matchups: [] })),
-        ]);
-
-        setLeague(leagueResult.league);
-        setMembers(membersResult.members);
-        setRosters(rostersResult.rosters);
-        setDrafts(draftsResult.drafts);
-        setMatchups(matchupsResult.matchups);
-      } catch (err) {
-        if (err instanceof ApiError) {
-          setError(err.message);
-        } else {
-          setError('Failed to load league');
-        }
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchData();
-  }, [leagueId, accessToken]);
+  // --- Cache update helpers ---
+  const updateDraftsCache = (updater: (prev: Draft[]) => Draft[]) => {
+    queryClient.setQueryData(['drafts', leagueId], (old: any) => {
+      if (!old) return old;
+      return { ...old, drafts: updater(old.drafts) };
+    });
+  };
 
   const handleUpdateLeague = async (updates: UpdateLeagueRequest) => {
     if (!accessToken) throw new Error('Not authenticated');
 
     const result = await leagueApi.update(leagueId, updates, accessToken);
-    setLeague(result.league);
+    queryClient.setQueryData(['league', leagueId], result);
   };
 
   const handleDeleteLeague = async () => {
     if (!accessToken) throw new Error('Not authenticated');
 
     await leagueApi.delete(leagueId, accessToken);
+    queryClient.invalidateQueries({ queryKey: ['leagues'] });
     router.push('/leagues');
   };
 
   const handleAssignRoster = async (rosterId: number, userId: string) => {
     if (!accessToken) throw new Error('Not authenticated');
 
-    const result = await leagueApi.assignRoster(leagueId, rosterId, { user_id: userId }, accessToken);
-    // Update local state
-    setRosters((prev) => prev.map((r) => (r.roster_id === rosterId ? result.roster : r)));
-    setMembers((prev) => prev.map((m) => (m.user_id === result.member.user_id ? result.member : m)));
+    await leagueApi.assignRoster(leagueId, rosterId, { user_id: userId }, accessToken);
+    queryClient.invalidateQueries({ queryKey: ['rosters', leagueId] });
+    queryClient.invalidateQueries({ queryKey: ['members', leagueId] });
   };
 
   const handleUnassignRoster = async (rosterId: number) => {
     if (!accessToken) throw new Error('Not authenticated');
 
     await leagueApi.unassignRoster(leagueId, rosterId, accessToken);
-    // Refetch members and rosters to get updated state
-    const [membersResult, rostersResult] = await Promise.all([
-      leagueApi.getMembers(leagueId, accessToken),
-      leagueApi.getRosters(leagueId, accessToken),
-    ]);
-    setMembers(membersResult.members);
-    setRosters(rostersResult.rosters);
+    queryClient.invalidateQueries({ queryKey: ['rosters', leagueId] });
+    queryClient.invalidateQueries({ queryKey: ['members', leagueId] });
   };
 
   const handleCreateDraft = async () => {
@@ -123,11 +108,12 @@ export default function LeagueDetailPage() {
 
     try {
       setIsCreatingDraft(true);
+      setMutationError(null);
       const result = await draftApi.create(leagueId, {}, accessToken);
-      setDrafts((prev) => [result.draft, ...prev]);
+      updateDraftsCache((prev) => [result.draft, ...prev]);
     } catch (err) {
       if (err instanceof ApiError) {
-        setError(err.message);
+        setMutationError(err.message);
       }
     } finally {
       setIsCreatingDraft(false);
@@ -138,7 +124,7 @@ export default function LeagueDetailPage() {
     if (!accessToken || !activeDraft) return;
 
     const result = await draftApi.update(activeDraft.id, updates, accessToken);
-    setDrafts((prev) => prev.map((d) => (d.id === result.draft.id ? result.draft : d)));
+    updateDraftsCache((prev) => prev.map((d) => (d.id === result.draft.id ? result.draft : d)));
   };
 
   const handleRandomizeDraftOrder = async () => {
@@ -163,7 +149,7 @@ export default function LeagueDetailPage() {
       });
 
       const result = await draftApi.setOrder(activeDraft.id, { draft_order: draftOrder, slot_to_roster_id: slotToRosterId }, accessToken);
-      setDrafts((prev) => prev.map((d) => (d.id === result.draft.id ? result.draft : d)));
+      updateDraftsCache((prev) => prev.map((d) => (d.id === result.draft.id ? result.draft : d)));
       setIsDraftOrderExpanded(true);
 
       // Start shuffle animation
@@ -205,7 +191,7 @@ export default function LeagueDetailPage() {
       }, 80);
     } catch (err) {
       if (err instanceof ApiError) {
-        setError(err.message);
+        setMutationError(err.message);
       }
     }
   };
@@ -215,11 +201,12 @@ export default function LeagueDetailPage() {
 
     try {
       setIsStartingDerby(true);
+      setMutationError(null);
       const result = await draftApi.startDerby(activeDraft.id, accessToken);
-      setDrafts((prev) => prev.map((d) => (d.id === result.draft.id ? result.draft : d)));
+      updateDraftsCache((prev) => prev.map((d) => (d.id === result.draft.id ? result.draft : d)));
     } catch (err) {
       if (err instanceof ApiError) {
-        setError(err.message);
+        setMutationError(err.message);
       }
     } finally {
       setIsStartingDerby(false);
@@ -244,7 +231,7 @@ export default function LeagueDetailPage() {
 
     const handleStateUpdate = (data: { draft: any; server_time?: string }) => {
       if (data.draft) {
-        setDrafts((prev) => prev.map((d) => (d.id === data.draft.id ? data.draft : d)));
+        updateDraftsCache((prev) => prev.map((d) => (d.id === data.draft.id ? data.draft : d)));
       }
     };
 
@@ -262,8 +249,7 @@ export default function LeagueDetailPage() {
 
     const interval = setInterval(async () => {
       try {
-        const result = await draftApi.getByLeague(leagueId, accessToken);
-        setDrafts(result.drafts);
+        queryClient.invalidateQueries({ queryKey: ['drafts', leagueId] });
       } catch {
         // Non-fatal
       }
@@ -273,20 +259,21 @@ export default function LeagueDetailPage() {
   }, [activeDraftForDerby?.id, derbyStatus, accessToken, leagueId]);
 
   const handleDraftUpdated = useCallback((updatedDraft: Draft) => {
-    setDrafts((prev) => prev.map((d) => (d.id === updatedDraft.id ? updatedDraft : d)));
-  }, []);
+    updateDraftsCache((prev) => prev.map((d) => (d.id === updatedDraft.id ? updatedDraft : d)));
+  }, [leagueId, queryClient]);
 
   const handleGenerateMatchups = async () => {
     if (!accessToken) return;
 
     try {
       setIsGeneratingMatchups(true);
+      setMutationError(null);
       const result = await matchupApi.generate(leagueId, accessToken);
-      setMatchups(result.matchups);
+      queryClient.setQueryData(['matchups', leagueId], result);
       setSelectedWeek(1);
     } catch (err) {
       if (err instanceof ApiError) {
-        setError(err.message);
+        setMutationError(err.message);
       }
     } finally {
       setIsGeneratingMatchups(false);
@@ -303,13 +290,7 @@ export default function LeagueDetailPage() {
   };
 
   const handleRefreshLeague = async () => {
-    if (!accessToken) return;
-    try {
-      const result = await leagueApi.getById(leagueId, accessToken);
-      setLeague(result.league);
-    } catch {
-      // Non-fatal
-    }
+    queryClient.invalidateQueries({ queryKey: ['league', leagueId] });
   };
 
   // Check if current user is a commissioner (commissioner is the owner in this app)
@@ -322,11 +303,7 @@ export default function LeagueDetailPage() {
   const completedDrafts = drafts.filter((d) => d.status === 'complete');
 
   if (isLoading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center">
-        <div className="text-muted-foreground">Loading league...</div>
-      </div>
-    );
+    return <LeagueDetailSkeleton />;
   }
 
   if (error || !league) {

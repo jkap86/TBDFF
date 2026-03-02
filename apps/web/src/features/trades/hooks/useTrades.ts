@@ -1,106 +1,97 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
-import { tradeApi, ApiError } from '@/lib/api';
-import type { TradeProposal, ProposeTradeRequest, CounterTradeRequest, FutureDraftPick } from '@/lib/api';
+import { useCallback } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { tradeApi } from '@/lib/api';
+import type { ProposeTradeRequest, CounterTradeRequest } from '@/lib/api';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 
 export function useTrades(leagueId: string) {
   const { accessToken } = useAuth();
-  const [trades, setTrades] = useState<TradeProposal[]>([]);
-  const [futurePicks, setFuturePicks] = useState<FutureDraftPick[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [picksError, setPicksError] = useState<string | null>(null);
+  const queryClient = useQueryClient();
+
+  const { data: tradesData, isLoading, error: queryError } = useQuery({
+    queryKey: ['trades', leagueId],
+    queryFn: () => tradeApi.list(leagueId, accessToken!),
+    enabled: !!accessToken,
+  });
+
+  const { data: picksData, error: picksQueryError } = useQuery({
+    queryKey: ['futurePicks', leagueId],
+    queryFn: () => tradeApi.getFuturePicks(leagueId, accessToken!),
+    enabled: !!accessToken,
+  });
 
   const fetchTrades = useCallback(async (status?: string) => {
     if (!accessToken) return;
-    try {
-      setIsLoading(true);
-      setError(null);
+    if (status) {
+      // For filtered fetches, do a manual fetch and update cache
       const result = await tradeApi.list(leagueId, accessToken, { status });
-      setTrades(result.trades);
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Failed to load trades');
-    } finally {
-      setIsLoading(false);
+      queryClient.setQueryData(['trades', leagueId], result);
+    } else {
+      queryClient.invalidateQueries({ queryKey: ['trades', leagueId] });
     }
-  }, [leagueId, accessToken]);
+  }, [leagueId, accessToken, queryClient]);
 
-  const fetchFuturePicks = useCallback(async () => {
-    if (!accessToken) return;
-    try {
-      setPicksError(null);
-      const result = await tradeApi.getFuturePicks(leagueId, accessToken);
-      setFuturePicks(result.picks);
-    } catch (err) {
-      console.error('Failed to load future picks:', err);
-      setPicksError(err instanceof ApiError ? err.message : 'Failed to load draft picks');
-    }
-  }, [leagueId, accessToken]);
-
-  useEffect(() => {
-    fetchTrades();
-    fetchFuturePicks();
-  }, [fetchTrades, fetchFuturePicks]);
+  const invalidateTrades = () => queryClient.invalidateQueries({ queryKey: ['trades', leagueId] });
 
   const proposeTrade = useCallback(async (data: ProposeTradeRequest) => {
     if (!accessToken) throw new Error('Not authenticated');
     const result = await tradeApi.propose(leagueId, data, accessToken);
-    setTrades((prev) => [result.trade, ...prev]);
+    invalidateTrades();
     return result.trade;
   }, [leagueId, accessToken]);
 
   const acceptTrade = useCallback(async (tradeId: string) => {
     if (!accessToken) throw new Error('Not authenticated');
     const result = await tradeApi.accept(tradeId, accessToken);
-    setTrades((prev) => prev.map((t) => (t.id === tradeId ? result.trade : t)));
+    invalidateTrades();
     return result.trade;
   }, [accessToken]);
 
   const declineTrade = useCallback(async (tradeId: string) => {
     if (!accessToken) throw new Error('Not authenticated');
     const result = await tradeApi.decline(tradeId, accessToken);
-    setTrades((prev) => prev.map((t) => (t.id === tradeId ? result.trade : t)));
+    invalidateTrades();
     return result.trade;
   }, [accessToken]);
 
   const withdrawTrade = useCallback(async (tradeId: string) => {
     if (!accessToken) throw new Error('Not authenticated');
     const result = await tradeApi.withdraw(tradeId, accessToken);
-    setTrades((prev) => prev.map((t) => (t.id === tradeId ? result.trade : t)));
+    invalidateTrades();
     return result.trade;
   }, [accessToken]);
 
   const counterTrade = useCallback(async (tradeId: string, data: CounterTradeRequest) => {
     if (!accessToken) throw new Error('Not authenticated');
     const result = await tradeApi.counter(tradeId, data, accessToken);
-    setTrades((prev) => [result.trade, ...prev.map((t) => (t.id === tradeId ? { ...t, status: 'countered' as const } : t))]);
+    invalidateTrades();
     return result.trade;
   }, [accessToken]);
 
   const vetoTrade = useCallback(async (tradeId: string) => {
     if (!accessToken) throw new Error('Not authenticated');
     const result = await tradeApi.veto(tradeId, accessToken);
-    setTrades((prev) => prev.map((t) => (t.id === tradeId ? result.trade : t)));
+    invalidateTrades();
     return result.trade;
   }, [accessToken]);
 
   const pushTrade = useCallback(async (tradeId: string) => {
     if (!accessToken) throw new Error('Not authenticated');
     const result = await tradeApi.push(tradeId, accessToken);
-    setTrades((prev) => prev.map((t) => (t.id === tradeId ? result.trade : t)));
+    invalidateTrades();
     return result.trade;
   }, [accessToken]);
 
   return {
-    trades,
-    futurePicks,
+    trades: tradesData?.trades ?? [],
+    futurePicks: picksData?.picks ?? [],
     isLoading,
-    error,
-    picksError,
+    error: queryError ? (queryError as Error).message : null,
+    picksError: picksQueryError ? (picksQueryError as Error).message : null,
     fetchTrades,
-    fetchFuturePicks,
+    fetchFuturePicks: () => queryClient.invalidateQueries({ queryKey: ['futurePicks', leagueId] }),
     proposeTrade,
     acceptTrade,
     declineTrade,

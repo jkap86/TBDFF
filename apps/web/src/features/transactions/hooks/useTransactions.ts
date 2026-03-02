@@ -1,56 +1,47 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
-import { transactionApi, ApiError } from '@/lib/api';
-import type { Transaction } from '@/lib/api';
+import { useState, useCallback } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { transactionApi } from '@/lib/api';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 
 export function useTransactions(leagueId: string) {
   const { accessToken } = useAuth();
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [total, setTotal] = useState(0);
-  const [playerNames, setPlayerNames] = useState<Record<string, string>>({});
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const queryClient = useQueryClient();
+  const [filterParams, setFilterParams] = useState<{ type?: string; limit?: number; offset?: number } | undefined>();
 
-  const fetchTransactions = useCallback(async (params?: { type?: string; limit?: number; offset?: number }) => {
-    if (!accessToken) return;
-    try {
-      setIsLoading(true);
-      setError(null);
-      const result = await transactionApi.list(leagueId, accessToken, params);
-      setTransactions(result.transactions);
-      setTotal(result.total);
-      if (result.player_names) setPlayerNames(result.player_names);
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Failed to load transactions');
-    } finally {
-      setIsLoading(false);
-    }
-  }, [leagueId, accessToken]);
+  const { data, isLoading, error: queryError } = useQuery({
+    queryKey: ['transactions', leagueId, filterParams],
+    queryFn: () => transactionApi.list(leagueId, accessToken!, filterParams),
+    enabled: !!accessToken,
+  });
 
-  useEffect(() => {
-    fetchTransactions();
-  }, [fetchTransactions]);
+  const fetchTransactions = useCallback((params?: { type?: string; limit?: number; offset?: number }) => {
+    setFilterParams(params);
+  }, []);
 
   const addPlayer = useCallback(async (playerId: string, dropPlayerId?: string) => {
     if (!accessToken) throw new Error('Not authenticated');
     const result = await transactionApi.addPlayer(leagueId, { player_id: playerId, drop_player_id: dropPlayerId }, accessToken);
+    queryClient.invalidateQueries({ queryKey: ['rosters', leagueId] });
+    queryClient.invalidateQueries({ queryKey: ['transactions', leagueId] });
     return result.transaction;
-  }, [leagueId, accessToken]);
+  }, [leagueId, accessToken, queryClient]);
 
   const dropPlayer = useCallback(async (playerId: string) => {
     if (!accessToken) throw new Error('Not authenticated');
     const result = await transactionApi.dropPlayer(leagueId, { player_id: playerId }, accessToken);
+    queryClient.invalidateQueries({ queryKey: ['rosters', leagueId] });
+    queryClient.invalidateQueries({ queryKey: ['transactions', leagueId] });
     return result.transaction;
-  }, [leagueId, accessToken]);
+  }, [leagueId, accessToken, queryClient]);
 
   return {
-    transactions,
-    total,
-    playerNames,
+    transactions: data?.transactions ?? [],
+    total: data?.total ?? 0,
+    playerNames: data?.player_names ?? {},
     isLoading,
-    error,
+    error: queryError ? (queryError as Error).message : null,
     fetchTransactions,
     addPlayer,
     dropPlayer,

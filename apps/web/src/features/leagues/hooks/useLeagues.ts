@@ -1,58 +1,39 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
-import { leagueApi, ApiError, type League, type CreateLeagueRequest } from '@/lib/api';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { leagueApi, type CreateLeagueRequest } from '@/lib/api';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 
 export function useLeagues() {
   const { accessToken } = useAuth();
-  const [leagues, setLeagues] = useState<League[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const queryClient = useQueryClient();
 
-  const fetchLeagues = useCallback(async () => {
-    if (!accessToken) {
-      setLeagues([]);
-      setIsLoading(false);
-      return;
-    }
+  const { data, isLoading, error: queryError } = useQuery({
+    queryKey: ['leagues'],
+    queryFn: () => leagueApi.getMyLeagues(accessToken!),
+    enabled: !!accessToken,
+  });
 
-    try {
-      setIsLoading(true);
-      setError(null);
-      const result = await leagueApi.getMyLeagues(accessToken);
-      setLeagues(result.leagues);
-    } catch (err) {
-      if (err instanceof ApiError) {
-        setError(err.message);
-      } else {
-        setError('Failed to fetch leagues');
-      }
-    } finally {
-      setIsLoading(false);
-    }
-  }, [accessToken]);
-
-  const createLeague = useCallback(
-    async (data: CreateLeagueRequest) => {
+  const createMutation = useMutation({
+    mutationFn: (data: CreateLeagueRequest) => {
       if (!accessToken) throw new Error('Not authenticated');
-
-      const result = await leagueApi.create(data, accessToken);
-      setLeagues((prev) => [result.league, ...prev]);
-      return result.league;
+      return leagueApi.create(data, accessToken);
     },
-    [accessToken]
-  );
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['leagues'] });
+    },
+  });
 
-  useEffect(() => {
-    fetchLeagues();
-  }, [fetchLeagues]);
+  const createLeague = async (data: CreateLeagueRequest) => {
+    const result = await createMutation.mutateAsync(data);
+    return result.league;
+  };
 
   return {
-    leagues,
+    leagues: data?.leagues ?? [],
     isLoading,
-    error,
+    error: queryError ? (queryError as Error).message : null,
     createLeague,
-    refetch: fetchLeagues,
+    refetch: () => queryClient.invalidateQueries({ queryKey: ['leagues'] }),
   };
 }

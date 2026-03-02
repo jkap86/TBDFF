@@ -3,16 +3,13 @@
 import Link from 'next/link';
 import { useLeagues } from '@/features/leagues/hooks/useLeagues';
 import { LeagueCard } from '@/features/leagues/components/LeagueCard';
+import { LeaguesPageSkeleton } from '@/features/leagues/components/LeaguesPageSkeleton';
 
 export default function LeaguesPage() {
   const { leagues, isLoading, error } = useLeagues();
 
   if (isLoading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center">
-        <div className="text-muted-foreground">Loading leagues...</div>
-      </div>
-    );
+    return <LeaguesPageSkeleton />;
   }
 
   return (
