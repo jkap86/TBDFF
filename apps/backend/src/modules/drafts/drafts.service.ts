@@ -514,10 +514,11 @@ export class DraftService {
     }
 
     // Try the user's queue first, fall back to best available
+    const playerType = draft.settings.player_type;
     console.log(`[auto-pick] draft=${draftId} slot=${nextPick.draftSlot} rosterId=${nextPick.rosterId} pickOwner=${pickOwner} triggeredBy=${userId}`);
-    const queuedPlayer = await this.draftRepository.findFirstAvailableFromQueue(draftId, pickOwner);
+    const queuedPlayer = await this.draftRepository.findFirstAvailableFromQueue(draftId, pickOwner, undefined, playerType);
     console.log(`[auto-pick] queueResult=${queuedPlayer ? `${queuedPlayer.fullName} (${queuedPlayer.id})` : 'null (no queued player)'}`);
-    const bestPlayer = queuedPlayer ?? (await this.draftRepository.findBestAvailable(draftId));
+    const bestPlayer = queuedPlayer ?? (await this.draftRepository.findBestAvailable(draftId, undefined, playerType));
     if (!bestPlayer) {
       throw new ValidationException('No available players to auto-pick');
     }
@@ -630,11 +631,14 @@ export class DraftService {
       const pickOwner = findUserByRosterId(draft.draftOrder, draft.slotToRosterId, nextPick.rosterId);
       if (!pickOwner || !autoPickUsers.includes(pickOwner)) break;
 
+      const chainPlayerType = draft.settings.player_type;
       const queuedPlayer = await this.draftRepository.findFirstAvailableFromQueue(
         draftId,
         pickOwner,
+        undefined,
+        chainPlayerType,
       );
-      const bestPlayer = queuedPlayer ?? (await this.draftRepository.findBestAvailable(draftId));
+      const bestPlayer = queuedPlayer ?? (await this.draftRepository.findBestAvailable(draftId, undefined, chainPlayerType));
       if (!bestPlayer) break;
 
       const pickMetadata = {
@@ -735,6 +739,7 @@ export class DraftService {
       query: options.query,
       limit: Math.min(options.limit ?? 50, 200),
       offset: options.offset ?? 0,
+      playerType: draft.settings.player_type,
     });
   }
 

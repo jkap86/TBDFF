@@ -418,10 +418,11 @@ export class AuctionService {
       const slotOwner = findUserBySlot(freshDraft.draftOrder, nextPick.draftSlot);
 
       // Try the eligible nominator's queue first, fall back to best available
+      const auctionPlayerType = freshDraft.settings.player_type;
       const queuedPlayer = slotOwner
-        ? await this.draftRepository.findFirstAvailableFromQueue(draftId, slotOwner, client)
+        ? await this.draftRepository.findFirstAvailableFromQueue(draftId, slotOwner, client, auctionPlayerType)
         : null;
-      const bestPlayer = queuedPlayer ?? (await this.draftRepository.findBestAvailable(draftId, client));
+      const bestPlayer = queuedPlayer ?? (await this.draftRepository.findBestAvailable(draftId, client, auctionPlayerType));
       if (!bestPlayer) throw new ValidationException('No available players');
 
       // Determine initial bidder — must have valid budget for $1

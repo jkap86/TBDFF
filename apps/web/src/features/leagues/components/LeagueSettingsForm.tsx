@@ -7,6 +7,7 @@ import { scoringFromLeague } from '../config/scoring-config';
 import { RosterPositionsEditor } from './RosterPositionsEditor';
 import { ScoringSettingsEditor } from './ScoringSettingsEditor';
 import { WaiverSettingsEditor } from './WaiverSettingsEditor';
+import { DraftSetupEditor } from './DraftSetupEditor';
 
 const CURRENT_SEASON = new Date().getFullYear().toString();
 
@@ -26,6 +27,7 @@ export interface LeagueFormValues {
   waiverClearDays: number;
   dailyWaivers: boolean;
   dailyWaiversHour: number;
+  draftSetup: number;
 }
 
 export function leagueToFormValues(league: League): LeagueFormValues {
@@ -45,6 +47,7 @@ export function leagueToFormValues(league: League): LeagueFormValues {
     waiverClearDays: league.settings?.waiver_clear_days ?? 2,
     dailyWaivers: league.settings?.daily_waivers === 1,
     dailyWaiversHour: league.settings?.daily_waivers_hour ?? 0,
+    draftSetup: league.settings?.draft_setup ?? 0,
   };
 }
 
@@ -67,6 +70,7 @@ export function LeagueSettingsForm({
   isSubmitting,
   children,
 }: LeagueSettingsFormProps) {
+  const [showDrafts, setShowDrafts] = useState(false);
   const [showRoster, setShowRoster] = useState(false);
   const [showScoring, setShowScoring] = useState(false);
   const [showWaivers, setShowWaivers] = useState(false);
@@ -204,6 +208,17 @@ export function LeagueSettingsForm({
           Lineups are automatically optimized each week — no need to set starters
         </p>
       </div>
+
+      {/* Draft Setup (redraft only) */}
+      {values.leagueType === 0 && (
+        <DraftSetupEditor
+          draftSetup={values.draftSetup}
+          onDraftSetupChange={(v) => update('draftSetup', v)}
+          showDrafts={showDrafts}
+          onToggle={() => setShowDrafts(!showDrafts)}
+          isSubmitting={isSubmitting}
+        />
+      )}
 
       {/* Roster Positions */}
       <RosterPositionsEditor

@@ -70,7 +70,7 @@ export interface DraftSettings {
   nomination_timer: number;
   offering_timer: number;
   reversal_round: number;
-  player_type: number;
+  player_type: number; // 0=all, 1=rookies, 2=veterans
   cpu_autopick: number;
   autostart: number;
   autopause_enabled: number;

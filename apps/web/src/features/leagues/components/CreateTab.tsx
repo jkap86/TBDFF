@@ -27,6 +27,7 @@ const DEFAULT_VALUES: LeagueFormValues = {
   waiverClearDays: 2,
   dailyWaivers: false,
   dailyWaiversHour: 0,
+  draftSetup: 0,
 };
 
 export function CreateTab() {
@@ -77,6 +78,7 @@ export function CreateTab() {
             waiver_clear_days: values.waiverClearDays,
             daily_waivers: values.dailyWaivers ? 1 : 0,
             daily_waivers_hour: values.dailyWaiversHour,
+            draft_setup: values.draftSetup,
           },
           roster_positions: rosterPositions,
           ...(Object.keys(scoringSettings).length > 0 ? { scoring_settings: scoringSettings } : {}),

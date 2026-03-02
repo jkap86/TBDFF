@@ -11,7 +11,7 @@ export interface DraftSettings {
   nomination_timer: number;
   offering_timer: number;
   reversal_round: number;
-  player_type: number; // 0=all, 1=rookies only
+  player_type: number; // 0=all, 1=rookies only, 2=veterans only
   cpu_autopick: number;
   autostart: number;
   autopause_enabled: number;

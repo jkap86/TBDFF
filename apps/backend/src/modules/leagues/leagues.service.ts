@@ -20,6 +20,7 @@ import {
   scoringSettingsFullSchema,
 } from './leagues.schemas';
 import { DraftRepository } from '../drafts/drafts.repository';
+import { DEFAULT_DRAFT_SETTINGS } from '../drafts/drafts.model';
 
 export class LeagueService {
   constructor(
@@ -80,6 +81,10 @@ export class LeagueService {
       league.settings.draft_rounds,
       [{ rosterId: 1, ownerId: userId }],
     );
+
+    // Auto-create drafts based on draft_setup setting
+    const draftSetup = (settings.draft_setup ?? 0) as number;
+    await this.syncLeagueDrafts(league.id, userId, league, draftSetup);
 
     return league;
   }
@@ -170,7 +175,82 @@ export class LeagueService {
 
     const updated = await this.leagueRepository.update(leagueId, updateData);
     if (!updated) throw new NotFoundException('League not found');
+
+    // Sync drafts if draft_setup changed
+    if (data.settings?.draft_setup !== undefined) {
+      await this.syncLeagueDrafts(leagueId, userId, updated, updated.settings.draft_setup ?? 0);
+    }
+
     return updated;
+  }
+
+  /**
+   * Auto-create or delete pre_draft drafts to match the league's draft_setup setting.
+   * draft_setup=0: 1 combined draft (player_type=0)
+   * draft_setup=1: 1 vet draft (player_type=2) + 1 rookie draft (player_type=1)
+   * Only touches pre_draft drafts — never modifies drafting or complete ones.
+   */
+  private async syncLeagueDrafts(
+    leagueId: string,
+    userId: string,
+    league: League,
+    draftSetup: number,
+  ): Promise<void> {
+    const allDrafts = await this.draftRepository.findByLeagueId(leagueId);
+    const preDraftDrafts = allDrafts.filter((d) => d.status === 'pre_draft');
+
+    // Compute desired draft configs
+    const desired: { player_type: number }[] =
+      draftSetup === 1
+        ? [{ player_type: 2 }, { player_type: 1 }]
+        : [{ player_type: 0 }];
+
+    // Match existing pre_draft drafts to desired configs
+    const matched = new Set<string>();
+    for (const config of desired) {
+      const existing = preDraftDrafts.find(
+        (d) => d.settings.player_type === config.player_type && !matched.has(d.id),
+      );
+      if (existing) {
+        matched.add(existing.id);
+      }
+    }
+
+    // Delete unmatched pre_draft drafts
+    for (const draft of preDraftDrafts) {
+      if (!matched.has(draft.id)) {
+        await this.draftRepository.delete(draft.id);
+      }
+    }
+
+    // Create missing drafts
+    let firstCreatedId: string | null = null;
+    for (const config of desired) {
+      const alreadyExists = preDraftDrafts.some(
+        (d) => d.settings.player_type === config.player_type && matched.has(d.id),
+      );
+      if (!alreadyExists) {
+        const draft = await this.draftRepository.create({
+          leagueId,
+          season: league.season,
+          sport: league.sport,
+          type: 'snake',
+          settings: {
+            ...DEFAULT_DRAFT_SETTINGS,
+            teams: league.totalRosters,
+            player_type: config.player_type,
+          },
+          metadata: {},
+          createdBy: userId,
+        });
+        if (!firstCreatedId) firstCreatedId = draft.id;
+      }
+    }
+
+    // Link the first created draft to the league
+    if (firstCreatedId) {
+      await this.draftRepository.linkDraftToLeague(firstCreatedId, leagueId);
+    }
   }
 
   async deleteLeague(leagueId: string, userId: string): Promise<void> {

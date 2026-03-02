@@ -58,7 +58,6 @@ export default function LeagueDetailPage() {
   const [isDerbyResultsExpanded, setIsDerbyResultsExpanded] = useState(false);
   const [shuffleDisplay, setShuffleDisplay] = useState<{ lockedCount: number; displayUserIds: string[] } | null>(null);
   const shuffleIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const [isCreatingDraft, setIsCreatingDraft] = useState(false);
   const [isStartingDerby, setIsStartingDerby] = useState(false);
   const [isGeneratingMatchups, setIsGeneratingMatchups] = useState(false);
   const [selectedWeek, setSelectedWeek] = useState(1);
@@ -106,23 +105,6 @@ export default function LeagueDetailPage() {
     await leagueApi.unassignRoster(leagueId, rosterId, accessToken);
     queryClient.invalidateQueries({ queryKey: ['rosters', leagueId] });
     queryClient.invalidateQueries({ queryKey: ['members', leagueId] });
-  };
-
-  const handleCreateDraft = async () => {
-    if (!accessToken) return;
-
-    try {
-      setIsCreatingDraft(true);
-      setMutationError(null);
-      const result = await draftApi.create(leagueId, {}, accessToken);
-      updateDraftsCache((prev) => [result.draft, ...prev]);
-    } catch (err) {
-      if (err instanceof ApiError) {
-        setMutationError(err.message);
-      }
-    } finally {
-      setIsCreatingDraft(false);
-    }
   };
 
   const handleUpdateDraft = async (updates: import('@/lib/api').UpdateDraftRequest) => {
@@ -669,19 +651,10 @@ export default function LeagueDetailPage() {
           ) : (
             <div className="text-center py-4">
               {completedDrafts.length === 0 && (
-                <p className="mb-3 text-muted-foreground">No draft has been created yet.</p>
+                <p className="text-muted-foreground">No draft has been created yet.</p>
               )}
               {completedDrafts.length > 0 && (
-                <p className="mb-3 text-muted-foreground">No active draft.</p>
-              )}
-              {isCommissioner && (
-                <button
-                  onClick={handleCreateDraft}
-                  disabled={isCreatingDraft}
-                  className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary-hover disabled:opacity-50"
-                >
-                  {isCreatingDraft ? 'Creating...' : 'Create Draft'}
-                </button>
+                <p className="text-muted-foreground">No active draft.</p>
               )}
             </div>
           )}

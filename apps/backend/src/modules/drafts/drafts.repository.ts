@@ -431,26 +431,37 @@ export class DraftRepository {
     }
   }
 
-  async findBestAvailable(draftId: string, client?: PoolClient): Promise<Player | null> {
+  async findBestAvailable(draftId: string, client?: PoolClient, playerType?: number): Promise<Player | null> {
     const conn = client ?? this.db;
+    const params: unknown[] = [draftId];
+    const conditions = [
+      'p.active = true',
+      `p.position IN ('QB', 'RB', 'WR', 'TE', 'K', 'DEF')`,
+      `p.id::text NOT IN (
+        SELECT dp.player_id FROM draft_picks dp
+        WHERE dp.draft_id = $1 AND dp.player_id IS NOT NULL
+      )`,
+    ];
+
+    if (playerType === 1) {
+      conditions.push('p.years_exp = 0');
+    } else if (playerType === 2) {
+      conditions.push('(p.years_exp IS NULL OR p.years_exp > 0)');
+    }
+
     const result = await conn.query(
       `SELECT p.* FROM players p
-       WHERE p.active = true
-         AND p.position IN ('QB', 'RB', 'WR', 'TE', 'K', 'DEF')
-         AND p.id::text NOT IN (
-           SELECT dp.player_id FROM draft_picks dp
-           WHERE dp.draft_id = $1 AND dp.player_id IS NOT NULL
-         )
+       WHERE ${conditions.join(' AND ')}
        ORDER BY p.search_rank ASC NULLS LAST
        LIMIT 1`,
-      [draftId]
+      params
     );
     return result.rows.length > 0 ? Player.fromDatabase(result.rows[0]) : null;
   }
 
   async findAvailablePlayers(
     draftId: string,
-    options: { position?: string; query?: string; limit: number; offset: number }
+    options: { position?: string; query?: string; limit: number; offset: number; playerType?: number }
   ): Promise<Player[]> {
     const params: unknown[] = [draftId];
     const conditions = [
@@ -461,6 +472,12 @@ export class DraftRepository {
         WHERE dp.draft_id = $1 AND dp.player_id IS NOT NULL
       )`,
     ];
+
+    if (options.playerType === 1) {
+      conditions.push('p.years_exp = 0');
+    } else if (options.playerType === 2) {
+      conditions.push('(p.years_exp IS NULL OR p.years_exp > 0)');
+    }
 
     if (options.position) {
       params.push(options.position);
@@ -782,22 +799,33 @@ export class DraftRepository {
     return map;
   }
 
-  async findFirstAvailableFromQueue(draftId: string, userId: string, client?: PoolClient): Promise<Player | null> {
+  async findFirstAvailableFromQueue(draftId: string, userId: string, client?: PoolClient, playerType?: number): Promise<Player | null> {
     const conn = client ?? this.db;
+    const params: unknown[] = [draftId, userId];
+    const conditions = [
+      'dq.draft_id = $1',
+      'dq.user_id = $2',
+      'p.active = true',
+      `p.position IN ('QB', 'RB', 'WR', 'TE', 'K', 'DEF')`,
+      `NOT EXISTS (
+        SELECT 1 FROM draft_picks dp
+        WHERE dp.draft_id = $1 AND dp.player_id = dq.player_id
+      )`,
+    ];
+
+    if (playerType === 1) {
+      conditions.push('p.years_exp = 0');
+    } else if (playerType === 2) {
+      conditions.push('(p.years_exp IS NULL OR p.years_exp > 0)');
+    }
+
     const result = await conn.query(
       `SELECT p.* FROM draft_queue dq
        JOIN players p ON p.id::text = dq.player_id
-       WHERE dq.draft_id = $1
-         AND dq.user_id = $2
-         AND p.active = true
-         AND p.position IN ('QB', 'RB', 'WR', 'TE', 'K', 'DEF')
-         AND NOT EXISTS (
-           SELECT 1 FROM draft_picks dp
-           WHERE dp.draft_id = $1 AND dp.player_id = dq.player_id
-         )
+       WHERE ${conditions.join(' AND ')}
        ORDER BY dq.rank ASC
        LIMIT 1`,
-      [draftId, userId]
+      params
     );
     return result.rows.length > 0 ? Player.fromDatabase(result.rows[0]) : null;
   }

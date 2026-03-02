@@ -39,6 +39,8 @@ export interface LeagueSettings {
   waiver_type: number;
   member_can_invite: number; // 0 = commissioner only, 1 = all members can invite
   public: number; // 0 = private, 1 = public
+  best_ball: number; // 0 = off, 1 = on
+  draft_setup: number; // 0 = combined, 1 = vet + rookie split
 }
 
 // League scoring settings interface (Sleeper-compatible)
@@ -142,6 +144,8 @@ export const DEFAULT_SETTINGS: LeagueSettings = {
   waiver_type: 0,
   member_can_invite: 0, // Default: only commissioner can invite
   public: 0, // Default: private league
+  best_ball: 0, // Default: off
+  draft_setup: 0, // Default: combined
 };
 
 // Default PPR scoring settings
