@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import type { League, LeagueType } from '@tbdff/shared';
+import type { League, LeagueType, PayoutEntry } from '@tbdff/shared';
 import { positionArrayToCounts } from '../config/roster-config';
 import { scoringFromLeague } from '../config/scoring-config';
 import { RosterPositionsEditor } from './RosterPositionsEditor';
@@ -30,6 +30,8 @@ export interface LeagueFormValues {
   dailyWaiversHour: number;
   draftSetup: number;
   matchupType: number;
+  buyIn: number;
+  payouts: PayoutEntry[];
 }
 
 export function leagueToFormValues(league: League): LeagueFormValues {
@@ -51,6 +53,8 @@ export function leagueToFormValues(league: League): LeagueFormValues {
     dailyWaiversHour: league.settings?.daily_waivers_hour ?? 0,
     draftSetup: league.settings?.draft_setup ?? 0,
     matchupType: league.settings?.matchup_type ?? 0,
+    buyIn: ((league.settings as Record<string, unknown>).buy_in as number) ?? 0,
+    payouts: ((league.settings as Record<string, unknown>).payouts as PayoutEntry[]) ?? [],
   };
 }
 

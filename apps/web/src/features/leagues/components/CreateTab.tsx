@@ -8,6 +8,7 @@ import { DEFAULT_ROSTER_COUNTS, countsToPositionArray } from '../config/roster-c
 import { DEFAULT_SCORING } from '../config/scoring-config';
 import { LeagueSettingsForm } from './LeagueSettingsForm';
 import type { LeagueFormValues } from './LeagueSettingsForm';
+import { PaymentsSettings } from './PaymentsSettings';
 
 const CURRENT_SEASON = new Date().getFullYear().toString();
 
@@ -29,6 +30,8 @@ const DEFAULT_VALUES: LeagueFormValues = {
   dailyWaiversHour: 0,
   draftSetup: 0,
   matchupType: 0,
+  buyIn: 0,
+  payouts: [],
 };
 
 export function CreateTab() {
@@ -37,6 +40,7 @@ export function CreateTab() {
   const [values, setValues] = useState<LeagueFormValues>({ ...DEFAULT_VALUES, rosterCounts: { ...DEFAULT_ROSTER_COUNTS }, scoring: { ...DEFAULT_SCORING } });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showPayments, setShowPayments] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -81,7 +85,9 @@ export function CreateTab() {
             daily_waivers_hour: values.dailyWaiversHour,
             draft_setup: values.draftSetup,
             matchup_type: values.matchupType,
-          },
+            ...(values.buyIn > 0 ? { buy_in: values.buyIn } : {}),
+            ...(values.payouts.length > 0 ? { payouts: values.payouts } : {}),
+          } as any,
           roster_positions: rosterPositions,
           ...(Object.keys(scoringSettings).length > 0 ? { scoring_settings: scoringSettings } : {}),
         },
@@ -114,7 +120,18 @@ export function CreateTab() {
           teamOptions={[8, 10, 12, 14, 16]}
           showSeason
           isSubmitting={isSubmitting}
-        />
+        >
+          <PaymentsSettings
+            mode="create"
+            buyIn={values.buyIn}
+            totalRosters={values.totalRosters}
+            onBuyInChange={(v) => setValues({ ...values, buyIn: v })}
+            payouts={values.payouts}
+            onPayoutsChange={(p) => setValues({ ...values, payouts: p })}
+            isOpen={showPayments}
+            onToggle={() => setShowPayments(!showPayments)}
+          />
+        </LeagueSettingsForm>
 
         <button
           type="submit"

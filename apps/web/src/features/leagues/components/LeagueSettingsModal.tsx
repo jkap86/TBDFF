@@ -2,12 +2,11 @@
 
 import { useState, useEffect } from 'react';
 import { ApiError } from '@/lib/api';
-import type { League, LeagueMember, Roster, UpdateLeagueRequest } from '@tbdff/shared';
+import type { League, LeagueMember, UpdateLeagueRequest } from '@tbdff/shared';
 import { countsToPositionArray } from '../config/roster-config';
 import { scoringFromLeague } from '../config/scoring-config';
 import { LeagueSettingsForm, leagueToFormValues } from './LeagueSettingsForm';
 import type { LeagueFormValues } from './LeagueSettingsForm';
-import { RosterAssignments } from './RosterAssignments';
 import { PaymentsSettings } from './PaymentsSettings';
 
 const TEAM_OPTIONS = Array.from({ length: 31 }, (_, i) => i + 2); // 2..32
@@ -17,17 +16,14 @@ interface LeagueSettingsModalProps {
   onClose: () => void;
   league: League;
   members: LeagueMember[];
-  rosters: Roster[];
   onUpdate: (data: UpdateLeagueRequest) => Promise<void>;
   onDelete: () => Promise<void>;
-  onAssignRoster: (rosterId: number, userId: string) => Promise<void>;
-  onUnassignRoster: (rosterId: number) => Promise<void>;
   onLeagueRefresh: () => void;
   isOwner: boolean;
 }
 
 export function LeagueSettingsModal({
-  isOpen, onClose, league, members, rosters, onUpdate, onDelete, onAssignRoster, onUnassignRoster, onLeagueRefresh, isOwner,
+  isOpen, onClose, league, members, onUpdate, onDelete, onLeagueRefresh, isOwner,
 }: LeagueSettingsModalProps) {
   const [values, setValues] = useState<LeagueFormValues>(() => leagueToFormValues(league));
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -86,6 +82,8 @@ export function LeagueSettingsModal({
     const currentDailyWaiversHour = league.settings?.daily_waivers_hour ?? 0;
     const currentDraftSetup = league.settings?.draft_setup ?? 0;
     const currentMatchupType = league.settings?.matchup_type ?? 0;
+    const currentBuyIn = ((league.settings as Record<string, unknown>).buy_in as number) ?? 0;
+    const currentPayouts = ((league.settings as Record<string, unknown>).payouts as unknown[]) ?? [];
     if (
       values.isPublic !== currentIsPublic || values.memberCanInvite !== currentMemberCanInvite ||
       values.leagueType !== currentLeagueType || values.bestBall !== currentBestBall ||
@@ -94,7 +92,9 @@ export function LeagueSettingsModal({
       values.waiverClearDays !== currentWaiverClearDays || values.dailyWaivers !== currentDailyWaivers ||
       values.dailyWaiversHour !== currentDailyWaiversHour ||
       values.draftSetup !== currentDraftSetup ||
-      values.matchupType !== currentMatchupType
+      values.matchupType !== currentMatchupType ||
+      values.buyIn !== currentBuyIn ||
+      JSON.stringify(values.payouts) !== JSON.stringify(currentPayouts)
     ) {
       updates.settings = {
         public: values.isPublic ? 1 : 0,
@@ -110,7 +110,9 @@ export function LeagueSettingsModal({
         daily_waivers_hour: values.dailyWaiversHour,
         draft_setup: values.draftSetup,
         matchup_type: values.matchupType,
-      };
+        buy_in: values.buyIn,
+        payouts: values.payouts,
+      } as any;
     }
 
     // Check roster positions
@@ -197,16 +199,6 @@ export function LeagueSettingsModal({
                 isOpen={showPayments}
                 onToggle={() => setShowPayments(!showPayments)}
                 onSettingsUpdate={onLeagueRefresh}
-              />
-            )}
-
-            {isOwner && (
-              <RosterAssignments
-                rosters={rosters}
-                members={members}
-                onAssignRoster={onAssignRoster}
-                onUnassignRoster={onUnassignRoster}
-                onError={setError}
               />
             )}
 
