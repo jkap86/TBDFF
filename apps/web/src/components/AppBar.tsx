@@ -39,9 +39,9 @@ export function AppBar() {
             onClick={() => {
               if (pathname === '/leagues' || pathname === '/leagues/add') {
                 router.push('/dashboard');
-              } else if (pathname.match(/^\/leagues\/[^/]+\/draft/)) {
-                router.push(pathname.replace(/\/draft.*$/, ''));
-              } else if (pathname.match(/^\/leagues\/[^/]+/)) {
+              } else if (pathname.match(/^\/leagues\/[^/]+\/.+/)) {
+                router.push(pathname.replace(/\/[^/]+$/, ''));
+              } else if (pathname.match(/^\/leagues\/[^/]+$/)) {
                 router.push('/leagues');
               } else {
                 router.back();
