@@ -32,8 +32,8 @@ export class MatchupDerbyService {
       throw new ForbiddenException('Only commissioners can start a matchup derby');
     }
 
-    if (league.status !== 'in_season') {
-      throw new ValidationException('Matchup derby can only be started when the league is in season');
+    if (league.status !== 'in_season' && league.status !== 'pre_draft') {
+      throw new ValidationException('Matchup derby can only be started when the league is in pre-draft or in season');
     }
 
     if ((league.settings.matchup_type ?? 0) !== 1) {

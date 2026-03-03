@@ -13,17 +13,17 @@ export function createMatchupRoutes(controller: MatchupController): Router {
   // Generate (or re-generate) matchups — Commissioner only
   router.post('/:leagueId/matchups/generate', asyncHandler(controller.generate));
 
+  // Matchup Derby (must be before /:week catch-all)
+  router.post('/:leagueId/matchups/derby/start', asyncHandler(controller.startDerby));
+  router.get('/:leagueId/matchups/derby', asyncHandler(controller.getDerbyState));
+  router.post('/:leagueId/matchups/derby/pick', asyncHandler(controller.makeDerbyPick));
+  router.post('/:leagueId/matchups/derby/autopick', asyncHandler(controller.derbyAutoPick));
+
   // Get all matchups for a league
   router.get('/:leagueId/matchups', asyncHandler(controller.getAll));
 
   // Get matchups for a specific week
   router.get('/:leagueId/matchups/:week', asyncHandler(controller.getByWeek));
-
-  // Matchup Derby
-  router.post('/:leagueId/matchups/derby/start', asyncHandler(controller.startDerby));
-  router.get('/:leagueId/matchups/derby', asyncHandler(controller.getDerbyState));
-  router.post('/:leagueId/matchups/derby/pick', asyncHandler(controller.makeDerbyPick));
-  router.post('/:leagueId/matchups/derby/autopick', asyncHandler(controller.derbyAutoPick));
 
   return router;
 }

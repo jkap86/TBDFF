@@ -23,6 +23,7 @@ export default function MatchupDerbyPage() {
     currentPickerUserId,
     isPicking,
     pickError,
+    handleStartDerby,
     handleMakePick,
     handleAutoPick,
     formatTime,
@@ -45,7 +46,7 @@ export default function MatchupDerbyPage() {
     );
   }
 
-  if (error || !derby) {
+  if (error) {
     return (
       <div className="min-h-screen bg-surface p-6">
         <div className="mx-auto max-w-7xl">
@@ -56,7 +57,41 @@ export default function MatchupDerbyPage() {
             <ArrowLeft className="h-4 w-4" /> Back to League
           </Link>
           <div className="rounded bg-destructive p-4 text-destructive-foreground">
-            {error || 'No matchup derby found'}
+            {error}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!derby) {
+    return (
+      <div className="min-h-screen bg-surface p-6">
+        <div className="mx-auto max-w-7xl">
+          <Link
+            href={`/leagues/${leagueId}`}
+            className="mb-4 flex items-center gap-2 text-sm text-muted-foreground hover:text-accent-foreground"
+          >
+            <ArrowLeft className="h-4 w-4" /> Back to League
+          </Link>
+          <div className="rounded-lg bg-card p-8 shadow text-center">
+            <Trophy className="mx-auto mb-3 h-10 w-10 text-muted-foreground" />
+            <h2 className="text-lg font-bold text-foreground mb-2">Matchup Derby</h2>
+            <p className="text-sm text-muted-foreground mb-5">
+              Owners take turns choosing their opponents each week in a live draft room.
+            </p>
+            {isCommissioner ? (
+              <button
+                onClick={handleStartDerby}
+                className="rounded bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary-hover"
+              >
+                Start Matchup Derby
+              </button>
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                Waiting for the commissioner to start the derby.
+              </p>
+            )}
           </div>
         </div>
       </div>
