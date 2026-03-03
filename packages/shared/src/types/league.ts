@@ -39,6 +39,8 @@ export interface LeagueSettings {
   waiver_day_of_week: number;
   waiver_type: number;
   matchup_type: number; // 0=randomize, 1=derby
+  matchup_derby_timer: number; // seconds: 0=off, 30, 60, 120, 180, 300
+  matchup_derby_timeout: number; // 0=auto-pick, 1=skip
   [key: string]: number; // Allow additional keys for extensibility
 }
 

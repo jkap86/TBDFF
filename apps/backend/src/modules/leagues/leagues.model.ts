@@ -42,6 +42,8 @@ export interface LeagueSettings {
   best_ball: number; // 0 = off, 1 = on
   draft_setup: number; // 0 = combined, 1 = vet + rookie split
   matchup_type: number; // 0 = randomize, 1 = derby
+  matchup_derby_timer: number; // seconds: 0=off, 30, 60, 120, 180, 300
+  matchup_derby_timeout: number; // 0=auto-pick, 1=skip
 }
 
 // League scoring settings interface (Sleeper-compatible)
@@ -148,6 +150,8 @@ export const DEFAULT_SETTINGS: LeagueSettings = {
   best_ball: 0, // Default: off
   draft_setup: 0, // Default: combined
   matchup_type: 0, // Default: randomize
+  matchup_derby_timer: 120, // Default: 2 minutes
+  matchup_derby_timeout: 0, // Default: auto-pick
 };
 
 // Default PPR scoring settings

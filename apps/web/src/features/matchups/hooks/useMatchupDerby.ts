@@ -123,10 +123,30 @@ export function useMatchupDerby(leagueId: string): UseMatchupDerbyReturn {
     if (!accessToken) return;
 
     autoPickTriggered.current = true;
-    matchupApi.derbyAutoPick(leagueId, accessToken).catch(() => {
-      // Server-side validation will reject if already handled
-    });
-  }, [timeRemaining, derby?.status, leagueId, accessToken]);
+
+    const attempt = async () => {
+      try {
+        const res = await matchupApi.derbyAutoPick(leagueId, accessToken);
+        setDerby(res.derby);
+        updateClockOffset(res.server_time);
+      } catch {
+        // Another client may have handled it, or server rejected — refresh state
+        try {
+          const res = await matchupApi.getDerby(leagueId, accessToken);
+          if (res.derby) {
+            setDerby(res.derby);
+            updateClockOffset(res.server_time);
+          }
+        } catch {
+          // Socket/polling will catch up
+        }
+      }
+    };
+
+    // Small delay to ensure server timer has also expired (clock skew tolerance)
+    const timer = setTimeout(attempt, 1500);
+    return () => clearTimeout(timer);
+  }, [timeRemaining, derby, leagueId, accessToken, updateClockOffset]);
 
   // Fallback polling
   useEffect(() => {

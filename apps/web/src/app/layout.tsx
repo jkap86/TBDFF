@@ -8,7 +8,7 @@ import './globals.css';
 
 export const metadata: Metadata = {
   title: 'TBDFF',
-  description: 'TBDFF Fantasy Football',
+  description: 'TBD Fantasy Football',
 };
 
 const themeScript = `
@@ -30,9 +30,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <ThemeProvider>
           <QueryProvider>
             <AuthProvider>
-              <ErrorBoundary>
-                {children}
-              </ErrorBoundary>
+              <ErrorBoundary>{children}</ErrorBoundary>
               <DevPanel />
             </AuthProvider>
           </QueryProvider>

@@ -70,7 +70,8 @@ export class MatchupDerbyService {
     const totalPicks = matchupsPerWeek * regularSeasonWeeks;
 
     const now = new Date();
-    const pickTimer = 120; // seconds
+    const pickTimer = league.settings.matchup_derby_timer ?? 120;
+    const timeoutAction = league.settings.matchup_derby_timeout ?? 0;
 
     const derby = await this.derbyRepository.create(leagueId, {
       status: 'active',
@@ -79,8 +80,8 @@ export class MatchupDerbyService {
       currentPickIndex: 0,
       totalPicks,
       pickTimer,
-      pickDeadline: new Date(now.getTime() + pickTimer * 1000),
-      timeoutAction: 0,
+      pickDeadline: pickTimer > 0 ? new Date(now.getTime() + pickTimer * 1000) : null,
+      timeoutAction,
       skippedUsers: [],
       startedAt: now,
     });
@@ -175,8 +176,10 @@ export class MatchupDerbyService {
       }
 
       // Validate timer has expired (commissioners bypass)
+      // 3s grace for client-server clock differences
       if (!isCommissioner && freshDerby.pickDeadline) {
-        if (Date.now() < freshDerby.pickDeadline.getTime()) {
+        const grace = 3000;
+        if (Date.now() + grace < freshDerby.pickDeadline.getTime()) {
           throw new ValidationException('Matchup derby pick timer has not expired yet');
         }
       }

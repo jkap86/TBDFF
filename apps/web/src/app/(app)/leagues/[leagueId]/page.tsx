@@ -17,6 +17,7 @@ import { LeagueDetailSkeleton } from '@/features/leagues/components/LeagueDetail
 import { useLeagueQuery, useMembersQuery, useRostersQuery } from '@/hooks/useLeagueQueries';
 import { SCORING_CATEGORIES, scoringFromLeague } from '@/features/leagues/config/scoring-config';
 import { ROSTER_POSITION_CONFIG, positionArrayToCounts } from '@/features/leagues/config/roster-config';
+import { MatchupDerbySettingsModal } from '@/features/matchups/components/MatchupDerbySettingsModal';
 
 const draftTypeLabels: Record<string, string> = {
   snake: 'Snake',
@@ -64,6 +65,7 @@ export default function LeagueDetailPage() {
   const [isScoringExpanded, setIsScoringExpanded] = useState(false);
   const [isRosterExpanded, setIsRosterExpanded] = useState(false);
   const [mutationError, setMutationError] = useState<string | null>(null);
+  const [showDerbySettings, setShowDerbySettings] = useState(false);
   const { startConversation } = useConversations();
   const { openConversation } = useChatPanel();
   const { socket } = useSocket();
@@ -760,21 +762,24 @@ export default function LeagueDetailPage() {
                       : 'Generate Schedule'}
                 </button>
               )}
-              {isCommissioner && (league.settings?.matchup_type ?? 0) === 1 && matchups.length === 0 && (
-                <Link
-                  href={`/leagues/${leagueId}/matchup-derby`}
-                  className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary-hover"
-                >
-                  Start Matchup Derby
-                </Link>
-              )}
-              {(league.settings?.matchup_type ?? 0) === 1 && matchups.length > 0 && isCommissioner && (
-                <Link
-                  href={`/leagues/${leagueId}/matchup-derby`}
-                  className="rounded-lg bg-muted px-4 py-2 text-sm font-medium text-accent-foreground hover:bg-muted-hover"
-                >
-                  Restart Derby
-                </Link>
+              {(league.settings?.matchup_type ?? 0) === 1 && (
+                <div className="flex gap-2">
+                  {isCommissioner && (
+                    <button
+                      onClick={() => setShowDerbySettings(true)}
+                      className="rounded-lg bg-muted px-3 py-2 text-accent-foreground hover:bg-muted-hover"
+                      title="Derby Settings"
+                    >
+                      <Settings className="h-4 w-4" />
+                    </button>
+                  )}
+                  <Link
+                    href={`/leagues/${leagueId}/matchup-derby`}
+                    className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary-hover"
+                  >
+                    Enter Derby Room
+                  </Link>
+                </div>
               )}
             </div>
 
@@ -860,9 +865,11 @@ export default function LeagueDetailPage() {
               <p className="py-4 text-center text-muted-foreground">
                 {isCommissioner
                   ? (league.settings?.matchup_type ?? 0) === 1
-                    ? 'No matchups yet. Start a matchup derby to let owners choose their schedule.'
+                    ? 'No matchups yet. Enter the derby room to set the schedule.'
                     : 'No matchups generated yet. Click the button above to generate the schedule.'
-                  : 'No matchups have been generated yet.'}
+                  : (league.settings?.matchup_type ?? 0) === 1
+                    ? 'No matchups yet. Enter the derby room to set the schedule.'
+                    : 'No matchups have been generated yet.'}
               </p>
             )}
           </div>
@@ -977,6 +984,16 @@ export default function LeagueDetailPage() {
           onUnassignRoster={handleUnassignRoster}
           onLeagueRefresh={handleRefreshLeague}
           isOwner={isCommissioner}
+        />
+      )}
+
+      {/* Derby Settings Modal */}
+      {showDerbySettings && league && accessToken && (
+        <MatchupDerbySettingsModal
+          league={league}
+          accessToken={accessToken}
+          onClose={() => setShowDerbySettings(false)}
+          onSaved={() => queryClient.invalidateQueries({ queryKey: ['league', leagueId] })}
         />
       )}
 
