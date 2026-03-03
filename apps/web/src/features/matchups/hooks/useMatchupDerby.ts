@@ -167,6 +167,26 @@ export function useMatchupDerby(leagueId: string): UseMatchupDerbyReturn {
     return () => clearInterval(poll);
   }, [accessToken, leagueId, derby?.status, updateClockOffset]);
 
+  // Poll rosters/members pre-derby so UI updates when users get assigned
+  useEffect(() => {
+    if (!accessToken || derby) return;
+
+    const poll = setInterval(async () => {
+      try {
+        const [membersRes, rostersRes] = await Promise.all([
+          leagueApi.getMembers(leagueId, accessToken),
+          leagueApi.getRosters(leagueId, accessToken),
+        ]);
+        setMembers(membersRes.members);
+        setRosters(rostersRes.rosters);
+      } catch {
+        // Silent
+      }
+    }, 10000);
+
+    return () => clearInterval(poll);
+  }, [accessToken, leagueId, derby]);
+
   // Compute current picker
   const getCurrentPickerUserId = useCallback((): string | null => {
     if (!derby || derby.status !== 'active') return null;

@@ -80,6 +80,7 @@ export function CreateTab() {
             daily_waivers: values.dailyWaivers ? 1 : 0,
             daily_waivers_hour: values.dailyWaiversHour,
             draft_setup: values.draftSetup,
+            matchup_type: values.matchupType,
           },
           roster_positions: rosterPositions,
           ...(Object.keys(scoringSettings).length > 0 ? { scoring_settings: scoringSettings } : {}),
