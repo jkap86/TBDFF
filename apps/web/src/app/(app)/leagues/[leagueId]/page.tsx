@@ -73,6 +73,9 @@ export default function LeagueDetailPage() {
   const [isRosterExpanded, setIsRosterExpanded] = useState(false);
   const [mutationError, setMutationError] = useState<string | null>(null);
   const [isDuesEditing, setIsDuesEditing] = useState(false);
+  const [isDuesExpanded, setIsDuesExpanded] = useState<boolean | null>(null);
+  const [isSpectatorsExpanded, setIsSpectatorsExpanded] = useState(false);
+  const [isDraftsExpanded, setIsDraftsExpanded] = useState(true);
   const [showDerbySettings, setShowDerbySettings] = useState(false);
   const { startConversation } = useConversations();
   const { openConversation } = useChatPanel();
@@ -490,7 +493,10 @@ export default function LeagueDetailPage() {
           const activeMembers = members.filter((m) => m.role !== 'spectator');
           const spectators = members.filter((m) => m.role === 'spectator');
           const emptyRosters = rosters.filter((r) => !r.owner_id).sort((a, b) => a.roster_id - b.roster_id);
+          const totalRosters = rosters.length;
           const paidCount = activeMembers.filter((m) => isMemberPaid(m.user_id)).length;
+          const allPaid = paidCount === totalRosters;
+          const duesExpanded = isDuesExpanded ?? !allPaid;
 
           const handleMarkPaid = async (userId: string) => {
             if (!accessToken || !buyIn) return;
@@ -522,16 +528,22 @@ export default function LeagueDetailPage() {
 
           return (
             <div className="rounded-lg bg-card p-6 shadow">
-              <div className="mb-4 flex items-center justify-between">
-                <div className="flex items-center gap-3">
+              <div className={`flex items-center justify-between ${duesExpanded ? 'mb-4' : ''}`}>
+                <button
+                  onClick={() => setIsDuesExpanded((prev) => (prev ?? !allPaid) ? false : true)}
+                  className="flex flex-1 items-center gap-3"
+                >
+                  <ChevronDown
+                    className={`h-5 w-5 text-muted-foreground transition-transform ${duesExpanded ? '' : '-rotate-90'}`}
+                  />
                   <h2 className="text-xl font-bold text-foreground">
                     Dues {hasBuyIn ? `- $${buyIn}` : '- Free'}
                   </h2>
                   <span className="text-sm text-muted-foreground">
-                    {paidCount}/{activeMembers.length} Paid
+                    {paidCount}/{totalRosters} Paid
                   </span>
-                </div>
-                {isCommissioner && (
+                </button>
+                {isCommissioner && duesExpanded && (
                   <button
                     onClick={() => setIsDuesEditing((prev) => !prev)}
                     className="rounded p-1.5 text-disabled hover:bg-muted hover:text-accent-foreground"
@@ -543,6 +555,7 @@ export default function LeagueDetailPage() {
               </div>
 
               {/* Active members */}
+              {duesExpanded && (<>
               <div className="space-y-2">
                 {activeMembers.map((member) => {
                   const paid = isMemberPaid(member.user_id);
@@ -627,7 +640,18 @@ export default function LeagueDetailPage() {
               {/* Spectators */}
               {spectators.length > 0 && (
                 <div className="mt-5">
-                  <h3 className="mb-2 text-sm font-semibold text-muted-foreground">Spectators</h3>
+                  <button
+                    onClick={() => setIsSpectatorsExpanded((prev) => !prev)}
+                    className="mb-2 flex items-center gap-1.5"
+                  >
+                    <ChevronDown
+                      className={`h-4 w-4 text-muted-foreground transition-transform ${isSpectatorsExpanded ? '' : '-rotate-90'}`}
+                    />
+                    <h3 className="text-sm font-semibold text-muted-foreground">
+                      Spectators ({spectators.length})
+                    </h3>
+                  </button>
+                  {isSpectatorsExpanded && (
                   <div className="space-y-2">
                     {spectators.map((member) => (
                       <div
@@ -669,15 +693,35 @@ export default function LeagueDetailPage() {
                       </div>
                     ))}
                   </div>
+                  )}
                 </div>
               )}
+              </>)}
             </div>
           );
         })()}
 
-        {/* Draft Cards */}
-        {activeDrafts.length > 0 ? (
-          activeDrafts.map((draft) => {
+        {/* Drafts Card */}
+        <div className="rounded-lg bg-card p-6 shadow">
+          <div className={`flex items-center justify-between ${isDraftsExpanded ? 'mb-4' : ''}`}>
+            <button
+              onClick={() => setIsDraftsExpanded((prev) => !prev)}
+              className="flex flex-1 items-center gap-3"
+            >
+              <ChevronDown
+                className={`h-5 w-5 text-muted-foreground transition-transform ${isDraftsExpanded ? '' : '-rotate-90'}`}
+              />
+              <h2 className="text-xl font-bold text-foreground">Drafts</h2>
+              <span className="text-sm text-muted-foreground">
+                {activeDrafts.length} active{completedDrafts.length > 0 ? `, ${completedDrafts.length} completed` : ''}
+              </span>
+            </button>
+          </div>
+
+          {isDraftsExpanded && (<>
+          {activeDrafts.length > 0 ? (
+          <div className="space-y-4">
+          {activeDrafts.map((draft) => {
             const draftShuffle = shuffleDisplay?.draftId === draft.id ? shuffleDisplay : null;
             const isDraftOrderOpen = expandedDraftOrders.has(draft.id);
             const isDerbyResultsOpen = expandedDerbyResults.has(draft.id);
@@ -693,7 +737,7 @@ export default function LeagueDetailPage() {
             });
 
             return (
-              <div key={draft.id} className="rounded-lg bg-card p-6 shadow">
+              <div key={draft.id} className="rounded-lg border border-border p-4">
                 <div className="mb-4 flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <h2 className="text-xl font-bold text-foreground">{playerPoolLabel(draft.settings.player_type)}</h2>
@@ -899,10 +943,9 @@ export default function LeagueDetailPage() {
                 </div>
               </div>
             );
-          })
+          })}
+          </div>
         ) : (
-          <div className="rounded-lg bg-card p-6 shadow">
-            <h2 className="mb-4 text-xl font-bold text-foreground">Draft</h2>
             <div className="text-center py-4">
               {completedDrafts.length === 0 && (
                 <p className="text-muted-foreground">No draft has been created yet.</p>
@@ -911,44 +954,45 @@ export default function LeagueDetailPage() {
                 <p className="text-muted-foreground">No active draft.</p>
               )}
             </div>
-          </div>
         )}
 
-        {completedDrafts.length > 0 && (
-          <div className="rounded-lg bg-card p-6 shadow">
-            <h3 className="mb-3 text-sm font-semibold text-muted-foreground uppercase tracking-wide">Completed Drafts</h3>
-            <div className="space-y-2">
-              {completedDrafts.map((draft) => (
-                <div
-                  key={draft.id}
-                  className="flex items-center justify-between rounded border border-border p-3"
-                >
-                  <div className="flex items-center gap-3">
-                    <div>
-                      <p className="font-medium text-foreground">
-                        {playerPoolLabel(draft.settings.player_type)} &middot; {draftTypeLabels[draft.type] || draft.type} &middot; {draft.season}
-                      </p>
-                      <p className="text-sm text-muted-foreground">
-                        {draft.settings.rounds} rounds
-                      </p>
+          {completedDrafts.length > 0 && (
+            <div className="mt-5">
+              <h3 className="mb-3 text-sm font-semibold text-muted-foreground uppercase tracking-wide">Completed Drafts</h3>
+              <div className="space-y-2">
+                {completedDrafts.map((draft) => (
+                  <div
+                    key={draft.id}
+                    className="flex items-center justify-between rounded border border-border p-3"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div>
+                        <p className="font-medium text-foreground">
+                          {playerPoolLabel(draft.settings.player_type)} &middot; {draftTypeLabels[draft.type] || draft.type} &middot; {draft.season}
+                        </p>
+                        <p className="text-sm text-muted-foreground">
+                          {draft.settings.rounds} rounds
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <span className={`rounded-full px-2 py-1 text-xs font-medium ${draftStatusColors.complete}`}>
+                        Complete
+                      </span>
+                      <Link
+                        href={`/leagues/${leagueId}/draft?draftId=${draft.id}`}
+                        className="rounded-lg bg-muted px-3 py-1.5 text-sm font-medium text-accent-foreground hover:bg-muted-hover"
+                      >
+                        View Results
+                      </Link>
                     </div>
                   </div>
-                  <div className="flex items-center gap-3">
-                    <span className={`rounded-full px-2 py-1 text-xs font-medium ${draftStatusColors.complete}`}>
-                      Complete
-                    </span>
-                    <Link
-                      href={`/leagues/${leagueId}/draft?draftId=${draft.id}`}
-                      className="rounded-lg bg-muted px-3 py-1.5 text-sm font-medium text-accent-foreground hover:bg-muted-hover"
-                    >
-                      View Results
-                    </Link>
-                  </div>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
-          </div>
-        )}
+          )}
+          </>)}
+        </div>
 
         {/* Matchups Card */}
         <div className="rounded-lg bg-card p-6 shadow">
