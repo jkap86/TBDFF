@@ -629,9 +629,35 @@ export default function LeagueDetailPage() {
                       className="flex items-center justify-between rounded border border-dashed border-border p-3"
                     >
                       <p className="text-sm text-muted-foreground">Roster {roster.roster_id}</p>
-                      <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
-                        Empty
-                      </span>
+                      {isDuesEditing && spectators.length > 0 ? (
+                        <select
+                          defaultValue=""
+                          onChange={async (e) => {
+                            const userId = e.target.value;
+                            if (!userId) return;
+                            const member = spectators.find((m) => m.user_id === userId);
+                            try {
+                              await handleAssignRoster(roster.roster_id, userId);
+                              toast.success(`Assigned ${member?.username ?? 'user'} to Roster ${roster.roster_id}`);
+                            } catch {
+                              toast.error('Failed to assign roster');
+                            }
+                            e.target.value = '';
+                          }}
+                          className="rounded border border-border bg-background px-2 py-1 text-xs text-foreground"
+                        >
+                          <option value="" disabled>Assign spectator...</option>
+                          {spectators.map((m) => (
+                            <option key={m.user_id} value={m.user_id}>
+                              {m.display_name || m.username}
+                            </option>
+                          ))}
+                        </select>
+                      ) : (
+                        <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
+                          Empty
+                        </span>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -672,21 +698,6 @@ export default function LeagueDetailPage() {
                               title={`Message ${member.username}`}
                             >
                               <MessageSquare className="h-4 w-4" />
-                            </button>
-                          )}
-                          {isDuesEditing && emptyRosters.length > 0 && (
-                            <button
-                              onClick={async () => {
-                                try {
-                                  await handleAssignRoster(emptyRosters[0].roster_id, member.user_id);
-                                  toast.success(`Assigned ${member.username} to Roster ${emptyRosters[0].roster_id}`);
-                                } catch {
-                                  toast.error('Failed to assign roster');
-                                }
-                              }}
-                              className="rounded bg-primary px-2.5 py-1 text-xs font-medium text-primary-foreground hover:bg-primary-hover"
-                            >
-                              Assign Roster
                             </button>
                           )}
                         </div>
