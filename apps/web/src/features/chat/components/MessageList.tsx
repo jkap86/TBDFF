@@ -69,11 +69,23 @@ export function MessageList({ messages, currentUserId, onLoadMore, hasMore }: Pr
         </button>
       )}
       {messages.map((msg) => {
-        const isOwn = msg.sender_id === currentUserId;
         const time = new Date(msg.created_at).toLocaleTimeString([], {
           hour: '2-digit',
           minute: '2-digit',
         });
+
+        if (msg.message_type === 'system') {
+          return (
+            <div key={msg.id} className="flex flex-col items-center py-1">
+              <span className="text-xs text-muted-foreground italic text-center">
+                {msg.content}
+              </span>
+              <span className="mt-0.5 text-[10px] text-disabled">{time}</span>
+            </div>
+          );
+        }
+
+        const isOwn = msg.sender_id === currentUserId;
 
         return (
           <div key={msg.id} className={`flex flex-col ${isOwn ? 'items-end' : 'items-start'}`}>

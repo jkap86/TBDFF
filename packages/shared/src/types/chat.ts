@@ -1,10 +1,12 @@
 export interface ChatMessage {
   id: string;
-  sender_id: string;
-  sender_username: string;
+  sender_id: string | null;
+  sender_username: string | null;
   league_id: string | null;
   conversation_id: string | null;
   content: string;
+  message_type: 'user' | 'system';
+  metadata: Record<string, unknown> | null;
   created_at: string;
   updated_at: string;
 }

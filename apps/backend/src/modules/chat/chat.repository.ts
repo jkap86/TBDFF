@@ -8,14 +8,14 @@ export class ChatRepository {
     const query = before
       ? `SELECT m.*, u.display_username AS sender_username
          FROM messages m
-         JOIN users u ON u.id = m.sender_id
+         LEFT JOIN users u ON u.id = m.sender_id
          WHERE m.league_id = $1
            AND m.created_at < (SELECT created_at FROM messages WHERE id = $3)
          ORDER BY m.created_at DESC
          LIMIT $2`
       : `SELECT m.*, u.display_username AS sender_username
          FROM messages m
-         JOIN users u ON u.id = m.sender_id
+         LEFT JOIN users u ON u.id = m.sender_id
          WHERE m.league_id = $1
          ORDER BY m.created_at DESC
          LIMIT $2`;
@@ -29,14 +29,14 @@ export class ChatRepository {
     const query = before
       ? `SELECT m.*, u.display_username AS sender_username
          FROM messages m
-         JOIN users u ON u.id = m.sender_id
+         LEFT JOIN users u ON u.id = m.sender_id
          WHERE m.conversation_id = $1
            AND m.created_at < (SELECT created_at FROM messages WHERE id = $3)
          ORDER BY m.created_at DESC
          LIMIT $2`
       : `SELECT m.*, u.display_username AS sender_username
          FROM messages m
-         JOIN users u ON u.id = m.sender_id
+         LEFT JOIN users u ON u.id = m.sender_id
          WHERE m.conversation_id = $1
          ORDER BY m.created_at DESC
          LIMIT $2`;
@@ -134,6 +134,20 @@ export class ChatRepository {
       [userId],
     );
     return result.rows.map(Conversation.fromDatabase);
+  }
+
+  async createSystemMessage(data: {
+    leagueId: string;
+    content: string;
+    metadata?: Record<string, unknown>;
+  }): Promise<Message> {
+    const result = await this.db.query(
+      `INSERT INTO messages (sender_id, league_id, conversation_id, content, message_type, metadata)
+       VALUES (NULL, $1, NULL, $2, 'system', $3)
+       RETURNING *, NULL AS sender_username`,
+      [data.leagueId, data.content, data.metadata ? JSON.stringify(data.metadata) : null],
+    );
+    return Message.fromDatabase(result.rows[0]);
   }
 
   async isLeagueMember(leagueId: string, userId: string): Promise<boolean> {

@@ -3,6 +3,7 @@ import { Transaction, WaiverClaim } from './transactions.model';
 import { LeagueRepository } from '../leagues/leagues.repository';
 import { PlayerRepository } from '../players/players.repository';
 import { TransactionsGateway } from './transactions.gateway';
+import { SystemMessageService } from '../chat/system-message.service';
 import {
   NotFoundException,
   ForbiddenException,
@@ -11,6 +12,7 @@ import {
 
 export class TransactionService {
   private gateway: TransactionsGateway | null = null;
+  private systemMessages: SystemMessageService | null = null;
 
   constructor(
     private readonly txRepo: TransactionRepository,
@@ -20,6 +22,10 @@ export class TransactionService {
 
   setGateway(gw: TransactionsGateway): void {
     this.gateway = gw;
+  }
+
+  setSystemMessages(sms: SystemMessageService): void {
+    this.systemMessages = sms;
   }
 
   async addFreeAgent(
@@ -289,6 +295,9 @@ export class TransactionService {
   }
 
   async processLeagueWaivers(leagueId: string): Promise<void> {
+    // Track successful claims for the system message (populated inside transaction)
+    const successfulClaims: Array<{ userId: string; playerId: string }> = [];
+
     await this.txRepo.withTransaction(async (client) => {
       // Advisory lock to prevent concurrent processing
       await client.query(`SELECT pg_advisory_xact_lock(hashtext($1))`, [leagueId]);
@@ -378,6 +387,7 @@ export class TransactionService {
 
           winner = claim;
           processedRosters.add(claim.rosterId);
+          successfulClaims.push({ userId: claim.userId, playerId });
           break;
         }
 
@@ -395,6 +405,39 @@ export class TransactionService {
 
     this.gateway?.broadcastToLeague(leagueId, 'waiver:processed', { league_id: leagueId });
     this.gateway?.broadcastToLeague(leagueId, 'roster:updated', { league_id: leagueId });
+
+    // Send system message summarizing successful waiver claims
+    if (successfulClaims.length > 0) {
+      try {
+        // Look up player names
+        const playerIds = successfulClaims.map((c) => c.playerId);
+        const playerNameMap: Record<string, string> = {};
+        if (this.playerRepo) {
+          const players = await this.playerRepo.findByIds(playerIds);
+          for (const p of players) playerNameMap[p.id] = p.fullName;
+        }
+
+        // Look up usernames
+        const userIds = [...new Set(successfulClaims.map((c) => c.userId))];
+        const userNameMap: Record<string, string> = {};
+        for (const uid of userIds) {
+          const member = await this.leagueRepo.findMember(leagueId, uid);
+          if (member) userNameMap[uid] = member.username;
+        }
+
+        const parts = successfulClaims.map((c) => {
+          const userName = userNameMap[c.userId] ?? 'Unknown';
+          const playerName = playerNameMap[c.playerId] ?? c.playerId;
+          return `${userName} claimed ${playerName}`;
+        });
+
+        await this.systemMessages?.send(
+          leagueId,
+          `Waivers processed: ${parts.join(', ')}`,
+          { event: 'waivers_processed' },
+        );
+      } catch { /* non-fatal */ }
+    }
   }
 
   // ---- Helpers ----

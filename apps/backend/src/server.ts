@@ -37,6 +37,11 @@ const transactionsGateway = createTransactionsGateway(io);
 container.services.tradeService.setGateway(transactionsGateway);
 container.services.transactionService.setGateway(transactionsGateway);
 
+// Inject Socket.IO into system message service for real-time broadcasting
+container.services.systemMessageService.setIO(io);
+container.services.tradeService.setSystemMessages(container.services.systemMessageService);
+container.services.transactionService.setSystemMessages(container.services.systemMessageService);
+
 // Start auction timer job (replaces in-memory timers with DB-backed polling)
 container.jobs.auctionTimerJob.start();
 

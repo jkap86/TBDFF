@@ -1,11 +1,13 @@
 export class Message {
   constructor(
     public readonly id: string,
-    public readonly senderId: string,
-    public readonly senderUsername: string,
+    public readonly senderId: string | null,
+    public readonly senderUsername: string | null,
     public readonly leagueId: string | null,
     public readonly conversationId: string | null,
     public readonly content: string,
+    public readonly messageType: 'user' | 'system',
+    public readonly metadata: Record<string, unknown> | null,
     public readonly createdAt: Date,
     public readonly updatedAt: Date,
   ) {}
@@ -13,11 +15,13 @@ export class Message {
   static fromDatabase(row: any): Message {
     return new Message(
       row.id,
-      row.sender_id,
-      row.sender_username,
+      row.sender_id ?? null,
+      row.sender_username ?? null,
       row.league_id ?? null,
       row.conversation_id ?? null,
       row.content,
+      row.message_type ?? 'user',
+      row.metadata ?? null,
       row.created_at,
       row.updated_at,
     );
@@ -31,6 +35,8 @@ export class Message {
       league_id: this.leagueId,
       conversation_id: this.conversationId,
       content: this.content,
+      message_type: this.messageType,
+      metadata: this.metadata,
       created_at: this.createdAt,
       updated_at: this.updatedAt,
     };

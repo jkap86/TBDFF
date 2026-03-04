@@ -1,9 +1,10 @@
-import { PoolClient } from 'pg';
 import { TradeRepository } from './trades.repository';
 import { TradeProposal, FutureDraftPick } from './trades.model';
 import { LeagueRepository } from '../leagues/leagues.repository';
 import { DraftRepository } from '../drafts/drafts.repository';
+import { PlayerRepository } from '../players/players.repository';
 import { TransactionsGateway } from '../transactions/transactions.gateway';
+import { SystemMessageService } from '../chat/system-message.service';
 import {
   NotFoundException,
   ForbiddenException,
@@ -12,15 +13,21 @@ import {
 
 export class TradeService {
   private gateway: TransactionsGateway | null = null;
+  private systemMessages: SystemMessageService | null = null;
 
   constructor(
     private readonly tradeRepo: TradeRepository,
     private readonly leagueRepo: LeagueRepository,
     private readonly draftRepo: DraftRepository,
+    private readonly playerRepo: PlayerRepository,
   ) {}
 
   setGateway(gw: TransactionsGateway): void {
     this.gateway = gw;
+  }
+
+  setSystemMessages(sms: SystemMessageService): void {
+    this.systemMessages = sms;
   }
 
   async proposeTrade(
@@ -301,6 +308,42 @@ export class TradeService {
       const completed = await this.tradeRepo.findProposalById(tradeId, client);
       this.gateway?.broadcastToLeague(trade.leagueId, 'trade:completed', { trade: completed!.toSafeObject() });
       this.gateway?.broadcastToLeague(trade.leagueId, 'roster:updated', { league_id: trade.leagueId });
+
+      // Build detailed trade system message (after transaction commits via return)
+      try {
+        const playerNameMap: Record<string, string> = {};
+        if (playerIds.length > 0) {
+          const players = await this.playerRepo.findByIds(playerIds);
+          for (const p of players) playerNameMap[p.id] = p.fullName;
+        }
+
+        // Build per-side item descriptions
+        const proposerReceives: string[] = [];
+        const receiverReceives: string[] = [];
+        for (const item of trade.items) {
+          if (item.itemType === 'player' && item.playerId) {
+            const name = playerNameMap[item.playerId] ?? item.playerId;
+            if (item.side === 'proposer') receiverReceives.push(name);
+            else proposerReceives.push(name);
+          }
+          if (item.itemType === 'draft_pick' && item.draftPickId) {
+            const pick = await this.tradeRepo.findFuturePickById(item.draftPickId);
+            const pickLabel = pick ? `${pick.season} Rd ${pick.round}` : 'Draft Pick';
+            if (item.side === 'proposer') receiverReceives.push(pickLabel);
+            else proposerReceives.push(pickLabel);
+          }
+          if (item.itemType === 'faab' && item.faabAmount) {
+            const faabLabel = `$${item.faabAmount} FAAB`;
+            if (item.side === 'proposer') receiverReceives.push(faabLabel);
+            else proposerReceives.push(faabLabel);
+          }
+        }
+
+        const proposerName = completed!.proposedByUsername ?? 'Team';
+        const receiverName = completed!.proposedToUsername ?? 'Team';
+        const msg = `Trade completed: ${proposerName} receives ${proposerReceives.join(', ')} — ${receiverName} receives ${receiverReceives.join(', ')}`;
+        await this.systemMessages?.send(trade.leagueId, msg, { event: 'trade_executed', trade_id: tradeId });
+      } catch { /* non-fatal */ }
 
       return completed!;
     });

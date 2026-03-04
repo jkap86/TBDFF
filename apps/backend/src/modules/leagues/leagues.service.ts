@@ -21,11 +21,82 @@ import {
 } from './leagues.schemas';
 import { DraftRepository } from '../drafts/drafts.repository';
 import { DEFAULT_DRAFT_SETTINGS } from '../drafts/drafts.model';
+import { SystemMessageService } from '../chat/system-message.service';
+
+const SETTINGS_LABELS: Record<string, string> = {
+  num_teams: 'number of teams',
+  trade_deadline: 'trade deadline (week)',
+  trade_review_days: 'trade review days',
+  waiver_type: 'waiver type',
+  waiver_budget: 'FAAB budget',
+  waiver_clear_days: 'waiver clear days',
+  waiver_day_of_week: 'waiver day',
+  waiver_bid_min: 'minimum FAAB bid',
+  playoff_teams: 'playoff teams',
+  playoff_week_start: 'playoff start week',
+  playoff_type: 'playoff type',
+  playoff_round_type: 'playoff round type',
+  playoff_seed_type: 'playoff seed type',
+  type: 'league type',
+  best_ball: 'best ball',
+  draft_rounds: 'draft rounds',
+  draft_setup: 'draft setup',
+  reserve_slots: 'IR slots',
+  taxi_slots: 'taxi slots',
+  taxi_years: 'taxi years',
+  taxi_allow_vets: 'taxi allow vets',
+  bench_lock: 'bench lock',
+  disable_adds: 'disable adds',
+  offseason_adds: 'offseason adds',
+  pick_trading: 'pick trading',
+  max_keepers: 'max keepers',
+  daily_waivers: 'daily waivers',
+  daily_waivers_hour: 'daily waivers hour',
+  league_average_match: 'league average match',
+  member_can_invite: 'member invites',
+  public: 'public league',
+  matchup_type: 'matchup type',
+  matchup_derby_timer: 'matchup derby timer',
+  matchup_derby_timeout: 'matchup derby timeout',
+};
+
+const SCORING_LABELS: Record<string, string> = {
+  pass_td: 'passing TD', pass_yd: 'passing yards', pass_int: 'interception',
+  pass_2pt: 'passing 2PT', pass_att: 'pass attempt', pass_cmp: 'pass completion',
+  pass_inc: 'incomplete pass', pass_sack: 'sack taken',
+  rush_td: 'rushing TD', rush_yd: 'rushing yards', rush_att: 'rush attempt', rush_2pt: 'rushing 2PT',
+  rec: 'PPR', rec_td: 'receiving TD', rec_yd: 'receiving yards', rec_2pt: 'receiving 2PT',
+  fum: 'fumble', fum_lost: 'fumble lost', fum_rec_td: 'fumble recovery TD',
+  fgm_0_19: 'FG 0-19', fgm_20_29: 'FG 20-29', fgm_30_39: 'FG 30-39',
+  fgm_40_49: 'FG 40-49', fgm_50p: 'FG 50+', fgmiss: 'FG miss',
+  xpm: 'extra point', xpmiss: 'extra point miss',
+  sack: 'sack', int: 'INT', ff: 'forced fumble', fum_rec: 'fumble recovery',
+  def_td: 'defensive TD', safe: 'safety', blk_kick: 'blocked kick',
+  st_td: 'ST TD', st_ff: 'ST forced fumble', st_fum_rec: 'ST fumble recovery',
+  def_st_td: 'DEF/ST TD', def_st_ff: 'DEF/ST forced fumble', def_st_fum_rec: 'DEF/ST fumble recovery',
+};
+
+function diffSettings(
+  oldSettings: Record<string, unknown>,
+  newSettings: Record<string, unknown>,
+  labels: Record<string, string>,
+): string[] {
+  const changes: string[] = [];
+  for (const [key, newVal] of Object.entries(newSettings)) {
+    const oldVal = oldSettings[key];
+    if (oldVal !== newVal) {
+      const label = labels[key] ?? key;
+      changes.push(`${label}: ${oldVal} → ${newVal}`);
+    }
+  }
+  return changes;
+}
 
 export class LeagueService {
   constructor(
     private readonly leagueRepository: LeagueRepository,
     private readonly draftRepository: DraftRepository,
+    private readonly systemMessages: SystemMessageService,
   ) {}
 
   async createLeague(
@@ -181,6 +252,49 @@ export class LeagueService {
       await this.syncLeagueDrafts(leagueId, userId, updated, updated.settings.draft_setup ?? 0);
     }
 
+    // Send system message with specific changes
+    try {
+      const changes: string[] = [];
+      if (updateData.name !== undefined && updateData.name !== league.name) {
+        changes.push(`league name to "${updateData.name}"`);
+      }
+      if (updateData.totalRosters !== undefined && updateData.totalRosters !== league.totalRosters) {
+        changes.push(`roster count: ${league.totalRosters} → ${updateData.totalRosters}`);
+      }
+      if (updateData.status !== undefined && updateData.status !== league.status) {
+        changes.push(`status to ${updateData.status}`);
+      }
+      if (updateData.seasonType !== undefined && updateData.seasonType !== league.seasonType) {
+        changes.push(`season type to ${updateData.seasonType}`);
+      }
+      if (updateData.settings) {
+        changes.push(...diffSettings(
+          league.settings as unknown as Record<string, unknown>,
+          updateData.settings as Record<string, unknown>,
+          SETTINGS_LABELS,
+        ));
+      }
+      if (updateData.scoringSettings) {
+        changes.push(...diffSettings(
+          league.scoringSettings as unknown as Record<string, unknown>,
+          updateData.scoringSettings as Record<string, unknown>,
+          SCORING_LABELS,
+        ));
+      }
+      if (updateData.rosterPositions !== undefined) {
+        const oldPos = league.rosterPositions.join(', ');
+        const newPos = updateData.rosterPositions.join(', ');
+        if (oldPos !== newPos) changes.push('roster positions updated');
+      }
+      if (changes.length > 0) {
+        await this.systemMessages.send(
+          leagueId,
+          `Commissioner updated settings: ${changes.join(', ')}`,
+          { event: 'settings_updated' },
+        );
+      }
+    } catch { /* non-fatal */ }
+
     return updated;
   }
 
@@ -288,7 +402,11 @@ export class LeagueService {
 
     // Join as spectator — commissioner will assign a roster to promote to member
     try {
-      return await this.leagueRepository.addMember(leagueId, userId, 'spectator');
+      const newMember = await this.leagueRepository.addMember(leagueId, userId, 'spectator');
+      try {
+        await this.systemMessages.send(leagueId, `${newMember.username} joined the league`);
+      } catch { /* non-fatal */ }
+      return newMember;
     } catch (err: any) {
       if (err.code === '23505') {
         // Concurrent join raced — return the existing membership
@@ -309,6 +427,10 @@ export class LeagueService {
     }
 
     await this.leagueRepository.removeMemberTransaction(leagueId, userId);
+
+    try {
+      await this.systemMessages.send(leagueId, `${member.username} left the league`);
+    } catch { /* non-fatal */ }
   }
 
   async removeMember(
@@ -329,6 +451,10 @@ export class LeagueService {
     }
 
     await this.leagueRepository.removeMemberTransaction(leagueId, targetUserId);
+
+    try {
+      await this.systemMessages.send(leagueId, `${target.username} was removed from the league`);
+    } catch { /* non-fatal */ }
   }
 
   async updateMemberRole(
@@ -504,6 +630,10 @@ export class LeagueService {
       invite.leagueId, userId, inviteId,
     );
 
+    try {
+      await this.systemMessages.send(invite.leagueId, `${member.username} joined the league`);
+    } catch { /* non-fatal */ }
+
     return member;
   }
 
@@ -604,6 +734,10 @@ export class LeagueService {
 
     // 6. Sync draft_order for any active drafts that have this roster in slot_to_roster_id
     await this.syncDraftOrderForRosterAssignment(leagueId, rosterId, targetUserId);
+
+    try {
+      await this.systemMessages.send(leagueId, `${target.username} was assigned to a roster`);
+    } catch { /* non-fatal */ }
 
     return result;
   }

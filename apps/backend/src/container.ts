@@ -35,6 +35,7 @@ import { DerbyService } from './modules/drafts/derby.service';
 import { MatchupService } from './modules/matchups/matchups.service';
 import { MatchupDerbyService } from './modules/matchups/matchup-derby.service';
 import { ChatService } from './modules/chat/chat.service';
+import { SystemMessageService } from './modules/chat/system-message.service';
 import { TradeService } from './modules/trades/trades.service';
 import { TransactionService } from './modules/transactions/transactions.service';
 import { PaymentService } from './modules/payments/payments.service';
@@ -102,7 +103,9 @@ export function createContainer() {
 
   // Services
   const authService = new AuthService(userRepository, emailService);
-  const leagueService = new LeagueService(leagueRepository, draftRepository);
+  const chatService = new ChatService(chatRepository);
+  const systemMessageService = new SystemMessageService(chatRepository);
+  const leagueService = new LeagueService(leagueRepository, draftRepository, systemMessageService);
   const playerService = new PlayerService(playerRepository, sleeperPlayerProvider);
   const scoringService = new ScoringService(
     scoringRepository,
@@ -116,10 +119,9 @@ export function createContainer() {
   const derbyService = new DerbyService(draftRepository, leagueRepository);
   const matchupService = new MatchupService(matchupRepository, leagueRepository);
   const matchupDerbyService = new MatchupDerbyService(matchupDerbyRepository, matchupRepository, leagueRepository);
-  const chatService = new ChatService(chatRepository);
-  const tradeService = new TradeService(tradeRepository, leagueRepository, draftRepository);
+  const tradeService = new TradeService(tradeRepository, leagueRepository, draftRepository, playerRepository);
   const transactionService = new TransactionService(transactionRepository, leagueRepository, playerRepository);
-  const paymentService = new PaymentService(paymentRepository, leagueRepository);
+  const paymentService = new PaymentService(paymentRepository, leagueRepository, systemMessageService);
 
   // Controllers
   const authController = new AuthController(authService);
@@ -149,6 +151,7 @@ export function createContainer() {
     },
     services: {
       chatService,
+      systemMessageService,
       draftService,
       auctionService,
       slowAuctionService,

@@ -2,6 +2,7 @@ import { PaymentRepository } from './payments.repository';
 import { LeagueRepository } from '../leagues/leagues.repository';
 import { LeaguePayment } from './payments.model';
 import { SetPayoutsInput } from './payments.schemas';
+import { SystemMessageService } from '../chat/system-message.service';
 import {
   ForbiddenException,
   NotFoundException,
@@ -12,6 +13,7 @@ export class PaymentService {
   constructor(
     private readonly paymentRepository: PaymentRepository,
     private readonly leagueRepository: LeagueRepository,
+    private readonly systemMessages: SystemMessageService,
   ) {}
 
   async getPayments(leagueId: string, userId: string): Promise<LeaguePayment[]> {
@@ -48,13 +50,19 @@ export class PaymentService {
     if (!target) throw new NotFoundException('User is not a member of this league');
 
     try {
-      return await this.paymentRepository.create({
+      const payment = await this.paymentRepository.create({
         leagueId,
         userId: targetUserId,
         type: 'buy_in',
         amount,
         recordedBy: requestingUserId,
       });
+
+      try {
+        await this.systemMessages.send(leagueId, `${target.username} was marked as paid`);
+      } catch { /* non-fatal */ }
+
+      return payment;
     } catch (err: any) {
       if (err.code === '23505') {
         throw new ConflictException('This member has already been marked as paid');
