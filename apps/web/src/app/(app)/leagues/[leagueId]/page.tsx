@@ -69,8 +69,8 @@ export default function LeagueDetailPage() {
   const [isStartingDerby, setIsStartingDerby] = useState(false);
   const [isGeneratingMatchups, setIsGeneratingMatchups] = useState(false);
   const [selectedWeek, setSelectedWeek] = useState(1);
-  const [isScoringExpanded, setIsScoringExpanded] = useState(false);
-  const [isRosterExpanded, setIsRosterExpanded] = useState(false);
+  const [isScoringOpen, setIsScoringOpen] = useState(false);
+  const [isRosterOpen, setIsRosterOpen] = useState(false);
   const [mutationError, setMutationError] = useState<string | null>(null);
   const [isDuesEditing, setIsDuesEditing] = useState(false);
   const [isDuesExpanded, setIsDuesExpanded] = useState<boolean | null>(null);
@@ -382,8 +382,8 @@ export default function LeagueDetailPage() {
             </span>
           </div>
 
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div>
+          <div className="flex gap-4 justify-between">
+            <div className="min-w-0">
               <p className="text-sm text-muted-foreground">Season</p>
               <p className="text-lg font-medium text-foreground">{league.season}</p>
             </div>
@@ -409,65 +409,77 @@ export default function LeagueDetailPage() {
             </div>
           </div>
 
-          {/* Expandable Scoring Settings */}
-          <div className="mt-4 rounded-lg border border-border">
+          {/* Scoring Settings & Roster Positions Buttons */}
+          <div className="mt-4 flex gap-2">
             <button
               type="button"
-              onClick={() => setIsScoringExpanded(!isScoringExpanded)}
-              className="flex w-full items-center justify-between px-4 py-3 text-sm font-medium text-accent-foreground hover:bg-accent rounded-lg"
+              onClick={() => setIsScoringOpen(true)}
+              className="min-w-0 flex-1 flex items-center justify-center gap-2 rounded-lg border border-border px-4 py-3 text-sm font-medium text-accent-foreground hover:bg-accent"
             >
-              <div className="flex items-center gap-2">
-                <Trophy className="h-4 w-4 text-muted-foreground" />
-                <span>Scoring Settings</span>
-                <span className="text-xs text-muted-foreground">
-                  ({league.scoring_settings?.rec === 1 ? 'PPR' : league.scoring_settings?.rec === 0.5 ? 'Half-PPR' : 'Standard'})
-                </span>
-              </div>
-              <ChevronDown className={`h-4 w-4 transition-transform ${isScoringExpanded ? 'rotate-180' : ''}`} />
+              <Trophy className="h-4 w-4 text-muted-foreground" />
+              <span>Scoring Settings</span>
+              <span className="text-xs text-muted-foreground">
+                ({league.scoring_settings?.rec === 1 ? 'PPR' : league.scoring_settings?.rec === 0.5 ? 'Half-PPR' : 'Standard'})
+              </span>
             </button>
-            {isScoringExpanded && (() => {
-              const scoring = scoringFromLeague(league);
-              return (
-                <div className="border-t border-border px-4 py-3 space-y-4">
-                  {SCORING_CATEGORIES.map((cat) => (
-                    <div key={cat.title}>
-                      <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-1">{cat.title}</h4>
-                      <div className="grid grid-cols-2 gap-x-4 gap-y-0.5">
-                        {cat.fields.map((f) => (
-                          <div key={f.key} className="flex items-center justify-between text-sm">
-                            <span className="text-accent-foreground">{f.label}</span>
-                            <span className="font-medium text-foreground">{scoring[f.key]}</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              );
-            })()}
+            <button
+              type="button"
+              onClick={() => setIsRosterOpen(true)}
+              className="min-w-0 flex-1 flex items-center justify-center gap-2 rounded-lg border border-border px-4 py-3 text-sm font-medium text-accent-foreground hover:bg-accent"
+            >
+              <Users2 className="h-4 w-4 text-muted-foreground" />
+              <span>Roster Positions</span>
+              <span className="text-xs text-muted-foreground">
+                ({(league.roster_positions ?? []).length} slots)
+              </span>
+            </button>
           </div>
 
-          {/* Expandable Roster Positions */}
-          <div className="mt-2 rounded-lg border border-border">
-            <button
-              type="button"
-              onClick={() => setIsRosterExpanded(!isRosterExpanded)}
-              className="flex w-full items-center justify-between px-4 py-3 text-sm font-medium text-accent-foreground hover:bg-accent rounded-lg"
-            >
-              <div className="flex items-center gap-2">
-                <Users2 className="h-4 w-4 text-muted-foreground" />
-                <span>Roster Positions</span>
-                <span className="text-xs text-muted-foreground">
-                  ({(league.roster_positions ?? []).length} slots)
-                </span>
+          {/* Scoring Settings Modal */}
+          {isScoringOpen && (() => {
+            const scoring = scoringFromLeague(league);
+            return (
+              <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setIsScoringOpen(false)}>
+                <div className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-lg bg-card p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
+                  <div className="mb-4 flex items-center justify-between">
+                    <h2 className="text-xl font-bold text-foreground">Scoring Settings</h2>
+                    <button type="button" onClick={() => setIsScoringOpen(false)} className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-accent-foreground">
+                      <X className="h-5 w-5" />
+                    </button>
+                  </div>
+                  <div className="space-y-4">
+                    {SCORING_CATEGORIES.map((cat) => (
+                      <div key={cat.title}>
+                        <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-1">{cat.title}</h4>
+                        <div className="grid grid-cols-1 gap-y-0.5">
+                          {cat.fields.map((f) => (
+                            <div key={f.key} className="flex items-center justify-between text-sm">
+                              <span className="text-accent-foreground">{f.label}</span>
+                              <span className="font-medium text-foreground">{scoring[f.key]}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
               </div>
-              <ChevronDown className={`h-4 w-4 transition-transform ${isRosterExpanded ? 'rotate-180' : ''}`} />
-            </button>
-            {isRosterExpanded && (() => {
-              const counts = positionArrayToCounts(league.roster_positions ?? []);
-              return (
-                <div className="border-t border-border px-4 py-3">
-                  <div className="grid grid-cols-2 gap-x-4 gap-y-1">
+            );
+          })()}
+
+          {/* Roster Positions Modal */}
+          {isRosterOpen && (() => {
+            const counts = positionArrayToCounts(league.roster_positions ?? []);
+            return (
+              <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setIsRosterOpen(false)}>
+                <div className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-lg bg-card p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
+                  <div className="mb-4 flex items-center justify-between">
+                    <h2 className="text-xl font-bold text-foreground">Roster Positions</h2>
+                    <button type="button" onClick={() => setIsRosterOpen(false)} className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-accent-foreground">
+                      <X className="h-5 w-5" />
+                    </button>
+                  </div>
+                  <div className="grid grid-cols-1 gap-y-1">
                     {ROSTER_POSITION_CONFIG.filter((pos) => counts[pos.key] > 0).map((pos) => (
                       <div key={pos.key} className="flex items-center justify-between text-sm">
                         <span className="text-accent-foreground">{pos.label}</span>
@@ -476,9 +488,9 @@ export default function LeagueDetailPage() {
                     ))}
                   </div>
                 </div>
-              );
-            })()}
-          </div>
+              </div>
+            );
+          })()}
         </div>
 
         {/* Dues */}
