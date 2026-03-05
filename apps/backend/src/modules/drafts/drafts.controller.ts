@@ -399,6 +399,28 @@ export class DraftController {
     res.status(200).json(stats);
   };
 
+  // ---- Commissioner Draft Controls ----
+
+  pauseDraft = async (req: AuthRequest, res: Response): Promise<void> => {
+    const userId = req.user?.userId;
+    if (!userId) throw new InvalidCredentialsException();
+
+    const draftId = Array.isArray(req.params.draftId) ? req.params.draftId[0] : req.params.draftId;
+    const draft = await this.draftService.pauseDraft(draftId, userId);
+
+    res.status(200).json({ draft: draft.toSafeObject(), server_time: new Date().toISOString() });
+  };
+
+  stopDraft = async (req: AuthRequest, res: Response): Promise<void> => {
+    const userId = req.user?.userId;
+    if (!userId) throw new InvalidCredentialsException();
+
+    const draftId = Array.isArray(req.params.draftId) ? req.params.draftId[0] : req.params.draftId;
+    const draft = await this.draftService.stopDraft(draftId, userId);
+
+    res.status(200).json({ draft: draft.toSafeObject(), server_time: new Date().toISOString() });
+  };
+
   // ---- Derby (draft order selection) ----
 
   startDerby = async (req: AuthRequest, res: Response): Promise<void> => {

@@ -261,6 +261,10 @@ export function useDraftRoom(leagueId: string, preferredDraftId?: string) {
   useEffect(() => {
     if (timer.timeRemaining !== 0 || !draft || !accessToken || timer.autoPickTriggered.current || draft.type === 'slow_auction') return;
 
+    // Don't trigger auto-pick/resolve when paused or stopped
+    const clockState = (draft.metadata?.clock_state as string | undefined) ?? 'running';
+    if (clockState === 'paused' || clockState === 'stopped') return;
+
     // For auction drafts, verify the actual deadline has passed before acting.
     // Guards against stale timeRemaining=0 racing with a newly created nomination.
     const adjustedNow = Date.now() + timer.clockOffsetRef.current;
@@ -588,6 +592,26 @@ export function useDraftRoom(leagueId: string, preferredDraftId?: string) {
     }
   }, [draft, accessToken]);
 
+  const handlePauseDraft = useCallback(async () => {
+    if (!draft || !accessToken) return;
+    try {
+      const result = await draftApi.pause(draft.id, accessToken);
+      setDraft(result.draft);
+    } catch (err) {
+      if (err instanceof ApiError) toast.error(err.message);
+    }
+  }, [draft, accessToken]);
+
+  const handleStopDraft = useCallback(async () => {
+    if (!draft || !accessToken) return;
+    try {
+      const result = await draftApi.stop(draft.id, accessToken);
+      setDraft(result.draft);
+    } catch (err) {
+      if (err instanceof ApiError) toast.error(err.message);
+    }
+  }, [draft, accessToken]);
+
   // Derived state
   const isAuction = draft?.type === 'auction';
   const isSlowAuction = draft?.type === 'slow_auction';
@@ -600,6 +624,9 @@ export function useDraftRoom(leagueId: string, preferredDraftId?: string) {
   const isMyTurn = nextPick && userRosterId !== undefined && nextPick.roster_id === userRosterId;
   const currentMember = members.find((m) => m.user_id === user?.id);
   const isCommissioner = currentMember?.role === 'commissioner';
+  const clockState = ((draft?.metadata?.clock_state as string | undefined) ?? 'running') as 'running' | 'paused' | 'stopped';
+  const isDraftPaused = clockState === 'paused';
+  const isDraftStopped = clockState === 'stopped';
 
   return {
     // Core state
@@ -644,6 +671,9 @@ export function useDraftRoom(leagueId: string, preferredDraftId?: string) {
     userRosterId,
     isMyTurn,
     isCommissioner,
+    clockState,
+    isDraftPaused,
+    isDraftStopped,
 
     // Slow auction state
     slowAuctionLots,
@@ -665,5 +695,7 @@ export function useDraftRoom(leagueId: string, preferredDraftId?: string) {
     handleUpdateMaxBid,
     handleNominationMaxBid,
     handleToggleAutoPick,
+    handlePauseDraft,
+    handleStopDraft,
   };
 }

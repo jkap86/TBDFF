@@ -22,6 +22,15 @@ export function useDraftTimer(draft: Draft | null) {
       return;
     }
 
+    const clockState = (draft.metadata?.clock_state as string | undefined) ?? 'running';
+
+    // When paused or stopped, show frozen timer at clock_paused_remaining
+    if (clockState === 'paused' || clockState === 'stopped') {
+      const frozen = draft.metadata?.clock_paused_remaining as number | null | undefined;
+      setTimeRemaining(frozen ?? 0);
+      return;
+    }
+
     let deadline: number | null = null;
 
     if (draft.type === 'auction') {
@@ -57,7 +66,7 @@ export function useDraftTimer(draft: Draft | null) {
     tick();
     const interval = setInterval(tick, tickInterval);
     return () => clearInterval(interval);
-  }, [draft?.status, draft?.type, draft?.last_picked, draft?.start_time, draft?.settings?.pick_timer, draft?.metadata?.current_nomination?.bid_deadline, draft?.metadata?.nomination_deadline]);
+  }, [draft?.status, draft?.type, draft?.last_picked, draft?.start_time, draft?.settings?.pick_timer, draft?.metadata?.current_nomination?.bid_deadline, draft?.metadata?.nomination_deadline, draft?.metadata?.clock_state, draft?.metadata?.clock_paused_remaining]);
 
   const formatTime = useCallback((seconds: number) => {
     const m = Math.floor(seconds / 60);

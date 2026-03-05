@@ -2,6 +2,7 @@
 
 export type DraftType = 'snake' | 'linear' | '3rr' | 'auction' | 'slow_auction';
 export type DraftStatus = 'pre_draft' | 'drafting' | 'complete';
+export type DraftClockState = 'running' | 'paused' | 'stopped';
 
 // Draft settings (Sleeper-compatible, all integer values)
 export interface DraftSettings {
@@ -69,6 +70,8 @@ export interface DraftMetadata {
   nomination_deadline?: string | null;
   derby?: DerbyState;
   order_method?: 'randomize' | 'derby';
+  clock_state?: DraftClockState;
+  clock_paused_remaining?: number | null;
   [key: string]: unknown;
 }
 

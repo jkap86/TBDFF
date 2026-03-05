@@ -103,6 +103,10 @@ export function createDraftRoutes(controller: DraftController): Router {
   router.get('/:draftId/budgets', asyncHandler(controller.getSlowAuctionBudgets));
   router.get('/:draftId/nomination-stats', asyncHandler(controller.getNominationStats));
 
+  // Commissioner draft controls (pause/stop)
+  router.post('/:draftId/pause', asyncHandler(controller.pauseDraft));
+  router.post('/:draftId/stop', asyncHandler(controller.stopDraft));
+
   // Derby (draft order selection)
   router.post('/:draftId/derby/start', asyncHandler(controller.startDerby));
   router.get('/:draftId/derby', asyncHandler(controller.getDerbyState));

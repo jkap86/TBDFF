@@ -48,6 +48,10 @@ export class AuctionService {
     if (draft.status !== 'drafting') throw new ValidationException('Draft is not active');
     if (draft.type !== 'auction') throw new ValidationException('Not an auction draft');
 
+    if ((draft.metadata?.clock_state ?? 'running') === 'stopped') {
+      throw new ValidationException('Draft is stopped by commissioner');
+    }
+
     const member = await this.leagueRepository.findMember(draft.leagueId, userId);
     if (!member) throw new ForbiddenException('Not a member of this league');
 
@@ -129,6 +133,10 @@ export class AuctionService {
     if (draft.status !== 'drafting') throw new ValidationException('Draft is not active');
     if (draft.type !== 'auction') throw new ValidationException('Not an auction draft');
 
+    if ((draft.metadata?.clock_state ?? 'running') === 'stopped') {
+      throw new ValidationException('Draft is stopped by commissioner');
+    }
+
     const member = await this.leagueRepository.findMember(draft.leagueId, userId);
     if (!member) throw new ForbiddenException('Not a member');
 
@@ -208,6 +216,11 @@ export class AuctionService {
     // Pre-checks outside transaction
     const draft = await this.draftRepository.findById(draftId);
     if (!draft) throw new NotFoundException('Draft not found');
+
+    const resolveClockState = draft.metadata?.clock_state ?? 'running';
+    if (resolveClockState === 'paused' || resolveClockState === 'stopped') {
+      throw new ValidationException('Draft is paused or stopped by commissioner');
+    }
 
     const member = await this.leagueRepository.findMember(draft.leagueId, userId);
     if (!member) throw new ForbiddenException('Not a member of this league');
@@ -347,6 +360,11 @@ export class AuctionService {
     if (!draft) throw new NotFoundException('Draft not found');
     if (draft.type !== 'auction') throw new ValidationException('Not an auction draft');
     if (draft.status !== 'drafting') throw new ValidationException('Draft is not active');
+
+    const autoNomClockState = draft.metadata?.clock_state ?? 'running';
+    if (autoNomClockState === 'paused' || autoNomClockState === 'stopped') {
+      throw new ValidationException('Draft is paused or stopped by commissioner');
+    }
 
     const member = await this.leagueRepository.findMember(draft.leagueId, userId);
     const isCommissioner = member?.role === 'commissioner';

@@ -14,14 +14,6 @@ import { DraftControls } from '@/features/drafts/components/DraftControls';
 import { AuctionControls } from '@/features/drafts/components/AuctionControls';
 import { DraftRoomSkeleton } from '@/features/drafts/components/DraftRoomSkeleton';
 
-const draftTypeLabels: Record<string, string> = {
-  snake: 'Snake',
-  linear: 'Linear',
-  '3rr': '3rd Round Reversal',
-  auction: 'Auction',
-  slow_auction: 'Slow Auction',
-};
-
 export default function DraftRoomPage() {
   const params = useParams();
   const searchParams = useSearchParams();
@@ -70,7 +62,7 @@ export default function DraftRoomPage() {
     includeRookiePicks: draft.settings.include_rookie_picks === 1,
     ...(room.isAuction ? {
       onDraft: room.handleNominate,
-      isMyTurn: !!room.isMyTurn && !draft.metadata?.current_nomination && !room.isAutoPick,
+      isMyTurn: !!room.isMyTurn && !draft.metadata?.current_nomination && !room.isAutoPick && !room.isDraftStopped,
       isPicking: room.isNominating,
       actionLabel: 'Nominate',
     } : room.isSlowAuction ? {
@@ -80,7 +72,7 @@ export default function DraftRoomPage() {
       actionLabel: 'Nominate',
     } : {
       onDraft: room.handleMakePick,
-      isMyTurn: !!room.isMyTurn,
+      isMyTurn: !!room.isMyTurn && !room.isDraftStopped,
       isPicking: room.isPicking,
     }),
   };
@@ -92,15 +84,19 @@ export default function DraftRoomPage() {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
             <h1 className="text-2xl font-bold text-foreground">Draft Room</h1>
-            <span className={`rounded-full px-3 py-1 text-sm font-medium ${
-              draft.status === 'drafting'
-                ? 'bg-blue-100 text-blue-700'
-                : draft.status === 'complete'
+            {draft.status !== 'pre_draft' && (
+              <span className={`rounded-full px-3 py-1 text-sm font-medium ${
+                draft.status === 'complete'
                   ? 'bg-green-100 text-green-700'
-                  : 'bg-yellow-100 text-yellow-700'
-            }`}>
-              {draft.status === 'drafting' ? 'Live' : draft.status === 'complete' ? 'Complete' : 'Setup'}
-            </span>
+                  : room.isDraftStopped
+                    ? 'bg-red-100 text-red-700'
+                    : room.isDraftPaused
+                      ? 'bg-yellow-100 text-yellow-800'
+                      : 'bg-blue-100 text-blue-700'
+              }`}>
+                {draft.status === 'complete' ? 'Complete' : room.isDraftStopped ? 'Stopped' : room.isDraftPaused ? 'Paused' : 'Live'}
+              </span>
+            )}
           </div>
           <div className="flex items-center gap-4">
             {draft.status === 'pre_draft' && room.isCommissioner && (
@@ -116,15 +112,6 @@ export default function DraftRoomPage() {
                 {isStarting ? 'Starting...' : 'Start Draft'}
               </button>
             )}
-            <div className="text-sm text-muted-foreground">
-              {draftTypeLabels[draft.type]} | {draft.settings.rounds} rounds | {
-              room.isSlowAuction
-                ? `$${draft.settings.budget} budget | ${Math.round((draft.settings.bid_window_seconds ?? 43200) / 3600)}h bid window`
-                : room.isAuction
-                  ? `$${draft.settings.budget} budget | ${draft.settings.offering_timer ?? 120}s offer / ${draft.settings.nomination_timer}s bid`
-                  : `${draft.settings.pick_timer}s timer`
-            }
-            </div>
             {draft.status !== 'complete' && (
               <button
                 onClick={() => setDrawerOpen(true)}
@@ -180,6 +167,10 @@ export default function DraftRoomPage() {
               onBid={room.handleBid}
               onToggleAutoPick={room.handleToggleAutoPick}
               onNominationMaxBid={room.handleNominationMaxBid}
+              isCommissioner={room.isCommissioner}
+              clockState={room.clockState}
+              onPause={room.handlePauseDraft}
+              onStop={room.handleStopDraft}
             />
             <AuctionBoard draft={draft} picks={picks} members={members} currentUserId={user?.id} />
           </>
@@ -219,6 +210,10 @@ export default function DraftRoomPage() {
               nextPick={room.nextPick}
               pickError={room.pickError}
               onToggleAutoPick={room.handleToggleAutoPick}
+              isCommissioner={room.isCommissioner}
+              clockState={room.clockState}
+              onPause={room.handlePauseDraft}
+              onStop={room.handleStopDraft}
             />
             <DraftBoard draft={draft} picks={picks} members={members} rosters={rosters} currentUserId={user?.id} />
           </>

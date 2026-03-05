@@ -73,6 +73,7 @@ export type {
   DraftPick,
   DraftType,
   DraftStatus,
+  DraftClockState,
   DraftSettings,
   CreateDraftRequest,
   UpdateDraftRequest,

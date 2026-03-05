@@ -123,6 +123,13 @@ export const draftApi = {
   getNominationStats: (draftId: string, token: string) =>
     apiClient.get<NominationStatsResponse>(`/drafts/${draftId}/nomination-stats`, token),
 
+  // Commissioner draft controls
+  pause: (draftId: string, token: string) =>
+    apiClient.post<DraftResponse>(`/drafts/${draftId}/pause`, undefined, token),
+
+  stop: (draftId: string, token: string) =>
+    apiClient.post<DraftResponse>(`/drafts/${draftId}/stop`, undefined, token),
+
   // Derby (draft order selection)
   startDerby: (draftId: string, token: string) =>
     apiClient.post<DerbyPickResponse>(`/drafts/${draftId}/derby/start`, undefined, token),

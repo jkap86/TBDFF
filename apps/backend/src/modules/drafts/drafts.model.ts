@@ -1,5 +1,6 @@
 export type DraftType = 'snake' | 'linear' | '3rr' | 'auction' | 'slow_auction';
 export type DraftStatus = 'pre_draft' | 'drafting' | 'complete';
+export type DraftClockState = 'running' | 'paused' | 'stopped';
 
 export interface BidHistoryEntry {
   user_id: string;
@@ -60,6 +61,8 @@ export interface DraftMetadata {
   current_nomination?: AuctionNomination | null;
   nomination_deadline?: string | null;
   derby?: DerbyState;
+  clock_state?: DraftClockState;
+  clock_paused_remaining?: number | null;
   [key: string]: unknown;
 }
 
