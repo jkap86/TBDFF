@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { DollarSign } from 'lucide-react';
 import { leagueApi, draftApi, matchupApi, paymentApi, ApiError, type UpdateLeagueRequest, type Draft, type Matchup } from '@/lib/api';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import { LeagueSettingsModal } from '@/features/leagues/components/LeagueSettingsModal';
@@ -203,6 +204,18 @@ export default function LeagueDetailPage() {
           isCommissioner={isCommissioner}
           onOpenSettings={() => setIsSettingsOpen(true)}
         />
+
+        {/* League status icons */}
+        {(() => {
+          const buyIn = (league.settings as Record<string, unknown>)?.buy_in as number | undefined;
+          const isPaidAndFilled = buyIn != null && buyIn > 0 && league.status !== 'not_filled';
+          if (!isPaidAndFilled) return null;
+          return (
+            <div className="-mt-4 flex items-center gap-1.5 px-1">
+              <DollarSign className="h-4 w-4 text-success-foreground" />
+            </div>
+          );
+        })()}
 
         {league.status !== 'offseason' && (
           <LeagueDuesCard

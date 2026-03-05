@@ -1,7 +1,6 @@
 'use client';
 
 import Link from 'next/link';
-import { DollarSign } from 'lucide-react';
 import type { League } from '@/lib/api';
 
 interface LeagueCardProps {
@@ -25,46 +24,34 @@ export function LeagueCard({ league }: LeagueCardProps) {
     complete: 'Complete',
   };
 
-  const buyIn = (league.settings as Record<string, unknown>)?.buy_in as number | undefined;
-  const isPaidLeague = buyIn != null && buyIn > 0;
-  const isFilledAndPaid = isPaidLeague && league.status !== 'not_filled';
-
   return (
-    <div>
-      <Link
-        href={`/leagues/${league.id}`}
-        className="block rounded-lg border border-border bg-card p-4 shadow-sm transition-shadow hover:shadow-md glow-border"
-      >
-        <div className="mb-2 flex items-start justify-between">
-          <h3 className="text-lg font-bold text-foreground font-heading">{league.name}</h3>
-          <span
-            className={`rounded-full px-2 py-1 text-xs font-medium ${statusColors[league.status] || statusColors.not_filled}`}
-          >
-            {statusLabels[league.status] || league.status}
-          </span>
-        </div>
+    <Link
+      href={`/leagues/${league.id}`}
+      className="block rounded-lg border border-border bg-card p-4 shadow-sm transition-shadow hover:shadow-md glow-border"
+    >
+      <div className="mb-2 flex items-start justify-between">
+        <h3 className="text-lg font-bold text-foreground font-heading">{league.name}</h3>
+        <span
+          className={`rounded-full px-2 py-1 text-xs font-medium ${statusColors[league.status] || statusColors.not_filled}`}
+        >
+          {statusLabels[league.status] || league.status}
+        </span>
+      </div>
 
-        <div className="space-y-1 text-sm text-muted-foreground">
+      <div className="space-y-1 text-sm text-muted-foreground">
+        <p>
+          <span className="font-medium">Season:</span> {league.season}
+        </p>
+        <p>
+          <span className="font-medium">Teams:</span> {league.total_rosters}
+        </p>
+        {league.settings?.type !== undefined && (
           <p>
-            <span className="font-medium">Season:</span> {league.season}
+            <span className="font-medium">Type:</span>{' '}
+            {league.settings.type === 0 ? 'Redraft' : league.settings.type === 1 ? 'Keeper' : 'Dynasty'}
           </p>
-          <p>
-            <span className="font-medium">Teams:</span> {league.total_rosters}
-          </p>
-          {league.settings?.type !== undefined && (
-            <p>
-              <span className="font-medium">Type:</span>{' '}
-              {league.settings.type === 0 ? 'Redraft' : league.settings.type === 1 ? 'Keeper' : 'Dynasty'}
-            </p>
-          )}
-        </div>
-      </Link>
-
-      {isFilledAndPaid && (
-        <div className="mt-1 flex items-center gap-1.5 px-1">
-          <DollarSign className="h-4 w-4 text-success-foreground" />
-        </div>
-      )}
-    </div>
+        )}
+      </div>
+    </Link>
   );
 }
