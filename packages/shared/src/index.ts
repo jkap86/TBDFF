@@ -33,7 +33,7 @@ export { transactionApi } from './transactions/transaction-api';
 export { paymentApi } from './payments/payment-api';
 
 // Types
-export type { User, AuthResponse, UserResponse } from './types/auth';
+export type { User, AuthResponse, UserResponse, UserSearchResult, UserSearchResponse } from './types/auth';
 export type {
   League,
   LeagueMember,

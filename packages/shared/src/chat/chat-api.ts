@@ -4,6 +4,7 @@ import type {
   ConversationListResponse,
   ConversationResponse,
 } from '../types/chat';
+import type { UserSearchResponse } from '../types/auth';
 
 export const chatApi = {
   getLeagueMessages: (
@@ -34,5 +35,11 @@ export const chatApi = {
     if (params?.before) search.set('before', params.before);
     const q = search.toString() ? `?${search.toString()}` : '';
     return apiClient.get<MessageListResponse>(`/conversations/${conversationId}/messages${q}`, token);
+  },
+
+  searchUsers: (query: string, token: string, limit?: number) => {
+    const search = new URLSearchParams({ q: query });
+    if (limit !== undefined) search.set('limit', limit.toString());
+    return apiClient.get<UserSearchResponse>(`/auth/users/search?${search.toString()}`, token);
   },
 };

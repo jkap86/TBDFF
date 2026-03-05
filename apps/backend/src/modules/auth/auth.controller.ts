@@ -103,4 +103,13 @@ export class AuthController {
     await this.authService.resetPassword(token, password);
     res.status(200).json({ message: 'Password has been reset successfully.' });
   };
+
+  searchUsers = async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
+    const userId = req.user?.userId;
+    if (!userId) return next(new InvalidCredentialsException('User ID not found'));
+
+    const { q, limit } = req.query as unknown as { q: string; limit: number };
+    const users = await this.authService.searchUsers(q, userId, limit);
+    res.status(200).json({ users });
+  };
 }

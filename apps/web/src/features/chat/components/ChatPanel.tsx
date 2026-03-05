@@ -19,13 +19,22 @@ export function ChatPanel() {
     closePanel,
     setActiveConversation,
   } = useChatPanel();
-  const { conversations, isLoading } = useConversations();
+  const { conversations, isLoading, startConversation } = useConversations();
   const { panelRect, isDragging, handleDragPointerDown, handleResizePointerDown } =
     useDraggablePanel(isOpen);
 
   const handleSelect = (conversationId: string) => {
     const conv = conversations.find((c) => c.id === conversationId);
     if (conv) setActiveConversation(conv);
+  };
+
+  const handleStartConversation = async (userId: string) => {
+    try {
+      const conversation = await startConversation(userId);
+      setActiveConversation(conversation);
+    } catch {
+      // silently ignore — user will see conversation list unchanged
+    }
   };
 
   const handleBack = () => setActiveConversation(null);
@@ -62,7 +71,7 @@ export function ChatPanel() {
       {/* Panel */}
       {isOpen && (
         <div
-          className="fixed z-50 flex flex-col overflow-hidden rounded-2xl border border-border bg-chat-bg backdrop-blur-md shadow-[0_8px_32px_rgba(0,0,0,0.4),0_2px_8px_rgba(0,0,0,0.3)]"
+          className="fixed z-50 flex flex-col overflow-hidden rounded-2xl border border-border bg-chat-bg/50 backdrop-blur-md shadow-[0_8px_32px_rgba(0,0,0,0.4),0_2px_8px_rgba(0,0,0,0.3)]"
           style={{
             left: panelRect.x,
             top: panelRect.y,
@@ -153,6 +162,7 @@ export function ChatPanel() {
                   conversations={conversations}
                   isLoading={isLoading}
                   onSelect={handleSelect}
+                  onStartConversation={handleStartConversation}
                 />
               )}
             </div>

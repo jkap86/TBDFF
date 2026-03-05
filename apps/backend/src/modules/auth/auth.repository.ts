@@ -109,4 +109,14 @@ export class UserRepository {
       [passwordHash, userId]
     );
   }
+
+  async searchByUsername(query: string, excludeUserId: string, limit: number = 10) {
+    const result = await this.db.query(
+      `SELECT id, username, display_username FROM users
+       WHERE username ILIKE $1 AND id != $2
+       ORDER BY username LIMIT $3`,
+      [`%${query}%`, excludeUserId, limit],
+    );
+    return result.rows;
+  }
 }

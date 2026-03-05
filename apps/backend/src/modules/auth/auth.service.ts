@@ -198,6 +198,10 @@ export class AuthService {
     );
   }
 
+  async searchUsers(query: string, excludeUserId: string, limit?: number) {
+    return this.userRepository.searchByUsername(query, excludeUserId, limit);
+  }
+
   private generateRefreshToken(user: User): string {
     return signToken(
       { sub: user.userId, userId: user.userId, username: user.username, type: 'refresh' },

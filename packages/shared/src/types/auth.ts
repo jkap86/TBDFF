@@ -17,3 +17,13 @@ export interface AuthResponse {
 export interface UserResponse {
   user: User;
 }
+
+export interface UserSearchResult {
+  id: string;
+  username: string;
+  display_username: string;
+}
+
+export interface UserSearchResponse {
+  users: UserSearchResult[];
+}

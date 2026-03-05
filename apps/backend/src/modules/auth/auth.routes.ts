@@ -4,7 +4,7 @@ import { AuthController } from './auth.controller';
 import { authMiddleware } from '../../middleware/auth.middleware';
 import { asyncHandler } from '../../shared/async-handler';
 import { validate } from '../../shared/validate';
-import { registerSchema, loginSchema, refreshSchema, forgotPasswordSchema, resetPasswordSchema } from './auth.schemas';
+import { registerSchema, loginSchema, refreshSchema, forgotPasswordSchema, resetPasswordSchema, searchUsersSchema } from './auth.schemas';
 
 const isDev = process.env.NODE_ENV === 'development';
 
@@ -53,6 +53,7 @@ export function createAuthRoutes(controller: AuthController): Router {
   router.post('/logout', authMiddleware, asyncHandler(controller.logout));
   router.post('/forgot-password', forgotPasswordLimiter, validate(forgotPasswordSchema), asyncHandler(controller.forgotPassword));
   router.post('/reset-password', resetPasswordLimiter, validate(resetPasswordSchema), asyncHandler(controller.resetPassword));
+  router.get('/users/search', authMiddleware, validate(searchUsersSchema, 'query'), asyncHandler(controller.searchUsers));
 
   return router;
 }
