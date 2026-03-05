@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { AppException } from './exceptions';
+import { RequestWithId } from '../middleware/request-id.middleware';
 
 export const errorHandler = (
   err: Error | AppException,
@@ -7,8 +8,10 @@ export const errorHandler = (
   res: Response,
   _next: NextFunction
 ) => {
+  const requestId = (req as RequestWithId).requestId ?? 'unknown';
+
   if (err instanceof AppException) {
-    console.warn(`[${req.method}] ${req.path} - ${err.errorCode}: ${err.message}`);
+    console.warn(`[${req.method}] ${req.path} - ${err.errorCode}: ${err.message} req=${requestId}`);
     return res.status(err.statusCode).json({
       error: {
         code: err.errorCode,
@@ -17,7 +20,7 @@ export const errorHandler = (
     });
   }
 
-  console.error(`[${req.method}] ${req.path} - Unexpected error:`, err.message);
+  console.error(`[${req.method}] ${req.path} - Unexpected error: ${err.message} req=${requestId}`);
   if (process.env.NODE_ENV !== 'production') {
     console.error(err.stack);
   }

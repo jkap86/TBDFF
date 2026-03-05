@@ -67,6 +67,7 @@ function createPool(): Pool {
     min: 2,
     idleTimeoutMillis: 30000,
     connectionTimeoutMillis: 5000,
+    ...(config.DATABASE_SSL && { ssl: { rejectUnauthorized: false } }),
   });
 
   pool.on('error', (err) => {

@@ -1,15 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-const PROTECTED_PATHS = ['/dashboard', '/leagues'];
+const PUBLIC_PATHS = ['/', '/login', '/register', '/forgot-password', '/reset-password'];
 
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  const isProtected = PROTECTED_PATHS.some(
-    (path) => pathname === path || pathname.startsWith(path + '/')
-  );
+  const isPublic = PUBLIC_PATHS.includes(pathname);
 
-  if (!isProtected) return NextResponse.next();
+  if (isPublic) return NextResponse.next();
 
   // tbdff_session is a UX-only gate — it is NOT authentication.
   // It merely prevents unauthenticated users from seeing a flash of protected pages.

@@ -6,6 +6,11 @@ import { createChatGateway } from './modules/chat/chat.gateway';
 import { createDraftGateway } from './modules/drafts/draft.gateway';
 import { createTransactionsGateway } from './modules/transactions/transactions.gateway';
 import { createMatchupDerbyGateway } from './modules/matchups/matchup-derby.gateway';
+import { Redis } from 'ioredis';
+import { createAdapter } from '@socket.io/redis-adapter';
+
+let redisPub: Redis | null = null;
+let redisSub: Redis | null = null;
 
 const container = createContainer();
 const app = createApp(container);
@@ -13,6 +18,17 @@ const server = createServer(app);
 
 // Attach Socket.IO after HTTP server creation
 const io = createChatGateway(server, container.services.chatService);
+
+// Optionally attach Redis adapter for multi-instance Socket.IO scaling.
+// NOTE: The in-memory chat rate-limit map in chat.gateway.ts will NOT sync
+// across instances. This is acceptable — the rate limit is a convenience
+// throttle, not a security boundary.
+if (config.REDIS_URL) {
+  redisPub = new Redis(config.REDIS_URL);
+  redisSub = redisPub.duplicate();
+  io.adapter(createAdapter(redisPub, redisSub));
+  console.log('Socket.IO Redis adapter attached');
+}
 
 // Attach draft gateway on the same socket.io server and inject into service
 const draftGateway = createDraftGateway(
@@ -42,11 +58,11 @@ container.services.systemMessageService.setIO(io);
 container.services.tradeService.setSystemMessages(container.services.systemMessageService);
 container.services.transactionService.setSystemMessages(container.services.systemMessageService);
 
-// Start auction timer job (replaces in-memory timers with DB-backed polling)
-container.jobs.auctionTimerJob.start();
-
-// Start slow auction settlement job
-container.jobs.slowAuctionSettlementJob.start();
+// Start auction jobs only when background jobs are enabled
+if (config.ENABLE_JOBS) {
+  container.jobs.auctionTimerJob.start();
+  container.jobs.slowAuctionSettlementJob.start();
+}
 
 server.listen(config.PORT, '0.0.0.0', () => {
   console.log(`TBDFF Backend started on port ${config.PORT}`);
@@ -61,8 +77,12 @@ const gracefulShutdown = () => {
   console.log('Shutting down gracefully...');
 
   io.close();
-  container.jobs.auctionTimerJob.stop();
-  container.jobs.slowAuctionSettlementJob.stop();
+  if (redisPub) redisPub.disconnect();
+  if (redisSub) redisSub.disconnect();
+  if (config.ENABLE_JOBS) {
+    container.jobs.auctionTimerJob.stop();
+    container.jobs.slowAuctionSettlementJob.stop();
+  }
 
   server.close(async () => {
     console.log('HTTP server closed');

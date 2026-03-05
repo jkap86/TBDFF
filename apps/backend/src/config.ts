@@ -19,6 +19,7 @@ export const config = {
   NODE_ENV: process.env.NODE_ENV || 'development',
   PORT: parseInt(process.env.PORT || '5000', 10),
   DATABASE_URL: required('DATABASE_URL'),
+  DATABASE_SSL: parseBoolean(process.env.DATABASE_SSL, false),
   CORS_ORIGINS: (process.env.CORS_ORIGINS || process.env.CORS_ORIGIN)
     ?.split(',')
     .map(s => s.trim())
@@ -31,4 +32,5 @@ export const config = {
   RESEND_API_KEY: process.env.RESEND_API_KEY || '',
   APP_URL: process.env.APP_URL || 'http://localhost:3000',
   EMAIL_FROM: process.env.EMAIL_FROM || 'noreply@yourdomain.com',
+  REDIS_URL: process.env.REDIS_URL || '',
 } as const;

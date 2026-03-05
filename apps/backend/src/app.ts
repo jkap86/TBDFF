@@ -7,6 +7,7 @@ import { Container } from './container';
 import { registerRoutes } from './routes';
 import { errorHandler } from './shared/error-handler';
 import { ipMutationLimiter } from './middleware/rate-limit.middleware';
+import { requestIdMiddleware, requestLogger } from './middleware/request-id.middleware';
 
 export function createApp(container: Container) {
   const app = express();
@@ -26,6 +27,8 @@ export function createApp(container: Container) {
   }));
   app.use(express.json({ limit: '1mb' }));
   app.use(cookieParser());
+  app.use(requestIdMiddleware);
+  app.use(requestLogger);
 
   // Coarse IP-keyed rate limit on all mutation endpoints (POST/PUT/PATCH/DELETE)
   app.use('/api', ipMutationLimiter);
