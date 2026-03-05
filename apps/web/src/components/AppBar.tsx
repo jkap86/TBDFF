@@ -32,7 +32,7 @@ export function AppBar() {
   };
 
   return (
-    <header className="fixed top-0 left-0 right-0 z-40 bg-card border-b border-border shadow-md">
+    <header className="fixed top-0 left-0 right-0 z-40 bg-surface border-b border-border shadow-md">
       <div className="mx-auto flex h-14 max-w-7xl items-center justify-between px-4">
         {pathname !== '/dashboard' && (
           <button
