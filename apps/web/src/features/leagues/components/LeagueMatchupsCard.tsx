@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useQueryClient } from '@tanstack/react-query';
-import { Settings } from 'lucide-react';
+import { Settings, ChevronDown } from 'lucide-react';
 import { matchupApi, ApiError } from '@/lib/api';
 import type { League, LeagueMember, Roster, Matchup } from '@tbdff/shared';
 
@@ -29,6 +29,7 @@ export function LeagueMatchupsCard({
   onOpenDerbySettings,
 }: LeagueMatchupsCardProps) {
   const queryClient = useQueryClient();
+  const [isExpanded, setIsExpanded] = useState(false);
   const [selectedWeek, setSelectedWeek] = useState(1);
   const [isGeneratingMatchups, setIsGeneratingMatchups] = useState(false);
   const [mutationError, setMutationError] = useState<string | null>(null);
@@ -62,44 +63,37 @@ export function LeagueMatchupsCard({
 
   return (
     <div className="rounded-lg bg-card p-6 shadow">
-      <div className="mb-4 flex items-center justify-between">
-        <h2 className="text-xl font-bold text-foreground">Matchups</h2>
-        {isCommissioner && (league.settings?.matchup_type ?? 0) === 0 && (
-          <button
-            onClick={handleGenerateMatchups}
-            disabled={isGeneratingMatchups}
-            className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary-hover disabled:opacity-50"
-          >
-            {isGeneratingMatchups
-              ? 'Generating...'
-              : matchups.length > 0
-                ? 'Re-Randomize Schedule'
-                : 'Generate Schedule'}
-          </button>
-        )}
-        {(league.settings?.matchup_type ?? 0) === 1 && (
-          <div className="flex gap-2">
-            {isCommissioner && (
-              <button
-                onClick={onOpenDerbySettings}
-                className="rounded-lg bg-muted px-3 py-2 text-accent-foreground hover:bg-muted-hover"
-                title="Derby Settings"
-              >
-                <Settings className="h-4 w-4" />
-              </button>
-            )}
-            <Link
-              href={`/leagues/${leagueId}/matchup-derby`}
-              className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary-hover"
-            >
-              Enter Derby Room
-            </Link>
-          </div>
-        )}
+      <div className={`flex items-center justify-between ${isExpanded ? 'mb-4' : ''}`}>
+        <button
+          onClick={() => setIsExpanded((prev) => !prev)}
+          className="flex flex-1 items-center gap-3"
+        >
+          <ChevronDown
+            className={`h-5 w-5 text-muted-foreground transition-transform ${isExpanded ? '' : '-rotate-90'}`}
+          />
+          <h2 className="text-xl font-bold text-foreground">Matchups</h2>
+          <span className="text-sm text-muted-foreground">
+            {matchups.length > 0
+              ? `${new Set(matchups.map((m) => m.week)).size} weeks`
+              : 'No schedule'}
+          </span>
+        </button>
       </div>
 
+      {isExpanded && (<>
       {matchups.length > 0 ? (
         <div>
+          {isCommissioner && (league.settings?.matchup_type ?? 0) === 0 && (
+            <div className="mb-4 flex justify-end">
+              <button
+                onClick={handleGenerateMatchups}
+                disabled={isGeneratingMatchups}
+                className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary-hover disabled:opacity-50"
+              >
+                {isGeneratingMatchups ? 'Generating...' : 'Re-Randomize Schedule'}
+              </button>
+            </div>
+          )}
           {/* Week selector */}
           <div className="mb-4 flex gap-2 overflow-x-auto pb-1">
             {Array.from(new Set(matchups.map((m) => m.week)))
@@ -168,16 +162,38 @@ export function LeagueMatchupsCard({
           </div>
         </div>
       ) : (
-        <p className="py-4 text-center text-muted-foreground">
-          {isCommissioner
-            ? (league.settings?.matchup_type ?? 0) === 1
-              ? 'No matchups yet. Enter the derby room to set the schedule.'
-              : 'No matchups generated yet. Click the button above to generate the schedule.'
-            : (league.settings?.matchup_type ?? 0) === 1
-              ? 'No matchups yet. Enter the derby room to set the schedule.'
-              : 'No matchups have been generated yet.'}
-        </p>
+        <div className="flex justify-center gap-2 py-4">
+          {isCommissioner && (league.settings?.matchup_type ?? 0) === 0 && (
+            <button
+              onClick={handleGenerateMatchups}
+              disabled={isGeneratingMatchups}
+              className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary-hover disabled:opacity-50"
+            >
+              {isGeneratingMatchups ? 'Generating...' : 'Generate Schedule'}
+            </button>
+          )}
+          {(league.settings?.matchup_type ?? 0) === 1 && (
+            <>
+              {isCommissioner && (
+                <button
+                  onClick={onOpenDerbySettings}
+                  className="rounded-lg bg-muted px-3 py-2 text-accent-foreground hover:bg-muted-hover"
+                  title="Derby Settings"
+                >
+                  <Settings className="h-4 w-4" />
+                </button>
+              )}
+              <Link
+                href={`/leagues/${leagueId}/matchup-derby`}
+                className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary-hover"
+              >
+                Enter Derby Room
+              </Link>
+            </>
+          )}
+        </div>
       )}
+      </>)}
     </div>
   );
 }

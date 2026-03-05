@@ -219,39 +219,35 @@ export default function LeagueDetailPage() {
           />
         )}
 
-        {league.status !== 'not_filled' && (
-          <LeagueDraftsCard
-            league={league}
-            leagueId={leagueId}
-            drafts={drafts}
-            activeDrafts={activeDrafts}
-            completedDrafts={completedDrafts}
-            members={members}
-            rosters={rosters}
-            isCommissioner={isCommissioner}
-            currentUserId={user?.id}
-            accessToken={accessToken}
-            shuffleDisplay={shuffleDisplay}
-            mutationError={mutationError}
-            onRandomizeDraftOrder={handleRandomizeDraftOrder}
-            onStartDerby={handleStartDerby}
-            onEditDraft={setEditingDraftId}
-            onDraftUpdated={handleDraftUpdated}
-          />
-        )}
+        <LeagueDraftsCard
+          league={league}
+          leagueId={leagueId}
+          drafts={drafts}
+          activeDrafts={activeDrafts}
+          completedDrafts={completedDrafts}
+          members={members}
+          rosters={rosters}
+          isCommissioner={isCommissioner}
+          currentUserId={user?.id}
+          accessToken={accessToken}
+          shuffleDisplay={shuffleDisplay}
+          mutationError={mutationError}
+          onRandomizeDraftOrder={handleRandomizeDraftOrder}
+          onStartDerby={handleStartDerby}
+          onEditDraft={setEditingDraftId}
+          onDraftUpdated={handleDraftUpdated}
+        />
 
-        {league.status !== 'not_filled' && (
-          <LeagueMatchupsCard
-            league={league}
-            leagueId={leagueId}
-            matchups={matchups}
-            members={members}
-            rosters={rosters}
-            isCommissioner={isCommissioner}
-            accessToken={accessToken}
-            onOpenDerbySettings={() => setShowDerbySettings(true)}
-          />
-        )}
+        <LeagueMatchupsCard
+          league={league}
+          leagueId={leagueId}
+          matchups={matchups}
+          members={members}
+          rosters={rosters}
+          isCommissioner={isCommissioner}
+          accessToken={accessToken}
+          onOpenDerbySettings={() => setShowDerbySettings(true)}
+        />
 
         {league.status !== 'not_filled' && (
           <LeagueLinkCards

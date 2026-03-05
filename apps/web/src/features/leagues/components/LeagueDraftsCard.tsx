@@ -50,7 +50,7 @@ export function LeagueDraftsCard({
   onEditDraft,
   onDraftUpdated,
 }: LeagueDraftsCardProps) {
-  const [isDraftsExpanded, setIsDraftsExpanded] = useState(true);
+  const [isDraftsExpanded, setIsDraftsExpanded] = useState(false);
   const [expandedDraftOrders, setExpandedDraftOrders] = useState<Set<string>>(new Set());
   const [expandedDerbyResults, setExpandedDerbyResults] = useState<Set<string>>(new Set());
   const [reRandomizeDraftId, setReRandomizeDraftId] = useState<string | null>(null);
