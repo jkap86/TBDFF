@@ -96,10 +96,10 @@ export function LeagueHeaderCard({ league, isCommissioner, onOpenSettings }: Lea
       {isScoringOpen && (() => {
         const scoring = scoringFromLeague(league);
         return (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setIsScoringOpen(false)}>
-            <div className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-lg bg-card p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={() => setIsScoringOpen(false)}>
+            <div className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-lg bg-card p-6 shadow-xl glass-strong" onClick={(e) => e.stopPropagation()}>
               <div className="mb-4 flex items-center justify-between">
-                <h2 className="text-xl font-bold text-foreground">Scoring Settings</h2>
+                <h2 className="text-xl font-bold text-foreground font-heading">Scoring Settings</h2>
                 <button type="button" onClick={() => setIsScoringOpen(false)} className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-accent-foreground">
                   <X className="h-5 w-5" />
                 </button>
@@ -128,10 +128,10 @@ export function LeagueHeaderCard({ league, isCommissioner, onOpenSettings }: Lea
       {isRosterOpen && (() => {
         const counts = positionArrayToCounts(league.roster_positions ?? []);
         return (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setIsRosterOpen(false)}>
-            <div className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-lg bg-card p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={() => setIsRosterOpen(false)}>
+            <div className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-lg bg-card p-6 shadow-xl glass-strong" onClick={(e) => e.stopPropagation()}>
               <div className="mb-4 flex items-center justify-between">
-                <h2 className="text-xl font-bold text-foreground">Roster Positions</h2>
+                <h2 className="text-xl font-bold text-foreground font-heading">Roster Positions</h2>
                 <button type="button" onClick={() => setIsRosterOpen(false)} className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-accent-foreground">
                   <X className="h-5 w-5" />
                 </button>

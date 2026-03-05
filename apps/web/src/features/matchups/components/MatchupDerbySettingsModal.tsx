@@ -65,12 +65,12 @@ export function MatchupDerbySettingsModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={onClose}>
       <div
-        className="w-full max-w-sm rounded-lg bg-card p-6 shadow-xl"
+        className="w-full max-w-sm rounded-lg bg-card p-6 shadow-xl glass-strong"
         onClick={(e) => e.stopPropagation()}
       >
-        <h2 className="mb-4 text-lg font-bold text-foreground">Derby Settings</h2>
+        <h2 className="mb-4 text-lg font-bold text-foreground font-heading">Derby Settings</h2>
 
         {error && (
           <div className="mb-4 rounded bg-destructive p-3 text-sm text-destructive-foreground">{error}</div>

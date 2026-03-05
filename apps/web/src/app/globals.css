@@ -13,84 +13,117 @@
   animation: route-progress 3s ease-out forwards;
 }
 
+@keyframes shimmer-border {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+@keyframes neon-pulse {
+  0%, 100% { opacity: 0.6; }
+  50% { opacity: 1; }
+}
+
+@keyframes shine-sweep {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
 @custom-variant dark (&:where(.dark, .dark *));
 
+/* ── Light Theme: "Frosted Chrome" ── */
 :root {
-  --background: #ffffff;
+  --background: #f0f2f5;
   --foreground: #111827;
-  --card: #ffffff;
+  --card: rgba(255, 255, 255, 0.75);
   --card-foreground: #111827;
-  --popover: #ffffff;
+  --popover: rgba(255, 255, 255, 0.85);
   --popover-foreground: #111827;
-  --primary: #2563eb;
-  --primary-hover: #1d4ed8;
-  --primary-foreground: #ffffff;
+  --primary: #00c8e0;
+  --primary-hover: #00a8c0;
+  --primary-foreground: #0f172a;
   --secondary: #4b5563;
   --secondary-hover: #374151;
   --secondary-foreground: #ffffff;
-  --muted: #f3f4f6;
-  --muted-hover: #e5e7eb;
-  --muted-foreground: #6b7280;
-  --accent: #f9fafb;
-  --accent-hover: #f3f4f6;
-  --accent-foreground: #374151;
+  --muted: #e8ecf1;
+  --muted-hover: #dde2e9;
+  --muted-foreground: #64748b;
+  --accent: #f0f4f8;
+  --accent-hover: #e8ecf1;
+  --accent-foreground: #334155;
   --destructive: #fef2f2;
   --destructive-foreground: #dc2626;
   --success: #dcfce7;
   --success-foreground: #15803d;
   --warning: #fef9c3;
   --warning-foreground: #a16207;
-  --info: #f3e8ff;
+  --info: #f0e6ff;
   --info-foreground: #9333ea;
-  --border: #e5e7eb;
-  --input: #d1d5db;
-  --ring: #3b82f6;
+  --border: #cbd5e1;
+  --input: #c5cdd8;
+  --ring: #00d4f0;
   --highlight: #fef9c3;
   --highlight-ring: #facc15;
   --highlight-foreground: #a16207;
-  --link: #2563eb;
-  --link-hover: #1d4ed8;
-  --disabled: #9ca3af;
-  --surface: #f9fafb;
+  --link: #0891b2;
+  --link-hover: #0e7490;
+  --disabled: #94a3b8;
+  --surface: #e8ecf1;
+
+  --neon-cyan: #00d4f0;
+  --neon-magenta: #e040fb;
+  --neon-purple: #a855f7;
+  --glass-bg: rgba(255, 255, 255, 0.55);
+  --glass-border: rgba(203, 213, 225, 0.6);
+  --neon-glow-color: rgba(0, 200, 224, 0.35);
+  --gradient-primary: linear-gradient(135deg, #00c8e0, #a855f7);
 }
 
+/* ── Dark Theme: "Cyberpunk" ── */
 .dark {
-  --background: #111827;
-  --foreground: #ffffff;
-  --card: #1f2937;
-  --card-foreground: #ffffff;
-  --popover: #1f2937;
-  --popover-foreground: #ffffff;
-  --primary: #2563eb;
-  --primary-hover: #1d4ed8;
-  --primary-foreground: #ffffff;
-  --secondary: #4b5563;
-  --secondary-hover: #374151;
-  --secondary-foreground: #ffffff;
-  --muted: #374151;
-  --muted-hover: #4b5563;
-  --muted-foreground: #9ca3af;
-  --accent: rgba(55, 65, 81, 0.5);
-  --accent-hover: #374151;
-  --accent-foreground: #d1d5db;
-  --destructive: rgba(127, 29, 29, 0.3);
-  --destructive-foreground: #f87171;
+  --background: #0a0e1a;
+  --foreground: #e2e8f0;
+  --card: rgba(15, 23, 42, 0.75);
+  --card-foreground: #e2e8f0;
+  --popover: rgba(15, 23, 42, 0.9);
+  --popover-foreground: #e2e8f0;
+  --primary: #00f0ff;
+  --primary-hover: #00c8d6;
+  --primary-foreground: #0a0e1a;
+  --secondary: #475569;
+  --secondary-hover: #334155;
+  --secondary-foreground: #e2e8f0;
+  --muted: #131b2e;
+  --muted-hover: #1a2540;
+  --muted-foreground: #94a3b8;
+  --accent: rgba(30, 41, 59, 0.5);
+  --accent-hover: rgba(51, 65, 81, 0.5);
+  --accent-foreground: #cbd5e1;
+  --destructive: rgba(127, 29, 29, 0.25);
+  --destructive-foreground: #fb7185;
   --success: rgba(20, 83, 45, 0.2);
-  --success-foreground: #4ade80;
-  --warning: rgba(113, 63, 18, 0.3);
-  --warning-foreground: #facc15;
+  --success-foreground: #34d399;
+  --warning: rgba(113, 63, 18, 0.25);
+  --warning-foreground: #fbbf24;
   --info: rgba(88, 28, 135, 0.2);
   --info-foreground: #c084fc;
-  --border: #374151;
-  --input: #4b5563;
-  --ring: #60a5fa;
+  --border: rgba(51, 65, 85, 0.6);
+  --input: rgba(71, 85, 105, 0.5);
+  --ring: #00f0ff;
   --highlight: rgba(113, 63, 18, 0.3);
   --highlight-ring: #ca8a04;
-  --highlight-foreground: #facc15;
-  --link: #60a5fa;
-  --link-hover: #93c5fd;
-  --disabled: #6b7280;
-  --surface: #111827;
+  --highlight-foreground: #fbbf24;
+  --link: #22d3ee;
+  --link-hover: #67e8f9;
+  --disabled: #475569;
+  --surface: #0d1224;
+
+  --neon-cyan: #00f0ff;
+  --neon-magenta: #ff00ff;
+  --neon-purple: #a855f7;
+  --glass-bg: rgba(15, 23, 42, 0.6);
+  --glass-border: rgba(51, 65, 85, 0.5);
+  --neon-glow-color: rgba(0, 240, 255, 0.25);
+  --gradient-primary: linear-gradient(135deg, #00f0ff, #a855f7);
 }
 
 @theme inline {
@@ -130,4 +163,150 @@
   --color-link-hover: var(--link-hover);
   --color-disabled: var(--disabled);
   --color-surface: var(--surface);
+  --color-neon-cyan: var(--neon-cyan);
+  --color-neon-magenta: var(--neon-magenta);
+  --color-neon-purple: var(--neon-purple);
+}
+
+/* ── Glass Utility Classes ── */
+.glass {
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.glass-subtle {
+  background: var(--glass-bg);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+.glass-strong {
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+
+/* ── Glow Utility Classes ── */
+.glow-primary {
+  transition: box-shadow 0.3s ease;
+}
+.glow-primary:hover {
+  box-shadow: 0 0 20px var(--neon-glow-color), 0 0 40px var(--neon-glow-color);
+}
+
+.glow-border {
+  transition: box-shadow 0.3s ease, border-color 0.3s ease;
+}
+.glow-border:hover {
+  border-color: var(--neon-cyan);
+  box-shadow: 0 0 15px var(--neon-glow-color);
+}
+
+.glow-text {
+  text-shadow: 0 0 10px var(--neon-glow-color);
+}
+.glow-text-strong {
+  text-shadow: 0 0 20px var(--neon-glow-color), 0 0 40px var(--neon-glow-color);
+}
+
+/* ── Gradient Utility Classes ── */
+.gradient-text {
+  background: var(--gradient-primary);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.gradient-bg {
+  background: var(--gradient-primary);
+}
+
+.gradient-border {
+  position: relative;
+  border: 1px solid transparent;
+  background-clip: padding-box;
+}
+.gradient-border::before {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  padding: 1px;
+  background: var(--gradient-primary);
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask-composite: exclude;
+  -webkit-mask-composite: xor;
+  pointer-events: none;
+}
+
+/* ── Shimmer Border ── */
+.shimmer-border {
+  position: relative;
+  overflow: hidden;
+}
+.shimmer-border::after {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(90deg, transparent, var(--neon-cyan), var(--neon-magenta), transparent);
+  background-size: 200% 100%;
+  animation: shimmer-border 3s linear infinite;
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask-composite: exclude;
+  -webkit-mask-composite: xor;
+  pointer-events: none;
+}
+
+/* ── Shine Sweep (for skeleton loading) ── */
+.shine-sweep {
+  position: relative;
+  overflow: hidden;
+}
+.shine-sweep::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.08) 50%,
+    transparent 100%
+  );
+  animation: shine-sweep 2s ease-in-out infinite;
+}
+
+/* ── Font heading class ── */
+.font-heading {
+  font-family: var(--font-heading), ui-sans-serif, system-ui, sans-serif;
+}
+
+/* ── Global Enhancement Rules ── */
+
+/* Frosted glass on all cards */
+[class*="bg-card"] {
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+/* Primary buttons glow on hover */
+[class*="bg-primary"]:hover {
+  box-shadow: 0 0 15px var(--neon-glow-color);
+  transition: box-shadow 0.3s ease;
+}
+
+/* Neon glow on input focus */
+input:focus,
+select:focus,
+textarea:focus {
+  box-shadow: 0 0 0 1px var(--ring), 0 0 12px var(--neon-glow-color) !important;
+}
+
+/* Headings use Space Grotesk */
+h1, h2, h3 {
+  font-family: var(--font-heading), ui-sans-serif, system-ui, sans-serif;
 }

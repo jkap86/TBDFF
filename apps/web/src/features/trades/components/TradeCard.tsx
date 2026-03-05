@@ -71,7 +71,7 @@ export function TradeCard({
 
   return (
     <div
-      className="rounded-lg border border-border bg-card p-4 cursor-pointer hover:border-ring transition-colors"
+      className="rounded-lg border border-border bg-card p-4 cursor-pointer hover:border-ring transition-colors glow-border"
       onClick={() => onViewDetail?.(trade)}
     >
       <div className="flex items-center justify-between mb-3">

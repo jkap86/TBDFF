@@ -13,7 +13,7 @@ export function LeagueLinkCards({ leagueId, leagueStatus }: LeagueLinkCardsProps
       {/* Trades Card */}
       <Link
         href={`/leagues/${leagueId}/trades`}
-        className="block w-full rounded-lg bg-card p-6 shadow hover:shadow-md transition-shadow text-left"
+        className="block w-full rounded-lg border border-border bg-card p-6 shadow hover:shadow-md transition-shadow text-left glow-border"
       >
         <div className="flex items-center gap-3 mb-2">
           <ArrowLeftRight className="h-5 w-5 text-link" />
@@ -27,22 +27,22 @@ export function LeagueLinkCards({ leagueId, leagueStatus }: LeagueLinkCardsProps
         <div className="grid gap-4 sm:grid-cols-2">
           <Link
             href={`/leagues/${leagueId}/waivers`}
-            className="rounded-lg bg-card p-6 shadow hover:shadow-md transition-shadow text-left"
+            className="rounded-lg border border-border bg-card p-6 shadow hover:shadow-md transition-shadow text-left glow-border"
           >
             <div className="flex items-center gap-3 mb-2">
               <ClipboardList className="h-5 w-5 text-info-foreground" />
-              <h3 className="text-lg font-bold text-foreground">Waivers</h3>
+              <h3 className="text-lg font-bold text-foreground font-heading">Waivers</h3>
             </div>
             <p className="text-sm text-muted-foreground">Add free agents and manage waiver claims</p>
           </Link>
 
           <Link
             href={`/leagues/${leagueId}/transactions`}
-            className="rounded-lg bg-card p-6 shadow hover:shadow-md transition-shadow text-left"
+            className="rounded-lg border border-border bg-card p-6 shadow hover:shadow-md transition-shadow text-left glow-border"
           >
             <div className="flex items-center gap-3 mb-2">
               <Activity className="h-5 w-5 text-success-foreground" />
-              <h3 className="text-lg font-bold text-foreground">Activity</h3>
+              <h3 className="text-lg font-bold text-foreground font-heading">Activity</h3>
             </div>
             <p className="text-sm text-muted-foreground">View all trades, waivers, and roster moves</p>
           </Link>

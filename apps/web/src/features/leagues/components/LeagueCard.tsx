@@ -10,7 +10,7 @@ interface LeagueCardProps {
 export function LeagueCard({ league }: LeagueCardProps) {
   const statusColors: Record<string, string> = {
     not_filled: 'bg-muted text-accent-foreground',
-    offseason: 'bg-primary/10 text-primary',
+    offseason: 'bg-neon-cyan/15 text-neon-cyan',
     reg_season: 'bg-success text-success-foreground',
     post_season: 'bg-warning text-warning-foreground',
     complete: 'bg-muted text-muted-foreground',
@@ -27,10 +27,10 @@ export function LeagueCard({ league }: LeagueCardProps) {
   return (
     <Link
       href={`/leagues/${league.id}`}
-      className="block rounded-lg border border-border bg-card p-4 shadow-sm transition-shadow hover:shadow-md"
+      className="block rounded-lg border border-border bg-card p-4 shadow-sm transition-shadow hover:shadow-md glow-border"
     >
       <div className="mb-2 flex items-start justify-between">
-        <h3 className="text-lg font-bold text-foreground">{league.name}</h3>
+        <h3 className="text-lg font-bold text-foreground font-heading">{league.name}</h3>
         <span
           className={`rounded-full px-2 py-1 text-xs font-medium ${statusColors[league.status] || statusColors.not_filled}`}
         >

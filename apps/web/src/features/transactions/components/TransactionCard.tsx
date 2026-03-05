@@ -26,7 +26,7 @@ export function TransactionCard({ transaction, playerNames }: TransactionCardPro
   const drops = Object.entries(transaction.drops) as [string, number][];
 
   return (
-    <div className="rounded-lg border border-border bg-card p-4">
+    <div className="rounded-lg border border-border bg-card p-4 glow-border">
       <div className="flex items-center justify-between mb-2">
         <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${typeColors[transaction.type] ?? typeColors.free_agent}`}>
           {typeLabels[transaction.type] ?? transaction.type}

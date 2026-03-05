@@ -174,9 +174,9 @@ export function LeagueSettingsModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-      <div className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-lg bg-card p-6 shadow-xl">
-        <h2 className="mb-4 text-xl font-bold text-foreground">League Settings</h2>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+      <div className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-lg bg-card p-6 shadow-xl glass-strong">
+        <h2 className="mb-4 text-xl font-bold text-foreground font-heading">League Settings</h2>
 
         {error && (
           <div className="mb-4 rounded bg-destructive p-3 text-sm text-destructive-foreground">{error}</div>

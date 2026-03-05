@@ -7,7 +7,7 @@ export const draftTypeLabels: Record<string, string> = {
 
 export const statusColors: Record<string, string> = {
   not_filled: 'bg-muted text-accent-foreground',
-  offseason: 'bg-primary/10 text-primary',
+  offseason: 'bg-neon-cyan/15 text-neon-cyan',
   reg_season: 'bg-success text-success-foreground',
   post_season: 'bg-warning text-warning-foreground',
   complete: 'bg-muted text-muted-foreground',
@@ -22,14 +22,14 @@ export const statusLabels: Record<string, string> = {
 };
 
 export const roleColors: Record<string, string> = {
-  commissioner: 'bg-primary/10 text-primary',
+  commissioner: 'bg-neon-cyan/15 text-neon-cyan',
   member: 'bg-muted text-muted-foreground',
   spectator: 'bg-warning text-warning-foreground',
 };
 
 export const draftStatusColors: Record<string, string> = {
   pre_draft: 'bg-warning text-warning-foreground',
-  drafting: 'bg-primary/10 text-primary',
+  drafting: 'bg-neon-cyan/15 text-neon-cyan',
   complete: 'bg-success text-success-foreground',
 };
 

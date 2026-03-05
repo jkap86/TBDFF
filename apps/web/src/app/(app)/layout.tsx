@@ -19,7 +19,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           <AppBar />
           <main>{children}</main>
           <ChatPanel />
-          <Toaster position="bottom-right" richColors />
+          <Toaster position="bottom-right" richColors toastOptions={{ className: 'glass-strong' }} />
         </ChatPanelProvider>
       </SocketProvider>
     </AuthBootstrap>

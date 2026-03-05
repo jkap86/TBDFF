@@ -32,7 +32,7 @@ export function AppBar() {
   };
 
   return (
-    <header className="sticky top-0 z-40 border-b border-border bg-card">
+    <header className="sticky top-0 z-40 glass">
       <div className="mx-auto flex h-14 max-w-7xl items-center justify-between px-4">
         {pathname !== '/dashboard' && (
           <button
@@ -56,7 +56,7 @@ export function AppBar() {
 
         <Link
           href="/dashboard"
-          className="text-lg font-bold text-foreground"
+          className="text-lg font-bold font-heading gradient-text glow-text"
         >
           TBDFF
         </Link>
@@ -80,7 +80,7 @@ export function AppBar() {
             </button>
 
             {isProfileOpen && (
-              <div className="absolute right-0 mt-2 w-48 rounded-lg border border-border bg-card py-1 shadow-lg">
+              <div className="absolute right-0 mt-2 w-48 rounded-lg py-1 shadow-lg glass-strong">
                 <div className="border-b border-border px-4 py-2">
                   <p className="text-sm font-medium text-foreground">
                     {user?.display_username || user?.username}

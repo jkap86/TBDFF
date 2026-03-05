@@ -1,10 +1,17 @@
 import type { Metadata } from 'next';
+import { Space_Grotesk } from 'next/font/google';
 import { AuthProvider } from '@/features/auth/context/AuthProvider';
 import { ThemeProvider } from '@/features/theme/ThemeProvider';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { QueryProvider } from '@/components/QueryProvider';
 import { DevPanel } from '@/features/dev/DevPanel';
 import './globals.css';
+
+const spaceGrotesk = Space_Grotesk({
+  subsets: ['latin'],
+  weight: ['500', '600', '700'],
+  variable: '--font-heading',
+});
 
 export const metadata: Metadata = {
   title: 'TBDFF',
@@ -22,7 +29,7 @@ const themeScript = `
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="en" suppressHydrationWarning className={spaceGrotesk.variable}>
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
       </head>
