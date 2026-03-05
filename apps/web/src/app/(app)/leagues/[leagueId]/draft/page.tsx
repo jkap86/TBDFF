@@ -21,7 +21,7 @@ export default function DraftRoomPage() {
   const draftId = searchParams.get('draftId') ?? undefined;
 
   const room = useDraftRoom(leagueId, draftId);
-  const { draft, picks, members, rosters, queue, isLoading, error, user, accessToken } = room;
+  const { draft, league, picks, members, rosters, queue, isLoading, error, user, accessToken } = room;
   const [isStarting, setIsStarting] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
 
@@ -142,7 +142,7 @@ export default function DraftRoomPage() {
                 onSetMaxBid={room.handleSlowSetMaxBid}
               />
             : room.isAuction
-              ? <AuctionBoard draft={draft} picks={picks} members={members} currentUserId={user?.id} />
+              ? <AuctionBoard draft={draft} picks={picks} members={members} currentUserId={user?.id} rosterPositions={league?.roster_positions ?? []} />
               : <DraftBoard draft={draft} picks={picks} members={members} rosters={rosters} currentUserId={user?.id} />
         )}
 
@@ -172,7 +172,7 @@ export default function DraftRoomPage() {
               onPause={room.handlePauseDraft}
               onStop={room.handleStopDraft}
             />
-            <AuctionBoard draft={draft} picks={picks} members={members} currentUserId={user?.id} />
+            <AuctionBoard draft={draft} picks={picks} members={members} currentUserId={user?.id} rosterPositions={league?.roster_positions ?? []} />
           </>
         )}
 
@@ -234,7 +234,7 @@ export default function DraftRoomPage() {
                 onSetMaxBid={room.handleSlowSetMaxBid}
               />
             : room.isAuction
-              ? <AuctionBoard draft={draft} picks={picks} members={members} currentUserId={user?.id} />
+              ? <AuctionBoard draft={draft} picks={picks} members={members} currentUserId={user?.id} rosterPositions={league?.roster_positions ?? []} />
               : <DraftBoard draft={draft} picks={picks} members={members} rosters={rosters} currentUserId={user?.id} />
         )}
       </div>

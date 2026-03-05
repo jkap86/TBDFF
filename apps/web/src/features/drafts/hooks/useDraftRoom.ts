@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { toast } from 'sonner';
-import { draftApi, leagueApi, ApiError, type Draft, type DraftPick, type DraftQueueItem, type LeagueMember, type Roster, type UpdateDraftRequest, type AuctionLot, type RosterBudget, type NominationStatsResponse } from '@/lib/api';
+import { draftApi, leagueApi, ApiError, type Draft, type DraftPick, type DraftQueueItem, type LeagueMember, type Roster, type UpdateDraftRequest, type AuctionLot, type RosterBudget, type NominationStatsResponse, type League } from '@/lib/api';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import { useSocket } from '@/features/chat/context/SocketProvider';
 import { useDraftTimer } from './useDraftTimer';
@@ -18,6 +18,7 @@ export function useDraftRoom(leagueId: string, preferredDraftId?: string) {
   const { socket } = useSocket();
 
   const [draft, setDraft] = useState<Draft | null>(null);
+  const [league, setLeague] = useState<League | null>(null);
   const [picks, setPicks] = useState<DraftPick[]>([]);
   const [members, setMembers] = useState<LeagueMember[]>([]);
   const [rosters, setRosters] = useState<Roster[]>([]);
@@ -64,13 +65,15 @@ export function useDraftRoom(leagueId: string, preferredDraftId?: string) {
         return;
       }
 
-      const [draftResult, membersResult, rostersResult] = await Promise.all([
+      const [draftResult, membersResult, rostersResult, leagueResult] = await Promise.all([
         draftApi.getById(activeDraft.id, accessToken),
         leagueApi.getMembers(leagueId, accessToken),
         leagueApi.getRosters(leagueId, accessToken),
+        leagueApi.getById(leagueId, accessToken),
       ]);
 
       setDraft(draftResult.draft);
+      setLeague(leagueResult.league);
       setMembers(membersResult.members);
       setRosters(rostersResult.rosters);
 
@@ -631,6 +634,7 @@ export function useDraftRoom(leagueId: string, preferredDraftId?: string) {
   return {
     // Core state
     draft,
+    league,
     picks,
     members,
     rosters,

@@ -1,18 +1,124 @@
 'use client';
 
-import type { Draft, DraftPick, LeagueMember } from '@/lib/api';
+import { useMemo } from 'react';
+import type { Draft, DraftPick, LeagueMember, RosterPosition } from '@/lib/api';
+
+function getPositionColor(position: string | undefined): string {
+  switch (position) {
+    case 'QB': return 'rgba(239, 68, 68, 0.25)';
+    case 'RB': return 'rgba(34, 197, 94, 0.25)';
+    case 'WR': return 'rgba(59, 130, 246, 0.25)';
+    case 'TE': return 'rgba(249, 115, 22, 0.25)';
+    case 'K':  return 'rgba(168, 85, 247, 0.25)';
+    case 'DEF': return 'rgba(161, 98, 7, 0.25)';
+    default:   return 'transparent';
+  }
+}
+
+const FLEX_ELIGIBILITY: Record<string, string[]> = {
+  FLEX: ['RB', 'WR', 'TE'],
+  SUPER_FLEX: ['QB', 'RB', 'WR', 'TE'],
+  REC_FLEX: ['WR', 'TE'],
+  WRRB_FLEX: ['WR', 'RB'],
+};
+
+function canFillSlot(slot: RosterPosition, playerPosition: string): boolean {
+  if (slot === playerPosition) return true;
+  if (slot === 'BN' || slot === 'IR') return true;
+  return FLEX_ELIGIBILITY[slot]?.includes(playerPosition) ?? false;
+}
+
+/** Assign a team's picks into roster position slots, most specific slots first. */
+function assignPicksToSlots(
+  teamPicks: DraftPick[],
+  rosterPositions: RosterPosition[],
+): (DraftPick | null)[] {
+  const slots: (DraftPick | null)[] = new Array(rosterPositions.length).fill(null);
+  const placed = new Set<string>();
+
+  // Sort picks by amount descending so higher-value players get starter slots
+  const sorted = [...teamPicks].sort((a, b) => (b.amount ?? 0) - (a.amount ?? 0));
+
+  // Pass 1: exact position matches (QB->QB, RB->RB, etc.) — skip flex/BN/IR
+  for (const pick of sorted) {
+    if (placed.has(pick.id)) continue;
+    const pos = pick.metadata?.position as string | undefined;
+    if (!pos) continue;
+    for (let i = 0; i < rosterPositions.length; i++) {
+      if (slots[i]) continue;
+      const slot = rosterPositions[i];
+      if (slot === pos) {
+        slots[i] = pick;
+        placed.add(pick.id);
+        break;
+      }
+    }
+  }
+
+  // Pass 2: flex slots
+  for (const pick of sorted) {
+    if (placed.has(pick.id)) continue;
+    const pos = pick.metadata?.position as string | undefined;
+    if (!pos) continue;
+    for (let i = 0; i < rosterPositions.length; i++) {
+      if (slots[i]) continue;
+      const slot = rosterPositions[i];
+      if (slot !== 'BN' && slot !== 'IR' && slot !== pos && canFillSlot(slot, pos)) {
+        slots[i] = pick;
+        placed.add(pick.id);
+        break;
+      }
+    }
+  }
+
+  // Pass 3: bench
+  for (const pick of sorted) {
+    if (placed.has(pick.id)) continue;
+    for (let i = 0; i < rosterPositions.length; i++) {
+      if (slots[i]) continue;
+      const slot = rosterPositions[i];
+      if (slot === 'BN') {
+        slots[i] = pick;
+        placed.add(pick.id);
+        break;
+      }
+    }
+  }
+
+  // Pass 4: IR (fallback)
+  for (const pick of sorted) {
+    if (placed.has(pick.id)) continue;
+    for (let i = 0; i < rosterPositions.length; i++) {
+      if (slots[i]) continue;
+      if (rosterPositions[i] === 'IR') {
+        slots[i] = pick;
+        placed.add(pick.id);
+        break;
+      }
+    }
+  }
+
+  return slots;
+}
+
+const SLOT_LABELS: Record<string, string> = {
+  SUPER_FLEX: 'SF',
+  REC_FLEX: 'RF',
+  WRRB_FLEX: 'W/R',
+};
 
 interface AuctionBoardProps {
   draft: Draft;
   picks: DraftPick[];
   members: LeagueMember[];
   currentUserId: string | undefined;
+  rosterPositions: RosterPosition[];
 }
 
-export function AuctionBoard({ draft, picks, members, currentUserId }: AuctionBoardProps) {
+export function AuctionBoard({ draft, picks, members, currentUserId, rosterPositions }: AuctionBoardProps) {
   const nomination = draft.metadata?.current_nomination as Record<string, any> | undefined;
   const budgets: Record<string, number> = draft.metadata?.auction_budgets ?? {};
-  const completedPicks = picks.filter((p) => p.player_id).sort((a, b) => b.pick_no - a.pick_no);
+  const completedPicks = picks.filter((p) => p.player_id);
 
   // Build roster_id -> team name and roster_id -> userId mappings
   const rosterToUser: Record<number, string> = {};
@@ -40,12 +146,37 @@ export function AuctionBoard({ draft, picks, members, currentUserId }: AuctionBo
       })()
     : null;
 
-  // Build per-team pick lists for the roster view
-  const teamPicks: Record<number, DraftPick[]> = {};
-  for (const pick of completedPicks) {
-    if (!teamPicks[pick.roster_id]) teamPicks[pick.roster_id] = [];
-    teamPicks[pick.roster_id].push(pick);
-  }
+  // Teams sorted by draft slot (nomination order)
+  const teamsInOrder = useMemo(() => {
+    return Object.entries(draft.draft_order ?? {})
+      .sort(([, a], [, b]) => a - b)
+      .map(([userId, slot]) => {
+        const rosterId = (draft.slot_to_roster_id ?? {})[String(slot)];
+        return { userId, slot, rosterId };
+      });
+  }, [draft.draft_order, draft.slot_to_roster_id]);
+
+  // Build per-team pick lists
+  const teamPicksMap = useMemo(() => {
+    const map: Record<number, DraftPick[]> = {};
+    for (const pick of completedPicks) {
+      if (!map[pick.roster_id]) map[pick.roster_id] = [];
+      map[pick.roster_id].push(pick);
+    }
+    return map;
+  }, [completedPicks]);
+
+  // Assign picks to roster slots for each team
+  const teamSlots = useMemo(() => {
+    const result: Record<number, (DraftPick | null)[]> = {};
+    for (const team of teamsInOrder) {
+      result[team.rosterId] = assignPicksToSlots(
+        teamPicksMap[team.rosterId] ?? [],
+        rosterPositions,
+      );
+    }
+    return result;
+  }, [teamsInOrder, teamPicksMap, rosterPositions]);
 
   return (
     <div className="space-y-4">
@@ -106,94 +237,84 @@ export function AuctionBoard({ draft, picks, members, currentUserId }: AuctionBo
         </div>
       )}
 
-      {/* Team Budgets Grid */}
-      <div className="rounded-lg bg-card p-4 shadow">
-        <h3 className="text-sm font-bold text-accent-foreground mb-3">Team Budgets</h3>
-        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-2">
-          {Object.entries(budgets)
-            .sort(([, a], [, b]) => b - a)
-            .map(([rosterId, budget]) => {
-              const isCurrentUser = rosterToUserId[Number(rosterId)] === currentUserId;
-              const isHighBidder = nomination?.bidder_roster_id === Number(rosterId);
-              return (
-                <div
-                  key={rosterId}
-                  className={`rounded-lg border p-2 text-center ${
-                    isHighBidder
-                      ? 'border-highlight-ring bg-highlight'
-                      : isCurrentUser
-                        ? 'border-primary/30 bg-primary/10'
-                        : 'border-border'
-                  }`}
+      {/* Draft Board — teams as columns, roster positions as rows */}
+      {rosterPositions.length > 0 && (
+        <div className="overflow-auto" style={{ WebkitOverflowScrolling: 'touch' }}>
+          <table className="min-w-max" style={{ borderSpacing: 0 }}>
+            <thead>
+              <tr>
+                {/* Position column header */}
+                <th
+                  className="sticky left-0 z-30 bg-muted border-b border-r border-border px-3 py-2 text-xs font-heading font-semibold text-muted-foreground"
+                  style={{ boxShadow: '2px 2px 4px rgba(0,0,0,0.15)' }}
                 >
-                  <div className="text-xs font-medium text-muted-foreground truncate">
-                    {rosterToUser[Number(rosterId)] || `Team ${rosterId}`}
-                  </div>
-                  <div className={`text-lg font-bold ${budget > 0 ? 'text-success-foreground' : 'text-destructive-foreground'}`}>
-                    ${budget}
-                  </div>
-                  <div className="text-[10px] text-disabled">
-                    {teamPicks[Number(rosterId)]?.length ?? 0}/{draft.settings.rounds} picks
-                  </div>
-                </div>
-              );
-            })}
-        </div>
-      </div>
-
-      {/* Completed Picks */}
-      <div className="rounded-lg bg-card p-4 shadow">
-        <h3 className="text-sm font-bold text-accent-foreground mb-3">
-          Completed Picks ({completedPicks.length})
-        </h3>
-        {completedPicks.length === 0 ? (
-          <p className="text-sm text-disabled">No picks yet</p>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="min-w-full">
-              <thead>
-                <tr className="border-b border-border">
-                  <th className="pb-2 text-left text-xs font-medium text-muted-foreground">#</th>
-                  <th className="pb-2 text-left text-xs font-medium text-muted-foreground">Player</th>
-                  <th className="pb-2 text-left text-xs font-medium text-muted-foreground">Pos</th>
-                  <th className="pb-2 text-left text-xs font-medium text-muted-foreground">Team</th>
-                  <th className="pb-2 text-right text-xs font-medium text-muted-foreground">Amount</th>
-                </tr>
-              </thead>
-              <tbody>
-                {completedPicks.map((pick, idx) => {
-                  const isUserPick = rosterToUserId[pick.roster_id] === currentUserId;
+                  Pos
+                </th>
+                {teamsInOrder.map((team) => {
+                  const budget = budgets[String(team.rosterId)] ?? 0;
+                  const isCurrentUser = team.userId === currentUserId;
                   return (
-                    <tr
-                      key={pick.id}
-                      className={`border-b border-border ${isUserPick ? 'bg-primary/10' : ''}`}
+                    <th
+                      key={team.rosterId}
+                      className={`sticky top-0 z-20 border-b border-r border-border px-3 py-2 text-center whitespace-nowrap bg-muted ${
+                        isCurrentUser ? 'text-primary' : 'text-muted-foreground'
+                      }`}
+                      style={{ boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}
                     >
-                      <td className="py-1.5 text-xs text-disabled">{completedPicks.length - idx}</td>
-                      <td className="py-1.5">
-                        <span className="text-sm font-medium text-foreground">
-                          {pick.metadata?.full_name || pick.player_id}
-                        </span>
-                        <span className="ml-2 text-xs text-disabled">
-                          {rosterToUser[pick.roster_id]}
-                        </span>
-                      </td>
-                      <td className="py-1.5 text-xs text-muted-foreground">
-                        {pick.metadata?.position}
-                      </td>
-                      <td className="py-1.5 text-xs text-muted-foreground">
-                        {pick.metadata?.team}
-                      </td>
-                      <td className="py-1.5 text-right text-sm font-bold text-success-foreground">
-                        ${pick.amount}
-                      </td>
-                    </tr>
+                      <div className="text-xs font-heading font-semibold truncate max-w-[100px]">
+                        {rosterToUser[team.rosterId] || `Team ${team.rosterId}`}
+                      </div>
+                      <div className={`text-[10px] font-bold ${budget > 0 ? 'text-success-foreground' : 'text-destructive-foreground'}`}>
+                        ${budget}
+                      </div>
+                    </th>
                   );
                 })}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
+              </tr>
+            </thead>
+            <tbody>
+              {rosterPositions.map((pos, rowIdx) => (
+                <tr key={rowIdx}>
+                  {/* Position label */}
+                  <td
+                    className="sticky left-0 z-10 border-b border-r border-border bg-muted px-3 py-1.5 text-center text-xs font-heading font-semibold text-muted-foreground whitespace-nowrap"
+                    style={{ boxShadow: '2px 0 4px rgba(0,0,0,0.1)', background: getPositionColor(pos) || undefined }}
+                  >
+                    {SLOT_LABELS[pos] ?? pos}
+                  </td>
+                  {teamsInOrder.map((team) => {
+                    const pick = teamSlots[team.rosterId]?.[rowIdx] ?? null;
+                    const isUserTeam = team.userId === currentUserId;
+                    return (
+                      <td
+                        key={team.rosterId}
+                        className={`border-b border-r border-border px-2 py-1.5 text-center min-w-[110px] ${
+                          isUserTeam && !pick ? 'bg-primary/5' : ''
+                        }`}
+                        style={{
+                          background: pick ? getPositionColor(pick.metadata?.position) : undefined,
+                        }}
+                      >
+                        {pick ? (
+                          <div className="leading-tight">
+                            <div className="text-xs font-semibold text-foreground truncate">
+                              {pick.metadata?.first_name?.[0]}. {pick.metadata?.last_name || pick.player_id}
+                            </div>
+                            <div className="text-[10px] text-disabled">
+                              {pick.metadata?.position}{pick.metadata?.team ? ` - ${pick.metadata.team}` : ''}
+                              {pick.amount != null ? ` · $${pick.amount}` : ''}
+                            </div>
+                          </div>
+                        ) : null}
+                      </td>
+                    );
+                  })}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 }
