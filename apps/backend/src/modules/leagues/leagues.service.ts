@@ -739,6 +739,24 @@ export class LeagueService {
       await this.systemMessages.send(leagueId, `${target.username} was assigned to a roster`);
     } catch { /* non-fatal */ }
 
+    // Auto-transition: not_filled → offseason for free leagues when all rosters filled
+    try {
+      const currentLeague = league ?? await this.leagueRepository.findById(leagueId);
+      if (currentLeague && currentLeague.status === 'not_filled') {
+        const buyIn = (currentLeague.settings as unknown as Record<string, unknown>).buy_in as number | undefined;
+        if (!buyIn || buyIn === 0) {
+          const allRosters = await this.leagueRepository.findRostersByLeagueId(leagueId);
+          const assignedCount = allRosters.filter((r) => r.ownerId).length;
+          if (assignedCount >= allRosters.length) {
+            await this.leagueRepository.update(leagueId, { status: 'offseason' });
+            try {
+              await this.systemMessages.send(leagueId, 'All rosters filled — league moved to offseason');
+            } catch { /* non-fatal */ }
+          }
+        }
+      }
+    } catch { /* non-fatal */ }
+
     return result;
   }
 

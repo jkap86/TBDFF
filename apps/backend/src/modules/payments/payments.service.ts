@@ -62,6 +62,22 @@ export class PaymentService {
         await this.systemMessages.send(leagueId, `${target.username} was marked as paid`);
       } catch { /* non-fatal */ }
 
+      // Auto-transition: not_filled → offseason when all dues paid
+      try {
+        const league = await this.leagueRepository.findById(leagueId);
+        if (league && league.status === 'not_filled') {
+          const rosters = await this.leagueRepository.findRostersByLeagueId(leagueId);
+          const allPayments = await this.paymentRepository.findByLeague(leagueId);
+          const buyInPayments = allPayments.filter((p) => p.type === 'buy_in');
+          if (buyInPayments.length >= rosters.length) {
+            await this.leagueRepository.update(leagueId, { status: 'offseason' });
+            try {
+              await this.systemMessages.send(leagueId, 'All dues paid — league moved to offseason');
+            } catch { /* non-fatal */ }
+          }
+        }
+      } catch { /* non-fatal */ }
+
       return payment;
     } catch (err: any) {
       if (err.code === '23505') {

@@ -60,6 +60,7 @@ export function LeagueDuesCard({
       queryClient.setQueryData(['payments', leagueId], (old: any) =>
         old ? { ...old, payments: [...old.payments, result.payment] } : old,
       );
+      queryClient.invalidateQueries({ queryKey: ['league', leagueId] });
       toast.success('Marked as paid');
     } catch (err) {
       toast.error(err instanceof ApiError ? err.message : 'Failed to record payment');

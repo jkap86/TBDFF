@@ -103,6 +103,7 @@ export default function LeagueDetailPage() {
     await leagueApi.assignRoster(leagueId, rosterId, { user_id: userId }, accessToken);
     queryClient.invalidateQueries({ queryKey: ['rosters', leagueId] });
     queryClient.invalidateQueries({ queryKey: ['members', leagueId] });
+    queryClient.invalidateQueries({ queryKey: ['league', leagueId] });
   };
 
   const handleUpdateDraft = async (draftId: string, updates: import('@/lib/api').UpdateDraftRequest) => {
@@ -203,53 +204,61 @@ export default function LeagueDetailPage() {
           onOpenSettings={() => setIsSettingsOpen(true)}
         />
 
-        <LeagueDuesCard
-          league={league}
-          members={members}
-          rosters={rosters}
-          payments={payments}
-          leagueId={leagueId}
-          currentUserId={user?.id}
-          isCommissioner={isCommissioner}
-          accessToken={accessToken}
-          onStartDM={handleStartDM}
-          onAssignRoster={handleAssignRoster}
-        />
+        {league.status !== 'offseason' && (
+          <LeagueDuesCard
+            league={league}
+            members={members}
+            rosters={rosters}
+            payments={payments}
+            leagueId={leagueId}
+            currentUserId={user?.id}
+            isCommissioner={isCommissioner}
+            accessToken={accessToken}
+            onStartDM={handleStartDM}
+            onAssignRoster={handleAssignRoster}
+          />
+        )}
 
-        <LeagueDraftsCard
-          league={league}
-          leagueId={leagueId}
-          drafts={drafts}
-          activeDrafts={activeDrafts}
-          completedDrafts={completedDrafts}
-          members={members}
-          rosters={rosters}
-          isCommissioner={isCommissioner}
-          currentUserId={user?.id}
-          accessToken={accessToken}
-          shuffleDisplay={shuffleDisplay}
-          mutationError={mutationError}
-          onRandomizeDraftOrder={handleRandomizeDraftOrder}
-          onStartDerby={handleStartDerby}
-          onEditDraft={setEditingDraftId}
-          onDraftUpdated={handleDraftUpdated}
-        />
+        {league.status !== 'not_filled' && (
+          <LeagueDraftsCard
+            league={league}
+            leagueId={leagueId}
+            drafts={drafts}
+            activeDrafts={activeDrafts}
+            completedDrafts={completedDrafts}
+            members={members}
+            rosters={rosters}
+            isCommissioner={isCommissioner}
+            currentUserId={user?.id}
+            accessToken={accessToken}
+            shuffleDisplay={shuffleDisplay}
+            mutationError={mutationError}
+            onRandomizeDraftOrder={handleRandomizeDraftOrder}
+            onStartDerby={handleStartDerby}
+            onEditDraft={setEditingDraftId}
+            onDraftUpdated={handleDraftUpdated}
+          />
+        )}
 
-        <LeagueMatchupsCard
-          league={league}
-          leagueId={leagueId}
-          matchups={matchups}
-          members={members}
-          rosters={rosters}
-          isCommissioner={isCommissioner}
-          accessToken={accessToken}
-          onOpenDerbySettings={() => setShowDerbySettings(true)}
-        />
+        {league.status !== 'not_filled' && (
+          <LeagueMatchupsCard
+            league={league}
+            leagueId={leagueId}
+            matchups={matchups}
+            members={members}
+            rosters={rosters}
+            isCommissioner={isCommissioner}
+            accessToken={accessToken}
+            onOpenDerbySettings={() => setShowDerbySettings(true)}
+          />
+        )}
 
-        <LeagueLinkCards
-          leagueId={leagueId}
-          leagueStatus={league.status}
-        />
+        {league.status !== 'not_filled' && (
+          <LeagueLinkCards
+            leagueId={leagueId}
+            leagueStatus={league.status}
+          />
+        )}
       </div>
 
       {/* Draft Settings Modal */}
