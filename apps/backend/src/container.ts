@@ -118,8 +118,8 @@ export function createContainer() {
   const auctionService = new AuctionService(draftRepository, leagueRepository, playerRepository);
   const slowAuctionService = new SlowAuctionService(auctionLotRepository, draftRepository, leagueRepository, playerRepository, pool);
   const derbyService = new DerbyService(draftRepository, leagueRepository);
-  const matchupService = new MatchupService(matchupRepository, leagueRepository);
-  const matchupDerbyService = new MatchupDerbyService(matchupDerbyRepository, matchupRepository, leagueRepository);
+  const matchupService = new MatchupService(matchupRepository, leagueRepository, draftRepository);
+  const matchupDerbyService = new MatchupDerbyService(matchupDerbyRepository, matchupRepository, leagueRepository, draftRepository);
   const tradeService = new TradeService(tradeRepository, leagueRepository, draftRepository, playerRepository);
   const transactionService = new TransactionService(transactionRepository, leagueRepository, playerRepository);
   const paymentService = new PaymentService(paymentRepository, leagueRepository, systemMessageService);

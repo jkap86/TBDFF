@@ -120,7 +120,7 @@ export type RosterPosition =
   | 'IR';
 
 // League status / season type
-export type LeagueStatus = 'pre_draft' | 'drafting' | 'in_season' | 'complete';
+export type LeagueStatus = 'not_filled' | 'offseason' | 'reg_season' | 'post_season' | 'complete';
 export type SeasonType = 'regular' | 'pre' | 'post';
 export type LeagueType = 0 | 1 | 2; // 0=redraft, 1=keeper, 2=dynasty
 

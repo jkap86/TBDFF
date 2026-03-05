@@ -103,7 +103,7 @@ export type RosterPosition =
   | 'FLEX' | 'SUPER_FLEX' | 'REC_FLEX' | 'WRRB_FLEX'
   | 'BN' | 'IR';
 
-export type LeagueStatus = 'pre_draft' | 'drafting' | 'in_season' | 'complete';
+export type LeagueStatus = 'not_filled' | 'offseason' | 'reg_season' | 'post_season' | 'complete';
 export type SeasonType = 'regular' | 'pre' | 'post';
 
 // Default settings for a 12-team PPR redraft league (Sleeper defaults)

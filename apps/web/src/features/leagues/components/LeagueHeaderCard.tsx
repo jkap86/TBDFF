@@ -33,7 +33,7 @@ export function LeagueHeaderCard({ league, isCommissioner, onOpenSettings }: Lea
           )}
         </div>
         <span
-          className={`rounded-full px-3 py-1 text-sm font-medium ${statusColors[league.status] || statusColors.pre_draft}`}
+          className={`rounded-full px-3 py-1 text-sm font-medium ${statusColors[league.status] || statusColors.not_filled}`}
         >
           {statusLabels[league.status] || league.status}
         </span>

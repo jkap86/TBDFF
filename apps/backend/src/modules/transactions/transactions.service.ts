@@ -41,8 +41,11 @@ export class TransactionService {
     if (!league) throw new NotFoundException('League not found');
 
     if (league.settings.disable_adds) throw new ValidationException('Adds are disabled for this league');
+    if (league.status === 'not_filled') {
+      throw new ValidationException('Adds are not allowed before the league is active');
+    }
     if (league.status === 'complete' && !league.settings.offseason_adds) {
-      throw new ValidationException('Adds are not allowed during the offseason');
+      throw new ValidationException('Adds are not allowed after the season is complete');
     }
 
     const roster = await this.leagueRepo.findRosterByOwner(leagueId, userId);

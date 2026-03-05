@@ -1,6 +1,7 @@
 import { MatchupDerbyRepository } from './matchup-derby.repository';
 import { MatchupRepository } from './matchups.repository';
 import { LeagueRepository } from '../leagues/leagues.repository';
+import { DraftRepository } from '../drafts/drafts.repository';
 import { MatchupDerby, MatchupDerbyOrderEntry, MatchupDerbyPick } from './matchup-derby.model';
 import { MatchupDerbyGateway } from './matchup-derby.gateway';
 import {
@@ -17,6 +18,7 @@ export class MatchupDerbyService {
     private readonly derbyRepository: MatchupDerbyRepository,
     private readonly matchupRepository: MatchupRepository,
     private readonly leagueRepository: LeagueRepository,
+    private readonly draftRepository: DraftRepository,
   ) {}
 
   setGateway(gateway: MatchupDerbyGateway): void {
@@ -32,8 +34,8 @@ export class MatchupDerbyService {
       throw new ForbiddenException('Only commissioners can start a matchup derby');
     }
 
-    if (league.status !== 'in_season' && league.status !== 'pre_draft') {
-      throw new ValidationException('Matchup derby can only be started when the league is in pre-draft or in season');
+    if (league.status !== 'not_filled' && league.status !== 'offseason' && league.status !== 'reg_season') {
+      throw new ValidationException('Matchup derby can only be started during not filled, offseason, or regular season');
     }
 
     if ((league.settings.matchup_type ?? 0) !== 1) {
@@ -339,9 +341,18 @@ export class MatchupDerbyService {
     const updated = await this.derbyRepository.update(derby.id, updateData, client);
     if (!updated) throw new NotFoundException('Derby not found');
 
-    // On completion, convert to matchups
+    // On completion, convert to matchups and check auto-transition
     if (isComplete) {
       await this.convertDerbyToMatchups(derby.leagueId, newPicks, derby.derbyOrder, totalWeeks, client);
+      // Auto-transition to reg_season if all drafts are complete
+      const league = await this.leagueRepository.findById(derby.leagueId);
+      if (league && league.status === 'offseason') {
+        const drafts = await this.draftRepository.findByLeagueId(derby.leagueId);
+        const allComplete = drafts.length > 0 && drafts.every((d) => d.status === 'complete');
+        if (allComplete) {
+          await this.leagueRepository.update(derby.leagueId, { status: 'reg_season' });
+        }
+      }
     }
 
     return updated;

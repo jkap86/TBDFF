@@ -9,16 +9,18 @@ interface LeagueCardProps {
 
 export function LeagueCard({ league }: LeagueCardProps) {
   const statusColors: Record<string, string> = {
-    pre_draft: 'bg-muted text-accent-foreground',
-    drafting: 'bg-primary/10 text-primary',
-    in_season: 'bg-success text-success-foreground',
+    not_filled: 'bg-muted text-accent-foreground',
+    offseason: 'bg-primary/10 text-primary',
+    reg_season: 'bg-success text-success-foreground',
+    post_season: 'bg-warning text-warning-foreground',
     complete: 'bg-muted text-muted-foreground',
   };
 
   const statusLabels: Record<string, string> = {
-    pre_draft: 'Pre-Draft',
-    drafting: 'Drafting',
-    in_season: 'In Season',
+    not_filled: 'Not Filled',
+    offseason: 'Offseason',
+    reg_season: 'Regular Season',
+    post_season: 'Post Season',
     complete: 'Complete',
   };
 
@@ -30,7 +32,7 @@ export function LeagueCard({ league }: LeagueCardProps) {
       <div className="mb-2 flex items-start justify-between">
         <h3 className="text-lg font-bold text-foreground">{league.name}</h3>
         <span
-          className={`rounded-full px-2 py-1 text-xs font-medium ${statusColors[league.status] || statusColors.pre_draft}`}
+          className={`rounded-full px-2 py-1 text-xs font-medium ${statusColors[league.status] || statusColors.not_filled}`}
         >
           {statusLabels[league.status] || league.status}
         </span>

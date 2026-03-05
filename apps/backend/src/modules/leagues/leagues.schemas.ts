@@ -3,7 +3,7 @@ import { z } from 'zod';
 /**
  * Enum validators for league fields
  */
-const leagueStatusEnum = z.enum(['pre_draft', 'drafting', 'in_season', 'complete']);
+const leagueStatusEnum = z.enum(['not_filled', 'offseason', 'reg_season', 'post_season', 'complete']);
 const seasonTypeEnum = z.enum(['regular', 'pre', 'post']);
 const rosterPositionEnum = z.enum([
   'QB', 'RB', 'WR', 'TE', 'K', 'DEF',
@@ -145,7 +145,7 @@ export const scoringSettingsFullSchema = scoringSettingsPartialSchema.required()
  * Editable fields:
  * - name: League display name (1-100 chars)
  * - season_type: 'regular' | 'pre' | 'post'
- * - status: 'pre_draft' | 'drafting' | 'in_season' | 'complete'
+ * - status: 'not_filled' | 'offseason' | 'reg_season' | 'post_season' | 'complete'
  * - total_rosters: Team count (2-32, cannot reduce below current members)
  * - avatar: League image URL (nullable)
  * - settings: Partial LeagueSettings object (39 Sleeper fields)

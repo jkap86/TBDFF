@@ -1,5 +1,6 @@
 import { MatchupRepository } from './matchups.repository';
 import { LeagueRepository } from '../leagues/leagues.repository';
+import { DraftRepository } from '../drafts/drafts.repository';
 import { Matchup } from './matchups.model';
 import {
   ValidationException,
@@ -11,6 +12,7 @@ export class MatchupService {
   constructor(
     private readonly matchupRepository: MatchupRepository,
     private readonly leagueRepository: LeagueRepository,
+    private readonly draftRepository: DraftRepository,
   ) {}
 
   async generateMatchups(leagueId: string, userId: string): Promise<Matchup[]> {
@@ -22,9 +24,9 @@ export class MatchupService {
       throw new ForbiddenException('Only commissioners can generate matchups');
     }
 
-    if (league.status !== 'in_season') {
+    if (league.status !== 'offseason' && league.status !== 'reg_season') {
       throw new ValidationException(
-        'Matchups can only be generated when the league is in season'
+        'Matchups can only be generated during the offseason or regular season'
       );
     }
 
@@ -59,7 +61,18 @@ export class MatchupService {
     }
 
     await this.matchupRepository.deleteByLeagueId(leagueId);
-    return this.matchupRepository.bulkInsert(leagueId, rows);
+    const matchups = await this.matchupRepository.bulkInsert(leagueId, rows);
+
+    // Auto-transition to reg_season if all drafts are complete
+    if (league.status === 'offseason') {
+      const drafts = await this.draftRepository.findByLeagueId(leagueId);
+      const allComplete = drafts.length > 0 && drafts.every((d) => d.status === 'complete');
+      if (allComplete) {
+        await this.leagueRepository.update(leagueId, { status: 'reg_season' });
+      }
+    }
+
+    return matchups;
   }
 
   async getMatchups(leagueId: string, userId: string): Promise<Matchup[]> {

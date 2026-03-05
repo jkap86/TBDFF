@@ -6,16 +6,18 @@ export const draftTypeLabels: Record<string, string> = {
 };
 
 export const statusColors: Record<string, string> = {
-  pre_draft: 'bg-muted text-accent-foreground',
-  drafting: 'bg-primary/10 text-primary',
-  in_season: 'bg-success text-success-foreground',
+  not_filled: 'bg-muted text-accent-foreground',
+  offseason: 'bg-primary/10 text-primary',
+  reg_season: 'bg-success text-success-foreground',
+  post_season: 'bg-warning text-warning-foreground',
   complete: 'bg-muted text-muted-foreground',
 };
 
 export const statusLabels: Record<string, string> = {
-  pre_draft: 'Pre-Draft',
-  drafting: 'Drafting',
-  in_season: 'In Season',
+  not_filled: 'Not Filled',
+  offseason: 'Offseason',
+  reg_season: 'Regular Season',
+  post_season: 'Post Season',
   complete: 'Complete',
 };
 

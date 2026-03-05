@@ -4,7 +4,7 @@ CREATE TABLE IF NOT EXISTS leagues (
     sport              TEXT NOT NULL DEFAULT 'nfl',
     season             TEXT NOT NULL,
     season_type        TEXT NOT NULL DEFAULT 'regular',
-    status             TEXT NOT NULL DEFAULT 'pre_draft',
+    status             TEXT NOT NULL DEFAULT 'not_filled',
     total_rosters      INT NOT NULL DEFAULT 12,
     avatar             TEXT,
     draft_id           UUID,
@@ -15,7 +15,7 @@ CREATE TABLE IF NOT EXISTS leagues (
     created_by         UUID NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
     created_at         TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at         TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    CONSTRAINT leagues_status_check CHECK (status IN ('pre_draft','drafting','in_season','complete')),
+    CONSTRAINT leagues_status_check CHECK (status IN ('not_filled','offseason','reg_season','post_season','complete')),
     CONSTRAINT leagues_season_type_check CHECK (season_type IN ('regular','pre','post')),
     CONSTRAINT leagues_total_rosters_check CHECK (total_rosters BETWEEN 2 AND 32)
 );

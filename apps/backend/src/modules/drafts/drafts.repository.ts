@@ -101,7 +101,7 @@ export class DraftRepository {
   }
 
   /**
-   * Atomically set draft status to 'drafting' and league status to 'drafting'
+   * Atomically set draft status to 'drafting' and league status to 'offseason'
    * in a single transaction to prevent them going out of sync.
    */
   async startDraftAtomic(
@@ -129,7 +129,7 @@ export class DraftRepository {
         await client.query('COMMIT');
         return null;
       }
-      await client.query('UPDATE leagues SET status = $1 WHERE id = $2', ['drafting', leagueId]);
+      await client.query('UPDATE leagues SET status = $1 WHERE id = $2', ['offseason', leagueId]);
       await client.query('COMMIT');
       return draft;
     } catch (e) {
@@ -334,8 +334,8 @@ export class DraftRepository {
   }
 
   /**
-   * Atomically mark the draft complete and update the league to 'in_season'
-   * in a single transaction to prevent them going out of sync.
+   * Atomically mark the draft complete and conditionally advance league to 'reg_season'.
+   * League transitions to 'reg_season' only when ALL drafts are complete AND matchups exist.
    * Returns the completed draft, or null if not all picks have been made.
    */
   async completeAndUpdateLeague(draftId: string, leagueId: string): Promise<Draft | null> {
@@ -356,7 +356,18 @@ export class DraftRepository {
         await client.query('COMMIT');
         return null;
       }
-      await client.query(`UPDATE leagues SET status = 'in_season' WHERE id = $1`, [leagueId]);
+      // Advance to reg_season only if all drafts complete and matchups exist
+      const allDraftsComplete = await client.query(
+        `SELECT COUNT(*) = 0 AS ready FROM drafts WHERE league_id = $1 AND status != 'complete'`,
+        [leagueId],
+      );
+      const matchupsExist = await client.query(
+        `SELECT EXISTS(SELECT 1 FROM matchups WHERE league_id = $1) AS ready`,
+        [leagueId],
+      );
+      if (allDraftsComplete.rows[0].ready && matchupsExist.rows[0].ready) {
+        await client.query(`UPDATE leagues SET status = 'reg_season' WHERE id = $1`, [leagueId]);
+      }
       await client.query(
         `UPDATE rosters r
          SET players = r.players || sub.new_players
@@ -399,7 +410,18 @@ export class DraftRepository {
     if (result.rows.length === 0) {
       return null;
     }
-    await client.query(`UPDATE leagues SET status = 'in_season' WHERE id = $1`, [leagueId]);
+    // Advance to reg_season only if all drafts complete and matchups exist
+    const allDraftsComplete = await client.query(
+      `SELECT COUNT(*) = 0 AS ready FROM drafts WHERE league_id = $1 AND status != 'complete'`,
+      [leagueId],
+    );
+    const matchupsExist = await client.query(
+      `SELECT EXISTS(SELECT 1 FROM matchups WHERE league_id = $1) AS ready`,
+      [leagueId],
+    );
+    if (allDraftsComplete.rows[0].ready && matchupsExist.rows[0].ready) {
+      await client.query(`UPDATE leagues SET status = 'reg_season' WHERE id = $1`, [leagueId]);
+    }
     await client.query(
       `UPDATE rosters r
        SET players = r.players || sub.new_players

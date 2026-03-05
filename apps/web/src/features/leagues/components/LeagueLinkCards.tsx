@@ -23,7 +23,7 @@ export function LeagueLinkCards({ leagueId, leagueStatus }: LeagueLinkCardsProps
       </Link>
 
       {/* Waivers & Activity Cards */}
-      {(leagueStatus === 'in_season' || leagueStatus === 'complete') && (
+      {(leagueStatus === 'reg_season' || leagueStatus === 'post_season' || leagueStatus === 'complete') && (
         <div className="grid gap-4 sm:grid-cols-2">
           <Link
             href={`/leagues/${leagueId}/waivers`}

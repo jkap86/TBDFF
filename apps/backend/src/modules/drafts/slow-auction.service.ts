@@ -461,7 +461,18 @@ export class SlowAuctionService {
         const isComplete = await this.checkDraftComplete(lot.draftId, draft, settings, client);
         if (isComplete) {
           await client.query(`UPDATE drafts SET status = 'complete' WHERE id = $1`, [lot.draftId]);
-          await client.query(`UPDATE leagues SET status = 'in_season' WHERE id = $1`, [draft.leagueId]);
+          // Advance to reg_season only if all drafts complete and matchups exist
+          const allDraftsComplete = await client.query(
+            `SELECT COUNT(*) = 0 AS ready FROM drafts WHERE league_id = $1 AND status != 'complete'`,
+            [draft.leagueId],
+          );
+          const matchupsExist = await client.query(
+            `SELECT EXISTS(SELECT 1 FROM matchups WHERE league_id = $1) AS ready`,
+            [draft.leagueId],
+          );
+          if (allDraftsComplete.rows[0].ready && matchupsExist.rows[0].ready) {
+            await client.query(`UPDATE leagues SET status = 'reg_season' WHERE id = $1`, [draft.leagueId]);
+          }
           // Move drafted players to rosters (only append players not already present)
           await client.query(
             `UPDATE rosters r
