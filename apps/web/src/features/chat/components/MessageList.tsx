@@ -77,10 +77,12 @@ export function MessageList({ messages, currentUserId, onLoadMore, hasMore }: Pr
         if (msg.message_type === 'system') {
           return (
             <div key={msg.id} className="flex flex-col items-center py-1">
-              <span className="text-xs text-muted-foreground italic text-center">
-                {msg.content}
-              </span>
-              <span className="mt-0.5 text-[10px] text-disabled">{time}</span>
+              <div className="rounded-2xl bg-[#ff8c00] px-3 py-2 text-center shadow-[0_2px_6px_rgba(0,0,0,0.25)]">
+                <span className="text-xs text-white italic">
+                  {msg.content}
+                </span>
+                <span className="ml-2 inline-block align-bottom text-[10px] leading-none text-white/60">{time}</span>
+              </div>
             </div>
           );
         }
@@ -89,21 +91,23 @@ export function MessageList({ messages, currentUserId, onLoadMore, hasMore }: Pr
 
         return (
           <div key={msg.id} className={`flex flex-col ${isOwn ? 'items-end' : 'items-start'}`}>
-            {!isOwn && (
-              <span className="mb-0.5 text-xs font-medium text-muted-foreground">
-                {msg.sender_username}
-              </span>
-            )}
             <div
-              className={`max-w-[75%] rounded-2xl px-3 py-2 text-sm break-words ${
+              className={`max-w-[75%] rounded-2xl px-3 py-2 text-sm break-words shadow-[0_2px_6px_rgba(0,0,0,0.25)] ${
                 isOwn
                   ? 'rounded-tr-sm bg-primary text-primary-foreground'
-                  : 'rounded-tl-sm bg-muted text-foreground'
+                  : 'rounded-tl-sm bg-[#e6264d] text-white'
               }`}
             >
+              {!isOwn && (
+                <span className="block text-xs font-medium text-neon-cyan mb-0.5">
+                  {msg.sender_username}
+                </span>
+              )}
               {msg.content}
+              <span className={`ml-2 inline-block align-bottom text-[10px] leading-none ${
+                isOwn ? 'text-primary-foreground/60' : 'text-white/60'
+              }`}>{time}</span>
             </div>
-            <span className="mt-0.5 text-xs text-disabled">{time}</span>
           </div>
         );
       })}

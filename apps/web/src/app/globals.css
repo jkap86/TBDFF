@@ -72,6 +72,9 @@
   --neon-cyan: #00d4f0;
   --neon-magenta: #e040fb;
   --neon-purple: #a855f7;
+  --neon-orange: #ff8c00;
+  --neon-rose: #e11d48;
+  --chat-bg: #c9cfd9;
   --glass-bg: rgba(255, 255, 255, 0.55);
   --glass-border: rgba(203, 213, 225, 0.6);
   --neon-glow-color: rgba(0, 200, 224, 0.35);
@@ -120,6 +123,9 @@
   --neon-cyan: #00f0ff;
   --neon-magenta: #ff00ff;
   --neon-purple: #a855f7;
+  --neon-orange: #ff9500;
+  --neon-rose: #ff1744;
+  --chat-bg: #2a3045;
   --glass-bg: rgba(15, 23, 42, 0.6);
   --glass-border: rgba(51, 65, 85, 0.5);
   --neon-glow-color: rgba(0, 240, 255, 0.25);
@@ -166,6 +172,9 @@
   --color-neon-cyan: var(--neon-cyan);
   --color-neon-magenta: var(--neon-magenta);
   --color-neon-purple: var(--neon-purple);
+  --color-neon-orange: var(--neon-orange);
+  --color-neon-rose: var(--neon-rose);
+  --color-chat-bg: var(--chat-bg);
 }
 
 /* ── Glass Utility Classes ── */
