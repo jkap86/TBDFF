@@ -17,7 +17,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           <LeagueIdSync />
           <ConnectionBanner />
           <AppBar />
-          <main>{children}</main>
+          <main className="pt-14">{children}</main>
           <ChatPanel />
           <Toaster position="bottom-right" richColors toastOptions={{ className: 'glass-strong' }} />
         </ChatPanelProvider>

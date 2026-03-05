@@ -7,7 +7,6 @@ import { ApiError } from '@/lib/api';
 const DRAFT_TYPE_OPTIONS: { value: DraftType; label: string }[] = [
   { value: 'snake', label: 'Snake' },
   { value: 'linear', label: 'Linear' },
-  { value: '3rr', label: '3rd Round Reversal' },
   { value: 'auction', label: 'Auction' },
   { value: 'slow_auction', label: 'Slow Auction' },
 ];
@@ -57,7 +56,8 @@ interface DraftSettingsFormProps {
 }
 
 export function DraftSettingsForm({ draft, onSave, onSaveSuccess, readOnly, vetDraftIncludesRookiePicks }: DraftSettingsFormProps) {
-  const [draftType, setDraftType] = useState<DraftType>(draft.type);
+  const [draftType, setDraftType] = useState<DraftType>(draft.type === '3rr' ? 'snake' : draft.type);
+  const [thirdRoundReversal, setThirdRoundReversal] = useState(draft.type === '3rr');
   const [rounds, setRounds] = useState(draft.settings.rounds);
   const [pickTimer, setPickTimer] = useState(draft.settings.pick_timer);
   const [nominationTimer, setNominationTimer] = useState(draft.settings.nomination_timer);
@@ -86,7 +86,8 @@ export function DraftSettingsForm({ draft, onSave, onSaveSuccess, readOnly, vetD
 
   // Reset form when draft changes
   useEffect(() => {
-    setDraftType(draft.type);
+    setDraftType(draft.type === '3rr' ? 'snake' : draft.type);
+    setThirdRoundReversal(draft.type === '3rr');
     setRounds(draft.settings.rounds);
     setPickTimer(draft.settings.pick_timer);
     setNominationTimer(draft.settings.nomination_timer);
@@ -116,8 +117,9 @@ export function DraftSettingsForm({ draft, onSave, onSaveSuccess, readOnly, vetD
   const handleSave = async () => {
     const updates: UpdateDraftRequest = {};
 
-    if (draftType !== draft.type) {
-      updates.type = draftType;
+    const effectiveType: DraftType = draftType === 'snake' && thirdRoundReversal ? '3rr' : draftType;
+    if (effectiveType !== draft.type) {
+      updates.type = effectiveType;
     }
 
     const settingsUpdates: Record<string, number> = {};
@@ -191,7 +193,9 @@ export function DraftSettingsForm({ draft, onSave, onSaveSuccess, readOnly, vetD
           <h3 className="text-sm font-semibold text-accent-foreground mb-2">Draft Format</h3>
           <div className="grid grid-cols-2 gap-x-6 gap-y-1 text-sm">
             <div className="text-muted-foreground">Type</div>
-            <div className="font-medium text-foreground">{DRAFT_TYPE_OPTIONS.find((o) => o.value === draft.type)?.label}</div>
+            <div className="font-medium text-foreground">
+              {draft.type === '3rr' ? 'Snake (3rd Round Reversal)' : DRAFT_TYPE_OPTIONS.find((o) => o.value === draft.type)?.label}
+            </div>
             <div className="text-muted-foreground">Player Pool</div>
             <div className="font-medium text-foreground">{PLAYER_TYPE_LABELS[draft.settings.player_type] ?? 'All Players'}</div>
             <div className="text-muted-foreground">Rounds</div>
@@ -282,7 +286,11 @@ export function DraftSettingsForm({ draft, onSave, onSaveSuccess, readOnly, vetD
             <label className="block text-xs font-medium text-muted-foreground mb-1">Type</label>
             <select
               value={draftType}
-              onChange={(e) => setDraftType(e.target.value as DraftType)}
+              onChange={(e) => {
+                const val = e.target.value as DraftType;
+                setDraftType(val);
+                if (val !== 'snake') setThirdRoundReversal(false);
+              }}
               className="rounded-lg border border-input px-3 py-2 text-sm text-foreground bg-card focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
             >
               {DRAFT_TYPE_OPTIONS.map((opt) => (
@@ -290,6 +298,24 @@ export function DraftSettingsForm({ draft, onSave, onSaveSuccess, readOnly, vetD
               ))}
             </select>
           </div>
+
+          {/* 3rd Round Reversal (snake only) */}
+          {draftType === 'snake' && (
+            <div>
+              <label className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={thirdRoundReversal}
+                  onChange={(e) => setThirdRoundReversal(e.target.checked)}
+                  className="h-4 w-4 rounded border-input text-primary focus:ring-ring"
+                />
+                <span className="text-sm font-medium text-accent-foreground">3rd Round Reversal</span>
+              </label>
+              <p className="text-xs text-disabled mt-0.5 ml-6">
+                Reverses draft order in the 3rd round then continues alternating
+              </p>
+            </div>
+          )}
 
           {/* Player Pool (read-only, managed by league settings) */}
           <div>

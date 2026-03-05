@@ -32,7 +32,7 @@ export function AppBar() {
   };
 
   return (
-    <header className="sticky top-0 z-40 glass">
+    <header className="fixed top-0 left-0 right-0 z-40 bg-card border-b border-border shadow-md">
       <div className="mx-auto flex h-14 max-w-7xl items-center justify-between px-4">
         {pathname !== '/dashboard' && (
           <button
@@ -54,11 +54,8 @@ export function AppBar() {
           </button>
         )}
 
-        <Link
-          href="/dashboard"
-          className="text-lg font-bold font-heading gradient-text glow-text"
-        >
-          TBDFF
+        <Link href="/dashboard" className="text-lg font-bold font-heading gradient-text glow-text">
+          TBD
         </Link>
 
         <div className="flex items-center gap-1">
@@ -85,9 +82,7 @@ export function AppBar() {
                   <p className="text-sm font-medium text-foreground">
                     {user?.display_username || user?.username}
                   </p>
-                  <p className="text-xs text-muted-foreground">
-                    {user?.email}
-                  </p>
+                  <p className="text-xs text-muted-foreground">{user?.email}</p>
                 </div>
                 <button
                   onClick={handleLogout}

@@ -6,7 +6,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { paymentApi, ApiError } from '@/lib/api';
 import { roleColors } from '@/features/leagues/config/league-detail-constants';
-import type { League, LeagueMember, Roster, LeaguePayment } from '@tbdff/shared';
+import type { League, LeagueMember, Roster, LeaguePayment, PayoutEntry } from '@tbdff/shared';
 
 interface LeagueDuesCardProps {
   league: League;
@@ -39,6 +39,13 @@ export function LeagueDuesCard({
   const [isSpectatorsExpanded, setIsSpectatorsExpanded] = useState(false);
 
   const buyIn = (league.settings as Record<string, unknown>).buy_in as number | undefined;
+  const payouts = (league.settings as Record<string, unknown>).payouts as PayoutEntry[] | undefined;
+
+  const ordinal = (n: number) => {
+    const s = ['th', 'st', 'nd', 'rd'];
+    const v = n % 100;
+    return n + (s[(v - 20) % 10] || s[v] || s[0]);
+  };
   const hasBuyIn = buyIn != null && buyIn > 0;
   const buyIns = payments.filter((p) => p.type === 'buy_in');
   const paidBuyInUserIds = new Set(buyIns.map((p) => p.user_id));
@@ -112,6 +119,49 @@ export function LeagueDuesCard({
 
       {/* Active members */}
       {duesExpanded && (<>
+      {payouts && payouts.length > 0 && (() => {
+        const placePayouts = payouts.filter((p) => p.category === 'place').sort((a, b) => a.position - b.position);
+        const pointsPayouts = payouts.filter((p) => p.category === 'points').sort((a, b) => a.position - b.position);
+        const pot = hasBuyIn ? buyIn * totalRosters : 0;
+        const formatValue = (entry: PayoutEntry) =>
+          entry.is_percentage ? `${entry.value}%` : `$${entry.value}`;
+        return (
+          <div className="mb-4 rounded border border-border p-3">
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-sm font-semibold text-foreground">Payouts</h3>
+              {pot > 0 && (
+                <span className="text-xs text-muted-foreground">Pot: ${pot}</span>
+              )}
+            </div>
+            <div className="flex gap-6">
+              {placePayouts.length > 0 && (
+                <div>
+                  <p className="text-xs font-medium text-muted-foreground mb-1">Place</p>
+                  <div className="space-y-0.5">
+                    {placePayouts.map((entry) => (
+                      <p key={`place-${entry.position}`} className="text-sm text-foreground">
+                        {ordinal(entry.position)} — {formatValue(entry)}
+                      </p>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {pointsPayouts.length > 0 && (
+                <div>
+                  <p className="text-xs font-medium text-muted-foreground mb-1">Points</p>
+                  <div className="space-y-0.5">
+                    {pointsPayouts.map((entry) => (
+                      <p key={`points-${entry.position}`} className="text-sm text-foreground">
+                        {ordinal(entry.position)} — {formatValue(entry)}
+                      </p>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      })()}
       <div className="space-y-2">
         {activeMembers.map((member) => {
           const paid = isMemberPaid(member.user_id);

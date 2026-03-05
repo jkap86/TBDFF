@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useParams, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, PanelRightOpen, X } from 'lucide-react';
 import { useDraftRoom } from '@/features/drafts/hooks/useDraftRoom';
 import { DraftBoard } from '@/features/drafts/components/DraftBoard';
 import { AuctionBoard } from '@/features/drafts/components/AuctionBoard';
@@ -31,6 +31,7 @@ export default function DraftRoomPage() {
   const room = useDraftRoom(leagueId, draftId);
   const { draft, picks, members, rosters, queue, isLoading, error, user, accessToken } = room;
   const [isStarting, setIsStarting] = useState(false);
+  const [drawerOpen, setDrawerOpen] = useState(false);
 
   if (isLoading) {
     return <DraftRoomSkeleton />;
@@ -85,9 +86,9 @@ export default function DraftRoomPage() {
   };
 
   return (
-    <div className="min-h-screen bg-surface p-4">
-      <div className="mx-auto max-w-7xl space-y-4">
-        {/* Header */}
+    <div className="h-[calc(100vh-3.5rem)] flex flex-col bg-surface overflow-hidden">
+      {/* Header - pinned at top */}
+      <div className="shrink-0 border-b border-border bg-surface px-4 py-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
             <h1 className="text-2xl font-bold text-foreground">Draft Room</h1>
@@ -124,34 +125,38 @@ export default function DraftRoomPage() {
                   : `${draft.settings.pick_timer}s timer`
             }
             </div>
+            {draft.status !== 'complete' && (
+              <button
+                onClick={() => setDrawerOpen(true)}
+                className="rounded-lg border border-border bg-card px-3 py-2 text-sm font-medium text-foreground hover:bg-muted flex items-center gap-2"
+              >
+                <PanelRightOpen className="h-4 w-4" />
+                Players
+              </button>
+            )}
           </div>
         </div>
+      </div>
 
+      {/* Board content — fills remaining space, grid scrolls inside */}
+      <div className="flex-1 min-h-0 flex flex-col">
         {/* Pre-Draft Board */}
         {draft.status === 'pre_draft' && (
-          <div className="flex gap-4">
-            <div className="flex-1 min-w-0">
-              {room.isSlowAuction
-                ? <SlowAuctionBoard
-                    draft={draft}
-                    lots={room.slowAuctionLots}
-                    budgets={room.slowAuctionBudgets}
-                    members={members}
-                    picks={picks}
-                    currentUserId={user?.id}
-                    myRosterId={room.userRosterId}
-                    accessToken={room.accessToken}
-                    onSetMaxBid={room.handleSlowSetMaxBid}
-                  />
-                : room.isAuction
-                  ? <AuctionBoard draft={draft} picks={picks} members={members} currentUserId={user?.id} />
-                  : <DraftBoard draft={draft} picks={picks} members={members} rosters={rosters} currentUserId={user?.id} />
-              }
-            </div>
-            <div className="w-80 shrink-0">
-              <DraftSidebar {...sidebarProps} />
-            </div>
-          </div>
+          room.isSlowAuction
+            ? <SlowAuctionBoard
+                draft={draft}
+                lots={room.slowAuctionLots}
+                budgets={room.slowAuctionBudgets}
+                members={members}
+                picks={picks}
+                currentUserId={user?.id}
+                myRosterId={room.userRosterId}
+                accessToken={room.accessToken}
+                onSetMaxBid={room.handleSlowSetMaxBid}
+              />
+            : room.isAuction
+              ? <AuctionBoard draft={draft} picks={picks} members={members} currentUserId={user?.id} />
+              : <DraftBoard draft={draft} picks={picks} members={members} rosters={rosters} currentUserId={user?.id} />
         )}
 
         {/* Auction Draft Board */}
@@ -176,15 +181,7 @@ export default function DraftRoomPage() {
               onToggleAutoPick={room.handleToggleAutoPick}
               onNominationMaxBid={room.handleNominationMaxBid}
             />
-
-            <div className="flex gap-4">
-              <div className="flex-1 min-w-0">
-                <AuctionBoard draft={draft} picks={picks} members={members} currentUserId={user?.id} />
-              </div>
-              <div className="w-80 shrink-0">
-                <DraftSidebar {...sidebarProps} />
-              </div>
-            </div>
+            <AuctionBoard draft={draft} picks={picks} members={members} currentUserId={user?.id} />
           </>
         )}
 
@@ -195,25 +192,17 @@ export default function DraftRoomPage() {
               pickError={room.pickError}
               nominationStats={room.nominationStats}
             />
-
-            <div className="flex gap-4">
-              <div className="flex-1 min-w-0">
-                <SlowAuctionBoard
-                  draft={draft}
-                  lots={room.slowAuctionLots}
-                  budgets={room.slowAuctionBudgets}
-                  members={members}
-                  picks={picks}
-                  currentUserId={user?.id}
-                  myRosterId={room.userRosterId}
-                  accessToken={room.accessToken}
-                  onSetMaxBid={room.handleSlowSetMaxBid}
-                />
-              </div>
-              <div className="w-80 shrink-0">
-                <DraftSidebar {...sidebarProps} />
-              </div>
-            </div>
+            <SlowAuctionBoard
+              draft={draft}
+              lots={room.slowAuctionLots}
+              budgets={room.slowAuctionBudgets}
+              members={members}
+              picks={picks}
+              currentUserId={user?.id}
+              myRosterId={room.userRosterId}
+              accessToken={room.accessToken}
+              onSetMaxBid={room.handleSlowSetMaxBid}
+            />
           </>
         )}
 
@@ -231,15 +220,7 @@ export default function DraftRoomPage() {
               pickError={room.pickError}
               onToggleAutoPick={room.handleToggleAutoPick}
             />
-
-            <div className="flex gap-4">
-              <div className="flex-1 min-w-0">
-                <DraftBoard draft={draft} picks={picks} members={members} rosters={rosters} currentUserId={user?.id} />
-              </div>
-              <div className="w-80 shrink-0">
-                <DraftSidebar {...sidebarProps} />
-              </div>
-            </div>
+            <DraftBoard draft={draft} picks={picks} members={members} rosters={rosters} currentUserId={user?.id} />
           </>
         )}
 
@@ -261,8 +242,27 @@ export default function DraftRoomPage() {
               ? <AuctionBoard draft={draft} picks={picks} members={members} currentUserId={user?.id} />
               : <DraftBoard draft={draft} picks={picks} members={members} rosters={rosters} currentUserId={user?.id} />
         )}
-
       </div>
+
+      {/* Players/Queue Side Drawer */}
+      {draft.status !== 'complete' && (
+        <div className={`fixed top-0 right-0 z-50 h-full w-96 bg-card shadow-2xl border-l border-border transition-transform duration-300 ease-in-out ${
+          drawerOpen ? 'translate-x-0' : 'translate-x-full'
+        }`}>
+          <div className="flex items-center justify-between border-b border-border px-4 py-3">
+            <h2 className="text-sm font-semibold text-foreground">Players & Queue</h2>
+            <button
+              onClick={() => setDrawerOpen(false)}
+              className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+            >
+              <X className="h-5 w-5" />
+            </button>
+          </div>
+          <div className="h-[calc(100%-49px)]">
+            <DraftSidebar {...sidebarProps} height="100%" />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
