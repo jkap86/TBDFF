@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { DraftService } from '../drafts.service';
+import { AutoPickService } from '../auto-pick.service';
 import { Draft, DraftPick, DEFAULT_DRAFT_SETTINGS } from '../drafts.model';
 
 function makeDraft(): Draft {
@@ -45,6 +46,7 @@ describe('DraftService.makePick idempotency', () => {
   let draftRepo: any;
   let leagueRepo: any;
   let playerRepo: any;
+  let autoPickService: AutoPickService;
 
   beforeEach(() => {
     draftRepo = {
@@ -71,7 +73,8 @@ describe('DraftService.makePick idempotency', () => {
       }),
     };
 
-    service = new DraftService(draftRepo, leagueRepo, playerRepo);
+    autoPickService = new AutoPickService(draftRepo, leagueRepo);
+    service = new DraftService(draftRepo, leagueRepo, playerRepo, autoPickService);
   });
 
   it('returns idempotent success when makePick returns null and existing pick has same playerId', async () => {

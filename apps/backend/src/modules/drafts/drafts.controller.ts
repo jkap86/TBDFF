@@ -1,6 +1,9 @@
 import { Response } from 'express';
 import { AuthRequest } from '../../middleware/auth.middleware';
 import { DraftService } from './drafts.service';
+import { DraftQueueService } from './draft-queue.service';
+import { DraftClockService } from './draft-clock.service';
+import { AutoPickService } from './auto-pick.service';
 import { AuctionService } from './auction.service';
 import { SlowAuctionService } from './slow-auction.service';
 import { DerbyService } from './derby.service';
@@ -24,6 +27,9 @@ import {
 export class DraftController {
   constructor(
     private readonly draftService: DraftService,
+    private readonly draftQueueService: DraftQueueService,
+    private readonly draftClockService: DraftClockService,
+    private readonly autoPickService: AutoPickService,
     private readonly auctionService: AuctionService,
     private readonly slowAuctionService: SlowAuctionService,
     private readonly derbyService: DerbyService,
@@ -142,7 +148,7 @@ export class DraftController {
     if (!userId) throw new InvalidCredentialsException();
 
     const draftId = Array.isArray(req.params.draftId) ? req.params.draftId[0] : req.params.draftId;
-    const result = await this.draftService.autoPick(draftId, userId);
+    const result = await this.autoPickService.autoPick(draftId, userId);
 
     res.status(201).json({
       pick: result.pick.toSafeObject(),
@@ -155,7 +161,7 @@ export class DraftController {
     if (!userId) throw new InvalidCredentialsException();
 
     const draftId = Array.isArray(req.params.draftId) ? req.params.draftId[0] : req.params.draftId;
-    const result = await this.draftService.toggleAutoPick(draftId, userId);
+    const result = await this.autoPickService.toggleAutoPick(draftId, userId);
 
     res.status(200).json({
       draft: result.draft.toSafeObject(),
@@ -227,7 +233,7 @@ export class DraftController {
       offset?: number;
     };
 
-    const players = await this.draftService.getAvailablePlayers(draftId, userId, {
+    const players = await this.draftQueueService.getAvailablePlayers(draftId, userId, {
       position,
       query,
       limit,
@@ -244,7 +250,7 @@ export class DraftController {
     if (!userId) throw new InvalidCredentialsException();
 
     const draftId = Array.isArray(req.params.draftId) ? req.params.draftId[0] : req.params.draftId;
-    const queue = await this.draftService.getQueue(draftId, userId);
+    const queue = await this.draftQueueService.getQueue(draftId, userId);
     res.status(200).json({ queue });
   };
 
@@ -254,7 +260,7 @@ export class DraftController {
 
     const draftId = Array.isArray(req.params.draftId) ? req.params.draftId[0] : req.params.draftId;
     const body = req.body as SetDraftQueueInput;
-    const queue = await this.draftService.setQueue(draftId, userId, body.player_ids);
+    const queue = await this.draftQueueService.setQueue(draftId, userId, body.player_ids);
     res.status(200).json({ queue });
   };
 
@@ -264,7 +270,7 @@ export class DraftController {
 
     const draftId = Array.isArray(req.params.draftId) ? req.params.draftId[0] : req.params.draftId;
     const body = req.body as AddToQueueInput;
-    const queue = await this.draftService.addToQueue(draftId, userId, body.player_id, body.max_bid);
+    const queue = await this.draftQueueService.addToQueue(draftId, userId, body.player_id, body.max_bid);
 
     // Trigger auto-bid re-evaluation when a max_bid is set during an active nomination
     if (body.max_bid != null) {
@@ -281,7 +287,7 @@ export class DraftController {
     const draftId = Array.isArray(req.params.draftId) ? req.params.draftId[0] : req.params.draftId;
     const playerId = Array.isArray(req.params.playerId) ? req.params.playerId[0] : req.params.playerId;
     const body = req.body as UpdateQueueMaxBidInput;
-    const queue = await this.draftService.updateQueueMaxBid(draftId, userId, playerId, body.max_bid);
+    const queue = await this.draftQueueService.updateQueueMaxBid(draftId, userId, playerId, body.max_bid);
 
     // Trigger auto-bid re-evaluation when a max_bid is set during an active nomination
     if (body.max_bid != null) {
@@ -297,7 +303,7 @@ export class DraftController {
 
     const draftId = Array.isArray(req.params.draftId) ? req.params.draftId[0] : req.params.draftId;
     const playerId = Array.isArray(req.params.playerId) ? req.params.playerId[0] : req.params.playerId;
-    const queue = await this.draftService.removeFromQueue(draftId, userId, playerId);
+    const queue = await this.draftQueueService.removeFromQueue(draftId, userId, playerId);
     res.status(200).json({ queue });
   };
 
@@ -406,7 +412,7 @@ export class DraftController {
     if (!userId) throw new InvalidCredentialsException();
 
     const draftId = Array.isArray(req.params.draftId) ? req.params.draftId[0] : req.params.draftId;
-    const draft = await this.draftService.pauseDraft(draftId, userId);
+    const draft = await this.draftClockService.pauseDraft(draftId, userId);
 
     res.status(200).json({ draft: draft.toSafeObject(), server_time: new Date().toISOString() });
   };
@@ -416,7 +422,7 @@ export class DraftController {
     if (!userId) throw new InvalidCredentialsException();
 
     const draftId = Array.isArray(req.params.draftId) ? req.params.draftId[0] : req.params.draftId;
-    const draft = await this.draftService.stopDraft(draftId, userId);
+    const draft = await this.draftClockService.stopDraft(draftId, userId);
 
     res.status(200).json({ draft: draft.toSafeObject(), server_time: new Date().toISOString() });
   };

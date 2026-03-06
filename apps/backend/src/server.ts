@@ -37,6 +37,8 @@ const draftGateway = createDraftGateway(
   container.services.chatService,
 );
 container.services.draftService.setGateway(draftGateway);
+container.services.draftClockService.setGateway(draftGateway);
+container.services.autoPickService.setGateway(draftGateway);
 container.services.auctionService.setGateway(draftGateway);
 container.services.slowAuctionService.setGateway(draftGateway);
 container.services.derbyService.setGateway(draftGateway);
