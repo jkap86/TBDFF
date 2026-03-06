@@ -20,6 +20,7 @@ export function useTradeSocket(
       'trade:countered',
       'trade:completed',
       'trade:vetoed',
+      'trade:withdrawn',
     ] as const;
 
     const handler = (data: { trade: Record<string, unknown> }) => {

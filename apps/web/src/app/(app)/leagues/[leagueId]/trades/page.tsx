@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft, Plus } from 'lucide-react';
@@ -24,6 +25,7 @@ export default function TradesPage() {
   const [statusFilter, setStatusFilter] = useState<string | undefined>(undefined);
   const [confirmAction, setConfirmAction] = useState<{ label: string; tradeId: string; action: (id: string) => Promise<any> } | null>(null);
 
+  const queryClient = useQueryClient();
   const { data: members = [] } = useMembersQuery(leagueId);
   const { data: rosters = [] } = useRostersQuery(leagueId);
 
@@ -64,7 +66,11 @@ export default function TradesPage() {
 
   const handleTradeUpdate = useCallback((trade: TradeProposal) => {
     fetchTrades(statusFilter);
-  }, [fetchTrades, statusFilter]);
+    if (trade.status === 'completed') {
+      queryClient.invalidateQueries({ queryKey: ['rosters', leagueId] });
+      queryClient.invalidateQueries({ queryKey: ['futurePicks', leagueId] });
+    }
+  }, [fetchTrades, statusFilter, queryClient, leagueId]);
 
   useTradeSocket(leagueId, handleTradeUpdate);
 

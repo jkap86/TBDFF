@@ -157,3 +157,49 @@ describe('TradeService.executeTrade roster cleanup', () => {
     }
   });
 });
+
+describe('TradeService.withdrawTrade', () => {
+  let service: TradeService;
+  let tradeRepo: any;
+  let gateway: any;
+
+  beforeEach(() => {
+    tradeRepo = {
+      findProposalById: vi.fn(),
+      withTransaction: vi.fn(async (fn: any) => {
+        const client = { query: vi.fn() };
+        return fn(client);
+      }),
+      updateProposalStatus: vi.fn(),
+    };
+
+    gateway = {
+      broadcastToLeague: vi.fn(),
+      broadcastToUser: vi.fn(),
+    };
+
+    service = new TradeService(tradeRepo, {} as any, {} as any, {} as any, {} as any, {} as any);
+    service.setGateway(gateway);
+  });
+
+  it('broadcasts trade:withdrawn after successful commit', async () => {
+    const trade = {
+      id: 'trade-1',
+      leagueId: 'league-1',
+      status: 'pending',
+      proposedBy: 'user-a',
+      proposedTo: 'user-b',
+      toSafeObject: () => ({ id: 'trade-1', status: 'withdrawn' }),
+    };
+
+    tradeRepo.findProposalById.mockResolvedValue(trade);
+
+    await service.withdrawTrade('trade-1', 'user-a');
+
+    expect(gateway.broadcastToLeague).toHaveBeenCalledWith(
+      'league-1',
+      'trade:withdrawn',
+      { trade: { id: 'trade-1', status: 'withdrawn' } },
+    );
+  });
+});

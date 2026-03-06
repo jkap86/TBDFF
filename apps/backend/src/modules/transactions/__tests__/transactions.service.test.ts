@@ -45,6 +45,7 @@ describe('TransactionService.processLeagueWaivers', () => {
       createTransaction: vi.fn().mockResolvedValue({ id: 'tx-1', toSafeObject: () => ({}) }),
       rotateWaiverPriority: vi.fn(),
       deductFaab: vi.fn().mockResolvedValue(true),
+      refundFaab: vi.fn(),
       cleanExpiredWaivers: vi.fn(),
     };
 
@@ -62,6 +63,11 @@ describe('TransactionService.processLeagueWaivers', () => {
         players: [],
         settings: { waiver_position: 1 },
       }),
+      findRosterByOwnerForUpdate: vi.fn().mockResolvedValue({
+        rosterId: 101,
+        players: [],
+        settings: { waiver_position: 1 },
+      }),
     };
 
     service = new TransactionService(txRepo, leagueRepo, {} as any, leagueRostersRepo);
@@ -74,14 +80,14 @@ describe('TransactionService.processLeagueWaivers', () => {
     expect(leagueRepo.findById).toHaveBeenCalledWith('league-1', capturedClient);
   });
 
-  it('passes client to leagueRepo.findRosterByOwner within transaction', async () => {
+  it('uses findRosterByOwnerForUpdate (row lock) within transaction', async () => {
     const claim = makeClaim();
     txRepo.findPendingClaimsByLeague.mockResolvedValue([claim]);
 
     await service.processLeagueWaivers('league-1');
 
-    // findRosterByOwner should receive the transaction client
-    expect(leagueRostersRepo.findRosterByOwner).toHaveBeenCalledWith('league-1', 'user-a', capturedClient);
+    // findRosterByOwnerForUpdate should receive the transaction client
+    expect(leagueRostersRepo.findRosterByOwnerForUpdate).toHaveBeenCalledWith('league-1', 'user-a', capturedClient);
   });
 
   it('acquires advisory lock before processing', async () => {
@@ -112,6 +118,12 @@ describe('TransactionService.processLeagueWaivers', () => {
   it('successfully processes a valid claim within the transaction', async () => {
     const claim = makeClaim({ dropPlayerId: 'player-drop' });
     txRepo.findPendingClaimsByLeague.mockResolvedValue([claim]);
+    txRepo.removePlayerFromRoster.mockResolvedValue(true);
+    leagueRostersRepo.findRosterByOwnerForUpdate.mockResolvedValue({
+      rosterId: 101,
+      players: ['player-drop'],
+      settings: { waiver_position: 1 },
+    });
 
     await service.processLeagueWaivers('league-1');
 
@@ -163,6 +175,82 @@ describe('TransactionService.processLeagueWaivers', () => {
     );
     expect(txRepo.updateClaimStatus).toHaveBeenCalledWith(
       capturedClient, 'claim-1', 'failed',
+    );
+    expect(txRepo.createTransaction).not.toHaveBeenCalled();
+  });
+
+  it('marks claim invalid when roster is full and no drop player is provided', async () => {
+    // Roster has 15 players = full (matches rosterPositions.length)
+    leagueRostersRepo.findRosterByOwnerForUpdate.mockResolvedValue({
+      rosterId: 101,
+      players: Array(15).fill('existing-player'),
+      settings: { waiver_position: 1 },
+    });
+    const claim = makeClaim({ dropPlayerId: null });
+    txRepo.findPendingClaimsByLeague.mockResolvedValue([claim]);
+
+    await service.processLeagueWaivers('league-1');
+
+    expect(txRepo.updateClaimStatus).toHaveBeenCalledWith(
+      capturedClient, 'claim-1', 'invalid',
+    );
+    expect(txRepo.addPlayerToRoster).not.toHaveBeenCalled();
+    expect(txRepo.createTransaction).not.toHaveBeenCalled();
+  });
+
+  it('marks claim invalid when drop player is no longer on the locked roster', async () => {
+    // Roster does not contain the drop player
+    leagueRostersRepo.findRosterByOwnerForUpdate.mockResolvedValue({
+      rosterId: 101,
+      players: ['some-other-player'],
+      settings: { waiver_position: 1 },
+    });
+    const claim = makeClaim({ dropPlayerId: 'player-gone' });
+    txRepo.findPendingClaimsByLeague.mockResolvedValue([claim]);
+
+    await service.processLeagueWaivers('league-1');
+
+    expect(txRepo.updateClaimStatus).toHaveBeenCalledWith(
+      capturedClient, 'claim-1', 'invalid',
+    );
+    expect(txRepo.addPlayerToRoster).not.toHaveBeenCalled();
+    expect(txRepo.createTransaction).not.toHaveBeenCalled();
+  });
+
+  it('refunds FAAB and removes added player if post-add drop removal fails', async () => {
+    leagueRepo.findById.mockResolvedValue({
+      id: 'league-1',
+      settings: { waiver_type: 2, waiver_clear_days: 2 },
+      rosterPositions: Array(15).fill('BN'),
+    });
+    leagueRostersRepo.findRosterByOwnerForUpdate.mockResolvedValue({
+      rosterId: 101,
+      players: ['player-drop'],
+      settings: { waiver_position: 1 },
+    });
+    const claim = makeClaim({ dropPlayerId: 'player-drop', faabAmount: 25 });
+    txRepo.findPendingClaimsByLeague.mockResolvedValue([claim]);
+    txRepo.addPlayerToRoster.mockResolvedValue(true);
+    txRepo.deductFaab.mockResolvedValue(true);
+    // Drop removal unexpectedly fails
+    txRepo.removePlayerFromRoster.mockResolvedValue(false);
+
+    await service.processLeagueWaivers('league-1');
+
+    // Should undo the added player (second call to removePlayerFromRoster)
+    expect(txRepo.removePlayerFromRoster).toHaveBeenCalledWith(
+      capturedClient, 'league-1', 'user-a', 'player-drop',
+    );
+    expect(txRepo.removePlayerFromRoster).toHaveBeenCalledWith(
+      capturedClient, 'league-1', 'user-a', 'player-1',
+    );
+    // Should refund FAAB
+    expect(txRepo.refundFaab).toHaveBeenCalledWith(
+      capturedClient, 'league-1', 'user-a', 25,
+    );
+    // Claim marked invalid, no transaction created
+    expect(txRepo.updateClaimStatus).toHaveBeenCalledWith(
+      capturedClient, 'claim-1', 'invalid',
     );
     expect(txRepo.createTransaction).not.toHaveBeenCalled();
   });

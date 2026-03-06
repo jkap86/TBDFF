@@ -384,11 +384,15 @@ export class TradeService {
     if (trade.proposedBy !== userId) throw new ForbiddenException('Only the proposer can withdraw this trade');
     if (trade.status !== 'pending') throw new ValidationException('Trade is not in pending status');
 
-    return this.tradeRepo.withTransaction(async (client) => {
+    const updated = await this.tradeRepo.withTransaction(async (client) => {
       await this.tradeRepo.updateProposalStatus(client, tradeId, 'withdrawn');
-      const updated = await this.tradeRepo.findProposalById(tradeId, client);
-      return updated!;
+      return this.tradeRepo.findProposalById(tradeId, client);
     });
+
+    // Post-commit broadcast
+    this.gateway?.broadcastToLeague(trade.leagueId, 'trade:withdrawn', { trade: updated!.toSafeObject() });
+
+    return updated!;
   }
 
   async counterTrade(

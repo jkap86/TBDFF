@@ -54,6 +54,14 @@ export class LeagueRostersRepository {
     return result.rows.length > 0 ? Roster.fromDatabase(result.rows[0]) : null;
   }
 
+  async findRosterByOwnerForUpdate(leagueId: string, ownerId: string, client: PoolClient): Promise<Roster | null> {
+    const result = await client.query(
+      `SELECT * FROM rosters WHERE league_id = $1 AND owner_id = $2 FOR UPDATE`,
+      [leagueId, ownerId]
+    );
+    return result.rows.length > 0 ? Roster.fromDatabase(result.rows[0]) : null;
+  }
+
   async unassignRosterOwner(leagueId: string, ownerId: string): Promise<boolean> {
     const result = await this.db.query(
       `UPDATE rosters SET owner_id = NULL

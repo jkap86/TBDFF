@@ -289,6 +289,13 @@ export class TransactionRepository {
     return (result.rowCount ?? 0) > 0;
   }
 
+  async refundFaab(client: PoolClient, leagueId: string, ownerId: string, amount: number): Promise<void> {
+    await client.query(
+      `UPDATE rosters SET waiver_budget = waiver_budget + $1 WHERE league_id = $2 AND owner_id = $3`,
+      [amount, leagueId, ownerId],
+    );
+  }
+
   // ---- Transactional helpers ----
 
   async withTransaction<T>(fn: (client: PoolClient) => Promise<T>): Promise<T> {

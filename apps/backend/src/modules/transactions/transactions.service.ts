@@ -70,6 +70,18 @@ export class TransactionService {
       // Per-player advisory lock prevents concurrent adds of the same player
       await client.query(`SELECT pg_advisory_xact_lock(hashtext($1))`, [`${leagueId}:${playerId}`]);
 
+      // Row-lock the roster to prevent concurrent roster mutations (different players)
+      const lockedRoster = await this.leagueRostersRepo.findRosterByOwnerForUpdate(leagueId, userId, client);
+      if (!lockedRoster) throw new ValidationException('You do not own a roster in this league');
+
+      // Authoritative checks under row lock
+      if (dropPlayerId && !lockedRoster.players.includes(dropPlayerId)) {
+        throw new ValidationException('Drop player is not on your roster');
+      }
+      if (!dropPlayerId && lockedRoster.players.length >= maxRosterSize) {
+        throw new ValidationException('Roster is full. You must drop a player.');
+      }
+
       // Re-check under lock: player not already rostered league-wide
       const rostered = await this.txRepo.isPlayerRosteredInLeague(client, leagueId, playerId);
       if (rostered) throw new ValidationException('This player is already on a roster');
@@ -78,7 +90,7 @@ export class TransactionService {
       const onWaivers = await this.txRepo.isPlayerOnWaivers(leagueId, playerId, client);
       if (onWaivers) throw new ValidationException('This player is on waivers. You must place a waiver claim.');
 
-      const adds: Record<string, number> = { [playerId]: roster.rosterId };
+      const adds: Record<string, number> = { [playerId]: lockedRoster.rosterId };
       const drops: Record<string, number> = {};
       const playerIds = [playerId];
 
@@ -90,7 +102,7 @@ export class TransactionService {
       if (dropPlayerId) {
         const removed = await this.txRepo.removePlayerFromRoster(client, leagueId, userId, dropPlayerId);
         if (!removed) throw new ValidationException('Drop player is no longer on your roster');
-        drops[dropPlayerId] = roster.rosterId;
+        drops[dropPlayerId] = lockedRoster.rosterId;
         playerIds.push(dropPlayerId);
 
         // Put dropped player on waivers
@@ -102,7 +114,7 @@ export class TransactionService {
         leagueId,
         type: 'free_agent',
         status: 'complete',
-        rosterIds: [roster.rosterId],
+        rosterIds: [lockedRoster.rosterId],
         playerIds,
         adds,
         drops,
@@ -333,6 +345,8 @@ export class TransactionService {
 
       const processedRosters = new Set<number>();
 
+      const maxRosterSize = league.rosterPositions.length;
+
       for (const [playerId, playerClaims] of claimsByPlayer) {
         // Claims are already sorted by faab_amount DESC, priority ASC from the query
         let winner: WaiverClaim | null = null;
@@ -344,9 +358,21 @@ export class TransactionService {
             continue;
           }
 
-          // Validate roster still has room or has drop player (read within tx)
-          const roster = await this.leagueRostersRepo.findRosterByOwner(leagueId, claim.userId, client);
+          // Row-lock the roster to prevent concurrent mutations
+          const roster = await this.leagueRostersRepo.findRosterByOwnerForUpdate(leagueId, claim.userId, client);
           if (!roster) {
+            await this.txRepo.updateClaimStatus(client, claim.id, 'invalid');
+            continue;
+          }
+
+          // Authoritative stale-drop check
+          if (claim.dropPlayerId && !roster.players.includes(claim.dropPlayerId)) {
+            await this.txRepo.updateClaimStatus(client, claim.id, 'invalid');
+            continue;
+          }
+
+          // Authoritative roster-full check (no drop specified)
+          if (!claim.dropPlayerId && roster.players.length >= maxRosterSize) {
             await this.txRepo.updateClaimStatus(client, claim.id, 'invalid');
             continue;
           }
@@ -360,6 +386,7 @@ export class TransactionService {
           }
 
           // For FAAB leagues, deduct budget after successful add
+          let faabDeducted = false;
           if (league.settings.waiver_type === 2 && claim.faabAmount > 0) {
             const deducted = await this.txRepo.deductFaab(client, leagueId, claim.userId, claim.faabAmount);
             if (!deducted) {
@@ -368,10 +395,20 @@ export class TransactionService {
               await this.txRepo.updateClaimStatus(client, claim.id, 'failed');
               continue;
             }
+            faabDeducted = true;
           }
 
           if (claim.dropPlayerId) {
-            await this.txRepo.removePlayerFromRoster(client, leagueId, claim.userId, claim.dropPlayerId);
+            const dropped = await this.txRepo.removePlayerFromRoster(client, leagueId, claim.userId, claim.dropPlayerId);
+            if (!dropped) {
+              // Drop unexpectedly failed — undo the add and refund FAAB if deducted
+              await this.txRepo.removePlayerFromRoster(client, leagueId, claim.userId, playerId);
+              if (faabDeducted) {
+                await this.txRepo.refundFaab(client, leagueId, claim.userId, claim.faabAmount);
+              }
+              await this.txRepo.updateClaimStatus(client, claim.id, 'invalid');
+              continue;
+            }
             const clearDays = league.settings.waiver_clear_days ?? 2;
             await this.txRepo.createPlayerWaiver(client, leagueId, claim.dropPlayerId, claim.userId, clearDays);
           }
