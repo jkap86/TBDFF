@@ -409,6 +409,8 @@ function EditPayments({
 
   // ---- Mark as paid / unpaid ----
 
+  const [isMarkingAll, setIsMarkingAll] = useState(false);
+
   const handleMarkPaid = async (userId: string) => {
     if (!accessToken || !buyInAmount) return;
 
@@ -419,6 +421,28 @@ function EditPayments({
     } catch (err) {
       toast.error(err instanceof ApiError ? err.message : 'Failed to record payment');
     }
+  };
+
+  const handleMarkAllPaid = async () => {
+    if (!accessToken || !buyInAmount) return;
+
+    const unpaidMembers = activeMembers.filter((m) => !paidUserIds.has(m.user_id));
+    if (unpaidMembers.length === 0) return;
+
+    setIsMarkingAll(true);
+
+    for (const member of unpaidMembers) {
+      try {
+        const result = await paymentApi.recordBuyIn(leagueId, { user_id: member.user_id, amount: buyInAmount }, accessToken);
+        setPayments((prev) => [...prev, result.payment]);
+      } catch (err) {
+        toast.error(err instanceof ApiError ? err.message : 'Failed to record payment');
+        break;
+      }
+    }
+
+    setIsMarkingAll(false);
+    toast.success('All members marked as paid');
   };
 
   const handleMarkUnpaid = async (paymentId: string) => {
@@ -604,7 +628,19 @@ function EditPayments({
               {/* Buy-in Status */}
               {buyInAmount != null && activeMembers.length > 0 && (
                 <div>
-                  <h4 className="mb-2 text-sm font-semibold text-accent-foreground">Buy-in Status</h4>
+                  <div className="mb-2 flex items-center justify-between">
+                    <h4 className="text-sm font-semibold text-accent-foreground">Buy-in Status</h4>
+                    {activeMembers.some((m) => !paidUserIds.has(m.user_id)) && (
+                      <button
+                        type="button"
+                        onClick={handleMarkAllPaid}
+                        disabled={isMarkingAll}
+                        className="rounded bg-green-600 px-3 py-1 text-xs font-medium text-white hover:bg-green-700 disabled:opacity-50"
+                      >
+                        {isMarkingAll ? 'Marking...' : `Mark All Paid (${activeMembers.filter((m) => !paidUserIds.has(m.user_id)).length})`}
+                      </button>
+                    )}
+                  </div>
                   <div className="space-y-1">
                     {activeMembers.map((member) => {
                       const buyInPayment = buyIns.find((p) => p.user_id === member.user_id);
