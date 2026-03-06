@@ -37,8 +37,12 @@ export function useTrades(leagueId: string, status?: string) {
     if (!accessToken) throw new Error('Not authenticated');
     const result = await tradeApi.accept(tradeId, accessToken);
     invalidateTrades();
+    if (result.trade.status === 'completed') {
+      queryClient.invalidateQueries({ queryKey: ['rosters', leagueId] });
+      queryClient.invalidateQueries({ queryKey: ['futurePicks', leagueId] });
+    }
     return result.trade;
-  }, [accessToken, invalidateTrades]);
+  }, [leagueId, accessToken, invalidateTrades, queryClient]);
 
   const declineTrade = useCallback(async (tradeId: string) => {
     if (!accessToken) throw new Error('Not authenticated');
@@ -72,8 +76,12 @@ export function useTrades(leagueId: string, status?: string) {
     if (!accessToken) throw new Error('Not authenticated');
     const result = await tradeApi.push(tradeId, accessToken);
     invalidateTrades();
+    if (result.trade.status === 'completed') {
+      queryClient.invalidateQueries({ queryKey: ['rosters', leagueId] });
+      queryClient.invalidateQueries({ queryKey: ['futurePicks', leagueId] });
+    }
     return result.trade;
-  }, [accessToken, invalidateTrades]);
+  }, [leagueId, accessToken, invalidateTrades, queryClient]);
 
   return {
     trades: tradesData?.trades ?? [],

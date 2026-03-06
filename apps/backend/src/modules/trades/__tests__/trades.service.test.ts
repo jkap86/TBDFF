@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { TradeService } from '../trades.service';
 import { ValidationException, ConflictException } from '../../../shared/exceptions';
+import { tradeItemSchema, proposeTradeSchema } from '../trades.schemas';
 
 describe('TradeService.executeTrade duplicate guard', () => {
   let service: TradeService;
@@ -665,5 +666,112 @@ describe('TradeService.counterTrade item validation', () => {
         ],
       }),
     ).rejects.toThrow('Item roster_id does not match the expected roster for proposer side');
+  });
+});
+
+// ===== NEW: Discriminated union schema validation tests =====
+
+describe('tradeItemSchema discriminated union', () => {
+  it('rejects item_type: player without player_id', () => {
+    const result = tradeItemSchema.safeParse({
+      side: 'proposer',
+      item_type: 'player',
+      roster_id: 1,
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it('rejects item_type: draft_pick without draft_pick_id', () => {
+    const result = tradeItemSchema.safeParse({
+      side: 'proposer',
+      item_type: 'draft_pick',
+      roster_id: 1,
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it('rejects item_type: faab without faab_amount', () => {
+    const result = tradeItemSchema.safeParse({
+      side: 'receiver',
+      item_type: 'faab',
+      roster_id: 1,
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it('rejects item_type: player with extra draft_pick_id field', () => {
+    const result = tradeItemSchema.safeParse({
+      side: 'proposer',
+      item_type: 'player',
+      player_id: 'player-1',
+      draft_pick_id: 'a0000000-0000-4000-8000-000000000001',
+      roster_id: 1,
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it('rejects item_type: draft_pick with extra faab_amount field', () => {
+    const result = tradeItemSchema.safeParse({
+      side: 'receiver',
+      item_type: 'draft_pick',
+      draft_pick_id: 'a0000000-0000-4000-8000-000000000001',
+      faab_amount: 10,
+      roster_id: 1,
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it('accepts valid player item', () => {
+    const result = tradeItemSchema.safeParse({
+      side: 'proposer',
+      item_type: 'player',
+      player_id: 'player-1',
+      roster_id: 1,
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it('accepts valid draft_pick item', () => {
+    const result = tradeItemSchema.safeParse({
+      side: 'receiver',
+      item_type: 'draft_pick',
+      draft_pick_id: 'a0000000-0000-4000-8000-000000000001',
+      roster_id: 2,
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it('accepts valid faab item', () => {
+    const result = tradeItemSchema.safeParse({
+      side: 'proposer',
+      item_type: 'faab',
+      faab_amount: 25,
+      roster_id: 1,
+    });
+    expect(result.success).toBe(true);
+  });
+});
+
+describe('proposeTradeSchema inherits discriminated union', () => {
+  it('rejects proposal containing a malformed item', () => {
+    const result = proposeTradeSchema.safeParse({
+      proposed_to: 'b0000000-0000-4000-8000-000000000002',
+      items: [
+        { side: 'proposer', item_type: 'player', roster_id: 1 }, // missing player_id
+        { side: 'receiver', item_type: 'faab', faab_amount: 5, roster_id: 2 },
+      ],
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it('accepts proposal with valid discriminated items', () => {
+    const result = proposeTradeSchema.safeParse({
+      proposed_to: 'b0000000-0000-4000-8000-000000000002',
+      items: [
+        { side: 'proposer', item_type: 'player', player_id: 'player-1', roster_id: 1 },
+        { side: 'receiver', item_type: 'draft_pick', draft_pick_id: 'c0000000-0000-4000-8000-000000000003', roster_id: 2 },
+      ],
+    });
+    expect(result.success).toBe(true);
   });
 });

@@ -1,13 +1,35 @@
 import { z } from 'zod';
 
-const tradeItemSchema = z.object({
+const baseFields = {
   side: z.enum(['proposer', 'receiver']),
-  item_type: z.enum(['player', 'draft_pick', 'faab']),
-  player_id: z.string().optional(),
-  draft_pick_id: z.string().uuid().optional(),
-  faab_amount: z.number().int().min(1).optional(),
   roster_id: z.number().int().min(1),
-});
+};
+
+const playerItemSchema = z.object({
+  ...baseFields,
+  item_type: z.literal('player'),
+  player_id: z.string(),
+}).strict();
+
+const draftPickItemSchema = z.object({
+  ...baseFields,
+  item_type: z.literal('draft_pick'),
+  draft_pick_id: z.string().uuid(),
+}).strict();
+
+const faabItemSchema = z.object({
+  ...baseFields,
+  item_type: z.literal('faab'),
+  faab_amount: z.number().int().min(1),
+}).strict();
+
+export const tradeItemSchema = z.discriminatedUnion('item_type', [
+  playerItemSchema,
+  draftPickItemSchema,
+  faabItemSchema,
+]);
+
+export type TradeItemInput = z.infer<typeof tradeItemSchema>;
 
 export const proposeTradeSchema = z.object({
   proposed_to: z.string().uuid('Invalid user ID'),

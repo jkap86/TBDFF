@@ -13,6 +13,7 @@ import {
   ValidationException,
   ConflictException,
 } from '../../shared/exceptions';
+import type { TradeItemInput } from './trades.schemas';
 
 export class TradeService {
   private gateway: TransactionsGateway | null = null;
@@ -41,14 +42,7 @@ export class TradeService {
     request: {
       proposed_to: string;
       message?: string;
-      items: Array<{
-        side: string;
-        item_type: string;
-        player_id?: string;
-        draft_pick_id?: string;
-        faab_amount?: number;
-        roster_id: number;
-      }>;
+      items: TradeItemInput[];
     },
   ): Promise<TradeProposal> {
     // Validate membership
@@ -83,13 +77,13 @@ export class TradeService {
     validateTradeItems(request.items, proposerRoster.rosterId, receiverRoster.rosterId);
 
     for (const item of request.items) {
-      if (item.item_type === 'player' && item.player_id) {
+      if (item.item_type === 'player') {
         const roster = item.side === 'proposer' ? proposerRoster : receiverRoster;
         if (!roster.players.includes(item.player_id)) {
           throw new ValidationException(`Player ${item.player_id} is not on the expected roster`);
         }
       }
-      if (item.item_type === 'draft_pick' && item.draft_pick_id) {
+      if (item.item_type === 'draft_pick') {
         const pick = await this.tradeRepo.findFuturePickById(item.draft_pick_id);
         if (!pick) throw new ValidationException('Draft pick not found');
         const expectedOwner = item.side === 'proposer' ? userId : request.proposed_to;
@@ -456,14 +450,7 @@ export class TradeService {
     userId: string,
     request: {
       message?: string;
-      items: Array<{
-        side: string;
-        item_type: string;
-        player_id?: string;
-        draft_pick_id?: string;
-        faab_amount?: number;
-        roster_id: number;
-      }>;
+      items: TradeItemInput[];
     },
   ): Promise<TradeProposal> {
     const original = await this.tradeRepo.findProposalById(tradeId);
@@ -480,13 +467,13 @@ export class TradeService {
     validateTradeItems(request.items, counterProposerRoster.rosterId, counterReceiverRoster.rosterId);
 
     for (const item of request.items) {
-      if (item.item_type === 'player' && item.player_id) {
+      if (item.item_type === 'player') {
         const roster = item.side === 'proposer' ? counterProposerRoster : counterReceiverRoster;
         if (!roster.players.includes(item.player_id)) {
           throw new ValidationException(`Player ${item.player_id} is not on the expected roster`);
         }
       }
-      if (item.item_type === 'draft_pick' && item.draft_pick_id) {
+      if (item.item_type === 'draft_pick') {
         const pick = await this.tradeRepo.findFuturePickById(item.draft_pick_id);
         if (!pick) throw new ValidationException('Draft pick not found');
         const expectedOwner = item.side === 'proposer' ? userId : original.proposedBy;
@@ -643,7 +630,7 @@ export class TradeService {
 }
 
 function validateTradeItems(
-  items: Array<{ side: string; item_type: string; player_id?: string; draft_pick_id?: string; roster_id: number }>,
+  items: TradeItemInput[],
   proposerRosterId: number,
   receiverRosterId: number,
 ): void {
@@ -651,14 +638,14 @@ function validateTradeItems(
   const seenDraftPickIds = new Set<string>();
 
   for (const item of items) {
-    if (item.player_id) {
+    if (item.item_type === 'player') {
       if (seenPlayerIds.has(item.player_id)) {
         throw new ValidationException(`Duplicate player in trade proposal: ${item.player_id}`);
       }
       seenPlayerIds.add(item.player_id);
     }
 
-    if (item.draft_pick_id) {
+    if (item.item_type === 'draft_pick') {
       if (seenDraftPickIds.has(item.draft_pick_id)) {
         throw new ValidationException(`Duplicate draft pick in trade proposal: ${item.draft_pick_id}`);
       }
