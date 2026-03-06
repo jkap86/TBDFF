@@ -55,18 +55,6 @@ export class TransactionService {
     const roster = await this.leagueRostersRepo.findRosterByOwner(leagueId, userId);
     if (!roster) throw new ValidationException('You do not own a roster in this league');
 
-    // Check if player is already rostered
-    const allRosters = await this.leagueRostersRepo.findRostersByLeagueId(leagueId);
-    for (const r of allRosters) {
-      if (r.players.includes(playerId)) {
-        throw new ValidationException('This player is already on a roster');
-      }
-    }
-
-    // Check if player is on waivers
-    const onWaivers = await this.txRepo.isPlayerOnWaivers(leagueId, playerId);
-    if (onWaivers) throw new ValidationException('This player is on waivers. You must place a waiver claim.');
-
     // Validate drop player if specified
     if (dropPlayerId && !roster.players.includes(dropPlayerId)) {
       throw new ValidationException('Drop player is not on your roster');
@@ -78,17 +66,30 @@ export class TransactionService {
       throw new ValidationException('Roster is full. You must drop a player.');
     }
 
-    return this.txRepo.withTransaction(async (client) => {
+    const tx = await this.txRepo.withTransaction(async (client) => {
+      // Per-player advisory lock prevents concurrent adds of the same player
+      await client.query(`SELECT pg_advisory_xact_lock(hashtext($1))`, [`${leagueId}:${playerId}`]);
+
+      // Re-check under lock: player not already rostered league-wide
+      const rostered = await this.txRepo.isPlayerRosteredInLeague(client, leagueId, playerId);
+      if (rostered) throw new ValidationException('This player is already on a roster');
+
+      // Re-check under lock: player not on waivers
+      const onWaivers = await this.txRepo.isPlayerOnWaivers(leagueId, playerId, client);
+      if (onWaivers) throw new ValidationException('This player is on waivers. You must place a waiver claim.');
+
       const adds: Record<string, number> = { [playerId]: roster.rosterId };
       const drops: Record<string, number> = {};
       const playerIds = [playerId];
 
       // Add player
-      await this.txRepo.addPlayerToRoster(client, leagueId, userId, playerId);
+      const added = await this.txRepo.addPlayerToRoster(client, leagueId, userId, playerId);
+      if (!added) throw new ValidationException('Failed to add player to roster');
 
       // Drop player if specified
       if (dropPlayerId) {
-        await this.txRepo.removePlayerFromRoster(client, leagueId, userId, dropPlayerId);
+        const removed = await this.txRepo.removePlayerFromRoster(client, leagueId, userId, dropPlayerId);
+        if (!removed) throw new ValidationException('Drop player is no longer on your roster');
         drops[dropPlayerId] = roster.rosterId;
         playerIds.push(dropPlayerId);
 
@@ -97,7 +98,7 @@ export class TransactionService {
         await this.txRepo.createPlayerWaiver(client, leagueId, dropPlayerId, userId, clearDays);
       }
 
-      const tx = await this.txRepo.createTransaction(client, {
+      return this.txRepo.createTransaction(client, {
         leagueId,
         type: 'free_agent',
         status: 'complete',
@@ -107,12 +108,13 @@ export class TransactionService {
         drops,
         createdBy: userId,
       });
-
-      this.gateway?.broadcastToLeague(leagueId, 'transaction:new', { transaction: tx.toSafeObject() });
-      this.gateway?.broadcastToLeague(leagueId, 'roster:updated', { league_id: leagueId });
-
-      return tx;
     });
+
+    // Post-commit broadcasts
+    this.gateway?.broadcastToLeague(leagueId, 'transaction:new', { transaction: tx.toSafeObject() });
+    this.gateway?.broadcastToLeague(leagueId, 'roster:updated', { league_id: leagueId });
+
+    return tx;
   }
 
   async dropPlayer(leagueId: string, userId: string, playerId: string): Promise<Transaction> {
@@ -129,14 +131,18 @@ export class TransactionService {
       throw new ValidationException('This player is not on your roster');
     }
 
-    return this.txRepo.withTransaction(async (client) => {
-      await this.txRepo.removePlayerFromRoster(client, leagueId, userId, playerId);
+    const tx = await this.txRepo.withTransaction(async (client) => {
+      // Per-player advisory lock prevents concurrent drops of the same player
+      await client.query(`SELECT pg_advisory_xact_lock(hashtext($1))`, [`${leagueId}:${playerId}`]);
+
+      const removed = await this.txRepo.removePlayerFromRoster(client, leagueId, userId, playerId);
+      if (!removed) throw new ValidationException('This player is no longer on your roster');
 
       // Put player on waivers
       const clearDays = league.settings.waiver_clear_days ?? 2;
       await this.txRepo.createPlayerWaiver(client, leagueId, playerId, userId, clearDays);
 
-      const tx = await this.txRepo.createTransaction(client, {
+      return this.txRepo.createTransaction(client, {
         leagueId,
         type: 'free_agent',
         status: 'complete',
@@ -145,12 +151,13 @@ export class TransactionService {
         drops: { [playerId]: roster.rosterId },
         createdBy: userId,
       });
-
-      this.gateway?.broadcastToLeague(leagueId, 'transaction:new', { transaction: tx.toSafeObject() });
-      this.gateway?.broadcastToLeague(leagueId, 'roster:updated', { league_id: leagueId });
-
-      return tx;
     });
+
+    // Post-commit broadcasts
+    this.gateway?.broadcastToLeague(leagueId, 'transaction:new', { transaction: tx.toSafeObject() });
+    this.gateway?.broadcastToLeague(leagueId, 'roster:updated', { league_id: leagueId });
+
+    return tx;
   }
 
   async placeWaiverClaim(

@@ -37,6 +37,20 @@ export class PlayerController {
     res.status(200).json({ players: players.map(p => p.toSafeObject()) });
   };
 
+  getByIds = async (req: AuthRequest, res: Response): Promise<void> => {
+    const userId = req.user?.userId;
+    if (!userId) throw new InvalidCredentialsException();
+
+    const { ids } = req.body as { ids?: string[] };
+    if (!Array.isArray(ids) || ids.length === 0) {
+      res.status(200).json({ players: [] });
+      return;
+    }
+
+    const players = await this.playerService.getPlayersByIds(ids);
+    res.status(200).json({ players: players.map(p => p.toSafeObject()) });
+  };
+
   getByPosition = async (req: AuthRequest, res: Response): Promise<void> => {
     const userId = req.user?.userId;
     if (!userId) throw new InvalidCredentialsException();

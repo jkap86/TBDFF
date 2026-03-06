@@ -29,6 +29,16 @@ interface ServerToClientEvents {
   'slow_auction:lot_passed': (data: { lot: AuctionLot }) => void;
   'slow_auction:outbid': (data: { lot_id: string; player_id: string; new_bid: number }) => void;
   'matchup_derby:state_updated': (data: { derby: MatchupDerbyState; server_time: string }) => void;
+  // Transaction / trade events broadcast to league rooms
+  'transaction:new': (data: { transaction: Record<string, unknown> }) => void;
+  'waiver:processed': (data: { league_id: string }) => void;
+  'roster:updated': (data: { league_id: string }) => void;
+  'trade:proposed': (data: { trade: Record<string, unknown> }) => void;
+  'trade:accepted': (data: { trade: Record<string, unknown> }) => void;
+  'trade:declined': (data: { trade: Record<string, unknown> }) => void;
+  'trade:countered': (data: { trade: Record<string, unknown> }) => void;
+  'trade:completed': (data: { trade: Record<string, unknown> }) => void;
+  'trade:vetoed': (data: { trade: Record<string, unknown> }) => void;
 }
 
 interface ClientToServerEvents {

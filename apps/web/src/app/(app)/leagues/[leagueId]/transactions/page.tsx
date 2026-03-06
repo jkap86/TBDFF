@@ -5,6 +5,7 @@ import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
 import { useTransactions } from '@/features/transactions/hooks/useTransactions';
+import { useTransactionSocket } from '@/features/transactions/hooks/useTransactionSocket';
 import { TransactionFeed } from '@/features/transactions/components/TransactionFeed';
 
 export default function TransactionsPage() {
@@ -12,6 +13,7 @@ export default function TransactionsPage() {
   const leagueId = params.leagueId as string;
 
   const { transactions, total, playerNames, isLoading, fetchTransactions } = useTransactions(leagueId);
+  useTransactionSocket(leagueId);
 
   const handleFilterChange = useCallback((type?: string) => {
     fetchTransactions({ type, limit: 25, offset: 0 });

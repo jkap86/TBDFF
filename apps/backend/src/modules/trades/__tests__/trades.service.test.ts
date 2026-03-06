@@ -5,7 +5,7 @@ describe('TradeService.executeTrade duplicate guard', () => {
   let service: TradeService;
   let tradeRepo: any;
   let leagueRepo: any;
-  let draftRepo: any;
+  let leagueRostersRepo: any;
   let capturedClient: any;
 
   beforeEach(() => {
@@ -25,12 +25,13 @@ describe('TradeService.executeTrade duplicate guard', () => {
         rosterPositions: Array(15).fill('BN'),
         settings: {},
       }),
+    };
+
+    leagueRostersRepo = {
       findRosterByOwner: vi.fn(),
     };
 
-    draftRepo = {};
-
-    service = new TradeService(tradeRepo, leagueRepo, draftRepo);
+    service = new TradeService(tradeRepo, leagueRepo, {} as any, leagueRostersRepo, {} as any, {} as any);
   });
 
   it('throws ValidationException when array_append returns rowCount 0 (duplicate player)', async () => {
@@ -48,7 +49,7 @@ describe('TradeService.executeTrade duplicate guard', () => {
 
     tradeRepo.findProposalById.mockResolvedValue(trade);
 
-    leagueRepo.findRosterByOwner
+    leagueRostersRepo.findRosterByOwner
       .mockResolvedValueOnce({ rosterId: 101, players: ['player-1'] })
       .mockResolvedValueOnce({ rosterId: 102, players: [] });
 
@@ -74,7 +75,7 @@ describe('TradeService.executeTrade roster cleanup', () => {
   let service: TradeService;
   let tradeRepo: any;
   let leagueRepo: any;
-  let draftRepo: any;
+  let leagueRostersRepo: any;
   let capturedClient: any;
 
   beforeEach(() => {
@@ -94,12 +95,13 @@ describe('TradeService.executeTrade roster cleanup', () => {
         rosterPositions: Array(15).fill('BN'),
         settings: {},
       }),
+    };
+
+    leagueRostersRepo = {
       findRosterByOwner: vi.fn(),
     };
 
-    draftRepo = {};
-
-    service = new TradeService(tradeRepo, leagueRepo, draftRepo);
+    service = new TradeService(tradeRepo, leagueRepo, {} as any, leagueRostersRepo, {} as any, {} as any);
   });
 
   it('removes traded player from players, starters, reserve, and taxi arrays', async () => {
@@ -118,7 +120,7 @@ describe('TradeService.executeTrade roster cleanup', () => {
 
     tradeRepo.findProposalById.mockResolvedValue(trade);
 
-    leagueRepo.findRosterByOwner
+    leagueRostersRepo.findRosterByOwner
       .mockResolvedValueOnce({ rosterId: 101, players: ['player-1'] })
       .mockResolvedValueOnce({ rosterId: 102, players: ['player-2'] });
 

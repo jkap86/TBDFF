@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { chatApi, ApiError } from '@tbdff/shared';
 import type { ChatMessage } from '@tbdff/shared';
 import { useAuth } from '@/features/auth/hooks/useAuth';
@@ -8,22 +8,13 @@ import { useSocket } from '../context/SocketProvider';
 
 export function useLeagueChat(leagueId: string) {
   const { accessToken } = useAuth();
-  const { socket, joinLeague, leaveLeague, sendMessage } = useSocket();
+  const { socket, sendMessage } = useSocket();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [hasMore, setHasMore] = useState(false);
-  const joinedRef = useRef(false);
 
-  // Join Socket.IO room on mount, leave on unmount
-  useEffect(() => {
-    joinLeague(leagueId);
-    joinedRef.current = true;
-    return () => {
-      leaveLeague(leagueId);
-      joinedRef.current = false;
-    };
-  }, [leagueId, joinLeague, leaveLeague]);
+  // Room join/leave is handled by LeagueIdSync — no need to duplicate here.
 
   // Listen for incoming messages in this league
   useEffect(() => {

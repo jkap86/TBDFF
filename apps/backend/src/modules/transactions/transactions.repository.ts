@@ -199,8 +199,9 @@ export class TransactionRepository {
     );
   }
 
-  async isPlayerOnWaivers(leagueId: string, playerId: string): Promise<boolean> {
-    const result = await this.db.query(
+  async isPlayerOnWaivers(leagueId: string, playerId: string, client?: PoolClient): Promise<boolean> {
+    const conn = client ?? this.db;
+    const result = await conn.query(
       `SELECT 1 FROM player_waivers
        WHERE league_id = $1 AND player_id = $2 AND waiver_expires > NOW()`,
       [leagueId, playerId],
@@ -246,6 +247,14 @@ export class TransactionRepository {
 
   // ---- Roster helpers ----
 
+  async isPlayerRosteredInLeague(client: PoolClient, leagueId: string, playerId: string): Promise<boolean> {
+    const result = await client.query(
+      `SELECT 1 FROM rosters WHERE league_id = $1 AND $2 = ANY(players) LIMIT 1`,
+      [leagueId, playerId],
+    );
+    return result.rows.length > 0;
+  }
+
   async addPlayerToRoster(client: PoolClient, leagueId: string, ownerId: string, playerId: string): Promise<boolean> {
     // Only appends if the player is not already on the roster; returns false if duplicate
     const result = await client.query(
@@ -258,16 +267,17 @@ export class TransactionRepository {
     return (result.rowCount ?? 0) > 0;
   }
 
-  async removePlayerFromRoster(client: PoolClient, leagueId: string, ownerId: string, playerId: string): Promise<void> {
-    await client.query(
+  async removePlayerFromRoster(client: PoolClient, leagueId: string, ownerId: string, playerId: string): Promise<boolean> {
+    const result = await client.query(
       `UPDATE rosters SET
          players  = array_remove(players, $1),
          starters = array_remove(starters, $1),
          reserve  = array_remove(reserve, $1),
          taxi     = array_remove(taxi, $1)
-       WHERE league_id = $2 AND owner_id = $3`,
+       WHERE league_id = $2 AND owner_id = $3 AND $1 = ANY(players)`,
       [playerId, leagueId, ownerId],
     );
+    return (result.rowCount ?? 0) > 0;
   }
 
   async deductFaab(client: PoolClient, leagueId: string, ownerId: string, amount: number): Promise<boolean> {

@@ -53,17 +53,13 @@ export default function TradesPage() {
 
   useEffect(() => {
     if (!accessToken || allPlayerIds.length === 0) return;
-    Promise.all(
-      allPlayerIds.map((pid) =>
-        playerApi.getById(pid, accessToken).then((res) => res.player).catch(() => null),
-      ),
-    ).then((players) => {
+    playerApi.getByIds(allPlayerIds, accessToken).then((res) => {
       const map: Record<string, Player> = {};
-      for (const p of players) {
+      for (const p of res.players) {
         if (p) map[p.id] = p;
       }
       setPlayerMap(map);
-    });
+    }).catch(() => {});
   }, [allPlayerIds, accessToken]);
 
   const handleTradeUpdate = useCallback((trade: TradeProposal) => {

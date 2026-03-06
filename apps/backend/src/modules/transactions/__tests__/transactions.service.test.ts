@@ -26,6 +26,7 @@ describe('TransactionService.processLeagueWaivers', () => {
   let service: TransactionService;
   let txRepo: any;
   let leagueRepo: any;
+  let leagueRostersRepo: any;
   let capturedClient: any;
 
   beforeEach(() => {
@@ -53,6 +54,9 @@ describe('TransactionService.processLeagueWaivers', () => {
         settings: { waiver_type: 1, waiver_clear_days: 2 },
         rosterPositions: Array(15).fill('BN'),
       }),
+    };
+
+    leagueRostersRepo = {
       findRosterByOwner: vi.fn().mockResolvedValue({
         rosterId: 101,
         players: [],
@@ -60,7 +64,7 @@ describe('TransactionService.processLeagueWaivers', () => {
       }),
     };
 
-    service = new TransactionService(txRepo, leagueRepo);
+    service = new TransactionService(txRepo, leagueRepo, {} as any, leagueRostersRepo);
   });
 
   it('passes client to leagueRepo.findById within transaction', async () => {
@@ -77,7 +81,7 @@ describe('TransactionService.processLeagueWaivers', () => {
     await service.processLeagueWaivers('league-1');
 
     // findRosterByOwner should receive the transaction client
-    expect(leagueRepo.findRosterByOwner).toHaveBeenCalledWith('league-1', 'user-a', capturedClient);
+    expect(leagueRostersRepo.findRosterByOwner).toHaveBeenCalledWith('league-1', 'user-a', capturedClient);
   });
 
   it('acquires advisory lock before processing', async () => {

@@ -20,21 +20,22 @@ export function useTradeSocket(
       'trade:countered',
       'trade:completed',
       'trade:vetoed',
-    ];
+    ] as const;
 
-    const handler = (data: { trade: TradeProposal }) => {
-      if (data.trade?.league_id === leagueId) {
-        onTradeUpdate(data.trade);
+    const handler = (data: { trade: Record<string, unknown> }) => {
+      const trade = data.trade as unknown as TradeProposal;
+      if (trade?.league_id === leagueId) {
+        onTradeUpdate(trade);
       }
     };
 
     for (const event of events) {
-      socket.on(event as any, handler);
+      socket.on(event, handler);
     }
 
     return () => {
       for (const event of events) {
-        socket.off(event as any, handler);
+        socket.off(event, handler);
       }
     };
   }, [socket, leagueId, onTradeUpdate]);

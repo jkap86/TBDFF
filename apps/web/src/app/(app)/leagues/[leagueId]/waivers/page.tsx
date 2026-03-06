@@ -8,6 +8,7 @@ import { playerApi } from '@/lib/api';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import { useWaivers } from '@/features/transactions/hooks/useWaivers';
 import { useTransactions } from '@/features/transactions/hooks/useTransactions';
+import { useTransactionSocket } from '@/features/transactions/hooks/useTransactionSocket';
 import { useLeagueQuery, useRostersQuery } from '@/hooks/useLeagueQueries';
 import { WaiverClaimForm } from '@/features/transactions/components/WaiverClaimForm';
 import { MyWaiverClaims } from '@/features/transactions/components/MyWaiverClaims';
@@ -26,6 +27,7 @@ export default function WaiversPage() {
 
   const { claims, playerNames: claimPlayerNames, isLoading: claimsLoading, fetchClaims, placeClaim, cancelClaim } = useWaivers(leagueId);
   const { addPlayer, dropPlayer } = useTransactions(leagueId);
+  useTransactionSocket(leagueId);
 
   // Collect all rostered player IDs
   const allPlayerIds = useMemo(() => {
@@ -39,17 +41,13 @@ export default function WaiversPage() {
   // Fetch player names for roster display
   useEffect(() => {
     if (!accessToken || allPlayerIds.length === 0) return;
-    Promise.all(
-      allPlayerIds.map((pid) =>
-        playerApi.getById(pid, accessToken).then((res) => res.player).catch(() => null),
-      ),
-    ).then((players) => {
+    playerApi.getByIds(allPlayerIds, accessToken).then((res) => {
       const names: Record<string, string> = {};
-      for (const p of players) {
+      for (const p of res.players) {
         if (p) names[p.id] = p.full_name;
       }
       setRosterPlayerNames(names);
-    });
+    }).catch(() => {});
   }, [allPlayerIds, accessToken]);
 
   const myRoster = rosters.find((r) => r.owner_id === user?.id);

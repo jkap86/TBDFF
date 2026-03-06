@@ -97,7 +97,7 @@ export class TradeService {
       }
     }
 
-    return this.tradeRepo.withTransaction(async (client) => {
+    const trade = await this.tradeRepo.withTransaction(async (client) => {
       const proposal = await this.tradeRepo.createProposal(client, {
         leagueId,
         proposedBy: userId,
@@ -105,15 +105,16 @@ export class TradeService {
         message: request.message,
       });
 
-      const items = await this.tradeRepo.createItems(client, proposal.id, request.items);
+      await this.tradeRepo.createItems(client, proposal.id, request.items);
 
-      const trade = await this.tradeRepo.findProposalById(proposal.id, client);
-
-      this.gateway?.broadcastToLeague(leagueId, 'trade:proposed', { trade: trade!.toSafeObject() });
-      this.gateway?.broadcastToUser(request.proposed_to, 'trade:proposed', { trade: trade!.toSafeObject() });
-
-      return trade!;
+      return this.tradeRepo.findProposalById(proposal.id, client);
     });
+
+    // Post-commit broadcasts
+    this.gateway?.broadcastToLeague(leagueId, 'trade:proposed', { trade: trade!.toSafeObject() });
+    this.gateway?.broadcastToUser(request.proposed_to, 'trade:proposed', { trade: trade!.toSafeObject() });
+
+    return trade!;
   }
 
   async acceptTrade(tradeId: string, userId: string): Promise<TradeProposal> {
@@ -132,12 +133,14 @@ export class TradeService {
       const expiresAt = new Date();
       expiresAt.setDate(expiresAt.getDate() + reviewDays);
 
-      return this.tradeRepo.withTransaction(async (client) => {
+      const updated = await this.tradeRepo.withTransaction(async (client) => {
         await this.tradeRepo.updateProposalStatus(client, tradeId, 'review', { reviewExpiresAt: expiresAt });
-        const updated = await this.tradeRepo.findProposalById(tradeId, client);
-        this.gateway?.broadcastToLeague(trade.leagueId, 'trade:accepted', { trade: updated!.toSafeObject() });
-        return updated!;
+        return this.tradeRepo.findProposalById(tradeId, client);
       });
+
+      // Post-commit broadcast
+      this.gateway?.broadcastToLeague(trade.leagueId, 'trade:accepted', { trade: updated!.toSafeObject() });
+      return updated!;
     }
 
     // Execute immediately
@@ -175,7 +178,7 @@ export class TradeService {
       }
     }
 
-    return this.tradeRepo.withTransaction(async (client) => {
+    const completed = await this.tradeRepo.withTransaction(async (client) => {
       // Lock both roster rows to prevent concurrent modifications (trades, waivers, add/drops)
       await client.query(
         'SELECT id FROM rosters WHERE league_id = $1 AND owner_id IN ($2, $3) ORDER BY id FOR UPDATE',
@@ -309,48 +312,53 @@ export class TradeService {
         transactionId: txResult.rows[0].id,
       });
 
-      const completed = await this.tradeRepo.findProposalById(tradeId, client);
-      this.gateway?.broadcastToLeague(trade.leagueId, 'trade:completed', { trade: completed!.toSafeObject() });
-      this.gateway?.broadcastToLeague(trade.leagueId, 'roster:updated', { league_id: trade.leagueId });
-
-      // Build detailed trade system message (after transaction commits via return)
-      try {
-        const playerNameMap: Record<string, string> = {};
-        if (playerIds.length > 0) {
-          const players = await this.playerRepo.findByIds(playerIds);
-          for (const p of players) playerNameMap[p.id] = p.fullName;
-        }
-
-        // Build per-side item descriptions
-        const proposerReceives: string[] = [];
-        const receiverReceives: string[] = [];
-        for (const item of trade.items) {
-          if (item.itemType === 'player' && item.playerId) {
-            const name = playerNameMap[item.playerId] ?? item.playerId;
-            if (item.side === 'proposer') receiverReceives.push(name);
-            else proposerReceives.push(name);
-          }
-          if (item.itemType === 'draft_pick' && item.draftPickId) {
-            const pick = await this.tradeRepo.findFuturePickById(item.draftPickId);
-            const pickLabel = pick ? `${pick.season} Rd ${pick.round}` : 'Draft Pick';
-            if (item.side === 'proposer') receiverReceives.push(pickLabel);
-            else proposerReceives.push(pickLabel);
-          }
-          if (item.itemType === 'faab' && item.faabAmount) {
-            const faabLabel = `$${item.faabAmount} FAAB`;
-            if (item.side === 'proposer') receiverReceives.push(faabLabel);
-            else proposerReceives.push(faabLabel);
-          }
-        }
-
-        const proposerName = completed!.proposedByUsername ?? 'Team';
-        const receiverName = completed!.proposedToUsername ?? 'Team';
-        const msg = `Trade completed: ${proposerName} receives ${proposerReceives.join(', ')} — ${receiverName} receives ${receiverReceives.join(', ')}`;
-        await this.systemMessages?.send(trade.leagueId, msg, { event: 'trade_executed', trade_id: tradeId });
-      } catch { /* non-fatal */ }
-
-      return completed!;
+      return this.tradeRepo.findProposalById(tradeId, client);
     });
+
+    // Post-commit broadcasts
+    this.gateway?.broadcastToLeague(trade.leagueId, 'trade:completed', { trade: completed!.toSafeObject() });
+    this.gateway?.broadcastToLeague(trade.leagueId, 'roster:updated', { league_id: trade.leagueId });
+
+    // Post-commit system message
+    try {
+      const playerIds = trade.items
+        .filter((i) => i.itemType === 'player' && i.playerId)
+        .map((i) => i.playerId!);
+
+      const playerNameMap: Record<string, string> = {};
+      if (playerIds.length > 0) {
+        const players = await this.playerRepo.findByIds(playerIds);
+        for (const p of players) playerNameMap[p.id] = p.fullName;
+      }
+
+      const proposerReceives: string[] = [];
+      const receiverReceives: string[] = [];
+      for (const item of trade.items) {
+        if (item.itemType === 'player' && item.playerId) {
+          const name = playerNameMap[item.playerId] ?? item.playerId;
+          if (item.side === 'proposer') receiverReceives.push(name);
+          else proposerReceives.push(name);
+        }
+        if (item.itemType === 'draft_pick' && item.draftPickId) {
+          const pick = await this.tradeRepo.findFuturePickById(item.draftPickId);
+          const pickLabel = pick ? `${pick.season} Rd ${pick.round}` : 'Draft Pick';
+          if (item.side === 'proposer') receiverReceives.push(pickLabel);
+          else proposerReceives.push(pickLabel);
+        }
+        if (item.itemType === 'faab' && item.faabAmount) {
+          const faabLabel = `$${item.faabAmount} FAAB`;
+          if (item.side === 'proposer') receiverReceives.push(faabLabel);
+          else proposerReceives.push(faabLabel);
+        }
+      }
+
+      const proposerName = completed!.proposedByUsername ?? 'Team';
+      const receiverName = completed!.proposedToUsername ?? 'Team';
+      const msg = `Trade completed: ${proposerName} receives ${proposerReceives.join(', ')} — ${receiverName} receives ${receiverReceives.join(', ')}`;
+      await this.systemMessages?.send(trade.leagueId, msg, { event: 'trade_executed', trade_id: tradeId });
+    } catch { /* non-fatal */ }
+
+    return completed!;
   }
 
   async declineTrade(tradeId: string, userId: string): Promise<TradeProposal> {
@@ -359,12 +367,15 @@ export class TradeService {
     if (trade.proposedTo !== userId) throw new ForbiddenException('Only the receiver can decline this trade');
     if (trade.status !== 'pending') throw new ValidationException('Trade is not in pending status');
 
-    return this.tradeRepo.withTransaction(async (client) => {
+    const updated = await this.tradeRepo.withTransaction(async (client) => {
       await this.tradeRepo.updateProposalStatus(client, tradeId, 'declined');
-      const updated = await this.tradeRepo.findProposalById(tradeId, client);
-      this.gateway?.broadcastToLeague(trade.leagueId, 'trade:declined', { trade: updated!.toSafeObject() });
-      return updated!;
+      return this.tradeRepo.findProposalById(tradeId, client);
     });
+
+    // Post-commit broadcast
+    this.gateway?.broadcastToLeague(trade.leagueId, 'trade:declined', { trade: updated!.toSafeObject() });
+
+    return updated!;
   }
 
   async withdrawTrade(tradeId: string, userId: string): Promise<TradeProposal> {
@@ -424,7 +435,7 @@ export class TradeService {
       }
     }
 
-    return this.tradeRepo.withTransaction(async (client) => {
+    const counterTrade = await this.tradeRepo.withTransaction(async (client) => {
       // Mark original as countered
       await this.tradeRepo.updateProposalStatus(client, tradeId, 'countered');
 
@@ -438,12 +449,14 @@ export class TradeService {
 
       await this.tradeRepo.createItems(client, counter.id, request.items);
 
-      const counterTrade = await this.tradeRepo.findProposalById(counter.id, client);
-      this.gateway?.broadcastToLeague(original.leagueId, 'trade:countered', { trade: counterTrade!.toSafeObject() });
-      this.gateway?.broadcastToUser(original.proposedBy, 'trade:countered', { trade: counterTrade!.toSafeObject() });
-
-      return counterTrade!;
+      return this.tradeRepo.findProposalById(counter.id, client);
     });
+
+    // Post-commit broadcasts
+    this.gateway?.broadcastToLeague(original.leagueId, 'trade:countered', { trade: counterTrade!.toSafeObject() });
+    this.gateway?.broadcastToUser(original.proposedBy, 'trade:countered', { trade: counterTrade!.toSafeObject() });
+
+    return counterTrade!;
   }
 
   async vetoTrade(tradeId: string, userId: string): Promise<TradeProposal> {
@@ -460,12 +473,15 @@ export class TradeService {
       throw new ValidationException('Trade cannot be vetoed in current status');
     }
 
-    return this.tradeRepo.withTransaction(async (client) => {
+    const updated = await this.tradeRepo.withTransaction(async (client) => {
       await this.tradeRepo.updateProposalStatus(client, tradeId, 'vetoed');
-      const updated = await this.tradeRepo.findProposalById(tradeId, client);
-      this.gateway?.broadcastToLeague(trade.leagueId, 'trade:vetoed', { trade: updated!.toSafeObject() });
-      return updated!;
+      return this.tradeRepo.findProposalById(tradeId, client);
     });
+
+    // Post-commit broadcast
+    this.gateway?.broadcastToLeague(trade.leagueId, 'trade:vetoed', { trade: updated!.toSafeObject() });
+
+    return updated!;
   }
 
   async pushTrade(tradeId: string, userId: string): Promise<TradeProposal> {

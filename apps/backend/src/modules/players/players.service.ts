@@ -27,6 +27,11 @@ export class PlayerService {
     return this.playerRepository.search(query.trim(), limit);
   }
 
+  async getPlayersByIds(ids: string[]): Promise<Player[]> {
+    if (ids.length === 0) return [];
+    return this.playerRepository.findByIds(ids.slice(0, 500));
+  }
+
   async getPlayersByPosition(position: string): Promise<Player[]> {
     return this.playerRepository.findByPosition(position);
   }

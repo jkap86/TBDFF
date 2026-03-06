@@ -13,6 +13,9 @@ export const playerApi = {
   getById: (id: string, token: string) =>
     apiClient.get<PlayerResponse>(`/players/${id}`, token),
 
+  getByIds: (ids: string[], token: string) =>
+    apiClient.post<PlayersListResponse>('/players/batch', { ids }, token),
+
   search: (query: string, token: string, limit?: number) => {
     const params = new URLSearchParams({ q: query });
     if (limit) params.set('limit', limit.toString());

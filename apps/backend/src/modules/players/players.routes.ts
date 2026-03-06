@@ -10,6 +10,7 @@ export function createPlayerRoutes(controller: PlayerController): Router {
   // Read-only routes
   router.get('/', asyncHandler(controller.getAll));
   router.get('/search', asyncHandler(controller.search));
+  router.post('/batch', asyncHandler(controller.getByIds));
   router.get('/position/:position', asyncHandler(controller.getByPosition));
   router.get('/team/:team', asyncHandler(controller.getByTeam));
   router.get('/:playerId', asyncHandler(controller.getById));
