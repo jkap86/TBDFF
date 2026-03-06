@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { TradeService } from '../trades.service';
+import { ValidationException } from '../../../shared/exceptions';
 
 describe('TradeService.executeTrade duplicate guard', () => {
   let service: TradeService;
@@ -200,6 +201,116 @@ describe('TradeService.withdrawTrade', () => {
       'league-1',
       'trade:withdrawn',
       { trade: { id: 'trade-1', status: 'withdrawn' } },
+    );
+  });
+});
+
+describe('TradeService.executeTrade roster-size race', () => {
+  let service: TradeService;
+  let tradeRepo: any;
+  let leagueRepo: any;
+  let leagueRostersRepo: any;
+  let capturedClient: any;
+
+  beforeEach(() => {
+    capturedClient = {
+      query: vi.fn().mockResolvedValue({ rows: [], rowCount: 0 }),
+    };
+
+    tradeRepo = {
+      findProposalById: vi.fn(),
+      withTransaction: vi.fn(async (fn: any) => fn(capturedClient)),
+      updateProposalStatus: vi.fn(),
+    };
+
+    leagueRepo = {
+      findById: vi.fn().mockResolvedValue({
+        id: 'league-1',
+        rosterPositions: Array(15).fill('BN'),
+        settings: {},
+      }),
+    };
+
+    leagueRostersRepo = {
+      findRosterByOwner: vi.fn(),
+    };
+
+    service = new TradeService(tradeRepo, leagueRepo, {} as any, leagueRostersRepo, {} as any, {} as any);
+  });
+
+  it('fails when locked roster is full (concurrent add filled the spot)', async () => {
+    // Trade: receiver gives player-R to proposer (net +1 for proposer)
+    const trade = {
+      id: 'trade-1',
+      leagueId: 'league-1',
+      status: 'pending',
+      proposedBy: 'user-a',
+      proposedTo: 'user-b',
+      items: [
+        { itemType: 'player', playerId: 'player-R', side: 'receiver' },
+      ],
+      toSafeObject: () => ({}),
+    };
+
+    tradeRepo.findProposalById.mockResolvedValue(trade);
+
+    // Pre-transaction: proposer has 14 players (one open spot) — passes early check
+    leagueRostersRepo.findRosterByOwner
+      .mockResolvedValueOnce({ rosterId: 101, players: Array(14).fill('x') })
+      .mockResolvedValueOnce({ rosterId: 102, players: ['player-R'] });
+
+    // Inside transaction after lock:
+    capturedClient.query
+      // SELECT ... FOR UPDATE (lock rows)
+      .mockResolvedValueOnce({ rows: [{ id: 101 }, { id: 102 }] })
+      // Re-validate proposer players — now FULL (15 players, concurrent add happened)
+      .mockResolvedValueOnce({ rows: [{ players: Array(15).fill('x') }] })
+      // Re-validate receiver players
+      .mockResolvedValueOnce({ rows: [{ players: ['player-R'] }] });
+
+    await expect(service.executeTrade('trade-1')).rejects.toThrow(
+      'Trade would exceed roster size limit for proposer',
+    );
+
+    // No mutations should have been attempted (only the 3 SELECT queries above)
+    const allSql = capturedClient.query.mock.calls.map((c: any[]) => c[0] as string);
+    const mutationQueries = allSql.filter(
+      (sql: string) => sql.includes('array_remove') || sql.includes('array_append') || sql.includes('INSERT INTO transactions'),
+    );
+    expect(mutationQueries).toHaveLength(0);
+  });
+
+  it('fails when locked receiver roster would exceed max after trade', async () => {
+    // Trade: proposer gives player-P to receiver (net +1 for receiver)
+    const trade = {
+      id: 'trade-2',
+      leagueId: 'league-1',
+      status: 'pending',
+      proposedBy: 'user-a',
+      proposedTo: 'user-b',
+      items: [
+        { itemType: 'player', playerId: 'player-P', side: 'proposer' },
+      ],
+      toSafeObject: () => ({}),
+    };
+
+    tradeRepo.findProposalById.mockResolvedValue(trade);
+
+    // Pre-transaction: receiver has 14 players (would pass early check)
+    leagueRostersRepo.findRosterByOwner
+      .mockResolvedValueOnce({ rosterId: 101, players: ['player-P'] })
+      .mockResolvedValueOnce({ rosterId: 102, players: Array(14).fill('y') });
+
+    capturedClient.query
+      // SELECT ... FOR UPDATE
+      .mockResolvedValueOnce({ rows: [{ id: 101 }, { id: 102 }] })
+      // Locked proposer players
+      .mockResolvedValueOnce({ rows: [{ players: ['player-P'] }] })
+      // Locked receiver players — now full (15)
+      .mockResolvedValueOnce({ rows: [{ players: Array(15).fill('y') }] });
+
+    await expect(service.executeTrade('trade-2')).rejects.toThrow(
+      'Trade would exceed roster size limit for receiver',
     );
   });
 });

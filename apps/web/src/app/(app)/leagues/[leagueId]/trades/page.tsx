@@ -35,14 +35,14 @@ export default function TradesPage() {
     isLoading,
     error,
     picksError,
-    fetchTrades,
+    invalidateTrades,
     proposeTrade,
     acceptTrade,
     declineTrade,
     withdrawTrade,
     vetoTrade,
     pushTrade,
-  } = useTrades(leagueId);
+  } = useTrades(leagueId, statusFilter);
 
   // Fetch player data for all rostered players
   const allPlayerIds = useMemo(() => {
@@ -65,12 +65,12 @@ export default function TradesPage() {
   }, [allPlayerIds, accessToken]);
 
   const handleTradeUpdate = useCallback((trade: TradeProposal) => {
-    fetchTrades(statusFilter);
+    invalidateTrades();
     if (trade.status === 'completed') {
       queryClient.invalidateQueries({ queryKey: ['rosters', leagueId] });
       queryClient.invalidateQueries({ queryKey: ['futurePicks', leagueId] });
     }
-  }, [fetchTrades, statusFilter, queryClient, leagueId]);
+  }, [invalidateTrades, queryClient, leagueId]);
 
   useTradeSocket(leagueId, handleTradeUpdate);
 
@@ -83,13 +83,10 @@ export default function TradesPage() {
     { label: 'In Review', value: 'review' },
     { label: 'Completed', value: 'completed' },
     { label: 'Declined', value: 'declined' },
+    { label: 'Withdrawn', value: 'withdrawn' },
+    { label: 'Countered', value: 'countered' },
     { label: 'Vetoed', value: 'vetoed' },
   ];
-
-  const handleFilterChange = (value: string | undefined) => {
-    setStatusFilter(value);
-    fetchTrades(value);
-  };
 
   const handleAction = async (action: (id: string) => Promise<any>, tradeId: string) => {
     try {
@@ -132,7 +129,7 @@ export default function TradesPage() {
           {statusFilters.map((filter) => (
             <button
               key={filter.label}
-              onClick={() => handleFilterChange(filter.value)}
+              onClick={() => setStatusFilter(filter.value)}
               className={`rounded-full px-3 py-1 text-sm font-medium whitespace-nowrap ${
                 statusFilter === filter.value
                   ? 'bg-primary text-primary-foreground'

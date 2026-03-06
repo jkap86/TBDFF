@@ -16,11 +16,13 @@ interface TransactionFeedProps {
   total: number;
   playerNames?: Record<string, string>;
   isLoading: boolean;
+  isFetchingNextPage?: boolean;
+  hasNextPage?: boolean;
   onFilterChange: (type?: string) => void;
   onLoadMore?: () => void;
 }
 
-export function TransactionFeed({ transactions, total, playerNames, isLoading, onFilterChange, onLoadMore }: TransactionFeedProps) {
+export function TransactionFeed({ transactions, total, playerNames, isLoading, isFetchingNextPage, hasNextPage, onFilterChange, onLoadMore }: TransactionFeedProps) {
   const [activeFilter, setActiveFilter] = useState<string | undefined>(undefined);
 
   const handleFilter = (type: string | undefined) => {
@@ -55,12 +57,13 @@ export function TransactionFeed({ transactions, total, playerNames, isLoading, o
           {transactions.map((tx) => (
             <TransactionCard key={tx.id} transaction={tx} playerNames={playerNames} />
           ))}
-          {transactions.length < total && onLoadMore && (
+          {hasNextPage && onLoadMore && (
             <button
               onClick={onLoadMore}
-              className="w-full rounded-lg bg-muted py-2 text-sm font-medium text-accent-foreground hover:bg-muted-hover"
+              disabled={isFetchingNextPage}
+              className="w-full rounded-lg bg-muted py-2 text-sm font-medium text-accent-foreground hover:bg-muted-hover disabled:opacity-50"
             >
-              Load More
+              {isFetchingNextPage ? 'Loading...' : 'Load More'}
             </button>
           )}
         </div>

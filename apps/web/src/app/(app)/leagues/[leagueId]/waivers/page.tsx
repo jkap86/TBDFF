@@ -1,10 +1,11 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Search } from 'lucide-react';
 import { playerApi } from '@/lib/api';
+import type { Player } from '@/lib/api';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import { useWaivers } from '@/features/transactions/hooks/useWaivers';
 import { useTransactions } from '@/features/transactions/hooks/useTransactions';
@@ -20,7 +21,14 @@ export default function WaiversPage() {
 
   const [rosterPlayerNames, setRosterPlayerNames] = useState<Record<string, string>>({});
   const [claimingPlayer, setClaimingPlayer] = useState<string | null>(null);
+  const [claimingPlayerName, setClaimingPlayerName] = useState<string | undefined>(undefined);
   const [addError, setAddError] = useState<string | null>(null);
+
+  // Player search state
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<Player[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const searchTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const { data: league } = useLeagueQuery(leagueId);
   const { data: rosters = [] } = useRostersQuery(leagueId);
@@ -38,6 +46,8 @@ export default function WaiversPage() {
     return Array.from(ids);
   }, [rosters]);
 
+  const rosteredSet = useMemo(() => new Set(allPlayerIds), [allPlayerIds]);
+
   // Fetch player names for roster display
   useEffect(() => {
     if (!accessToken || allPlayerIds.length === 0) return;
@@ -49,6 +59,38 @@ export default function WaiversPage() {
       setRosterPlayerNames(names);
     }).catch(() => {});
   }, [allPlayerIds, accessToken]);
+
+  // Debounced player search
+  const handleSearchChange = useCallback((query: string) => {
+    setSearchQuery(query);
+    if (searchTimeout.current) clearTimeout(searchTimeout.current);
+
+    if (!query.trim() || !accessToken) {
+      setSearchResults([]);
+      setIsSearching(false);
+      return;
+    }
+
+    setIsSearching(true);
+    searchTimeout.current = setTimeout(async () => {
+      try {
+        const res = await playerApi.search(query, accessToken, 10);
+        // Filter out already-rostered players
+        setSearchResults(res.players.filter((p) => !rosteredSet.has(p.id)));
+      } catch {
+        setSearchResults([]);
+      } finally {
+        setIsSearching(false);
+      }
+    }, 300);
+  }, [accessToken, rosteredSet]);
+
+  const handleSelectPlayer = (player: Player) => {
+    setClaimingPlayer(player.id);
+    setClaimingPlayerName(player.full_name);
+    setSearchQuery('');
+    setSearchResults([]);
+  };
 
   const myRoster = rosters.find((r) => r.owner_id === user?.id);
 
@@ -99,20 +141,65 @@ export default function WaiversPage() {
           />
         </div>
 
+        {/* Player Search / Claim Entry */}
+        {!claimingPlayer && myRoster && (
+          <div className="rounded-lg bg-card p-6 shadow">
+            <h2 className="text-lg font-bold text-foreground mb-4">Place a Waiver Claim</h2>
+            <div className="relative">
+              <div className="flex items-center gap-2 rounded border border-input bg-surface px-3 py-2">
+                <Search className="h-4 w-4 text-muted-foreground" />
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => handleSearchChange(e.target.value)}
+                  placeholder="Search for a player to claim..."
+                  className="flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground outline-none"
+                />
+              </div>
+              {(searchResults.length > 0 || isSearching) && searchQuery.trim() && (
+                <div className="absolute z-10 mt-1 w-full rounded border border-border bg-card shadow-lg max-h-64 overflow-y-auto">
+                  {isSearching ? (
+                    <p className="px-3 py-2 text-sm text-muted-foreground">Searching...</p>
+                  ) : searchResults.length === 0 ? (
+                    <p className="px-3 py-2 text-sm text-muted-foreground">No available players found</p>
+                  ) : (
+                    searchResults.map((player) => (
+                      <button
+                        key={player.id}
+                        onClick={() => handleSelectPlayer(player)}
+                        className="flex w-full items-center justify-between px-3 py-2 text-sm text-foreground hover:bg-muted"
+                      >
+                        <span className="font-medium">{player.full_name}</span>
+                        <span className="text-xs text-muted-foreground">
+                          {player.position} - {player.team ?? 'FA'}
+                        </span>
+                      </button>
+                    ))
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* Claim Form (if claiming a player) */}
         {claimingPlayer && myRoster && league && (
           <WaiverClaimForm
             playerId={claimingPlayer}
-            playerName={rosterPlayerNames[claimingPlayer] || claimPlayerNames[claimingPlayer]}
+            playerName={claimingPlayerName || rosterPlayerNames[claimingPlayer] || claimPlayerNames[claimingPlayer]}
             roster={myRoster}
             playerNames={rosterPlayerNames}
             waiverType={league.settings.waiver_type}
             onSubmit={async (data) => {
               await placeClaim(data);
               setClaimingPlayer(null);
+              setClaimingPlayerName(undefined);
               fetchClaims();
             }}
-            onCancel={() => setClaimingPlayer(null)}
+            onCancel={() => {
+              setClaimingPlayer(null);
+              setClaimingPlayerName(undefined);
+            }}
           />
         )}
 

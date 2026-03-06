@@ -239,6 +239,35 @@ export class TransactionService {
     if (!claim) throw new NotFoundException('Waiver claim not found');
     if (claim.userId !== userId) throw new ForbiddenException('You can only modify your own claims');
     if (claim.leagueId !== leagueId) throw new NotFoundException('Waiver claim not found');
+    if (claim.status !== 'pending') throw new ValidationException('Only pending claims can be updated');
+
+    const league = await this.leagueRepo.findById(leagueId);
+    if (!league) throw new NotFoundException('League not found');
+
+    const roster = await this.leagueRostersRepo.findRosterByOwner(leagueId, userId);
+    if (!roster) throw new ValidationException('You do not own a roster in this league');
+
+    // Resolve effective values: use updated value if provided, otherwise keep existing
+    const effectiveDropPlayerId = updates.drop_player_id !== undefined
+      ? updates.drop_player_id
+      : claim.dropPlayerId;
+
+    // Validate drop player is on roster
+    if (effectiveDropPlayerId && !roster.players.includes(effectiveDropPlayerId)) {
+      throw new ValidationException('Drop player is not on your roster');
+    }
+
+    // Check roster limits
+    const maxRosterSize = league.rosterPositions.length;
+    if (!effectiveDropPlayerId && roster.players.length >= maxRosterSize) {
+      throw new ValidationException('Roster is full. You must specify a player to drop.');
+    }
+
+    // FAAB validation
+    const effectiveFaab = updates.faab_amount !== undefined ? updates.faab_amount : claim.faabAmount;
+    if (effectiveFaab !== undefined && effectiveFaab < (league.settings.waiver_bid_min ?? 0)) {
+      throw new ValidationException(`Minimum FAAB bid is $${league.settings.waiver_bid_min ?? 0}`);
+    }
 
     const updated = await this.txRepo.updateClaim(claimId, {
       dropPlayerId: updates.drop_player_id,

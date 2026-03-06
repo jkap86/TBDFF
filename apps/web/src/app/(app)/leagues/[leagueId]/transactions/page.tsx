@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
@@ -11,17 +11,22 @@ import { TransactionFeed } from '@/features/transactions/components/TransactionF
 export default function TransactionsPage() {
   const params = useParams();
   const leagueId = params.leagueId as string;
+  const [typeFilter, setTypeFilter] = useState<string | undefined>(undefined);
 
-  const { transactions, total, playerNames, isLoading, fetchTransactions } = useTransactions(leagueId);
+  const {
+    transactions, total, playerNames,
+    isLoading, isFetchingNextPage, hasNextPage,
+    fetchNextPage,
+  } = useTransactions(leagueId, typeFilter);
   useTransactionSocket(leagueId);
 
   const handleFilterChange = useCallback((type?: string) => {
-    fetchTransactions({ type, limit: 25, offset: 0 });
-  }, [fetchTransactions]);
+    setTypeFilter(type);
+  }, []);
 
   const handleLoadMore = useCallback(() => {
-    fetchTransactions({ limit: 25, offset: transactions.length });
-  }, [fetchTransactions, transactions.length]);
+    fetchNextPage();
+  }, [fetchNextPage]);
 
   return (
     <div className="min-h-screen bg-surface p-6">
@@ -44,6 +49,8 @@ export default function TransactionsPage() {
             total={total}
             playerNames={playerNames}
             isLoading={isLoading}
+            isFetchingNextPage={isFetchingNextPage}
+            hasNextPage={hasNextPage}
             onFilterChange={handleFilterChange}
             onLoadMore={handleLoadMore}
           />

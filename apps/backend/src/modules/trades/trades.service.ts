@@ -194,8 +194,11 @@ export class TradeService {
         'SELECT players FROM rosters WHERE league_id = $1 AND owner_id = $2',
         [trade.leagueId, trade.proposedTo],
       );
-      const lockedProposerPlayers: string[] = lockedProposerResult.rows[0]?.players ?? [];
-      const lockedReceiverPlayers: string[] = lockedReceiverResult.rows[0]?.players ?? [];
+      if (!lockedProposerResult.rows[0] || !lockedReceiverResult.rows[0]) {
+        throw new ValidationException('Both users must still own a roster');
+      }
+      const lockedProposerPlayers: string[] = lockedProposerResult.rows[0].players ?? [];
+      const lockedReceiverPlayers: string[] = lockedReceiverResult.rows[0].players ?? [];
 
       for (const item of trade.items) {
         if (item.itemType === 'player' && item.playerId) {
@@ -217,6 +220,25 @@ export class TradeService {
           if (lockResult.rows[0].current_owner_id !== expectedOwner) {
             throw new ValidationException('Draft pick ownership has changed since trade was proposed');
           }
+        }
+      }
+
+      // Re-check roster-size constraints against locked state
+      if (league) {
+        const maxRosterSize = league.rosterPositions.length;
+        let lockedProposerDelta = 0;
+        let lockedReceiverDelta = 0;
+        for (const item of trade.items) {
+          if (item.itemType === 'player') {
+            if (item.side === 'proposer') { lockedProposerDelta--; lockedReceiverDelta++; }
+            else { lockedReceiverDelta--; lockedProposerDelta++; }
+          }
+        }
+        if (lockedProposerPlayers.length + lockedProposerDelta > maxRosterSize) {
+          throw new ValidationException('Trade would exceed roster size limit for proposer');
+        }
+        if (lockedReceiverPlayers.length + lockedReceiverDelta > maxRosterSize) {
+          throw new ValidationException('Trade would exceed roster size limit for receiver');
         }
       }
 

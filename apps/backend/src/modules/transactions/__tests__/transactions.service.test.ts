@@ -386,3 +386,128 @@ describe('TransactionService.addFreeAgent', () => {
     expect(txRepo.addPlayerToRoster).not.toHaveBeenCalled();
   });
 });
+
+describe('TransactionService.updateWaiverClaim', () => {
+  let service: TransactionService;
+  let txRepo: any;
+  let leagueRepo: any;
+  let leagueRostersRepo: any;
+  let leagueMembersRepo: any;
+
+  beforeEach(() => {
+    txRepo = {
+      findWaiverClaimById: vi.fn(),
+      updateClaim: vi.fn(),
+      withTransaction: vi.fn(),
+    };
+
+    leagueRepo = {
+      findById: vi.fn().mockResolvedValue({
+        id: 'league-1',
+        settings: { waiver_type: 2, waiver_bid_min: 1 },
+        rosterPositions: Array(15).fill('BN'),
+      }),
+    };
+
+    leagueRostersRepo = {
+      findRosterByOwner: vi.fn().mockResolvedValue({
+        rosterId: 101,
+        players: ['p1', 'p2', 'p3'],
+        settings: { waiver_position: 1 },
+      }),
+    };
+
+    leagueMembersRepo = {
+      findMember: vi.fn().mockResolvedValue({ userId: 'user-a', username: 'Alice' }),
+    };
+
+    service = new TransactionService(txRepo, leagueRepo, leagueMembersRepo, leagueRostersRepo);
+  });
+
+  it('rejects update when roster is full and no drop player specified', async () => {
+    const claim = makeClaim({ dropPlayerId: 'p1' });
+    txRepo.findWaiverClaimById.mockResolvedValue(claim);
+
+    // Roster is full (15/15)
+    leagueRostersRepo.findRosterByOwner.mockResolvedValue({
+      rosterId: 101,
+      players: Array(15).fill('existing'),
+      settings: { waiver_position: 1 },
+    });
+
+    await expect(
+      service.updateWaiverClaim('league-1', 'claim-1', 'user-a', { drop_player_id: null }),
+    ).rejects.toThrow(ValidationException);
+
+    await expect(
+      service.updateWaiverClaim('league-1', 'claim-1', 'user-a', { drop_player_id: null }),
+    ).rejects.toThrow('Roster is full');
+
+    expect(txRepo.updateClaim).not.toHaveBeenCalled();
+  });
+
+  it('rejects update when drop player is not on current roster', async () => {
+    const claim = makeClaim();
+    txRepo.findWaiverClaimById.mockResolvedValue(claim);
+
+    await expect(
+      service.updateWaiverClaim('league-1', 'claim-1', 'user-a', { drop_player_id: 'not-on-roster' }),
+    ).rejects.toThrow(ValidationException);
+
+    await expect(
+      service.updateWaiverClaim('league-1', 'claim-1', 'user-a', { drop_player_id: 'not-on-roster' }),
+    ).rejects.toThrow('Drop player is not on your roster');
+
+    expect(txRepo.updateClaim).not.toHaveBeenCalled();
+  });
+
+  it('rejects update when FAAB bid is below minimum', async () => {
+    const claim = makeClaim({ faabAmount: 5 });
+    txRepo.findWaiverClaimById.mockResolvedValue(claim);
+
+    // waiver_bid_min is 1, so 0 should fail
+    await expect(
+      service.updateWaiverClaim('league-1', 'claim-1', 'user-a', { faab_amount: 0 }),
+    ).rejects.toThrow(ValidationException);
+
+    await expect(
+      service.updateWaiverClaim('league-1', 'claim-1', 'user-a', { faab_amount: 0 }),
+    ).rejects.toThrow('Minimum FAAB bid');
+
+    expect(txRepo.updateClaim).not.toHaveBeenCalled();
+  });
+
+  it('rejects update on non-pending claim', async () => {
+    const claim = makeClaim({ status: 'successful' });
+    txRepo.findWaiverClaimById.mockResolvedValue(claim);
+
+    await expect(
+      service.updateWaiverClaim('league-1', 'claim-1', 'user-a', { faab_amount: 10 }),
+    ).rejects.toThrow(ValidationException);
+
+    await expect(
+      service.updateWaiverClaim('league-1', 'claim-1', 'user-a', { faab_amount: 10 }),
+    ).rejects.toThrow('Only pending claims can be updated');
+
+    expect(txRepo.updateClaim).not.toHaveBeenCalled();
+  });
+
+  it('allows valid update with correct values', async () => {
+    const claim = makeClaim({ faabAmount: 5, dropPlayerId: null });
+    txRepo.findWaiverClaimById.mockResolvedValue(claim);
+
+    const updatedClaim = makeClaim({ faabAmount: 10, dropPlayerId: 'p2' });
+    txRepo.updateClaim.mockResolvedValue(updatedClaim);
+
+    const result = await service.updateWaiverClaim('league-1', 'claim-1', 'user-a', {
+      faab_amount: 10,
+      drop_player_id: 'p2',
+    });
+
+    expect(txRepo.updateClaim).toHaveBeenCalledWith('claim-1', {
+      dropPlayerId: 'p2',
+      faabAmount: 10,
+    });
+    expect(result.faabAmount).toBe(10);
+  });
+});
