@@ -350,11 +350,15 @@ export class TransactionService {
       for (const [playerId, playerClaims] of claimsByPlayer) {
         // Claims are already sorted by faab_amount DESC, priority ASC from the query
         let winner: WaiverClaim | null = null;
+        // Track claims already given a final status so the outbid loop doesn't overwrite them
+        // (WaiverClaim fields are readonly, so in-memory .status stays 'pending' after DB updates)
+        const finalizedClaimIds = new Set<string>();
 
         for (const claim of playerClaims) {
           // Skip if this roster already won a claim this round
           if (processedRosters.has(claim.rosterId)) {
             await this.txRepo.updateClaimStatus(client, claim.id, 'failed');
+            finalizedClaimIds.add(claim.id);
             continue;
           }
 
@@ -362,18 +366,21 @@ export class TransactionService {
           const roster = await this.leagueRostersRepo.findRosterByOwnerForUpdate(leagueId, claim.userId, client);
           if (!roster) {
             await this.txRepo.updateClaimStatus(client, claim.id, 'invalid');
+            finalizedClaimIds.add(claim.id);
             continue;
           }
 
           // Authoritative stale-drop check
           if (claim.dropPlayerId && !roster.players.includes(claim.dropPlayerId)) {
             await this.txRepo.updateClaimStatus(client, claim.id, 'invalid');
+            finalizedClaimIds.add(claim.id);
             continue;
           }
 
           // Authoritative roster-full check (no drop specified)
           if (!claim.dropPlayerId && roster.players.length >= maxRosterSize) {
             await this.txRepo.updateClaimStatus(client, claim.id, 'invalid');
+            finalizedClaimIds.add(claim.id);
             continue;
           }
 
@@ -382,6 +389,7 @@ export class TransactionService {
           if (!added) {
             // Player already on this roster — treat as invalid
             await this.txRepo.updateClaimStatus(client, claim.id, 'invalid');
+            finalizedClaimIds.add(claim.id);
             continue;
           }
 
@@ -393,6 +401,7 @@ export class TransactionService {
               // Undo the roster add since FAAB is insufficient
               await this.txRepo.removePlayerFromRoster(client, leagueId, claim.userId, playerId);
               await this.txRepo.updateClaimStatus(client, claim.id, 'failed');
+              finalizedClaimIds.add(claim.id);
               continue;
             }
             faabDeducted = true;
@@ -407,6 +416,7 @@ export class TransactionService {
                 await this.txRepo.refundFaab(client, leagueId, claim.userId, claim.faabAmount);
               }
               await this.txRepo.updateClaimStatus(client, claim.id, 'invalid');
+              finalizedClaimIds.add(claim.id);
               continue;
             }
             const clearDays = league.settings.waiver_clear_days ?? 2;
@@ -430,6 +440,7 @@ export class TransactionService {
           });
 
           await this.txRepo.updateClaimStatus(client, claim.id, 'successful', tx.id);
+          finalizedClaimIds.add(claim.id);
 
           // Rotate waiver priority: winner drops to last
           if (league.settings.waiver_type !== 2) {
@@ -442,9 +453,9 @@ export class TransactionService {
           break;
         }
 
-        // Mark remaining claims as outbid
+        // Mark remaining claims as outbid (skip claims already given a final status)
         for (const claim of playerClaims) {
-          if (winner && claim.id !== winner.id && claim.status === 'pending') {
+          if (winner && claim.id !== winner.id && !finalizedClaimIds.has(claim.id)) {
             await this.txRepo.updateClaimStatus(client, claim.id, 'outbid');
           }
         }

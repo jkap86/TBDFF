@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { TransactionService } from '../transactions.service';
 import { WaiverClaim } from '../transactions.model';
+import { ValidationException } from '../../../shared/exceptions';
 
 function makeClaim(overrides: Partial<WaiverClaim> = {}): WaiverClaim {
   return new WaiverClaim(
@@ -253,5 +254,135 @@ describe('TransactionService.processLeagueWaivers', () => {
       capturedClient, 'claim-1', 'invalid',
     );
     expect(txRepo.createTransaction).not.toHaveBeenCalled();
+  });
+
+  it('does not overwrite invalid claim status to outbid in the final loop', async () => {
+    // claim-1 higher priority but roster not found → invalid
+    // claim-2 lower priority → wins
+    const claim1 = makeClaim({ id: 'claim-1', userId: 'user-a', rosterId: 101, priority: 1 });
+    const claim2 = makeClaim({ id: 'claim-2', userId: 'user-b', rosterId: 102, priority: 2 });
+    txRepo.findPendingClaimsByLeague.mockResolvedValue([claim1, claim2]);
+
+    // claim-1's roster not found (returns null), claim-2's roster found
+    leagueRostersRepo.findRosterByOwnerForUpdate
+      .mockResolvedValueOnce(null) // user-a → no roster
+      .mockResolvedValueOnce({ rosterId: 102, players: [], settings: { waiver_position: 2 } });
+
+    await service.processLeagueWaivers('league-1');
+
+    // claim-1 should be marked invalid (not outbid)
+    const statusCalls = txRepo.updateClaimStatus.mock.calls;
+    const claim1Calls = statusCalls.filter((c: any) => c[1] === 'claim-1');
+    expect(claim1Calls).toHaveLength(1);
+    expect(claim1Calls[0][2]).toBe('invalid');
+
+    // claim-2 should be marked successful
+    const claim2Calls = statusCalls.filter((c: any) => c[1] === 'claim-2');
+    expect(claim2Calls).toHaveLength(1);
+    expect(claim2Calls[0][2]).toBe('successful');
+  });
+});
+
+describe('TransactionService.addFreeAgent', () => {
+  let service: TransactionService;
+  let txRepo: any;
+  let leagueRepo: any;
+  let leagueRostersRepo: any;
+  let leagueMembersRepo: any;
+
+  beforeEach(() => {
+    txRepo = {
+      withTransaction: vi.fn(async (fn: any) => {
+        const client = { query: vi.fn() };
+        return fn(client);
+      }),
+      isPlayerRosteredInLeague: vi.fn().mockResolvedValue(false),
+      isPlayerOnWaivers: vi.fn().mockResolvedValue(false),
+      addPlayerToRoster: vi.fn().mockResolvedValue(true),
+      removePlayerFromRoster: vi.fn().mockResolvedValue(true),
+      createPlayerWaiver: vi.fn(),
+      createTransaction: vi.fn().mockResolvedValue({ id: 'tx-1', toSafeObject: () => ({}) }),
+    };
+
+    leagueRepo = {
+      findById: vi.fn().mockResolvedValue({
+        id: 'league-1',
+        status: 'active',
+        settings: { disable_adds: false, waiver_clear_days: 2 },
+        rosterPositions: Array(15).fill('BN'),
+      }),
+    };
+
+    leagueRostersRepo = {
+      findRosterByOwner: vi.fn().mockResolvedValue({
+        rosterId: 101,
+        players: ['p1', 'p2'],
+        settings: {},
+      }),
+      findRosterByOwnerForUpdate: vi.fn().mockResolvedValue({
+        rosterId: 101,
+        players: ['p1', 'p2'],
+        settings: {},
+      }),
+    };
+
+    leagueMembersRepo = {
+      findMember: vi.fn().mockResolvedValue({ userId: 'user-a', username: 'Alice' }),
+    };
+
+    service = new TransactionService(txRepo, leagueRepo, leagueMembersRepo, leagueRostersRepo);
+  });
+
+  it('throws when locked roster is full (race condition: filled between pre-check and lock)', async () => {
+    // Pre-transaction: roster has space (2 players, 15 slots)
+    leagueRostersRepo.findRosterByOwner.mockResolvedValue({
+      rosterId: 101,
+      players: ['p1', 'p2'],
+      settings: {},
+    });
+
+    // Under lock: roster is now full (15 players — another concurrent add filled it)
+    leagueRostersRepo.findRosterByOwnerForUpdate.mockResolvedValue({
+      rosterId: 101,
+      players: Array(15).fill('existing'),
+      settings: {},
+    });
+
+    await expect(
+      service.addFreeAgent('league-1', 'user-a', 'new-player'),
+    ).rejects.toThrow(ValidationException);
+
+    await expect(
+      service.addFreeAgent('league-1', 'user-a', 'new-player'),
+    ).rejects.toThrow('Roster is full');
+
+    // Should never attempt the actual add
+    expect(txRepo.addPlayerToRoster).not.toHaveBeenCalled();
+  });
+
+  it('throws when drop player disappears between pre-check and lock', async () => {
+    // Pre-transaction: drop player is on roster
+    leagueRostersRepo.findRosterByOwner.mockResolvedValue({
+      rosterId: 101,
+      players: ['drop-me', 'p2'],
+      settings: {},
+    });
+
+    // Under lock: drop player is gone (concurrent drop removed it)
+    leagueRostersRepo.findRosterByOwnerForUpdate.mockResolvedValue({
+      rosterId: 101,
+      players: ['p2'],
+      settings: {},
+    });
+
+    await expect(
+      service.addFreeAgent('league-1', 'user-a', 'new-player', 'drop-me'),
+    ).rejects.toThrow(ValidationException);
+
+    await expect(
+      service.addFreeAgent('league-1', 'user-a', 'new-player', 'drop-me'),
+    ).rejects.toThrow('Drop player is not on your roster');
+
+    expect(txRepo.addPlayerToRoster).not.toHaveBeenCalled();
   });
 });
