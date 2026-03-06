@@ -14,7 +14,7 @@ function normalizeIp(ip: string | undefined): string {
  */
 export const ipMutationLimiter = rateLimit({
   windowMs: 60 * 1000,
-  max: 60,
+  max: 120,
   standardHeaders: true,
   legacyHeaders: false,
   keyGenerator: (req) => normalizeIp(req.ip),
@@ -32,7 +32,7 @@ export const ipMutationLimiter = rateLimit({
  */
 export const userMutationLimiter = rateLimit({
   windowMs: 60 * 1000,
-  max: 60,
+  max: 120,
   standardHeaders: true,
   legacyHeaders: false,
   keyGenerator: (req) => {
