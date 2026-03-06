@@ -1,6 +1,8 @@
 import { TransactionRepository } from './transactions.repository';
 import { Transaction, WaiverClaim } from './transactions.model';
 import { LeagueRepository } from '../leagues/leagues.repository';
+import { LeagueMembersRepository } from '../leagues/league-members.repository';
+import { LeagueRostersRepository } from '../leagues/league-rosters.repository';
 import { PlayerRepository } from '../players/players.repository';
 import { TransactionsGateway } from './transactions.gateway';
 import { SystemMessageService } from '../chat/system-message.service';
@@ -17,6 +19,8 @@ export class TransactionService {
   constructor(
     private readonly txRepo: TransactionRepository,
     private readonly leagueRepo: LeagueRepository,
+    private readonly leagueMembersRepo: LeagueMembersRepository,
+    private readonly leagueRostersRepo: LeagueRostersRepository,
     private readonly playerRepo?: PlayerRepository,
   ) {}
 
@@ -34,7 +38,7 @@ export class TransactionService {
     playerId: string,
     dropPlayerId?: string,
   ): Promise<Transaction> {
-    const member = await this.leagueRepo.findMember(leagueId, userId);
+    const member = await this.leagueMembersRepo.findMember(leagueId, userId);
     if (!member) throw new ForbiddenException('You are not a member of this league');
 
     const league = await this.leagueRepo.findById(leagueId);
@@ -48,11 +52,11 @@ export class TransactionService {
       throw new ValidationException('Adds are not allowed after the season is complete');
     }
 
-    const roster = await this.leagueRepo.findRosterByOwner(leagueId, userId);
+    const roster = await this.leagueRostersRepo.findRosterByOwner(leagueId, userId);
     if (!roster) throw new ValidationException('You do not own a roster in this league');
 
     // Check if player is already rostered
-    const allRosters = await this.leagueRepo.findRostersByLeagueId(leagueId);
+    const allRosters = await this.leagueRostersRepo.findRostersByLeagueId(leagueId);
     for (const r of allRosters) {
       if (r.players.includes(playerId)) {
         throw new ValidationException('This player is already on a roster');
@@ -112,13 +116,13 @@ export class TransactionService {
   }
 
   async dropPlayer(leagueId: string, userId: string, playerId: string): Promise<Transaction> {
-    const member = await this.leagueRepo.findMember(leagueId, userId);
+    const member = await this.leagueMembersRepo.findMember(leagueId, userId);
     if (!member) throw new ForbiddenException('You are not a member of this league');
 
     const league = await this.leagueRepo.findById(leagueId);
     if (!league) throw new NotFoundException('League not found');
 
-    const roster = await this.leagueRepo.findRosterByOwner(leagueId, userId);
+    const roster = await this.leagueRostersRepo.findRosterByOwner(leagueId, userId);
     if (!roster) throw new ValidationException('You do not own a roster in this league');
 
     if (!roster.players.includes(playerId)) {
@@ -154,17 +158,17 @@ export class TransactionService {
     userId: string,
     request: { player_id: string; drop_player_id?: string; faab_amount?: number },
   ): Promise<WaiverClaim> {
-    const member = await this.leagueRepo.findMember(leagueId, userId);
+    const member = await this.leagueMembersRepo.findMember(leagueId, userId);
     if (!member) throw new ForbiddenException('You are not a member of this league');
 
     const league = await this.leagueRepo.findById(leagueId);
     if (!league) throw new NotFoundException('League not found');
 
-    const roster = await this.leagueRepo.findRosterByOwner(leagueId, userId);
+    const roster = await this.leagueRostersRepo.findRosterByOwner(leagueId, userId);
     if (!roster) throw new ValidationException('You do not own a roster in this league');
 
     // Check player is already rostered
-    const allRosters = await this.leagueRepo.findRostersByLeagueId(leagueId);
+    const allRosters = await this.leagueRostersRepo.findRostersByLeagueId(leagueId);
     for (const r of allRosters) {
       if (r.players.includes(request.player_id)) {
         throw new ValidationException('This player is already on a roster');
@@ -237,7 +241,7 @@ export class TransactionService {
   }
 
   async getMyWaiverClaims(leagueId: string, userId: string): Promise<{ claims: WaiverClaim[]; player_names: Record<string, string> }> {
-    const member = await this.leagueRepo.findMember(leagueId, userId);
+    const member = await this.leagueMembersRepo.findMember(leagueId, userId);
     if (!member) throw new ForbiddenException('You are not a member of this league');
 
     const claims = await this.txRepo.findPendingClaimsByUser(leagueId, userId);
@@ -252,7 +256,7 @@ export class TransactionService {
     userId: string,
     filters?: { type?: string; limit?: number; offset?: number },
   ): Promise<{ transactions: Transaction[]; total: number; limit: number; offset: number; player_names: Record<string, string> }> {
-    const member = await this.leagueRepo.findMember(leagueId, userId);
+    const member = await this.leagueMembersRepo.findMember(leagueId, userId);
     if (!member) throw new ForbiddenException('You are not a member of this league');
 
     const result = await this.txRepo.findByLeague(leagueId, filters);
@@ -334,7 +338,7 @@ export class TransactionService {
           }
 
           // Validate roster still has room or has drop player (read within tx)
-          const roster = await this.leagueRepo.findRosterByOwner(leagueId, claim.userId, client);
+          const roster = await this.leagueRostersRepo.findRosterByOwner(leagueId, claim.userId, client);
           if (!roster) {
             await this.txRepo.updateClaimStatus(client, claim.id, 'invalid');
             continue;
@@ -424,7 +428,7 @@ export class TransactionService {
         const userIds = [...new Set(successfulClaims.map((c) => c.userId))];
         const userNameMap: Record<string, string> = {};
         for (const uid of userIds) {
-          const member = await this.leagueRepo.findMember(leagueId, uid);
+          const member = await this.leagueMembersRepo.findMember(leagueId, uid);
           if (member) userNameMap[uid] = member.username;
         }
 

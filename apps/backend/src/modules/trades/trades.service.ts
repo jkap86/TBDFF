@@ -1,6 +1,8 @@
 import { TradeRepository } from './trades.repository';
 import { TradeProposal, FutureDraftPick } from './trades.model';
 import { LeagueRepository } from '../leagues/leagues.repository';
+import { LeagueMembersRepository } from '../leagues/league-members.repository';
+import { LeagueRostersRepository } from '../leagues/league-rosters.repository';
 import { DraftRepository } from '../drafts/drafts.repository';
 import { PlayerRepository } from '../players/players.repository';
 import { TransactionsGateway } from '../transactions/transactions.gateway';
@@ -18,6 +20,8 @@ export class TradeService {
   constructor(
     private readonly tradeRepo: TradeRepository,
     private readonly leagueRepo: LeagueRepository,
+    private readonly leagueMembersRepo: LeagueMembersRepository,
+    private readonly leagueRostersRepo: LeagueRostersRepository,
     private readonly draftRepo: DraftRepository,
     private readonly playerRepo: PlayerRepository,
   ) {}
@@ -47,10 +51,10 @@ export class TradeService {
     },
   ): Promise<TradeProposal> {
     // Validate membership
-    const member = await this.leagueRepo.findMember(leagueId, userId);
+    const member = await this.leagueMembersRepo.findMember(leagueId, userId);
     if (!member) throw new ForbiddenException('You are not a member of this league');
 
-    const receiver = await this.leagueRepo.findMember(leagueId, request.proposed_to);
+    const receiver = await this.leagueMembersRepo.findMember(leagueId, request.proposed_to);
     if (!receiver) throw new ValidationException('Trade partner is not a member of this league');
 
     if (userId === request.proposed_to) throw new ValidationException('Cannot trade with yourself');
@@ -70,8 +74,8 @@ export class TradeService {
     if (!hasBothSides) throw new ValidationException('Trade must include items from both sides');
 
     // Validate player ownership
-    const proposerRoster = await this.leagueRepo.findRosterByOwner(leagueId, userId);
-    const receiverRoster = await this.leagueRepo.findRosterByOwner(leagueId, request.proposed_to);
+    const proposerRoster = await this.leagueRostersRepo.findRosterByOwner(leagueId, userId);
+    const receiverRoster = await this.leagueRostersRepo.findRosterByOwner(leagueId, request.proposed_to);
     if (!proposerRoster || !receiverRoster) throw new ValidationException('Both users must own a roster');
 
     for (const item of request.items) {
@@ -147,8 +151,8 @@ export class TradeService {
       throw new ValidationException('Trade cannot be executed in current status');
     }
 
-    const proposerRoster = await this.leagueRepo.findRosterByOwner(trade.leagueId, trade.proposedBy);
-    const receiverRoster = await this.leagueRepo.findRosterByOwner(trade.leagueId, trade.proposedTo);
+    const proposerRoster = await this.leagueRostersRepo.findRosterByOwner(trade.leagueId, trade.proposedBy);
+    const receiverRoster = await this.leagueRostersRepo.findRosterByOwner(trade.leagueId, trade.proposedTo);
     if (!proposerRoster || !receiverRoster) throw new ValidationException('Both users must own a roster');
 
     // Validate roster sizes after trade
@@ -397,8 +401,8 @@ export class TradeService {
     if (original.status !== 'pending') throw new ValidationException('Trade is not in pending status');
 
     // Validate player ownership (counter swaps proposer/receiver)
-    const counterProposerRoster = await this.leagueRepo.findRosterByOwner(original.leagueId, userId);
-    const counterReceiverRoster = await this.leagueRepo.findRosterByOwner(original.leagueId, original.proposedBy);
+    const counterProposerRoster = await this.leagueRostersRepo.findRosterByOwner(original.leagueId, userId);
+    const counterReceiverRoster = await this.leagueRostersRepo.findRosterByOwner(original.leagueId, original.proposedBy);
     if (!counterProposerRoster || !counterReceiverRoster) throw new ValidationException('Both users must own a roster');
 
     for (const item of request.items) {
@@ -447,7 +451,7 @@ export class TradeService {
     if (!trade) throw new NotFoundException('Trade not found');
 
     // Verify commissioner
-    const member = await this.leagueRepo.findMember(trade.leagueId, userId);
+    const member = await this.leagueMembersRepo.findMember(trade.leagueId, userId);
     if (!member || member.role !== 'commissioner') {
       throw new ForbiddenException('Only the commissioner can veto trades');
     }
@@ -468,7 +472,7 @@ export class TradeService {
     const trade = await this.tradeRepo.findProposalById(tradeId);
     if (!trade) throw new NotFoundException('Trade not found');
 
-    const member = await this.leagueRepo.findMember(trade.leagueId, userId);
+    const member = await this.leagueMembersRepo.findMember(trade.leagueId, userId);
     if (!member || member.role !== 'commissioner') {
       throw new ForbiddenException('Only the commissioner can push trades through');
     }
@@ -496,21 +500,21 @@ export class TradeService {
     if (!trade) throw new NotFoundException('Trade not found');
 
     // Verify league membership
-    const member = await this.leagueRepo.findMember(trade.leagueId, userId);
+    const member = await this.leagueMembersRepo.findMember(trade.leagueId, userId);
     if (!member) throw new ForbiddenException('You are not a member of this league');
 
     return trade;
   }
 
   async getLeagueTrades(leagueId: string, userId: string, status?: string): Promise<TradeProposal[]> {
-    const member = await this.leagueRepo.findMember(leagueId, userId);
+    const member = await this.leagueMembersRepo.findMember(leagueId, userId);
     if (!member) throw new ForbiddenException('You are not a member of this league');
 
     return this.tradeRepo.findProposalsByLeague(leagueId, status);
   }
 
   async getFuturePicks(leagueId: string, userId: string): Promise<FutureDraftPick[]> {
-    const member = await this.leagueRepo.findMember(leagueId, userId);
+    const member = await this.leagueMembersRepo.findMember(leagueId, userId);
     if (!member) throw new ForbiddenException('You are not a member of this league');
 
     const picks = await this.tradeRepo.findFuturePicksByLeague(leagueId);
@@ -518,7 +522,7 @@ export class TradeService {
   }
 
   async getUserFuturePicks(leagueId: string, requesterId: string, targetUserId: string): Promise<FutureDraftPick[]> {
-    const member = await this.leagueRepo.findMember(leagueId, requesterId);
+    const member = await this.leagueMembersRepo.findMember(leagueId, requesterId);
     if (!member) throw new ForbiddenException('You are not a member of this league');
 
     const picks = await this.tradeRepo.findFuturePicksByUser(leagueId, targetUserId);

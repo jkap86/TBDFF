@@ -9,8 +9,13 @@ import { EmailService } from './shared/email';
 
 // Shared repositories (cross-cutting, used by 4+ modules)
 import { LeagueRepository } from './modules/leagues/leagues.repository';
+import { LeagueMembersRepository } from './modules/leagues/league-members.repository';
+import { LeagueRostersRepository } from './modules/leagues/league-rosters.repository';
 import { PlayerRepository } from './modules/players/players.repository';
 import { DraftRepository } from './modules/drafts/drafts.repository';
+import { DraftTimerRepository } from './modules/drafts/draft-timer.repository';
+import { DraftQueueRepository } from './modules/drafts/draft-queue.repository';
+import { DraftPicksRepository } from './modules/drafts/draft-picks.repository';
 
 // Domain modules
 import { registerAuthModule } from './modules/auth/auth.module';
@@ -53,8 +58,14 @@ export function createContainer() {
 
   // ── Shared repositories (used across 4+ modules) ───────────────
   const leagueRepository = new LeagueRepository(pool);
+  const leagueMembersRepository = new LeagueMembersRepository(pool);
+  const leagueRostersRepository = new LeagueRostersRepository(pool);
   const playerRepository = new PlayerRepository(pool);
   const draftRepository = new DraftRepository(pool);
+  const draftTimerRepository = new DraftTimerRepository(pool);
+  const draftQueueRepository = new DraftQueueRepository(pool);
+  const draftPicksRepository = new DraftPicksRepository(pool);
+  draftRepository.setPicksRepository(draftPicksRepository);
 
   // ── Tier 1: No cross-module dependencies ───────────────────────
   const auth = registerAuthModule({ pool, emailService });
@@ -64,29 +75,35 @@ export function createContainer() {
   // ── Tier 2: Depends on shared repos + Tier 1 ──────────────────
   const leagues = registerLeaguesModule({
     leagueRepository,
+    leagueMembersRepository,
+    leagueRostersRepository,
     draftRepository,
     systemMessageService: chat.systemMessageService,
   });
 
-  const drafts = registerDraftsModule({ pool, draftRepository, leagueRepository, playerRepository });
+  const drafts = registerDraftsModule({ pool, draftRepository, draftPicksRepository, draftTimerRepository, draftQueueRepository, leagueRepository, leagueMembersRepository, leagueRostersRepository, playerRepository });
 
   const scoring = registerScoringModule({
     pool,
     playerRepository,
     leagueRepository,
+    leagueMembersRepository,
+    leagueRostersRepository,
     statsDataProvider: sleeperStatsProvider,
   });
 
   // ── Tier 3: Depends on shared repos ────────────────────────────
-  const matchups = registerMatchupsModule({ pool, leagueRepository, draftRepository });
-  const trades = registerTradesModule({ pool, leagueRepository, draftRepository, playerRepository });
-  const transactions = registerTransactionsModule({ pool, leagueRepository, playerRepository });
-  const payments = registerPaymentsModule({ pool, leagueRepository, systemMessageService: chat.systemMessageService });
+  const matchups = registerMatchupsModule({ pool, leagueRepository, leagueMembersRepository, leagueRostersRepository, draftRepository });
+  const trades = registerTradesModule({ pool, leagueRepository, leagueMembersRepository, leagueRostersRepository, draftRepository, playerRepository });
+  const transactions = registerTransactionsModule({ pool, leagueRepository, leagueMembersRepository, leagueRostersRepository, playerRepository });
+  const payments = registerPaymentsModule({ pool, leagueRepository, leagueMembersRepository, leagueRostersRepository, systemMessageService: chat.systemMessageService });
 
   // ── Jobs ────────────────────────────────────────────────────────
   const jobs = registerJobs({
     pool,
     draftRepository,
+    draftPicksRepository,
+    draftTimerRepository,
     playerService: players.playerService,
     scoringService: scoring.scoringService,
     transactionService: transactions.transactionService,
@@ -102,6 +119,7 @@ export function createContainer() {
     repositories: {
       draftRepository,
       leagueRepository,
+      leagueMembersRepository,
     },
     services: {
       chatService: chat.chatService,

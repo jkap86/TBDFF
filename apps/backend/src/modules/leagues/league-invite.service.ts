@@ -1,4 +1,5 @@
 import { LeagueRepository } from './leagues.repository';
+import { LeagueMembersRepository } from './league-members.repository';
 import { LeagueMember, LeagueInvite } from './leagues.model';
 import {
   ValidationException,
@@ -11,6 +12,7 @@ import { SystemMessageService } from '../chat/system-message.service';
 export class LeagueInviteService {
   constructor(
     private readonly leagueRepository: LeagueRepository,
+    private readonly leagueMembersRepository: LeagueMembersRepository,
     private readonly systemMessages: SystemMessageService,
   ) {}
 
@@ -24,7 +26,7 @@ export class LeagueInviteService {
     if (!league) throw new NotFoundException('League not found');
 
     // 2. Verify inviter is a member and has permission
-    const inviterMember = await this.leagueRepository.findMember(leagueId, inviterUserId);
+    const inviterMember = await this.leagueMembersRepository.findMember(leagueId, inviterUserId);
     if (!inviterMember) {
       throw new ForbiddenException('You must be a member of this league to invite others');
     }
@@ -39,7 +41,7 @@ export class LeagueInviteService {
     }
 
     // 3. Find invitee by username
-    const invitee = await this.leagueRepository.findUserByUsername(inviteeUsername);
+    const invitee = await this.leagueMembersRepository.findUserByUsername(inviteeUsername);
     if (!invitee) {
       throw new NotFoundException(`User '${inviteeUsername}' not found`);
     }
@@ -50,13 +52,13 @@ export class LeagueInviteService {
     }
 
     // 5. Check if already a member
-    const existingMember = await this.leagueRepository.findMember(leagueId, invitee.id);
+    const existingMember = await this.leagueMembersRepository.findMember(leagueId, invitee.id);
     if (existingMember) {
       throw new ConflictException('User is already a member of this league');
     }
 
     // 6. Check for existing invite
-    const existingInvite = await this.leagueRepository.findExistingInvite(leagueId, invitee.id);
+    const existingInvite = await this.leagueMembersRepository.findExistingInvite(leagueId, invitee.id);
     if (existingInvite) {
       if (existingInvite.status === 'pending') {
         throw new ConflictException('An invite has already been sent to this user');
@@ -68,32 +70,32 @@ export class LeagueInviteService {
     }
 
     // 7. Check league capacity
-    const memberCount = await this.leagueRepository.getMemberCount(leagueId);
+    const memberCount = await this.leagueMembersRepository.getMemberCount(leagueId);
     if (memberCount >= league.totalRosters) {
       throw new ValidationException('League is full');
     }
 
     // 8. Create invite
-    return this.leagueRepository.createInvite(leagueId, inviterUserId, invitee.id);
+    return this.leagueMembersRepository.createInvite(leagueId, inviterUserId, invitee.id);
   }
 
   async getLeagueInvites(leagueId: string, userId: string): Promise<LeagueInvite[]> {
     // Verify user is commissioner
-    const member = await this.leagueRepository.findMember(leagueId, userId);
+    const member = await this.leagueMembersRepository.findMember(leagueId, userId);
     if (!member || member.role !== 'commissioner') {
       throw new ForbiddenException('Only commissioners can view league invites');
     }
 
-    return this.leagueRepository.findPendingInvitesByLeague(leagueId);
+    return this.leagueMembersRepository.findPendingInvitesByLeague(leagueId);
   }
 
   async getMyInvites(userId: string): Promise<LeagueInvite[]> {
-    return this.leagueRepository.findPendingInvitesByUser(userId);
+    return this.leagueMembersRepository.findPendingInvitesByUser(userId);
   }
 
   async acceptInvite(inviteId: string, userId: string): Promise<LeagueMember> {
     // 1. Get invite
-    const invite = await this.leagueRepository.findInviteById(inviteId);
+    const invite = await this.leagueMembersRepository.findInviteById(inviteId);
     if (!invite) throw new NotFoundException('Invite not found');
 
     // 2. Verify user is the invitee
@@ -111,15 +113,15 @@ export class LeagueInviteService {
     if (!league) throw new NotFoundException('League no longer exists');
 
     // 5. Check if user is already a member (race condition check)
-    const existingMember = await this.leagueRepository.findMember(invite.leagueId, userId);
+    const existingMember = await this.leagueMembersRepository.findMember(invite.leagueId, userId);
     if (existingMember) {
       // Update invite status and return existing member
-      await this.leagueRepository.updateInviteStatus(inviteId, 'accepted');
+      await this.leagueMembersRepository.updateInviteStatus(inviteId, 'accepted');
       return existingMember;
     }
 
     // 6. Add as spectator and mark invite accepted (transactional)
-    const member = await this.leagueRepository.acceptInviteTransaction(
+    const member = await this.leagueMembersRepository.acceptInviteTransaction(
       invite.leagueId, userId, inviteId,
     );
 
@@ -132,7 +134,7 @@ export class LeagueInviteService {
 
   async declineInvite(inviteId: string, userId: string): Promise<void> {
     // 1. Get invite
-    const invite = await this.leagueRepository.findInviteById(inviteId);
+    const invite = await this.leagueMembersRepository.findInviteById(inviteId);
     if (!invite) throw new NotFoundException('Invite not found');
 
     // 2. Verify user is the invitee
@@ -146,16 +148,16 @@ export class LeagueInviteService {
     }
 
     // 4. Mark as declined (don't delete for audit trail)
-    await this.leagueRepository.updateInviteStatus(inviteId, 'declined');
+    await this.leagueMembersRepository.updateInviteStatus(inviteId, 'declined');
   }
 
   async cancelInvite(inviteId: string, userId: string): Promise<void> {
     // 1. Get invite
-    const invite = await this.leagueRepository.findInviteById(inviteId);
+    const invite = await this.leagueMembersRepository.findInviteById(inviteId);
     if (!invite) throw new NotFoundException('Invite not found');
 
     // 2. Verify user is the inviter or a commissioner
-    const member = await this.leagueRepository.findMember(invite.leagueId, userId);
+    const member = await this.leagueMembersRepository.findMember(invite.leagueId, userId);
     const canCancel =
       invite.inviterId === userId ||
       (member && member.role === 'commissioner');
@@ -170,7 +172,7 @@ export class LeagueInviteService {
     }
 
     // 4. Delete invite (cancel = remove entirely)
-    await this.leagueRepository.deleteInvite(inviteId);
+    await this.leagueMembersRepository.deleteInvite(inviteId);
   }
 
   /**
@@ -181,7 +183,7 @@ export class LeagueInviteService {
     inviteId: string,
     userId: string,
   ): Promise<'declined' | 'cancelled'> {
-    const invite = await this.leagueRepository.findInviteById(inviteId);
+    const invite = await this.leagueMembersRepository.findInviteById(inviteId);
     if (!invite) throw new NotFoundException('Invite not found');
 
     if (invite.inviteeId === userId) {

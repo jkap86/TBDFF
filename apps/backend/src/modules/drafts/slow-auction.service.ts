@@ -1,7 +1,10 @@
 import { Pool } from 'pg';
 import { AuctionLotRepository } from './auction-lot.repository';
 import { DraftRepository } from './drafts.repository';
+import { DraftPicksRepository } from './draft-picks.repository';
+import { DraftQueueRepository } from './draft-queue.repository';
 import { LeagueRepository } from '../leagues/leagues.repository';
+import { LeagueMembersRepository } from '../leagues/league-members.repository';
 import { PlayerRepository } from '../players/players.repository';
 import { DraftGateway } from './draft.gateway';
 import { AuctionLot, SlowAuctionSettings, RosterBudgetData } from './slow-auction.model';
@@ -22,7 +25,10 @@ export class SlowAuctionService {
   constructor(
     private readonly lotRepo: AuctionLotRepository,
     private readonly draftRepo: DraftRepository,
+    private readonly draftQueueRepo: DraftQueueRepository,
+    private readonly draftPicksRepo: DraftPicksRepository,
     private readonly leagueRepo: LeagueRepository,
+    private readonly leagueMembersRepo: LeagueMembersRepository,
     private readonly playerRepo: PlayerRepository,
     private readonly pool: Pool,
   ) {}
@@ -83,7 +89,7 @@ export class SlowAuctionService {
     if (draft.status !== 'drafting') throw new ValidationException('Draft is not active');
     if (draft.type !== 'slow_auction') throw new ValidationException('Not a slow auction draft');
 
-    const member = await this.leagueRepo.findMember(draft.leagueId, userId);
+    const member = await this.leagueMembersRepo.findMember(draft.leagueId, userId);
     if (!member) throw new ForbiddenException('Not a member of this league');
 
     const rosterId = findRosterIdByUserId(draft, userId);
@@ -96,7 +102,7 @@ export class SlowAuctionService {
     if (!player) throw new ValidationException('Player not found');
 
     // Already drafted via draft_picks?
-    const alreadyPicked = await this.draftRepo.isPlayerPicked(draftId, playerId);
+    const alreadyPicked = await this.draftPicksRepo.isPlayerPicked(draftId, playerId);
     if (alreadyPicked) throw new ConflictException('Player already drafted');
 
     // All nomination logic under advisory lock
@@ -169,7 +175,7 @@ export class SlowAuctionService {
     if (draft.status !== 'drafting') throw new ValidationException('Draft is not active');
     if (draft.type !== 'slow_auction') throw new ValidationException('Not a slow auction draft');
 
-    const member = await this.leagueRepo.findMember(draft.leagueId, userId);
+    const member = await this.leagueMembersRepo.findMember(draft.leagueId, userId);
     if (!member) throw new ForbiddenException('Not a member');
 
     const rosterId = findRosterIdByUserId(draft, userId);
@@ -398,11 +404,11 @@ export class SlowAuctionService {
         const pickedByUserId = findUserByRosterId(draft.draftOrder, draft.slotToRosterId, proxyBid.rosterId);
 
         // Find the next available pick slot, or create one
-        const nextPick = await this.draftRepo.findNextPick(lot.draftId, client);
+        const nextPick = await this.draftPicksRepo.findNextPick(lot.draftId, client);
         let pick: DraftPick | null = null;
 
         if (nextPick) {
-          pick = await this.draftRepo.makeAuctionPick(
+          pick = await this.draftPicksRepo.makeAuctionPick(
             nextPick.id,
             lot.playerId,
             pickedByUserId || draft.createdBy,
@@ -454,7 +460,7 @@ export class SlowAuctionService {
 
         // Remove from draft queue (inside transaction for atomicity)
         if (pickedByUserId) {
-          await this.draftRepo.removeFromQueue(lot.draftId, pickedByUserId, lot.playerId, client);
+          await this.draftQueueRepo.removeFromQueue(lot.draftId, pickedByUserId, lot.playerId, client);
         }
 
         // Check if draft is complete (all rosters full)
@@ -579,7 +585,7 @@ export class SlowAuctionService {
     const budgetDataMap = await this.lotRepo.getAllRosterBudgetData(draftId);
 
     // Get all roster owners
-    const members = await this.leagueRepo.findMembersByLeagueId(draft.leagueId);
+    const members = await this.leagueMembersRepo.findMembersByLeagueId(draft.leagueId);
     const rosterToUser: Record<number, string> = {};
     for (const [userId, slot] of Object.entries(draft.draftOrder)) {
       const rid = draft.slotToRosterId[String(slot)];
@@ -657,7 +663,7 @@ export class SlowAuctionService {
 
     // Check if every roster has filled all slots
     const rosterIds = Object.values(draft.slotToRosterId);
-    const picksWonMap = await this.draftRepo.countPicksWonByRosters(draftId, rosterIds, client);
+    const picksWonMap = await this.draftPicksRepo.countPicksWonByRosters(draftId, rosterIds, client);
 
     for (const rosterId of rosterIds) {
       const won = picksWonMap.get(rosterId) ?? 0;

@@ -1,5 +1,7 @@
 import { PaymentRepository } from './payments.repository';
 import { LeagueRepository } from '../leagues/leagues.repository';
+import { LeagueMembersRepository } from '../leagues/league-members.repository';
+import { LeagueRostersRepository } from '../leagues/league-rosters.repository';
 import { LeaguePayment } from './payments.model';
 import { SetPayoutsInput } from './payments.schemas';
 import { SystemMessageService } from '../chat/system-message.service';
@@ -13,17 +15,19 @@ export class PaymentService {
   constructor(
     private readonly paymentRepository: PaymentRepository,
     private readonly leagueRepository: LeagueRepository,
+    private readonly leagueMembersRepository: LeagueMembersRepository,
+    private readonly leagueRostersRepository: LeagueRostersRepository,
     private readonly systemMessages: SystemMessageService,
   ) {}
 
   async getPayments(leagueId: string, userId: string): Promise<LeaguePayment[]> {
-    const member = await this.leagueRepository.findMember(leagueId, userId);
+    const member = await this.leagueMembersRepository.findMember(leagueId, userId);
     if (!member) throw new ForbiddenException('You must be a member of this league');
     return this.paymentRepository.findByLeague(leagueId);
   }
 
   async setBuyIn(leagueId: string, userId: string, buyIn: number): Promise<void> {
-    const member = await this.leagueRepository.findMember(leagueId, userId);
+    const member = await this.leagueMembersRepository.findMember(leagueId, userId);
     if (!member || member.role !== 'commissioner') {
       throw new ForbiddenException('Only the league commissioner can set the buy-in');
     }
@@ -41,12 +45,12 @@ export class PaymentService {
     targetUserId: string,
     amount: number,
   ): Promise<LeaguePayment> {
-    const member = await this.leagueRepository.findMember(leagueId, requestingUserId);
+    const member = await this.leagueMembersRepository.findMember(leagueId, requestingUserId);
     if (!member || member.role !== 'commissioner') {
       throw new ForbiddenException('Only the league commissioner can record payments');
     }
 
-    const target = await this.leagueRepository.findMember(leagueId, targetUserId);
+    const target = await this.leagueMembersRepository.findMember(leagueId, targetUserId);
     if (!target) throw new NotFoundException('User is not a member of this league');
 
     try {
@@ -66,7 +70,7 @@ export class PaymentService {
       try {
         const league = await this.leagueRepository.findById(leagueId);
         if (league && league.status === 'not_filled') {
-          const rosters = await this.leagueRepository.findRostersByLeagueId(leagueId);
+          const rosters = await this.leagueRostersRepository.findRostersByLeagueId(leagueId);
           const allPayments = await this.paymentRepository.findByLeague(leagueId);
           const buyInPayments = allPayments.filter((p) => p.type === 'buy_in');
           if (buyInPayments.length >= rosters.length) {
@@ -92,7 +96,7 @@ export class PaymentService {
     userId: string,
     payouts: SetPayoutsInput['payouts'],
   ): Promise<void> {
-    const member = await this.leagueRepository.findMember(leagueId, userId);
+    const member = await this.leagueMembersRepository.findMember(leagueId, userId);
     if (!member || member.role !== 'commissioner') {
       throw new ForbiddenException('Only the league commissioner can set payouts');
     }
@@ -109,7 +113,7 @@ export class PaymentService {
     requestingUserId: string,
     paymentId: string,
   ): Promise<void> {
-    const member = await this.leagueRepository.findMember(leagueId, requestingUserId);
+    const member = await this.leagueMembersRepository.findMember(leagueId, requestingUserId);
     if (!member || member.role !== 'commissioner') {
       throw new ForbiddenException('Only the league commissioner can manage payments');
     }

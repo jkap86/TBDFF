@@ -41,6 +41,8 @@ function makeNomination(overrides: Partial<AuctionNomination> = {}): AuctionNomi
 describe('AuctionService.placeBid', () => {
   let service: AuctionService;
   let draftRepo: any;
+  let draftTimerRepo: any;
+  let draftQueueRepo: any;
   let leagueRepo: any;
   let playerRepo: any;
   let autoBidService: AuctionAutoBidService;
@@ -50,13 +52,18 @@ describe('AuctionService.placeBid', () => {
       findById: vi.fn(),
       update: vi.fn(),
       countPicksWonByRoster: vi.fn().mockResolvedValue(0),
-      upsertAuctionTimer: vi.fn().mockResolvedValue(undefined),
-      cancelAuctionTimers: vi.fn().mockResolvedValue(undefined),
       withTransaction: vi.fn(async (fn: any) => {
         const mockClient = { query: vi.fn() };
         return fn(mockClient);
       }),
     };
+
+    draftTimerRepo = {
+      upsertAuctionTimer: vi.fn().mockResolvedValue(undefined),
+      cancelAuctionTimers: vi.fn().mockResolvedValue(undefined),
+    };
+
+    draftQueueRepo = {};
 
     leagueRepo = {
       findMember: vi.fn().mockResolvedValue({ role: 'member' }),
@@ -64,8 +71,8 @@ describe('AuctionService.placeBid', () => {
 
     playerRepo = {};
 
-    autoBidService = new AuctionAutoBidService(draftRepo, leagueRepo, playerRepo);
-    service = new AuctionService(draftRepo, leagueRepo, playerRepo, autoBidService);
+    autoBidService = new AuctionAutoBidService(draftRepo, draftTimerRepo, draftQueueRepo, leagueRepo, playerRepo);
+    service = new AuctionService(draftRepo, draftQueueRepo, leagueRepo, playerRepo, autoBidService);
   });
 
   it('acquires advisory lock via withTransaction and re-reads draft', async () => {
@@ -157,6 +164,8 @@ describe('AuctionService.placeBid', () => {
 describe('AuctionService.resolveNomination', () => {
   let service: AuctionService;
   let draftRepo: any;
+  let draftTimerRepo: any;
+  let draftQueueRepo: any;
   let leagueRepo: any;
   let playerRepo: any;
   let autoBidService: AuctionAutoBidService;
@@ -170,13 +179,18 @@ describe('AuctionService.resolveNomination', () => {
       completeAndUpdateLeagueInTx: vi.fn(),
       countPicksWonByRoster: vi.fn().mockResolvedValue(0),
       countPicksWonByRosters: vi.fn().mockResolvedValue(new Map()),
-      upsertAuctionTimer: vi.fn().mockResolvedValue(undefined),
-      cancelAuctionTimers: vi.fn().mockResolvedValue(undefined),
       withTransaction: vi.fn(async (fn: any) => {
         const mockClient = { query: vi.fn() };
         return fn(mockClient);
       }),
     };
+
+    draftTimerRepo = {
+      upsertAuctionTimer: vi.fn().mockResolvedValue(undefined),
+      cancelAuctionTimers: vi.fn().mockResolvedValue(undefined),
+    };
+
+    draftQueueRepo = {};
 
     leagueRepo = {
       findMember: vi.fn().mockResolvedValue({ role: 'member' }),
@@ -184,8 +198,8 @@ describe('AuctionService.resolveNomination', () => {
 
     playerRepo = {};
 
-    autoBidService = new AuctionAutoBidService(draftRepo, leagueRepo, playerRepo);
-    service = new AuctionService(draftRepo, leagueRepo, playerRepo, autoBidService);
+    autoBidService = new AuctionAutoBidService(draftRepo, draftTimerRepo, draftQueueRepo, leagueRepo, playerRepo);
+    service = new AuctionService(draftRepo, draftQueueRepo, leagueRepo, playerRepo, autoBidService);
   });
 
   it('resolves pick, deducts budget, and sets next nomination in one transaction', async () => {
@@ -264,6 +278,8 @@ describe('AuctionService.resolveNomination', () => {
 describe('AuctionAutoBidService._processAutoBids (incremental bidding)', () => {
   let autoBidService: AuctionAutoBidService;
   let draftRepo: any;
+  let draftTimerRepo: any;
+  let draftQueueRepo: any;
   let leagueRepo: any;
   let playerRepo: any;
 
@@ -273,14 +289,20 @@ describe('AuctionAutoBidService._processAutoBids (incremental bidding)', () => {
       update: vi.fn(),
       countPicksWonByRoster: vi.fn().mockResolvedValue(0),
       countPicksWonByRosters: vi.fn().mockResolvedValue(new Map()),
-      getQueueItemsForPlayerByUsers: vi.fn().mockResolvedValue(new Map()),
-      getUserIdsWithMaxBidForPlayer: vi.fn().mockResolvedValue([]),
-      upsertAuctionTimer: vi.fn().mockResolvedValue(undefined),
-      cancelAuctionTimers: vi.fn().mockResolvedValue(undefined),
       withTransaction: vi.fn(async (fn: any) => {
         const mockClient = { query: vi.fn() };
         return fn(mockClient);
       }),
+    };
+
+    draftTimerRepo = {
+      upsertAuctionTimer: vi.fn().mockResolvedValue(undefined),
+      cancelAuctionTimers: vi.fn().mockResolvedValue(undefined),
+    };
+
+    draftQueueRepo = {
+      getQueueItemsForPlayerByUsers: vi.fn().mockResolvedValue(new Map()),
+      getUserIdsWithMaxBidForPlayer: vi.fn().mockResolvedValue([]),
     };
 
     leagueRepo = {
@@ -295,7 +317,7 @@ describe('AuctionAutoBidService._processAutoBids (incremental bidding)', () => {
       }),
     };
 
-    autoBidService = new AuctionAutoBidService(draftRepo, leagueRepo, playerRepo);
+    autoBidService = new AuctionAutoBidService(draftRepo, draftTimerRepo, draftQueueRepo, leagueRepo, playerRepo);
   });
 
   function makeAutoBidDraft(
@@ -399,7 +421,7 @@ describe('AuctionAutoBidService._processAutoBids (incremental bidding)', () => {
     draftRepo.update.mockResolvedValue(draft);
 
     // user-b has player in queue with max_bid = 15
-    draftRepo.getQueueItemsForPlayerByUsers.mockResolvedValue(
+    draftQueueRepo.getQueueItemsForPlayerByUsers.mockResolvedValue(
       new Map([['user-b', { max_bid: 15 }]]),
     );
 
@@ -422,7 +444,7 @@ describe('AuctionAutoBidService._processAutoBids (incremental bidding)', () => {
     draftRepo.update.mockResolvedValue(draft);
 
     // user-a has max_bid 20, user-b has max_bid 50
-    draftRepo.getQueueItemsForPlayerByUsers.mockResolvedValue(
+    draftQueueRepo.getQueueItemsForPlayerByUsers.mockResolvedValue(
       new Map([
         ['user-a', { max_bid: 20 }],
         ['user-b', { max_bid: 50 }],
@@ -449,8 +471,8 @@ describe('AuctionAutoBidService._processAutoBids (incremental bidding)', () => {
     draftRepo.update.mockResolvedValue(draft);
 
     // user-a has a queue max_bid for this player
-    draftRepo.getUserIdsWithMaxBidForPlayer.mockResolvedValue(['user-a']);
-    draftRepo.getQueueItemsForPlayerByUsers.mockResolvedValue(
+    draftQueueRepo.getUserIdsWithMaxBidForPlayer.mockResolvedValue(['user-a']);
+    draftQueueRepo.getQueueItemsForPlayerByUsers.mockResolvedValue(
       new Map([['user-a', { max_bid: 20 }]]),
     );
 
@@ -472,8 +494,8 @@ describe('AuctionAutoBidService._processAutoBids (incremental bidding)', () => {
     });
     draftRepo.findById.mockResolvedValue(draft);
 
-    draftRepo.getUserIdsWithMaxBidForPlayer.mockResolvedValue(['user-a']);
-    draftRepo.getQueueItemsForPlayerByUsers.mockResolvedValue(
+    draftQueueRepo.getUserIdsWithMaxBidForPlayer.mockResolvedValue(['user-a']);
+    draftQueueRepo.getQueueItemsForPlayerByUsers.mockResolvedValue(
       new Map([['user-a', { max_bid: null }]]),
     );
 
@@ -487,6 +509,8 @@ describe('AuctionAutoBidService._processAutoBids (incremental bidding)', () => {
 describe('AuctionService.autoNominate', () => {
   let service: AuctionService;
   let draftRepo: any;
+  let draftTimerRepo: any;
+  let draftQueueRepo: any;
   let leagueRepo: any;
   let playerRepo: any;
   let capturedClient: any;
@@ -511,13 +535,19 @@ describe('AuctionService.autoNominate', () => {
       addAutoPickUser: vi.fn().mockResolvedValue(null),
       countPicksWonByRoster: vi.fn().mockResolvedValue(0),
       countPicksWonByRosters: vi.fn().mockResolvedValue(new Map()),
-      findFirstAvailableFromQueue: vi.fn().mockResolvedValue(null),
       findBestAvailable: vi.fn().mockResolvedValue(bestPlayer),
       forfeitPick: vi.fn(),
       completeAndUpdateLeagueInTx: vi.fn(),
+      withTransaction: vi.fn(async (fn: any) => fn(capturedClient)),
+    };
+
+    draftTimerRepo = {
       upsertAuctionTimer: vi.fn().mockResolvedValue(undefined),
       cancelAuctionTimers: vi.fn().mockResolvedValue(undefined),
-      withTransaction: vi.fn(async (fn: any) => fn(capturedClient)),
+    };
+
+    draftQueueRepo = {
+      findFirstAvailableFromQueue: vi.fn().mockResolvedValue(null),
     };
 
     leagueRepo = {
@@ -526,8 +556,8 @@ describe('AuctionService.autoNominate', () => {
 
     playerRepo = {};
 
-    const autoBidService = new AuctionAutoBidService(draftRepo, leagueRepo, playerRepo);
-    service = new AuctionService(draftRepo, leagueRepo, playerRepo, autoBidService);
+    const autoBidService = new AuctionAutoBidService(draftRepo, draftTimerRepo, draftQueueRepo, leagueRepo, playerRepo);
+    service = new AuctionService(draftRepo, draftQueueRepo, leagueRepo, playerRepo, autoBidService);
   });
 
   it('acquires advisory lock and re-reads draft inside transaction', async () => {
@@ -701,6 +731,8 @@ describe('AuctionAutoBidService._processAutoBids (auto-resolution & fallback)', 
   let autoBidService: AuctionAutoBidService;
   let auctionService: AuctionService;
   let draftRepo: any;
+  let draftTimerRepo: any;
+  let draftQueueRepo: any;
   let leagueRepo: any;
   let playerRepo: any;
 
@@ -713,18 +745,24 @@ describe('AuctionAutoBidService._processAutoBids (auto-resolution & fallback)', 
       completeAndUpdateLeagueInTx: vi.fn(),
       countPicksWonByRoster: vi.fn().mockResolvedValue(0),
       countPicksWonByRosters: vi.fn().mockResolvedValue(new Map()),
-      getQueueItemsForPlayerByUsers: vi.fn().mockResolvedValue(new Map()),
-      getUserIdsWithMaxBidForPlayer: vi.fn().mockResolvedValue([]),
       findNextPick: vi.fn(),
       findBestAvailable: vi.fn(),
-      findFirstAvailableFromQueue: vi.fn(),
       addAutoPickUser: vi.fn(),
-      upsertAuctionTimer: vi.fn().mockResolvedValue(undefined),
-      cancelAuctionTimers: vi.fn().mockResolvedValue(undefined),
       withTransaction: vi.fn(async (fn: any) => {
         const mockClient = { query: vi.fn() };
         return fn(mockClient);
       }),
+    };
+
+    draftTimerRepo = {
+      upsertAuctionTimer: vi.fn().mockResolvedValue(undefined),
+      cancelAuctionTimers: vi.fn().mockResolvedValue(undefined),
+    };
+
+    draftQueueRepo = {
+      getQueueItemsForPlayerByUsers: vi.fn().mockResolvedValue(new Map()),
+      getUserIdsWithMaxBidForPlayer: vi.fn().mockResolvedValue([]),
+      findFirstAvailableFromQueue: vi.fn(),
     };
 
     leagueRepo = {
@@ -735,8 +773,8 @@ describe('AuctionAutoBidService._processAutoBids (auto-resolution & fallback)', 
       findById: vi.fn(),
     };
 
-    autoBidService = new AuctionAutoBidService(draftRepo, leagueRepo, playerRepo);
-    auctionService = new AuctionService(draftRepo, leagueRepo, playerRepo, autoBidService);
+    autoBidService = new AuctionAutoBidService(draftRepo, draftTimerRepo, draftQueueRepo, leagueRepo, playerRepo);
+    auctionService = new AuctionService(draftRepo, draftQueueRepo, leagueRepo, playerRepo, autoBidService);
     autoBidService.setOnDeadlineExpired((draftId, userId) => auctionService.resolveNomination(draftId, userId));
   });
 
@@ -820,6 +858,8 @@ describe('AuctionAutoBidService._processAutoBids (auto-resolution & fallback)', 
 describe('Concurrent bid race (stale-read under lock)', () => {
   let service: AuctionService;
   let draftRepo: any;
+  let draftTimerRepo: any;
+  let draftQueueRepo: any;
   let leagueRepo: any;
   let capturedClient: any;
 
@@ -830,17 +870,22 @@ describe('Concurrent bid race (stale-read under lock)', () => {
       findById: vi.fn(),
       update: vi.fn(),
       countPicksWonByRoster: vi.fn().mockResolvedValue(0),
-      upsertAuctionTimer: vi.fn().mockResolvedValue(undefined),
-      cancelAuctionTimers: vi.fn().mockResolvedValue(undefined),
       withTransaction: vi.fn(async (fn: any) => fn(capturedClient)),
     };
+
+    draftTimerRepo = {
+      upsertAuctionTimer: vi.fn().mockResolvedValue(undefined),
+      cancelAuctionTimers: vi.fn().mockResolvedValue(undefined),
+    };
+
+    draftQueueRepo = {};
 
     leagueRepo = {
       findMember: vi.fn().mockResolvedValue({ role: 'member' }),
     };
 
-    const autoBidService = new AuctionAutoBidService(draftRepo, leagueRepo, {});
-    service = new AuctionService(draftRepo, leagueRepo, {}, autoBidService);
+    const autoBidService = new AuctionAutoBidService(draftRepo, draftTimerRepo, draftQueueRepo, leagueRepo, {});
+    service = new AuctionService(draftRepo, draftQueueRepo, leagueRepo, {}, autoBidService);
   });
 
   it('second bid fails after re-reading higher bid under lock', async () => {
@@ -897,6 +942,8 @@ describe('Concurrent bid race (stale-read under lock)', () => {
 describe('Auto-bid war continues until lower target exceeded', () => {
   let autoBidService: AuctionAutoBidService;
   let draftRepo: any;
+  let draftTimerRepo: any;
+  let draftQueueRepo: any;
 
   beforeEach(() => {
     draftRepo = {
@@ -904,17 +951,23 @@ describe('Auto-bid war continues until lower target exceeded', () => {
       update: vi.fn(),
       countPicksWonByRoster: vi.fn().mockResolvedValue(0),
       countPicksWonByRosters: vi.fn().mockResolvedValue(new Map()),
-      getQueueItemsForPlayerByUsers: vi.fn().mockResolvedValue(new Map()),
-      getUserIdsWithMaxBidForPlayer: vi.fn().mockResolvedValue([]),
-      upsertAuctionTimer: vi.fn().mockResolvedValue(undefined),
-      cancelAuctionTimers: vi.fn().mockResolvedValue(undefined),
       withTransaction: vi.fn(async (fn: any) => {
         const mockClient = { query: vi.fn() };
         return fn(mockClient);
       }),
     };
 
-    autoBidService = new AuctionAutoBidService(draftRepo, { findMember: vi.fn() } as any, {
+    draftTimerRepo = {
+      upsertAuctionTimer: vi.fn().mockResolvedValue(undefined),
+      cancelAuctionTimers: vi.fn().mockResolvedValue(undefined),
+    };
+
+    draftQueueRepo = {
+      getQueueItemsForPlayerByUsers: vi.fn().mockResolvedValue(new Map()),
+      getUserIdsWithMaxBidForPlayer: vi.fn().mockResolvedValue([]),
+    };
+
+    autoBidService = new AuctionAutoBidService(draftRepo, draftTimerRepo, draftQueueRepo, { findMember: vi.fn() } as any, {
       findById: vi.fn().mockResolvedValue({ id: 'player-1', auctionValue: 40, searchRank: 5 }),
     } as any);
   });
@@ -924,7 +977,7 @@ describe('Auto-bid war continues until lower target exceeded', () => {
     let currentBid = 1;
     let currentBidder = 'user-a';
 
-    draftRepo.getQueueItemsForPlayerByUsers.mockImplementation(() =>
+    draftQueueRepo.getQueueItemsForPlayerByUsers.mockImplementation(() =>
       new Map([['user-a', { max_bid: 10 }], ['user-b', { max_bid: 25 }]]),
     );
 
@@ -982,7 +1035,7 @@ describe('Auto-bid war continues until lower target exceeded', () => {
     let currentBid = 1;
     let currentBidder = 'user-a';
 
-    draftRepo.getQueueItemsForPlayerByUsers.mockImplementation(() =>
+    draftQueueRepo.getQueueItemsForPlayerByUsers.mockImplementation(() =>
       new Map([['user-a', { max_bid: 10 }], ['user-b', { max_bid: 10 }]]),
     );
 
@@ -1033,6 +1086,8 @@ describe('Auto-bid war continues until lower target exceeded', () => {
 describe('Recovery: auto-resolves expired nomination after restart', () => {
   let autoBidService: AuctionAutoBidService;
   let draftRepo: any;
+  let draftTimerRepo: any;
+  let draftQueueRepo: any;
   let capturedClient: any;
 
   beforeEach(() => {
@@ -1046,22 +1101,28 @@ describe('Recovery: auto-resolves expired nomination after restart', () => {
       completeAndUpdateLeagueInTx: vi.fn().mockResolvedValue(null),
       countPicksWonByRoster: vi.fn().mockResolvedValue(0),
       countPicksWonByRosters: vi.fn().mockResolvedValue(new Map()),
-      getQueueItemsForPlayerByUsers: vi.fn().mockResolvedValue(new Map()),
-      getUserIdsWithMaxBidForPlayer: vi.fn().mockResolvedValue([]),
       findNextPick: vi.fn(),
       findBestAvailable: vi.fn(),
-      findFirstAvailableFromQueue: vi.fn().mockResolvedValue(null),
       addAutoPickUser: vi.fn().mockResolvedValue(null),
+      withTransaction: vi.fn(async (fn: any) => fn(capturedClient)),
+    };
+
+    draftTimerRepo = {
       upsertAuctionTimer: vi.fn().mockResolvedValue(undefined),
       cancelAuctionTimers: vi.fn().mockResolvedValue(undefined),
-      withTransaction: vi.fn(async (fn: any) => fn(capturedClient)),
+    };
+
+    draftQueueRepo = {
+      getQueueItemsForPlayerByUsers: vi.fn().mockResolvedValue(new Map()),
+      getUserIdsWithMaxBidForPlayer: vi.fn().mockResolvedValue([]),
+      findFirstAvailableFromQueue: vi.fn().mockResolvedValue(null),
     };
 
     const leagueRepo = { findMember: vi.fn().mockResolvedValue({ role: 'member' }) };
     const playerRepo = { findById: vi.fn().mockResolvedValue({ id: 'player-1', auctionValue: 40 }) };
 
-    autoBidService = new AuctionAutoBidService(draftRepo, leagueRepo as any, playerRepo as any);
-    const auctionService = new AuctionService(draftRepo, leagueRepo as any, playerRepo as any, autoBidService);
+    autoBidService = new AuctionAutoBidService(draftRepo, draftTimerRepo, draftQueueRepo, leagueRepo as any, playerRepo as any);
+    const auctionService = new AuctionService(draftRepo, draftQueueRepo, leagueRepo as any, playerRepo as any, autoBidService);
     autoBidService.setOnDeadlineExpired((draftId, userId) => auctionService.resolveNomination(draftId, userId));
   });
 
@@ -1149,9 +1210,9 @@ describe('Recovery: auto-resolves expired nomination after restart', () => {
 
     // No auto-bid placed, no resolution — should schedule a deadline follow-up
     expect(draftRepo.makeAuctionPick).not.toHaveBeenCalled();
-    expect(draftRepo.upsertAuctionTimer).toHaveBeenCalled();
+    expect(draftTimerRepo.upsertAuctionTimer).toHaveBeenCalled();
 
-    const timerCall = draftRepo.upsertAuctionTimer.mock.calls[0];
+    const timerCall = draftTimerRepo.upsertAuctionTimer.mock.calls[0];
     expect(timerCall[0]).toBe('draft-1');
     expect(timerCall[1]).toBe('deadline');
     // run_at should be roughly at bid_deadline + 1s

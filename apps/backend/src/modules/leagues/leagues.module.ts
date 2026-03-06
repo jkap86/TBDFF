@@ -1,4 +1,6 @@
 import { LeagueRepository } from './leagues.repository';
+import { LeagueMembersRepository } from './league-members.repository';
+import { LeagueRostersRepository } from './league-rosters.repository';
 import { LeagueService } from './leagues.service';
 import { LeagueInviteService } from './league-invite.service';
 import { LeagueRosterService } from './league-roster.service';
@@ -8,6 +10,8 @@ import { SystemMessageService } from '../chat/system-message.service';
 
 interface LeaguesModuleDeps {
   leagueRepository: LeagueRepository;
+  leagueMembersRepository: LeagueMembersRepository;
+  leagueRostersRepository: LeagueRostersRepository;
   draftRepository: DraftRepository;
   systemMessageService: SystemMessageService;
 }
@@ -15,15 +19,19 @@ interface LeaguesModuleDeps {
 export function registerLeaguesModule(deps: LeaguesModuleDeps) {
   const leagueService = new LeagueService(
     deps.leagueRepository,
+    deps.leagueMembersRepository,
     deps.draftRepository,
     deps.systemMessageService,
   );
   const leagueInviteService = new LeagueInviteService(
     deps.leagueRepository,
+    deps.leagueMembersRepository,
     deps.systemMessageService,
   );
   const leagueRosterService = new LeagueRosterService(
     deps.leagueRepository,
+    deps.leagueMembersRepository,
+    deps.leagueRostersRepository,
     deps.draftRepository,
     deps.systemMessageService,
   );

@@ -1,6 +1,8 @@
 import { MatchupDerbyRepository } from './matchup-derby.repository';
 import { MatchupRepository } from './matchups.repository';
 import { LeagueRepository } from '../leagues/leagues.repository';
+import { LeagueMembersRepository } from '../leagues/league-members.repository';
+import { LeagueRostersRepository } from '../leagues/league-rosters.repository';
 import { DraftRepository } from '../drafts/drafts.repository';
 import { MatchupDerby, MatchupDerbyOrderEntry, MatchupDerbyPick } from './matchup-derby.model';
 import { MatchupDerbyGateway } from './matchup-derby.gateway';
@@ -18,6 +20,8 @@ export class MatchupDerbyService {
     private readonly derbyRepository: MatchupDerbyRepository,
     private readonly matchupRepository: MatchupRepository,
     private readonly leagueRepository: LeagueRepository,
+    private readonly leagueMembersRepository: LeagueMembersRepository,
+    private readonly leagueRostersRepository: LeagueRostersRepository,
     private readonly draftRepository: DraftRepository,
   ) {}
 
@@ -29,7 +33,7 @@ export class MatchupDerbyService {
     const league = await this.leagueRepository.findById(leagueId);
     if (!league) throw new NotFoundException('League not found');
 
-    const member = await this.leagueRepository.findMember(leagueId, userId);
+    const member = await this.leagueMembersRepository.findMember(leagueId, userId);
     if (!member || member.role !== 'commissioner') {
       throw new ForbiddenException('Only commissioners can start a matchup derby');
     }
@@ -47,14 +51,14 @@ export class MatchupDerbyService {
       throw new ConflictException('A matchup derby is already active for this league');
     }
 
-    const rosters = await this.leagueRepository.findRostersByLeagueId(leagueId);
+    const rosters = await this.leagueRostersRepository.findRostersByLeagueId(leagueId);
     const assignedRosters = rosters.filter((r) => r.ownerId);
 
     if (assignedRosters.length < 2) {
       throw new ValidationException('At least 2 rosters must have assigned owners to start a matchup derby');
     }
 
-    const members = await this.leagueRepository.findMembersByLeagueId(leagueId);
+    const members = await this.leagueMembersRepository.findMembersByLeagueId(leagueId);
     const usernameMap = new Map(members.map((m) => [m.userId, m.username]));
 
     const entries: MatchupDerbyOrderEntry[] = assignedRosters.map((r) => ({
@@ -100,7 +104,7 @@ export class MatchupDerbyService {
     const league = await this.leagueRepository.findById(leagueId);
     if (!league) throw new NotFoundException('League not found');
 
-    const member = await this.leagueRepository.findMember(leagueId, userId);
+    const member = await this.leagueMembersRepository.findMember(leagueId, userId);
     if (!member) throw new ForbiddenException('You are not a member of this league');
 
     return this.derbyRepository.findByLeagueId(leagueId);
@@ -116,7 +120,7 @@ export class MatchupDerbyService {
     const league = await this.leagueRepository.findById(leagueId);
     if (!league) throw new NotFoundException('League not found');
 
-    const member = await this.leagueRepository.findMember(leagueId, userId);
+    const member = await this.leagueMembersRepository.findMember(leagueId, userId);
     if (!member) throw new ForbiddenException('You are not a member of this league');
 
     const derby = await this.derbyRepository.findActiveByLeagueId(leagueId);
@@ -159,14 +163,14 @@ export class MatchupDerbyService {
     const league = await this.leagueRepository.findById(leagueId);
     if (!league) throw new NotFoundException('League not found');
 
-    const member = await this.leagueRepository.findMember(leagueId, userId);
+    const member = await this.leagueMembersRepository.findMember(leagueId, userId);
     if (!member) throw new ForbiddenException('You are not a member of this league');
 
     const isCommissioner = member.role === 'commissioner';
     const playoffWeekStart = league.settings.playoff_week_start ?? 15;
     const regularSeasonWeeks = playoffWeekStart - 1;
 
-    const rosters = await this.leagueRepository.findRostersByLeagueId(leagueId);
+    const rosters = await this.leagueRostersRepository.findRostersByLeagueId(leagueId);
     const allRosterIds = rosters.filter((r) => r.ownerId).map((r) => r.rosterId);
 
     const updated = await this.derbyRepository.withTransaction(async (client) => {

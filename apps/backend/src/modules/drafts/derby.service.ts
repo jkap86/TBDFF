@@ -1,5 +1,7 @@
 import { DraftRepository } from './drafts.repository';
 import { LeagueRepository } from '../leagues/leagues.repository';
+import { LeagueMembersRepository } from '../leagues/league-members.repository';
+import { LeagueRostersRepository } from '../leagues/league-rosters.repository';
 import { DraftGateway } from './draft.gateway';
 import { Draft, DerbyState, DerbyPick, DerbyOrderEntry } from './drafts.model';
 import {
@@ -15,6 +17,8 @@ export class DerbyService {
   constructor(
     private readonly draftRepository: DraftRepository,
     private readonly leagueRepository: LeagueRepository,
+    private readonly leagueMembersRepository: LeagueMembersRepository,
+    private readonly leagueRostersRepository: LeagueRostersRepository,
   ) {}
 
   setGateway(gateway: DraftGateway): void {
@@ -26,7 +30,7 @@ export class DerbyService {
     if (!draft) throw new NotFoundException('Draft not found');
 
     // Only commissioners can start a derby
-    const member = await this.leagueRepository.findMember(draft.leagueId, userId);
+    const member = await this.leagueMembersRepository.findMember(draft.leagueId, userId);
     if (!member || member.role !== 'commissioner') {
       throw new ForbiddenException('Only commissioners can start a derby');
     }
@@ -36,7 +40,7 @@ export class DerbyService {
     }
 
     // Fetch assigned rosters
-    const rosters = await this.leagueRepository.findRostersByLeagueId(draft.leagueId);
+    const rosters = await this.leagueRostersRepository.findRostersByLeagueId(draft.leagueId);
     const assignedRosters = rosters.filter((r) => r.ownerId);
 
     if (assignedRosters.length < 2) {
@@ -44,7 +48,7 @@ export class DerbyService {
     }
 
     // Fetch league members for usernames
-    const members = await this.leagueRepository.findMembersByLeagueId(draft.leagueId);
+    const members = await this.leagueMembersRepository.findMembersByLeagueId(draft.leagueId);
     const usernameMap = new Map(members.map((m) => [m.userId, m.username]));
 
     // Build derby order entries from assigned rosters
@@ -93,7 +97,7 @@ export class DerbyService {
     if (!draft) throw new NotFoundException('Draft not found');
 
     // Verify membership
-    const member = await this.leagueRepository.findMember(draft.leagueId, userId);
+    const member = await this.leagueMembersRepository.findMember(draft.leagueId, userId);
     if (!member) throw new ForbiddenException('You are not a member of this league');
 
     return (draft.metadata?.derby as DerbyState) ?? null;
@@ -104,7 +108,7 @@ export class DerbyService {
     const draft = await this.draftRepository.findById(draftId);
     if (!draft) throw new NotFoundException('Draft not found');
 
-    const member = await this.leagueRepository.findMember(draft.leagueId, userId);
+    const member = await this.leagueMembersRepository.findMember(draft.leagueId, userId);
     if (!member) throw new ForbiddenException('You are not a member of this league');
 
     const derby = draft.metadata?.derby as DerbyState | undefined;
@@ -141,7 +145,7 @@ export class DerbyService {
     const draft = await this.draftRepository.findById(draftId);
     if (!draft) throw new NotFoundException('Draft not found');
 
-    const member = await this.leagueRepository.findMember(draft.leagueId, userId);
+    const member = await this.leagueMembersRepository.findMember(draft.leagueId, userId);
     if (!member) throw new ForbiddenException('You are not a member of this league');
 
     const isCommissioner = member.role === 'commissioner';

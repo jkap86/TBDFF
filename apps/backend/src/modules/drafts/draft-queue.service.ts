@@ -1,5 +1,8 @@
 import { DraftRepository } from './drafts.repository';
+import { DraftPicksRepository } from './draft-picks.repository';
+import { DraftQueueRepository } from './draft-queue.repository';
 import { LeagueRepository } from '../leagues/leagues.repository';
+import { LeagueMembersRepository } from '../leagues/league-members.repository';
 import { Draft } from './drafts.model';
 import { Player } from '../players/players.model';
 import {
@@ -11,7 +14,10 @@ import {
 export class DraftQueueService {
   constructor(
     private readonly draftRepository: DraftRepository,
+    private readonly draftQueueRepository: DraftQueueRepository,
+    private readonly draftPicksRepository: DraftPicksRepository,
     private readonly leagueRepository: LeagueRepository,
+    private readonly leagueMembersRepository: LeagueMembersRepository,
   ) {}
 
   async getAvailablePlayers(
@@ -22,7 +28,7 @@ export class DraftQueueService {
     const draft = await this.draftRepository.findById(draftId);
     if (!draft) throw new NotFoundException('Draft not found');
 
-    const member = await this.leagueRepository.findMember(draft.leagueId, userId);
+    const member = await this.leagueMembersRepository.findMember(draft.leagueId, userId);
     if (!member) throw new ForbiddenException('You are not a member of this league');
 
     const limit = Math.min(options.limit ?? 50, 200);
@@ -33,7 +39,7 @@ export class DraftQueueService {
       return this.getAvailableWithRookiePicks(draft, draftId, { ...options, limit, offset });
     }
 
-    return this.draftRepository.findAvailablePlayers(draftId, {
+    return this.draftPicksRepository.findAvailablePlayers(draftId, {
       position: options.position,
       query: options.query,
       limit,
@@ -49,7 +55,7 @@ export class DraftQueueService {
   ): Promise<(Player | Record<string, any>)[]> {
     // If filtering by a real position, return only real players
     if (options.position && options.position !== 'PICK') {
-      return this.draftRepository.findAvailablePlayers(draftId, {
+      return this.draftPicksRepository.findAvailablePlayers(draftId, {
         position: options.position,
         query: options.query,
         limit: options.limit,
@@ -67,7 +73,7 @@ export class DraftQueueService {
     if (!rookieDraft) {
       // No rookie draft found — return normal players
       if (options.position === 'PICK') return [];
-      return this.draftRepository.findAvailablePlayers(draftId, {
+      return this.draftPicksRepository.findAvailablePlayers(draftId, {
         position: options.position,
         query: options.query,
         limit: options.limit,
@@ -105,7 +111,7 @@ export class DraftQueueService {
     }
 
     // Filter out already-drafted rookie picks in this vet draft
-    const vetPicks = await this.draftRepository.findPicksByDraftId(draftId);
+    const vetPicks = await this.draftPicksRepository.findPicksByDraftId(draftId);
     const draftedRpickIds = new Set(
       vetPicks.filter((p) => p.playerId?.startsWith('rpick:')).map((p) => p.playerId),
     );
@@ -134,7 +140,7 @@ export class DraftQueueService {
       const rookieSlice = availableRookiePicks.slice(options.offset, options.offset + options.limit);
       const remaining = options.limit - rookieSlice.length;
       if (remaining > 0) {
-        const players = await this.draftRepository.findAvailablePlayers(draftId, {
+        const players = await this.draftPicksRepository.findAvailablePlayers(draftId, {
           position: options.position,
           query: options.query,
           limit: remaining,
@@ -148,7 +154,7 @@ export class DraftQueueService {
 
     // Past the rookie picks, return only real players with adjusted offset
     const playerOffset = options.offset - totalRookiePicks;
-    return this.draftRepository.findAvailablePlayers(draftId, {
+    return this.draftPicksRepository.findAvailablePlayers(draftId, {
       position: options.position,
       query: options.query,
       limit: options.limit,
@@ -161,10 +167,10 @@ export class DraftQueueService {
     const draft = await this.draftRepository.findById(draftId);
     if (!draft) throw new NotFoundException('Draft not found');
 
-    const member = await this.leagueRepository.findMember(draft.leagueId, userId);
+    const member = await this.leagueMembersRepository.findMember(draft.leagueId, userId);
     if (!member) throw new ForbiddenException('You are not a member of this league');
 
-    return this.draftRepository.getQueue(draftId, userId);
+    return this.draftQueueRepository.getQueue(draftId, userId);
   }
 
   async setQueue(draftId: string, userId: string, playerIds: string[]): Promise<any[]> {
@@ -172,11 +178,11 @@ export class DraftQueueService {
     if (!draft) throw new NotFoundException('Draft not found');
     if (draft.status === 'complete') throw new ValidationException('Draft is already complete');
 
-    const member = await this.leagueRepository.findMember(draft.leagueId, userId);
+    const member = await this.leagueMembersRepository.findMember(draft.leagueId, userId);
     if (!member) throw new ForbiddenException('You are not a member of this league');
 
-    await this.draftRepository.setQueue(draftId, userId, playerIds);
-    return this.draftRepository.getQueue(draftId, userId);
+    await this.draftQueueRepository.setQueue(draftId, userId, playerIds);
+    return this.draftQueueRepository.getQueue(draftId, userId);
   }
 
   async addToQueue(
@@ -189,11 +195,11 @@ export class DraftQueueService {
     if (!draft) throw new NotFoundException('Draft not found');
     if (draft.status === 'complete') throw new ValidationException('Draft is already complete');
 
-    const member = await this.leagueRepository.findMember(draft.leagueId, userId);
+    const member = await this.leagueMembersRepository.findMember(draft.leagueId, userId);
     if (!member) throw new ForbiddenException('You are not a member of this league');
 
-    await this.draftRepository.addToQueue(draftId, userId, playerId, maxBid);
-    return this.draftRepository.getQueue(draftId, userId);
+    await this.draftQueueRepository.addToQueue(draftId, userId, playerId, maxBid);
+    return this.draftQueueRepository.getQueue(draftId, userId);
   }
 
   async updateQueueMaxBid(
@@ -206,11 +212,11 @@ export class DraftQueueService {
     if (!draft) throw new NotFoundException('Draft not found');
     if (draft.status === 'complete') throw new ValidationException('Draft is already complete');
 
-    const member = await this.leagueRepository.findMember(draft.leagueId, userId);
+    const member = await this.leagueMembersRepository.findMember(draft.leagueId, userId);
     if (!member) throw new ForbiddenException('You are not a member of this league');
 
-    await this.draftRepository.updateQueueItemMaxBid(draftId, userId, playerId, maxBid);
-    return this.draftRepository.getQueue(draftId, userId);
+    await this.draftQueueRepository.updateQueueItemMaxBid(draftId, userId, playerId, maxBid);
+    return this.draftQueueRepository.getQueue(draftId, userId);
   }
 
   async removeFromQueue(draftId: string, userId: string, playerId: string): Promise<any[]> {
@@ -218,10 +224,10 @@ export class DraftQueueService {
     if (!draft) throw new NotFoundException('Draft not found');
     if (draft.status === 'complete') throw new ValidationException('Draft is already complete');
 
-    const member = await this.leagueRepository.findMember(draft.leagueId, userId);
+    const member = await this.leagueMembersRepository.findMember(draft.leagueId, userId);
     if (!member) throw new ForbiddenException('You are not a member of this league');
 
-    await this.draftRepository.removeFromQueue(draftId, userId, playerId);
-    return this.draftRepository.getQueue(draftId, userId);
+    await this.draftQueueRepository.removeFromQueue(draftId, userId, playerId);
+    return this.draftQueueRepository.getQueue(draftId, userId);
   }
 }

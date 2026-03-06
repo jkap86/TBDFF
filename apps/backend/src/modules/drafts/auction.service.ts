@@ -1,5 +1,8 @@
 import { DraftRepository } from './drafts.repository';
+import { DraftPicksRepository } from './draft-picks.repository';
+import { DraftQueueRepository } from './draft-queue.repository';
 import { LeagueRepository } from '../leagues/leagues.repository';
+import { LeagueMembersRepository } from '../leagues/league-members.repository';
 import { PlayerRepository } from '../players/players.repository';
 import { AuctionAutoBidService } from './auction-auto-bid.service';
 import { DraftGateway } from './draft.gateway';
@@ -25,7 +28,10 @@ export class AuctionService {
 
   constructor(
     private readonly draftRepository: DraftRepository,
+    private readonly draftQueueRepository: DraftQueueRepository,
+    private readonly draftPicksRepository: DraftPicksRepository,
     private readonly leagueRepository: LeagueRepository,
+    private readonly leagueMembersRepository: LeagueMembersRepository,
     private readonly playerRepository: PlayerRepository,
     private readonly autoBidService: AuctionAutoBidService,
   ) {}
@@ -50,14 +56,14 @@ export class AuctionService {
       throw new ValidationException('Draft is stopped by commissioner');
     }
 
-    const member = await this.leagueRepository.findMember(draft.leagueId, userId);
+    const member = await this.leagueMembersRepository.findMember(draft.leagueId, userId);
     if (!member) throw new ForbiddenException('Not a member of this league');
 
     if (draft.metadata?.current_nomination) {
       throw new ConflictException('A nomination is already active');
     }
 
-    const nextPick = await this.draftRepository.findNextPick(draftId);
+    const nextPick = await this.draftPicksRepository.findNextPick(draftId);
     if (!nextPick) throw new ValidationException('All nominations complete');
 
     const userSlot = draft.draftOrder[userId];
@@ -70,7 +76,7 @@ export class AuctionService {
 
     if (amount < 1) throw new ValidationException('Minimum bid is $1');
 
-    const alreadyPicked = await this.draftRepository.isPlayerPicked(draftId, playerId);
+    const alreadyPicked = await this.draftPicksRepository.isPlayerPicked(draftId, playerId);
     if (alreadyPicked) throw new ConflictException('Player already drafted');
 
     const nominatorRosterId = findRosterIdByUserId(draft, userId);
@@ -135,7 +141,7 @@ export class AuctionService {
       throw new ValidationException('Draft is stopped by commissioner');
     }
 
-    const member = await this.leagueRepository.findMember(draft.leagueId, userId);
+    const member = await this.leagueMembersRepository.findMember(draft.leagueId, userId);
     if (!member) throw new ForbiddenException('Not a member');
 
     // If deadline already passed, delegate to resolve instead of bidding
@@ -220,7 +226,7 @@ export class AuctionService {
       throw new ValidationException('Draft is paused or stopped by commissioner');
     }
 
-    const member = await this.leagueRepository.findMember(draft.leagueId, userId);
+    const member = await this.leagueMembersRepository.findMember(draft.leagueId, userId);
     if (!member) throw new ForbiddenException('Not a member of this league');
 
     // Entire resolution under advisory lock in a single transaction
@@ -245,7 +251,7 @@ export class AuctionService {
       }
 
       // Defensive: if winner's roster is full, find an eligible fallback team
-      const winnerPicksWon = await this.draftRepository.countPicksWonByRoster(
+      const winnerPicksWon = await this.draftPicksRepository.countPicksWonByRoster(
         draftId,
         nomination.bidder_roster_id,
         client,
@@ -270,7 +276,7 @@ export class AuctionService {
       // Atomic pick: the repo's WHERE player_id IS NULL clause ensures that
       // concurrent resolveNomination calls are idempotent — only the first
       // caller writes the pick; subsequent callers get null and return early.
-      const resolvedPick = await this.draftRepository.makeAuctionPick(
+      const resolvedPick = await this.draftPicksRepository.makeAuctionPick(
         nomination.pick_id,
         nomination.player_id,
         nomination.current_bidder,
@@ -286,7 +292,7 @@ export class AuctionService {
       }
 
       // Deduct budget within the same transaction
-      const afterDeduct = await this.draftRepository.deductBudget(
+      const afterDeduct = await this.draftPicksRepository.deductBudget(
         draftId,
         nomination.bidder_roster_id,
         nomination.current_bid,
@@ -299,7 +305,7 @@ export class AuctionService {
       }
 
       // Check if draft is complete (all picks made)
-      const completed = await this.draftRepository.completeAndUpdateLeagueInTx(
+      const completed = await this.draftPicksRepository.completeAndUpdateLeagueInTx(
         client,
         draftId,
         freshDraft.leagueId,
@@ -364,7 +370,7 @@ export class AuctionService {
       throw new ValidationException('Draft is paused or stopped by commissioner');
     }
 
-    const member = await this.leagueRepository.findMember(draft.leagueId, userId);
+    const member = await this.leagueMembersRepository.findMember(draft.leagueId, userId);
     const isCommissioner = member?.role === 'commissioner';
 
     // All mutation logic under advisory lock
@@ -387,7 +393,7 @@ export class AuctionService {
         }
       }
 
-      let nextPick = await this.draftRepository.findNextPick(draftId, client);
+      let nextPick = await this.draftPicksRepository.findNextPick(draftId, client);
       if (!nextPick) throw new ValidationException('All nominations complete');
 
       // Enable auto-pick for the timed-out nominator (the original slot owner who missed their turn)
@@ -399,17 +405,17 @@ export class AuctionService {
 
       // Forfeit nomination slots for full-roster teams until an eligible nominator is found
       let nominatorRosterId = freshDraft.slotToRosterId[String(nextPick.draftSlot)];
-      let nominatorPicksWon = await this.draftRepository.countPicksWonByRoster(
+      let nominatorPicksWon = await this.draftPicksRepository.countPicksWonByRoster(
         draftId, nominatorRosterId, client,
       );
 
       while (nominatorPicksWon >= getMaxPlayersPerTeam(freshDraft)) {
-        await this.draftRepository.forfeitPick(nextPick.id, client);
+        await this.draftPicksRepository.forfeitPick(nextPick.id, client);
 
-        nextPick = await this.draftRepository.findNextPick(draftId, client);
+        nextPick = await this.draftPicksRepository.findNextPick(draftId, client);
         if (!nextPick) {
           // All remaining nomination slots forfeited — complete the draft
-          const completed = await this.draftRepository.completeAndUpdateLeagueInTx(
+          const completed = await this.draftPicksRepository.completeAndUpdateLeagueInTx(
             client, draftId, freshDraft.leagueId,
           );
           if (completed) {
@@ -426,7 +432,7 @@ export class AuctionService {
         }
 
         nominatorRosterId = freshDraft.slotToRosterId[String(nextPick.draftSlot)];
-        nominatorPicksWon = await this.draftRepository.countPicksWonByRoster(
+        nominatorPicksWon = await this.draftPicksRepository.countPicksWonByRoster(
           draftId, nominatorRosterId, client,
         );
       }
@@ -436,9 +442,9 @@ export class AuctionService {
       // Try the eligible nominator's queue first, fall back to best available
       const auctionPlayerType = freshDraft.settings.player_type;
       const queuedPlayer = slotOwner
-        ? await this.draftRepository.findFirstAvailableFromQueue(draftId, slotOwner, client, auctionPlayerType)
+        ? await this.draftQueueRepository.findFirstAvailableFromQueue(draftId, slotOwner, client, auctionPlayerType)
         : null;
-      const bestPlayer = queuedPlayer ?? (await this.draftRepository.findBestAvailable(draftId, client, auctionPlayerType));
+      const bestPlayer = queuedPlayer ?? (await this.draftPicksRepository.findBestAvailable(draftId, client, auctionPlayerType));
       if (!bestPlayer) throw new ValidationException('No available players');
 
       // Determine initial bidder — must have valid budget for $1
@@ -523,7 +529,7 @@ export class AuctionService {
       if (!freshDraft || freshDraft.status !== 'drafting' || freshDraft.type !== 'auction') return null;
       if (freshDraft.metadata?.current_nomination) return null;
 
-      const nextPick = await this.draftRepository.findNextPick(draftId, client);
+      const nextPick = await this.draftPicksRepository.findNextPick(draftId, client);
       if (!nextPick) return null;
 
       const autoPickUsers: string[] = freshDraft.metadata?.auto_pick_users ?? [];
@@ -531,17 +537,17 @@ export class AuctionService {
 
       if (!slotOwner || !autoPickUsers.includes(slotOwner)) return null;
 
-      const queuedPlayer = await this.draftRepository.findFirstAvailableFromQueue(
+      const queuedPlayer = await this.draftQueueRepository.findFirstAvailableFromQueue(
         draftId, slotOwner, client,
       );
-      const bestPlayer = queuedPlayer ?? (await this.draftRepository.findBestAvailable(draftId, client));
+      const bestPlayer = queuedPlayer ?? (await this.draftPicksRepository.findBestAvailable(draftId, client));
       if (!bestPlayer) return null;
 
       const nominatorRosterId = freshDraft.slotToRosterId[String(nextPick.draftSlot)];
 
       // If nominator's roster is full, skip auto-nominate — the offering timer will
       // expire and resolveNomination will advance to the next pick slot naturally.
-      const nominatorPicksWon = await this.draftRepository.countPicksWonByRoster(
+      const nominatorPicksWon = await this.draftPicksRepository.countPicksWonByRoster(
         draftId, nominatorRosterId, client,
       );
       if (nominatorPicksWon >= getMaxPlayersPerTeam(freshDraft)) {
@@ -613,7 +619,7 @@ export class AuctionService {
     assertBudgetExists(budgets, rosterId, 'budget validation');
     const currentBudget = budgets[String(rosterId)];
 
-    const picksWon = await this.draftRepository.countPicksWonByRoster(draft.id, rosterId, client);
+    const picksWon = await this.draftPicksRepository.countPicksWonByRoster(draft.id, rosterId, client);
     const totalSlots = getMaxPlayersPerTeam(draft);
     const remainingSlots = totalSlots - picksWon;
 
@@ -643,7 +649,7 @@ export class AuctionService {
   ): Promise<{ userId: string; rosterId: number } | null> {
     const budgets: Record<string, number> = draft.metadata?.auction_budgets ?? {};
     const allRosterIds = Object.values(draft.slotToRosterId);
-    const picksWonMap = await this.draftRepository.countPicksWonByRosters(draft.id, allRosterIds, client);
+    const picksWonMap = await this.draftPicksRepository.countPicksWonByRosters(draft.id, allRosterIds, client);
     const maxPlayers = getMaxPlayersPerTeam(draft);
 
     for (const [slotStr, rosterId] of Object.entries(draft.slotToRosterId)) {

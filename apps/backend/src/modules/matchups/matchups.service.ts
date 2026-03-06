@@ -1,5 +1,7 @@
 import { MatchupRepository } from './matchups.repository';
 import { LeagueRepository } from '../leagues/leagues.repository';
+import { LeagueMembersRepository } from '../leagues/league-members.repository';
+import { LeagueRostersRepository } from '../leagues/league-rosters.repository';
 import { DraftRepository } from '../drafts/drafts.repository';
 import { Matchup } from './matchups.model';
 import {
@@ -12,6 +14,8 @@ export class MatchupService {
   constructor(
     private readonly matchupRepository: MatchupRepository,
     private readonly leagueRepository: LeagueRepository,
+    private readonly leagueMembersRepository: LeagueMembersRepository,
+    private readonly leagueRostersRepository: LeagueRostersRepository,
     private readonly draftRepository: DraftRepository,
   ) {}
 
@@ -19,7 +23,7 @@ export class MatchupService {
     const league = await this.leagueRepository.findById(leagueId);
     if (!league) throw new NotFoundException('League not found');
 
-    const member = await this.leagueRepository.findMember(leagueId, userId);
+    const member = await this.leagueMembersRepository.findMember(leagueId, userId);
     if (!member || member.role !== 'commissioner') {
       throw new ForbiddenException('Only commissioners can generate matchups');
     }
@@ -36,7 +40,7 @@ export class MatchupService {
       );
     }
 
-    const rosters = await this.leagueRepository.findRostersByLeagueId(leagueId);
+    const rosters = await this.leagueRostersRepository.findRostersByLeagueId(leagueId);
     const rosterIds = rosters.map((r) => r.rosterId);
 
     if (rosterIds.length < 2) {
@@ -79,7 +83,7 @@ export class MatchupService {
     const league = await this.leagueRepository.findById(leagueId);
     if (!league) throw new NotFoundException('League not found');
 
-    const member = await this.leagueRepository.findMember(leagueId, userId);
+    const member = await this.leagueMembersRepository.findMember(leagueId, userId);
     if (!member) throw new ForbiddenException('You are not a member of this league');
 
     return this.matchupRepository.findByLeagueId(leagueId);
@@ -89,7 +93,7 @@ export class MatchupService {
     const league = await this.leagueRepository.findById(leagueId);
     if (!league) throw new NotFoundException('League not found');
 
-    const member = await this.leagueRepository.findMember(leagueId, userId);
+    const member = await this.leagueMembersRepository.findMember(leagueId, userId);
     if (!member) throw new ForbiddenException('You are not a member of this league');
 
     return this.matchupRepository.findByLeagueAndWeek(leagueId, week);

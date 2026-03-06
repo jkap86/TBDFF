@@ -1,6 +1,10 @@
 import { Pool } from 'pg';
 import { DraftRepository } from './drafts.repository';
+import { DraftPicksRepository } from './draft-picks.repository';
+import { DraftTimerRepository } from './draft-timer.repository';
+import { DraftQueueRepository } from './draft-queue.repository';
 import { LeagueRepository } from '../leagues/leagues.repository';
+import { LeagueMembersRepository } from '../leagues/league-members.repository';
 import { DraftGateway } from './draft.gateway';
 import { Draft, DraftPick } from './drafts.model';
 import {
@@ -19,7 +23,11 @@ export class AutoPickService {
 
   constructor(
     private readonly draftRepository: DraftRepository,
+    private readonly draftTimerRepository: DraftTimerRepository,
+    private readonly draftQueueRepository: DraftQueueRepository,
+    private readonly draftPicksRepository: DraftPicksRepository,
     private readonly leagueRepository: LeagueRepository,
+    private readonly leagueMembersRepository: LeagueMembersRepository,
     private readonly pool: Pool,
   ) {}
 
@@ -53,11 +61,11 @@ export class AutoPickService {
     }
 
     // Verify membership
-    const member = await this.leagueRepository.findMember(draft.leagueId, userId);
+    const member = await this.leagueMembersRepository.findMember(draft.leagueId, userId);
     if (!member) throw new ForbiddenException('You are not a member of this league');
 
     // Find the next pick
-    const nextPick = await this.draftRepository.findNextPick(draftId);
+    const nextPick = await this.draftPicksRepository.findNextPick(draftId);
     if (!nextPick) {
       throw new ValidationException('All picks have been made');
     }
@@ -81,13 +89,13 @@ export class AutoPickService {
     // Try the user's queue first, fall back to best available
     const playerType = draft.settings.player_type;
     console.log(`[auto-pick] draft=${draftId} slot=${nextPick.draftSlot} rosterId=${nextPick.rosterId} pickOwner=${pickOwner} triggeredBy=${userId}`);
-    const queuedPlayer = await this.draftRepository.findFirstAvailableFromQueue(draftId, pickOwner, undefined, playerType);
+    const queuedPlayer = await this.draftQueueRepository.findFirstAvailableFromQueue(draftId, pickOwner, undefined, playerType);
     console.log(`[auto-pick] queueResult=${queuedPlayer ? `${queuedPlayer.fullName} (${queuedPlayer.id})` : 'null (no queued player)'}`);
 
     // Check for queued rookie pick (rpick: IDs aren't in the players table)
     let rookiePickId: string | null = null;
     if (!queuedPlayer && draft.settings.include_rookie_picks) {
-      rookiePickId = await this.draftRepository.findFirstRookiePickFromQueue(draftId, pickOwner);
+      rookiePickId = await this.draftQueueRepository.findFirstRookiePickFromQueue(draftId, pickOwner);
     }
 
     let pick: DraftPick;
@@ -108,11 +116,11 @@ export class AutoPickService {
         auto_pick: true,
       };
       console.log(`[auto-pick] finalPick=${pickLabel} source=queue(rpick)`);
-      const result = await this.draftRepository.makePick(nextPick.id, rookiePickId, pickOwner, pickMetadata);
+      const result = await this.draftPicksRepository.makePick(nextPick.id, rookiePickId, pickOwner, pickMetadata);
       if (!result) throw new ConflictException('Pick was already made');
       pick = result;
     } else {
-      const bestPlayer = queuedPlayer ?? (await this.draftRepository.findBestAvailable(draftId, undefined, playerType));
+      const bestPlayer = queuedPlayer ?? (await this.draftPicksRepository.findBestAvailable(draftId, undefined, playerType));
       if (!bestPlayer) {
         throw new ValidationException('No available players to auto-pick');
       }
@@ -125,7 +133,7 @@ export class AutoPickService {
         team: bestPlayer.team,
         auto_pick: true,
       };
-      const result = await this.draftRepository.makePick(nextPick.id, bestPlayer.id, pickOwner, pickMetadata);
+      const result = await this.draftPicksRepository.makePick(nextPick.id, bestPlayer.id, pickOwner, pickMetadata);
       if (!result) throw new ConflictException('Pick was already made');
       pick = result;
     }
@@ -139,7 +147,7 @@ export class AutoPickService {
     await this.draftRepository.addAutoPickUser(draftId, pickOwner);
 
     // Atomically complete draft + league in one transaction
-    const completed = await this.draftRepository.completeAndUpdateLeague(draftId, draft.leagueId);
+    const completed = await this.draftPicksRepository.completeAndUpdateLeague(draftId, draft.leagueId);
     if (completed) {
       await this.onVetDraftCompleted?.(draft);
     }
@@ -176,7 +184,7 @@ export class AutoPickService {
       throw new ValidationException('Draft is not currently active');
     }
 
-    const member = await this.leagueRepository.findMember(draft.leagueId, userId);
+    const member = await this.leagueMembersRepository.findMember(draft.leagueId, userId);
     if (!member) throw new ForbiddenException('You are not a member of this league');
 
     const userSlot = draft.draftOrder[userId];
@@ -250,7 +258,7 @@ export class AutoPickService {
       const chainClockState = draft.metadata?.clock_state ?? 'running';
       if (chainClockState === 'paused' || chainClockState === 'stopped') break;
 
-      const nextPick = await this.draftRepository.findNextPick(draftId);
+      const nextPick = await this.draftPicksRepository.findNextPick(draftId);
       if (!nextPick) break;
 
       const autoPickUsers: string[] = draft.metadata?.auto_pick_users ?? [];
@@ -258,7 +266,7 @@ export class AutoPickService {
       if (!pickOwner || !autoPickUsers.includes(pickOwner)) break;
 
       const chainPlayerType = draft.settings.player_type;
-      const queuedPlayer = await this.draftRepository.findFirstAvailableFromQueue(
+      const queuedPlayer = await this.draftQueueRepository.findFirstAvailableFromQueue(
         draftId,
         pickOwner,
         undefined,
@@ -268,7 +276,7 @@ export class AutoPickService {
       // Check for queued rookie pick (rpick: IDs aren't in the players table)
       let rookiePickId: string | null = null;
       if (!queuedPlayer && draft.settings.include_rookie_picks) {
-        rookiePickId = await this.draftRepository.findFirstRookiePickFromQueue(draftId, pickOwner);
+        rookiePickId = await this.draftQueueRepository.findFirstRookiePickFromQueue(draftId, pickOwner);
       }
 
       let pick: DraftPick | null;
@@ -278,7 +286,7 @@ export class AutoPickService {
         const rpRound = parseInt(parts[1], 10);
         const rpPick = parseInt(parts[2], 10);
         const pickLabel = `${rpRound}.${String(rpPick).padStart(2, '0')}`;
-        pick = await this.draftRepository.makePick(nextPick.id, rookiePickId, pickOwner, {
+        pick = await this.draftPicksRepository.makePick(nextPick.id, rookiePickId, pickOwner, {
           rookie_pick: true,
           first_name: 'Rookie Pick',
           last_name: pickLabel,
@@ -288,10 +296,10 @@ export class AutoPickService {
           auto_pick: true,
         });
       } else {
-        const bestPlayer = queuedPlayer ?? (await this.draftRepository.findBestAvailable(draftId, undefined, chainPlayerType));
+        const bestPlayer = queuedPlayer ?? (await this.draftPicksRepository.findBestAvailable(draftId, undefined, chainPlayerType));
         if (!bestPlayer) break;
 
-        pick = await this.draftRepository.makePick(nextPick.id, bestPlayer.id, pickOwner, {
+        pick = await this.draftPicksRepository.makePick(nextPick.id, bestPlayer.id, pickOwner, {
           first_name: bestPlayer.firstName,
           last_name: bestPlayer.lastName,
           full_name: bestPlayer.fullName,
@@ -309,7 +317,7 @@ export class AutoPickService {
 
       chainedPicks.push(pick);
 
-      const completed = await this.draftRepository.completeAndUpdateLeague(draftId, draft.leagueId);
+      const completed = await this.draftPicksRepository.completeAndUpdateLeague(draftId, draft.leagueId);
       if (completed) {
         await this.onVetDraftCompleted?.(draft);
         break;
@@ -319,7 +327,7 @@ export class AutoPickService {
     // If we hit the batch limit, insert a DB job for continuation
     // instead of setImmediate (which is process-local and not multi-instance safe)
     if (chainedPicks.length >= MAX_CHAIN) {
-      await this.draftRepository.insertAutoPickJob(draftId, 'continuation');
+      await this.draftTimerRepository.insertAutoPickJob(draftId, 'continuation');
       console.log(`[AutoPickService] Scheduled continuation job for draft ${draftId}`);
     }
 
@@ -359,14 +367,14 @@ export class AutoPickService {
 
     if (draft.type === 'auction' || draft.type === 'slow_auction') return;
 
-    const nextPick = await this.draftRepository.findNextPick(draftId);
+    const nextPick = await this.draftPicksRepository.findNextPick(draftId);
     if (!nextPick) return;
 
     const ref = draft.lastPicked || draft.startTime;
     if (!ref) return;
 
     const runAt = new Date(new Date(ref).getTime() + draft.settings.pick_timer * 1000);
-    await this.draftRepository.insertAutoPickJob(draftId, 'timeout', runAt);
+    await this.draftTimerRepository.insertAutoPickJob(draftId, 'timeout', runAt);
   }
 
   /**
@@ -382,7 +390,7 @@ export class AutoPickService {
 
     if (draft.type === 'auction' || draft.type === 'slow_auction') return;
 
-    const nextPick = await this.draftRepository.findNextPick(draftId);
+    const nextPick = await this.draftPicksRepository.findNextPick(draftId);
     if (!nextPick) return;
 
     // Validate timer has actually expired (server-side)
@@ -397,11 +405,11 @@ export class AutoPickService {
 
     // Find best player (queue first, then BPA)
     const playerType = draft.settings.player_type;
-    const queuedPlayer = await this.draftRepository.findFirstAvailableFromQueue(draftId, pickOwner, undefined, playerType);
+    const queuedPlayer = await this.draftQueueRepository.findFirstAvailableFromQueue(draftId, pickOwner, undefined, playerType);
 
     let rookiePickId: string | null = null;
     if (!queuedPlayer && draft.settings.include_rookie_picks) {
-      rookiePickId = await this.draftRepository.findFirstRookiePickFromQueue(draftId, pickOwner);
+      rookiePickId = await this.draftQueueRepository.findFirstRookiePickFromQueue(draftId, pickOwner);
     }
 
     let pick: DraftPick | null;
@@ -411,7 +419,7 @@ export class AutoPickService {
       const rpRound = parseInt(parts[1], 10);
       const rpPick = parseInt(parts[2], 10);
       const pickLabel = `${rpRound}.${String(rpPick).padStart(2, '0')}`;
-      pick = await this.draftRepository.makePick(nextPick.id, rookiePickId, pickOwner, {
+      pick = await this.draftPicksRepository.makePick(nextPick.id, rookiePickId, pickOwner, {
         rookie_pick: true,
         first_name: 'Rookie Pick',
         last_name: pickLabel,
@@ -421,9 +429,9 @@ export class AutoPickService {
         auto_pick: true,
       });
     } else {
-      const bestPlayer = queuedPlayer ?? (await this.draftRepository.findBestAvailable(draftId, undefined, playerType));
+      const bestPlayer = queuedPlayer ?? (await this.draftPicksRepository.findBestAvailable(draftId, undefined, playerType));
       if (!bestPlayer) return;
-      pick = await this.draftRepository.makePick(nextPick.id, bestPlayer.id, pickOwner, {
+      pick = await this.draftPicksRepository.makePick(nextPick.id, bestPlayer.id, pickOwner, {
         first_name: bestPlayer.firstName,
         last_name: bestPlayer.lastName,
         full_name: bestPlayer.fullName,
@@ -440,7 +448,7 @@ export class AutoPickService {
     await this.draftRepository.update(draftId, { lastPicked: new Date().toISOString() });
     await this.draftRepository.addAutoPickUser(draftId, pickOwner);
 
-    const completed = await this.draftRepository.completeAndUpdateLeague(draftId, draft.leagueId);
+    const completed = await this.draftPicksRepository.completeAndUpdateLeague(draftId, draft.leagueId);
     if (completed) {
       await this.onVetDraftCompleted?.(draft);
     }

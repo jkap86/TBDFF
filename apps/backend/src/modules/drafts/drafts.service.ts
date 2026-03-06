@@ -1,5 +1,8 @@
 import { DraftRepository } from './drafts.repository';
+import { DraftPicksRepository } from './draft-picks.repository';
 import { LeagueRepository } from '../leagues/leagues.repository';
+import { LeagueMembersRepository } from '../leagues/league-members.repository';
+import { LeagueRostersRepository } from '../leagues/league-rosters.repository';
 import { PlayerRepository } from '../players/players.repository';
 import { DraftGateway } from './draft.gateway';
 import { AutoPickService } from './auto-pick.service';
@@ -24,7 +27,10 @@ export class DraftService {
 
   constructor(
     private readonly draftRepository: DraftRepository,
+    private readonly draftPicksRepository: DraftPicksRepository,
     private readonly leagueRepository: LeagueRepository,
+    private readonly leagueMembersRepository: LeagueMembersRepository,
+    private readonly leagueRostersRepository: LeagueRostersRepository,
     private readonly playerRepository: PlayerRepository,
     private readonly autoPickService: AutoPickService,
   ) {
@@ -50,7 +56,7 @@ export class DraftService {
     if (!league) throw new NotFoundException('League not found');
 
     // Only commissioners can create drafts
-    const member = await this.leagueRepository.findMember(leagueId, userId);
+    const member = await this.leagueMembersRepository.findMember(leagueId, userId);
     if (!member || member.role !== 'commissioner') {
       throw new ForbiddenException('Only commissioners can create drafts');
     }
@@ -82,7 +88,7 @@ export class DraftService {
     await this.draftRepository.linkDraftToLeague(draft.id, leagueId);
 
     // Seed future draft picks for trading
-    const rosters = await this.leagueRepository.findRostersByLeagueId(leagueId);
+    const rosters = await this.leagueRostersRepository.findRostersByLeagueId(leagueId);
     const ownedRosters = rosters
       .filter((r) => r.ownerId)
       .map((r) => ({ rosterId: r.rosterId, ownerId: r.ownerId! }));
@@ -103,7 +109,7 @@ export class DraftService {
     if (!draft) throw new NotFoundException('Draft not found');
 
     // Verify membership
-    const member = await this.leagueRepository.findMember(draft.leagueId, userId);
+    const member = await this.leagueMembersRepository.findMember(draft.leagueId, userId);
     if (!member) throw new ForbiddenException('You are not a member of this league');
 
     return draft;
@@ -115,7 +121,7 @@ export class DraftService {
     if (!league) throw new NotFoundException('League not found');
 
     // Verify membership
-    const member = await this.leagueRepository.findMember(leagueId, userId);
+    const member = await this.leagueMembersRepository.findMember(leagueId, userId);
     if (!member) throw new ForbiddenException('You are not a member of this league');
 
     return this.draftRepository.findByLeagueId(leagueId);
@@ -135,7 +141,7 @@ export class DraftService {
     if (!draft) throw new NotFoundException('Draft not found');
 
     // Only commissioners can update
-    const member = await this.leagueRepository.findMember(draft.leagueId, userId);
+    const member = await this.leagueMembersRepository.findMember(draft.leagueId, userId);
     if (!member || member.role !== 'commissioner') {
       throw new ForbiddenException('Only commissioners can update drafts');
     }
@@ -170,7 +176,7 @@ export class DraftService {
     if (!draft) throw new NotFoundException('Draft not found');
 
     // Only commissioners can set order
-    const member = await this.leagueRepository.findMember(draft.leagueId, userId);
+    const member = await this.leagueMembersRepository.findMember(draft.leagueId, userId);
     if (!member || member.role !== 'commissioner') {
       throw new ForbiddenException('Only commissioners can set draft order');
     }
@@ -221,7 +227,7 @@ export class DraftService {
     }
 
     // Validate roster IDs exist
-    const rosters = await this.leagueRepository.findRostersByLeagueId(draft.leagueId);
+    const rosters = await this.leagueRostersRepository.findRostersByLeagueId(draft.leagueId);
     const validRosterIds = new Set(rosters.map((r) => r.rosterId));
     for (const rosterId of Object.values(slotToRosterId)) {
       if (!validRosterIds.has(rosterId)) {
@@ -243,7 +249,7 @@ export class DraftService {
     if (!draft) throw new NotFoundException('Draft not found');
 
     // Only commissioners can start
-    const member = await this.leagueRepository.findMember(draft.leagueId, userId);
+    const member = await this.leagueMembersRepository.findMember(draft.leagueId, userId);
     if (!member || member.role !== 'commissioner') {
       throw new ForbiddenException('Only commissioners can start drafts');
     }
@@ -254,7 +260,7 @@ export class DraftService {
 
     // For slow auctions or rookie drafts with vet-assigned picks, auto-generate draft order
     if ((draft.type === 'slow_auction' || draft.settings.player_type === 1) && Object.keys(draft.draftOrder).length === 0) {
-      const rosters = await this.leagueRepository.findRostersByLeagueId(draft.leagueId);
+      const rosters = await this.leagueRostersRepository.findRostersByLeagueId(draft.leagueId);
       const assignedRosters = rosters
         .filter((r) => r.ownerId)
         .sort((a, b) => a.rosterId - b.rosterId);
@@ -382,7 +388,7 @@ export class DraftService {
     if (!draft) throw new NotFoundException('Draft not found');
 
     // Verify membership
-    const member = await this.leagueRepository.findMember(draft.leagueId, userId);
+    const member = await this.leagueMembersRepository.findMember(draft.leagueId, userId);
     if (!member) throw new ForbiddenException('You are not a member of this league');
 
     // For pre_draft, return projected picks so the board shows trade/rpick ownership
@@ -390,7 +396,7 @@ export class DraftService {
       return this.generateProjectedPicks(draft);
     }
 
-    return this.draftRepository.findPicksByDraftId(draftId);
+    return this.draftPicksRepository.findPicksByDraftId(draftId);
   }
 
   async makePick(
@@ -414,11 +420,11 @@ export class DraftService {
     }
 
     // Verify membership
-    const member = await this.leagueRepository.findMember(draft.leagueId, userId);
+    const member = await this.leagueMembersRepository.findMember(draft.leagueId, userId);
     if (!member) throw new ForbiddenException('You are not a member of this league');
 
     // Find the next pick
-    const nextPick = await this.draftRepository.findNextPick(draftId);
+    const nextPick = await this.draftPicksRepository.findNextPick(draftId);
     if (!nextPick) {
       throw new ValidationException('All picks have been made');
     }
@@ -436,7 +442,7 @@ export class DraftService {
     }
 
     // Verify player isn't already picked
-    const alreadyPicked = await this.draftRepository.isPlayerPicked(draftId, playerId);
+    const alreadyPicked = await this.draftPicksRepository.isPlayerPicked(draftId, playerId);
     if (alreadyPicked) {
       throw new ConflictException('This player has already been picked');
     }
@@ -479,7 +485,7 @@ export class DraftService {
     }
 
     // Make the pick
-    const pick = await this.draftRepository.makePick(
+    const pick = await this.draftPicksRepository.makePick(
       nextPick.id,
       playerId,
       pickingUserId,
@@ -488,7 +494,7 @@ export class DraftService {
 
     if (!pick) {
       // Distinguish idempotent retry (same player) from true conflict (different player)
-      const existingPick = await this.draftRepository.findPickById(nextPick.id);
+      const existingPick = await this.draftPicksRepository.findPickById(nextPick.id);
       if (existingPick?.playerId === playerId) {
         return { pick: existingPick, chainedPicks: [] };
       }
@@ -501,7 +507,7 @@ export class DraftService {
     });
 
     // Atomically complete draft + league in one transaction
-    const completed = await this.draftRepository.completeAndUpdateLeague(draftId, draft.leagueId);
+    const completed = await this.draftPicksRepository.completeAndUpdateLeague(draftId, draft.leagueId);
     if (completed) {
       await this.setupRookieDraftAfterVetCompletion(draft);
     }
@@ -539,7 +545,7 @@ export class DraftService {
     );
     if (!vetDraft) return overrides;
 
-    const vetPicks = await this.draftRepository.findPicksByDraftId(vetDraft.id);
+    const vetPicks = await this.draftPicksRepository.findPicksByDraftId(vetDraft.id);
     for (const vp of vetPicks) {
       if (vp.playerId?.startsWith('rpick:') && vp.pickedBy) {
         const parts = vp.playerId.split(':');
@@ -564,7 +570,7 @@ export class DraftService {
     );
     if (!rookieDraft || Object.keys(rookieDraft.slotToRosterId).length > 0) return;
 
-    const rosters = await this.leagueRepository.findRostersByLeagueId(completedDraft.leagueId);
+    const rosters = await this.leagueRostersRepository.findRostersByLeagueId(completedDraft.leagueId);
     const assigned = rosters
       .filter((r) => r.ownerId)
       .sort((a, b) => a.rosterId - b.rosterId);
@@ -589,7 +595,7 @@ export class DraftService {
 
     // Auto-compute if not set
     if (Object.keys(slotToRosterId).length === 0) {
-      const rosters = await this.leagueRepository.findRostersByLeagueId(draft.leagueId);
+      const rosters = await this.leagueRostersRepository.findRostersByLeagueId(draft.leagueId);
       const assigned = rosters.filter((r) => r.ownerId).sort((a, b) => a.rosterId - b.rosterId);
       slotToRosterId = {};
       draftOrder = {};

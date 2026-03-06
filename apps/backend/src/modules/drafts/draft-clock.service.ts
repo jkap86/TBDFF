@@ -1,5 +1,7 @@
 import { DraftRepository } from './drafts.repository';
+import { DraftTimerRepository } from './draft-timer.repository';
 import { LeagueRepository } from '../leagues/leagues.repository';
+import { LeagueMembersRepository } from '../leagues/league-members.repository';
 import { DraftGateway } from './draft.gateway';
 import { Draft } from './drafts.model';
 import {
@@ -13,7 +15,9 @@ export class DraftClockService {
 
   constructor(
     private readonly draftRepository: DraftRepository,
+    private readonly draftTimerRepository: DraftTimerRepository,
     private readonly leagueRepository: LeagueRepository,
+    private readonly leagueMembersRepository: LeagueMembersRepository,
   ) {}
 
   setGateway(gateway: DraftGateway): void {
@@ -25,7 +29,7 @@ export class DraftClockService {
     if (!draft) throw new NotFoundException('Draft not found');
     if (draft.status !== 'drafting') throw new ValidationException('Draft is not active');
 
-    const member = await this.leagueRepository.findMember(draft.leagueId, userId);
+    const member = await this.leagueMembersRepository.findMember(draft.leagueId, userId);
     if (!member || member.role !== 'commissioner') {
       throw new ForbiddenException('Only commissioners can pause/resume drafts');
     }
@@ -64,7 +68,7 @@ export class DraftClockService {
       // Schedule server-side timeout for the resumed pick (normal drafts only)
       if (draft.type !== 'auction' && draft.type !== 'slow_auction' && remaining > 0) {
         const runAt = new Date(Date.now() + remaining * 1000);
-        await this.draftRepository.insertAutoPickJob(draftId, 'timeout', runAt);
+        await this.draftTimerRepository.insertAutoPickJob(draftId, 'timeout', runAt);
       }
 
       this.draftGateway?.broadcast(draftId, 'draft:state_updated', { draft: updated, server_time: new Date().toISOString() });
@@ -90,7 +94,7 @@ export class DraftClockService {
 
     // Cancel pending timeout job (normal drafts)
     if (draft.type !== 'auction' && draft.type !== 'slow_auction') {
-      await this.draftRepository.deleteAutoPickJobsByDraft(draftId);
+      await this.draftTimerRepository.deleteAutoPickJobsByDraft(draftId);
     }
 
     const updated = await this.draftRepository.update(draftId, {
@@ -106,7 +110,7 @@ export class DraftClockService {
     if (!draft) throw new NotFoundException('Draft not found');
     if (draft.status !== 'drafting') throw new ValidationException('Draft is not active');
 
-    const member = await this.leagueRepository.findMember(draft.leagueId, userId);
+    const member = await this.leagueMembersRepository.findMember(draft.leagueId, userId);
     if (!member || member.role !== 'commissioner') {
       throw new ForbiddenException('Only commissioners can stop/resume drafts');
     }
@@ -140,7 +144,7 @@ export class DraftClockService {
       // Schedule server-side timeout for the resumed pick (normal drafts only)
       if (draft.type !== 'auction' && draft.type !== 'slow_auction' && remaining > 0) {
         const runAt = new Date(Date.now() + remaining * 1000);
-        await this.draftRepository.insertAutoPickJob(draftId, 'timeout', runAt);
+        await this.draftTimerRepository.insertAutoPickJob(draftId, 'timeout', runAt);
       }
 
       this.draftGateway?.broadcast(draftId, 'draft:state_updated', { draft: updated, server_time: new Date().toISOString() });
@@ -175,7 +179,7 @@ export class DraftClockService {
     // Cancel pending timeout job when stopping from running (normal drafts)
     // (When stopping from paused, the job was already cancelled on pause)
     if (clockState === 'running' && draft.type !== 'auction' && draft.type !== 'slow_auction') {
-      await this.draftRepository.deleteAutoPickJobsByDraft(draftId);
+      await this.draftTimerRepository.deleteAutoPickJobsByDraft(draftId);
     }
 
     const updated = await this.draftRepository.update(draftId, {

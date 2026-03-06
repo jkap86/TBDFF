@@ -47,7 +47,7 @@ container.services.derbyService.setGateway(draftGateway);
 // Attach matchup derby gateway and inject into service
 const matchupDerbyGateway = createMatchupDerbyGateway(
   io,
-  container.repositories.leagueRepository,
+  container.repositories.leagueMembersRepository,
 );
 container.services.matchupDerbyService.setGateway(matchupDerbyGateway);
 

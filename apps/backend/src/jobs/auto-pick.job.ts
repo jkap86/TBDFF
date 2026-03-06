@@ -3,6 +3,8 @@ import type { ScheduledTask } from 'node-cron';
 import { randomUUID } from 'crypto';
 import { AutoPickService } from '../modules/drafts/auto-pick.service';
 import { DraftRepository } from '../modules/drafts/drafts.repository';
+import { DraftPicksRepository } from '../modules/drafts/draft-picks.repository';
+import { DraftTimerRepository } from '../modules/drafts/draft-timer.repository';
 import { findUserByRosterId } from '../modules/drafts/draft-helpers';
 
 /**
@@ -19,7 +21,9 @@ export class AutoPickJob {
 
   constructor(
     private readonly autoPickService: AutoPickService,
+    private readonly draftTimerRepository: DraftTimerRepository,
     private readonly draftRepository: DraftRepository,
+    private readonly draftPicksRepository: DraftPicksRepository,
   ) {
     this.instanceId = randomUUID();
   }
@@ -36,7 +40,7 @@ export class AutoPickJob {
 
   private async poll(): Promise<void> {
     try {
-      const jobs = await this.draftRepository.claimAutoPickJobs(this.instanceId, 5);
+      const jobs = await this.draftTimerRepository.claimAutoPickJobs(this.instanceId, 5);
 
       for (const job of jobs) {
         try {
@@ -48,7 +52,7 @@ export class AutoPickJob {
         } catch (err) {
           console.error(`[AutoPickJob] Failed for draft ${job.draft_id} (${job.job_type}):`, err);
         } finally {
-          await this.draftRepository.deleteAutoPickJob(job.id);
+          await this.draftTimerRepository.deleteAutoPickJob(job.id);
         }
       }
     } catch (err) {
@@ -59,15 +63,15 @@ export class AutoPickJob {
   private async recover(): Promise<void> {
     try {
       // Reset jobs claimed > 30s ago (instance probably crashed mid-processing)
-      const reset = await this.draftRepository.resetStaleAutoPickClaims(30);
+      const reset = await this.draftTimerRepository.resetStaleAutoPickClaims(30);
       if (reset > 0) {
         console.log(`[AutoPickJob] Reset ${reset} stale auto-pick claim(s)`);
       }
 
       // Ensure active drafts with auto-pick users have a job if needed
-      const autoPickDrafts = await this.draftRepository.findDraftingNormalDraftsNeedingAutoPick();
+      const autoPickDrafts = await this.draftTimerRepository.findDraftingNormalDraftsNeedingAutoPick();
       for (const draft of autoPickDrafts) {
-        const nextPick = await this.draftRepository.findNextPick(draft.id);
+        const nextPick = await this.draftPicksRepository.findNextPick(draft.id);
         if (!nextPick) continue;
 
         const autoPickUsers: string[] = draft.metadata?.auto_pick_users ?? [];
@@ -78,15 +82,15 @@ export class AutoPickJob {
         );
         if (!pickOwner || !autoPickUsers.includes(pickOwner)) continue;
 
-        const hasJob = await this.draftRepository.hasAutoPickJob(draft.id);
+        const hasJob = await this.draftTimerRepository.hasAutoPickJob(draft.id);
         if (!hasJob) {
           console.log(`[AutoPickJob] Recovering orphaned auto-pick chain for draft ${draft.id}`);
-          await this.draftRepository.insertAutoPickJob(draft.id, 'recovery');
+          await this.draftTimerRepository.insertAutoPickJob(draft.id, 'recovery');
         }
       }
 
       // Recover expired timeouts for normal drafts with no pending job
-      const normalDrafts = await this.draftRepository.findDraftingNormalDrafts();
+      const normalDrafts = await this.draftTimerRepository.findDraftingNormalDrafts();
       for (const draft of normalDrafts) {
         if (!draft.settings.pick_timer || draft.settings.pick_timer <= 0) continue;
         const clockState = draft.metadata?.clock_state ?? 'running';
@@ -98,10 +102,10 @@ export class AutoPickJob {
         const deadline = new Date(ref).getTime() + draft.settings.pick_timer * 1000;
         if (Date.now() < deadline) continue;
 
-        const hasJob = await this.draftRepository.hasAutoPickJob(draft.id);
+        const hasJob = await this.draftTimerRepository.hasAutoPickJob(draft.id);
         if (!hasJob) {
           console.log(`[AutoPickJob] Recovering expired timer for draft ${draft.id}`);
-          await this.draftRepository.insertAutoPickJob(draft.id, 'timeout');
+          await this.draftTimerRepository.insertAutoPickJob(draft.id, 'timeout');
         }
       }
     } catch (err) {

@@ -1,4 +1,7 @@
 import { DraftRepository } from './drafts.repository';
+import { DraftPicksRepository } from './draft-picks.repository';
+import { DraftTimerRepository } from './draft-timer.repository';
+import { DraftQueueRepository } from './draft-queue.repository';
 import { LeagueRepository } from '../leagues/leagues.repository';
 import { PlayerRepository } from '../players/players.repository';
 import { DraftGateway } from './draft.gateway';
@@ -20,6 +23,9 @@ export class AuctionAutoBidService {
 
   constructor(
     private readonly draftRepository: DraftRepository,
+    private readonly draftTimerRepository: DraftTimerRepository,
+    private readonly draftQueueRepository: DraftQueueRepository,
+    private readonly draftPicksRepository: DraftPicksRepository,
     private readonly leagueRepository: LeagueRepository,
     private readonly playerRepository: PlayerRepository,
   ) {}
@@ -38,7 +44,7 @@ export class AuctionAutoBidService {
    * Called when a draft completes.
    */
   async cancelScheduledAutoBids(draftId: string): Promise<void> {
-    await this.draftRepository.cancelAuctionTimers(draftId);
+    await this.draftTimerRepository.cancelAuctionTimers(draftId);
   }
 
   /**
@@ -52,7 +58,7 @@ export class AuctionAutoBidService {
   async scheduleAutoBids(draftId: string, delayMs = 3000): Promise<void> {
     const runAt = new Date(Date.now() + delayMs);
     const timerType = delayMs <= 3000 ? 'auto_bid' : 'deadline';
-    await this.draftRepository.upsertAuctionTimer(draftId, timerType, runAt);
+    await this.draftTimerRepository.upsertAuctionTimer(draftId, timerType, runAt);
   }
 
   /**
@@ -104,7 +110,7 @@ export class AuctionAutoBidService {
     const autoPickUsers: string[] = draft.metadata?.auto_pick_users ?? [];
 
     // Also include users who explicitly set a max_bid for this player (e.g. via "Auto-bid up to")
-    const maxBidUserIds = await this.draftRepository.getUserIdsWithMaxBidForPlayer(
+    const maxBidUserIds = await this.draftQueueRepository.getUserIdsWithMaxBidForPlayer(
       draftId, nomination.player_id,
     );
     const candidateUserIds = [...new Set([...autoPickUsers, ...maxBidUserIds])];
@@ -139,12 +145,12 @@ export class AuctionAutoBidService {
     if (userRosterPairs.length === 0) return null;
 
     const [queueItemsMap, picksWonMap] = await Promise.all([
-      this.draftRepository.getQueueItemsForPlayerByUsers(
+      this.draftQueueRepository.getQueueItemsForPlayerByUsers(
         draftId,
         userRosterPairs.map((p) => p.userId),
         nomination.player_id,
       ),
-      this.draftRepository.countPicksWonByRosters(
+      this.draftPicksRepository.countPicksWonByRosters(
         draftId,
         userRosterPairs.map((p) => p.rosterId),
       ),

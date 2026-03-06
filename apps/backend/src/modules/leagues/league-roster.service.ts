@@ -1,4 +1,6 @@
 import { LeagueRepository } from './leagues.repository';
+import { LeagueMembersRepository } from './league-members.repository';
+import { LeagueRostersRepository } from './league-rosters.repository';
 import { Roster, LeagueMember } from './leagues.model';
 import {
   ValidationException,
@@ -12,15 +14,17 @@ import { SystemMessageService } from '../chat/system-message.service';
 export class LeagueRosterService {
   constructor(
     private readonly leagueRepository: LeagueRepository,
+    private readonly leagueMembersRepository: LeagueMembersRepository,
+    private readonly leagueRostersRepository: LeagueRostersRepository,
     private readonly draftRepository: DraftRepository,
     private readonly systemMessages: SystemMessageService,
   ) {}
 
   async getLeagueRosters(leagueId: string, userId: string): Promise<Roster[]> {
-    const member = await this.leagueRepository.findMember(leagueId, userId);
+    const member = await this.leagueMembersRepository.findMember(leagueId, userId);
     if (!member) throw new NotFoundException('League not found');
 
-    return this.leagueRepository.findRostersByLeagueId(leagueId);
+    return this.leagueRostersRepository.findRostersByLeagueId(leagueId);
   }
 
   async assignMemberToRoster(
@@ -30,26 +34,26 @@ export class LeagueRosterService {
     rosterId: number,
   ): Promise<{ roster: Roster; member: LeagueMember }> {
     // 1. Verify requester is commissioner
-    const requester = await this.leagueRepository.findMember(leagueId, requestingUserId);
+    const requester = await this.leagueMembersRepository.findMember(leagueId, requestingUserId);
     if (!requester || requester.role !== 'commissioner') {
       throw new ForbiddenException('Only the commissioner can assign rosters');
     }
 
     // 2. Verify target is a league member
-    const target = await this.leagueRepository.findMember(leagueId, targetUserId);
+    const target = await this.leagueMembersRepository.findMember(leagueId, targetUserId);
     if (!target) throw new NotFoundException('Member not found');
     if (target.role === 'commissioner') {
       throw new ValidationException('Commissioner is already assigned to a roster');
     }
 
     // 3. Check target doesn't already own a roster
-    const existingRoster = await this.leagueRepository.findRosterByOwner(leagueId, targetUserId);
+    const existingRoster = await this.leagueRostersRepository.findRosterByOwner(leagueId, targetUserId);
     if (existingRoster) {
       throw new ConflictException('User is already assigned to a roster');
     }
 
     // 4. Assign roster owner and promote to member (transactional)
-    const result = await this.leagueRepository.assignRosterOwnerTransaction(leagueId, rosterId, targetUserId);
+    const result = await this.leagueRostersRepository.assignRosterOwnerTransaction(leagueId, rosterId, targetUserId);
 
     // 5. Seed future draft picks so they're available in the Trade Center
     // even before a draft is created. Use active draft rounds if available,
@@ -79,7 +83,7 @@ export class LeagueRosterService {
       if (currentLeague && currentLeague.status === 'not_filled') {
         const buyIn = (currentLeague.settings as unknown as Record<string, unknown>).buy_in as number | undefined;
         if (!buyIn || buyIn === 0) {
-          const allRosters = await this.leagueRepository.findRostersByLeagueId(leagueId);
+          const allRosters = await this.leagueRostersRepository.findRostersByLeagueId(leagueId);
           const assignedCount = allRosters.filter((r) => r.ownerId).length;
           if (assignedCount >= allRosters.length) {
             await this.leagueRepository.update(leagueId, { status: 'offseason' });
@@ -100,20 +104,20 @@ export class LeagueRosterService {
     targetUserId: string,
   ): Promise<void> {
     // 1. Verify requester is commissioner
-    const requester = await this.leagueRepository.findMember(leagueId, requestingUserId);
+    const requester = await this.leagueMembersRepository.findMember(leagueId, requestingUserId);
     if (!requester || requester.role !== 'commissioner') {
       throw new ForbiddenException('Only the commissioner can unassign rosters');
     }
 
     // 2. Verify target exists and is not the commissioner
-    const target = await this.leagueRepository.findMember(leagueId, targetUserId);
+    const target = await this.leagueMembersRepository.findMember(leagueId, targetUserId);
     if (!target) throw new NotFoundException('Member not found');
     if (target.role === 'commissioner') {
       throw new ForbiddenException('Cannot unassign the commissioner from their roster');
     }
 
     // 3. Unassign roster and demote to spectator (transactional)
-    await this.leagueRepository.unassignRosterOwnerTransaction(leagueId, targetUserId);
+    await this.leagueRostersRepository.unassignRosterOwnerTransaction(leagueId, targetUserId);
 
     // 4. Remove user from draft_order in any active drafts
     await this.syncDraftOrderForRosterUnassignment(leagueId, targetUserId);

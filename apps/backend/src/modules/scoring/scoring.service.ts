@@ -1,6 +1,8 @@
 import { ScoringRepository } from './scoring.repository';
 import { PlayerRepository } from '../players/players.repository';
 import { LeagueRepository } from '../leagues/leagues.repository';
+import { LeagueMembersRepository } from '../leagues/league-members.repository';
+import { LeagueRostersRepository } from '../leagues/league-rosters.repository';
 import { StatsDataProvider, GameData } from '../../integrations/shared/stats-data-provider.interface';
 import { calculateFantasyPoints, calculateLivePoints, GameStatus } from './scoring-calculator';
 import { NotFoundException, ForbiddenException } from '../../shared/exceptions';
@@ -10,6 +12,8 @@ export class ScoringService {
     private readonly scoringRepository: ScoringRepository,
     private readonly playerRepository: PlayerRepository,
     private readonly leagueRepository: LeagueRepository,
+    private readonly leagueMembersRepository: LeagueMembersRepository,
+    private readonly leagueRostersRepository: LeagueRostersRepository,
     private readonly statsProvider: StatsDataProvider,
   ) {}
 
@@ -115,10 +119,10 @@ export class ScoringService {
     const league = await this.leagueRepository.findById(leagueId);
     if (!league) throw new NotFoundException('League not found');
 
-    const member = await this.leagueRepository.findMember(leagueId, userId);
+    const member = await this.leagueMembersRepository.findMember(leagueId, userId);
     if (!member) throw new ForbiddenException('You are not a member of this league');
 
-    const rosters = await this.leagueRepository.findRostersByLeagueId(leagueId);
+    const rosters = await this.leagueRostersRepository.findRostersByLeagueId(leagueId);
     const allPlayerIds = rosters.flatMap((r) => r.players);
     if (allPlayerIds.length === 0) return [];
 
@@ -150,10 +154,10 @@ export class ScoringService {
     const league = await this.leagueRepository.findById(leagueId);
     if (!league) throw new NotFoundException('League not found');
 
-    const member = await this.leagueRepository.findMember(leagueId, userId);
+    const member = await this.leagueMembersRepository.findMember(leagueId, userId);
     if (!member) throw new ForbiddenException('You are not a member of this league');
 
-    const rosters = await this.leagueRepository.findRostersByLeagueId(leagueId);
+    const rosters = await this.leagueRostersRepository.findRostersByLeagueId(leagueId);
     const allPlayerIds = rosters.flatMap((r) => r.players);
     if (allPlayerIds.length === 0) return [];
 
@@ -214,10 +218,10 @@ export class ScoringService {
     const league = await this.leagueRepository.findById(leagueId);
     if (!league) throw new NotFoundException('League not found');
 
-    const member = await this.leagueRepository.findMember(leagueId, userId);
+    const member = await this.leagueMembersRepository.findMember(leagueId, userId);
     if (!member) throw new ForbiddenException('You are not a member of this league');
 
-    const rosters = await this.leagueRepository.findRostersByLeagueId(leagueId);
+    const rosters = await this.leagueRostersRepository.findRostersByLeagueId(leagueId);
     const allPlayerIds = rosters.flatMap((r) => r.players);
     if (allPlayerIds.length === 0) {
       return {

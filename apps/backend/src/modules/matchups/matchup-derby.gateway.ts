@@ -1,18 +1,18 @@
 import { Server as SocketServer } from 'socket.io';
-import { LeagueRepository } from '../leagues/leagues.repository';
+import { LeagueMembersRepository } from '../leagues/league-members.repository';
 
 export class MatchupDerbyGateway {
   constructor(
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     private readonly io: SocketServer<any, any, any, any>,
-    private readonly leagueRepo: LeagueRepository,
+    private readonly leagueMembersRepository: LeagueMembersRepository,
   ) {
     this.io.on('connection', (socket) => {
       socket.on('matchup_derby:join', async (leagueId: string) => {
         if (typeof leagueId !== 'string' || !leagueId) return;
 
         try {
-          const member = await this.leagueRepo.findMember(leagueId, socket.data.userId);
+          const member = await this.leagueMembersRepository.findMember(leagueId, socket.data.userId);
           if (!member) return;
 
           socket.join(`matchup_derby:${leagueId}`);
@@ -37,7 +37,7 @@ export class MatchupDerbyGateway {
 export function createMatchupDerbyGateway(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   io: SocketServer<any, any, any, any>,
-  leagueRepo: LeagueRepository,
+  leagueMembersRepository: LeagueMembersRepository,
 ): MatchupDerbyGateway {
-  return new MatchupDerbyGateway(io, leagueRepo);
+  return new MatchupDerbyGateway(io, leagueMembersRepository);
 }

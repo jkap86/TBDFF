@@ -3,6 +3,7 @@ import type { ScheduledTask } from 'node-cron';
 import { randomUUID } from 'crypto';
 import { AuctionAutoBidService } from '../modules/drafts/auction-auto-bid.service';
 import { DraftRepository } from '../modules/drafts/drafts.repository';
+import { DraftTimerRepository } from '../modules/drafts/draft-timer.repository';
 
 /**
  * Polls `auction_timers` every 1 second and processes runnable timers.
@@ -18,6 +19,7 @@ export class AuctionTimerJob {
 
   constructor(
     private readonly auctionAutoBidService: AuctionAutoBidService,
+    private readonly draftTimerRepository: DraftTimerRepository,
     private readonly draftRepository: DraftRepository,
   ) {
     this.instanceId = randomUUID();
@@ -35,7 +37,7 @@ export class AuctionTimerJob {
 
   private async poll(): Promise<void> {
     try {
-      const timers = await this.draftRepository.claimRunnableTimers(this.instanceId, 5);
+      const timers = await this.draftTimerRepository.claimRunnableTimers(this.instanceId, 5);
 
       for (const timer of timers) {
         try {
@@ -43,7 +45,7 @@ export class AuctionTimerJob {
         } catch (err) {
           console.error(`[AuctionTimerJob] Failed for draft ${timer.draft_id}:`, err);
         } finally {
-          await this.draftRepository.deleteAuctionTimer(timer.id);
+          await this.draftTimerRepository.deleteAuctionTimer(timer.id);
         }
       }
     } catch (err) {
@@ -54,7 +56,7 @@ export class AuctionTimerJob {
   private async recover(): Promise<void> {
     try {
       // Reset timers claimed > 30s ago (instance probably crashed mid-processing)
-      const reset = await this.draftRepository.resetStaleClaims(30);
+      const reset = await this.draftTimerRepository.resetStaleClaims(30);
       if (reset > 0) {
         console.log(`[AuctionTimerJob] Reset ${reset} stale timer claim(s)`);
       }
@@ -63,13 +65,13 @@ export class AuctionTimerJob {
       const drafts = await this.draftRepository.findActiveDraftingAuctions();
       for (const draft of drafts) {
         if (draft.metadata?.current_nomination) {
-          const hasTimer = await this.draftRepository.hasAuctionTimer(draft.id);
+          const hasTimer = await this.draftTimerRepository.hasAuctionTimer(draft.id);
           if (!hasTimer) {
             console.log(`[AuctionTimerJob] Recovering missing timer for draft ${draft.id}`);
             const nom = draft.metadata.current_nomination;
             const msUntilDeadline = new Date(nom.bid_deadline).getTime() - Date.now();
             const delay = msUntilDeadline > 3000 ? 3000 : Math.max(0, msUntilDeadline);
-            await this.draftRepository.upsertAuctionTimer(
+            await this.draftTimerRepository.upsertAuctionTimer(
               draft.id,
               delay <= 3000 ? 'auto_bid' : 'deadline',
               new Date(Date.now() + delay),

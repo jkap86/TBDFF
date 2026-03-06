@@ -1,4 +1,5 @@
 import { LeagueRepository } from './leagues.repository';
+import { LeagueMembersRepository } from './league-members.repository';
 import {
   League,
   LeagueMember,
@@ -93,6 +94,7 @@ function diffSettings(
 export class LeagueService {
   constructor(
     private readonly leagueRepository: LeagueRepository,
+    private readonly leagueMembersRepository: LeagueMembersRepository,
     private readonly draftRepository: DraftRepository,
     private readonly systemMessages: SystemMessageService,
   ) {}
@@ -167,7 +169,7 @@ export class LeagueService {
     if (!league) throw new NotFoundException('League not found');
 
     // Verify user is a member
-    const member = await this.leagueRepository.findMember(leagueId, userId);
+    const member = await this.leagueMembersRepository.findMember(leagueId, userId);
     if (!member) throw new NotFoundException('League not found');
 
     return league;
@@ -178,7 +180,7 @@ export class LeagueService {
     if (!league) throw new NotFoundException('League not found');
 
     // Only commissioner can update
-    const member = await this.leagueRepository.findMember(leagueId, userId);
+    const member = await this.leagueMembersRepository.findMember(leagueId, userId);
     if (!member || member.role !== 'commissioner') {
       throw new ForbiddenException('Only the league commissioner can update league settings');
     }
@@ -197,7 +199,7 @@ export class LeagueService {
         throw new ValidationException('Total rosters must be between 2 and 32');
       }
       // Prevent reducing below current member count
-      const currentMembers = await this.leagueRepository.getMemberCount(leagueId);
+      const currentMembers = await this.leagueMembersRepository.getMemberCount(leagueId);
       if (data.totalRosters < currentMembers) {
         throw new ValidationException(
           `Cannot reduce total rosters to ${data.totalRosters}. League currently has ${currentMembers} members.`
@@ -372,7 +374,7 @@ export class LeagueService {
     if (!league) throw new NotFoundException('League not found');
 
     // Only commissioner can delete
-    const member = await this.leagueRepository.findMember(leagueId, userId);
+    const member = await this.leagueMembersRepository.findMember(leagueId, userId);
     if (!member || member.role !== 'commissioner') {
       throw new ForbiddenException('Only the league commissioner can delete a league');
     }
@@ -384,10 +386,10 @@ export class LeagueService {
 
   async getMembers(leagueId: string, userId: string): Promise<LeagueMember[]> {
     // Verify requesting user is a member
-    const member = await this.leagueRepository.findMember(leagueId, userId);
+    const member = await this.leagueMembersRepository.findMember(leagueId, userId);
     if (!member) throw new NotFoundException('League not found');
 
-    return this.leagueRepository.findMembersByLeagueId(leagueId);
+    return this.leagueMembersRepository.findMembersByLeagueId(leagueId);
   }
 
   async joinLeague(leagueId: string, userId: string): Promise<LeagueMember> {
@@ -395,12 +397,12 @@ export class LeagueService {
     if (!league) throw new NotFoundException('League not found');
 
     // Check if already a member
-    const existing = await this.leagueRepository.findMember(leagueId, userId);
+    const existing = await this.leagueMembersRepository.findMember(leagueId, userId);
     if (existing) throw new ConflictException('Already a member of this league');
 
     // Join as spectator — commissioner will assign a roster to promote to member
     try {
-      const newMember = await this.leagueRepository.addMember(leagueId, userId, 'spectator');
+      const newMember = await this.leagueMembersRepository.addMember(leagueId, userId, 'spectator');
       try {
         await this.systemMessages.send(leagueId, `${newMember.username} joined the league`);
       } catch { /* non-fatal */ }
@@ -408,7 +410,7 @@ export class LeagueService {
     } catch (err: any) {
       if (err.code === '23505') {
         // Concurrent join raced — return the existing membership
-        const member = await this.leagueRepository.findMember(leagueId, userId);
+        const member = await this.leagueMembersRepository.findMember(leagueId, userId);
         if (member) return member;
       }
       throw err;
@@ -416,7 +418,7 @@ export class LeagueService {
   }
 
   async leaveLeague(leagueId: string, userId: string): Promise<void> {
-    const member = await this.leagueRepository.findMember(leagueId, userId);
+    const member = await this.leagueMembersRepository.findMember(leagueId, userId);
     if (!member) throw new NotFoundException('Not a member of this league');
     if (member.role === 'commissioner') {
       throw new ValidationException(
@@ -424,7 +426,7 @@ export class LeagueService {
       );
     }
 
-    await this.leagueRepository.removeMemberTransaction(leagueId, userId);
+    await this.leagueMembersRepository.removeMemberTransaction(leagueId, userId);
 
     try {
       await this.systemMessages.send(leagueId, `${member.username} left the league`);
@@ -437,18 +439,18 @@ export class LeagueService {
     targetUserId: string,
   ): Promise<void> {
     // Verify requester is commissioner
-    const requester = await this.leagueRepository.findMember(leagueId, requestingUserId);
+    const requester = await this.leagueMembersRepository.findMember(leagueId, requestingUserId);
     if (!requester || requester.role !== 'commissioner') {
       throw new ForbiddenException('Only the commissioner can remove members');
     }
 
-    const target = await this.leagueRepository.findMember(leagueId, targetUserId);
+    const target = await this.leagueMembersRepository.findMember(leagueId, targetUserId);
     if (!target) throw new NotFoundException('Member not found');
     if (target.role === 'commissioner') {
       throw new ForbiddenException('Cannot remove the league commissioner');
     }
 
-    await this.leagueRepository.removeMemberTransaction(leagueId, targetUserId);
+    await this.leagueMembersRepository.removeMemberTransaction(leagueId, targetUserId);
 
     try {
       await this.systemMessages.send(leagueId, `${target.username} was removed from the league`);
@@ -466,18 +468,18 @@ export class LeagueService {
     }
 
     // Only commissioner can change roles
-    const requester = await this.leagueRepository.findMember(leagueId, requestingUserId);
+    const requester = await this.leagueMembersRepository.findMember(leagueId, requestingUserId);
     if (!requester || requester.role !== 'commissioner') {
       throw new ForbiddenException('Only the league commissioner can change member roles');
     }
 
-    const target = await this.leagueRepository.findMember(leagueId, targetUserId);
+    const target = await this.leagueMembersRepository.findMember(leagueId, targetUserId);
     if (!target) throw new NotFoundException('Member not found');
     if (target.role === 'commissioner') {
       throw new ForbiddenException('Cannot change the commissioner role through this endpoint');
     }
 
-    const updated = await this.leagueRepository.updateMemberRole(leagueId, targetUserId, role);
+    const updated = await this.leagueMembersRepository.updateMemberRole(leagueId, targetUserId, role);
     if (!updated) throw new NotFoundException('Member not found');
     return updated;
   }
