@@ -60,6 +60,13 @@ export class DraftClockService {
 
       const updated = await this.draftRepository.update(draftId, updateData);
       if (!updated) throw new NotFoundException('Draft not found');
+
+      // Schedule server-side timeout for the resumed pick (normal drafts only)
+      if (draft.type !== 'auction' && draft.type !== 'slow_auction' && remaining > 0) {
+        const runAt = new Date(Date.now() + remaining * 1000);
+        await this.draftRepository.insertAutoPickJob(draftId, 'timeout', runAt);
+      }
+
       this.draftGateway?.broadcast(draftId, 'draft:state_updated', { draft: updated, server_time: new Date().toISOString() });
       return updated;
     }
@@ -79,6 +86,11 @@ export class DraftClockService {
         const deadline = new Date(ref).getTime() + draft.settings.pick_timer * 1000;
         remaining = Math.max(0, Math.ceil((deadline - Date.now()) / 1000));
       }
+    }
+
+    // Cancel pending timeout job (normal drafts)
+    if (draft.type !== 'auction' && draft.type !== 'slow_auction') {
+      await this.draftRepository.deleteAutoPickJobsByDraft(draftId);
     }
 
     const updated = await this.draftRepository.update(draftId, {
@@ -124,6 +136,13 @@ export class DraftClockService {
 
       const updated = await this.draftRepository.update(draftId, updateData);
       if (!updated) throw new NotFoundException('Draft not found');
+
+      // Schedule server-side timeout for the resumed pick (normal drafts only)
+      if (draft.type !== 'auction' && draft.type !== 'slow_auction' && remaining > 0) {
+        const runAt = new Date(Date.now() + remaining * 1000);
+        await this.draftRepository.insertAutoPickJob(draftId, 'timeout', runAt);
+      }
+
       this.draftGateway?.broadcast(draftId, 'draft:state_updated', { draft: updated, server_time: new Date().toISOString() });
       return updated;
     }
@@ -151,6 +170,12 @@ export class DraftClockService {
           remaining = 0;
         }
       }
+    }
+
+    // Cancel pending timeout job when stopping from running (normal drafts)
+    // (When stopping from paused, the job was already cancelled on pause)
+    if (clockState === 'running' && draft.type !== 'auction' && draft.type !== 'slow_auction') {
+      await this.draftRepository.deleteAutoPickJobsByDraft(draftId);
     }
 
     const updated = await this.draftRepository.update(draftId, {

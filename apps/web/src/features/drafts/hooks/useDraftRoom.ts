@@ -314,34 +314,47 @@ export function useDraftRoom(leagueId: string, preferredDraftId?: string) {
         }
       })();
     } else {
-      (async () => {
-        try {
-          const result = await draftApi.autoPick(draft.id, accessToken);
-          setPicks((prev) => {
-            let updated = prev.map((p) => (p.id === result.pick.id ? result.pick : p));
-            if (result.chained_picks?.length) {
-              updated = applyChainedPicks(updated, result.chained_picks);
-            }
-            return updated;
-          });
-          const draftResult = await draftApi.getById(draft.id, accessToken);
-          setDraft(draftResult.draft);
-        } catch (err) {
-          // Another client may have already triggered auto-pick; this is expected
-          if (err instanceof ApiError && !err.message.includes('already')) {
-            toast.error(err.message);
-          }
-          // Refresh state so timer recalculates correctly after another client handled the pick
+      // Delay 3s — server-side timer handles primary expiry, client is backup
+      const capturedLastPicked = draft.last_picked;
+      const capturedDraftId = draft.id;
+      setTimeout(() => {
+        (async () => {
           try {
-            const [draftResult, picksResult] = await Promise.all([
-              draftApi.getById(draft.id, accessToken),
-              draftApi.getPicks(draft.id, accessToken),
-            ]);
+            // Check if the server already handled it
+            const freshDraft = await draftApi.getById(capturedDraftId, accessToken!);
+            if (freshDraft.draft.last_picked !== capturedLastPicked) {
+              setDraft(freshDraft.draft);
+              const picksResult = await draftApi.getPicks(capturedDraftId, accessToken!);
+              setPicks(picksResult.picks);
+              return;
+            }
+            const result = await draftApi.autoPick(capturedDraftId, accessToken!);
+            setPicks((prev) => {
+              let updated = prev.map((p) => (p.id === result.pick.id ? result.pick : p));
+              if (result.chained_picks?.length) {
+                updated = applyChainedPicks(updated, result.chained_picks);
+              }
+              return updated;
+            });
+            const draftResult = await draftApi.getById(capturedDraftId, accessToken!);
             setDraft(draftResult.draft);
-            setPicks(picksResult.picks);
-          } catch { /* socket/polling will catch up */ }
-        }
-      })();
+          } catch (err) {
+            // Another client or server may have already triggered auto-pick; this is expected
+            if (err instanceof ApiError && !err.message.includes('already')) {
+              toast.error(err.message);
+            }
+            // Refresh state so timer recalculates correctly after another client handled the pick
+            try {
+              const [draftResult, picksResult] = await Promise.all([
+                draftApi.getById(capturedDraftId, accessToken!),
+                draftApi.getPicks(capturedDraftId, accessToken!),
+              ]);
+              setDraft(draftResult.draft);
+              setPicks(picksResult.picks);
+            } catch { /* socket/polling will catch up */ }
+          }
+        })();
+      }, 3000);
     }
   }, [timer.timeRemaining, draft, accessToken]);
 

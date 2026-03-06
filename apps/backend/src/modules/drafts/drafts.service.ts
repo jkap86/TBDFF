@@ -314,19 +314,6 @@ export class DraftService {
       }
     }
 
-    // Slow auction skips pre-created pick slots — picks are created on lot settlement
-    if (draft.type !== 'slow_auction') {
-      await this.draftRepository.createPicks(
-        draftId,
-        draft.settings.rounds,
-        draft.settings.teams,
-        draft.type,
-        draft.draftOrder,
-        draft.slotToRosterId,
-        pickOverrides.size > 0 ? pickOverrides : undefined,
-      );
-    }
-
     // Initialize auction budgets if auction type
     let metadata: DraftMetadata = {};
     if (draft.type === 'auction') {
@@ -365,14 +352,28 @@ export class DraftService {
       }
     }
 
-    // Atomically update draft status to 'drafting' and league status in one transaction
+    // Slow auction skips pre-created pick slots — picks are created on lot settlement
+    const pickArgs = draft.type !== 'slow_auction' ? {
+      rounds: draft.settings.rounds,
+      teams: draft.settings.teams,
+      draftType: draft.type,
+      draftOrder: draft.draftOrder,
+      slotToRosterId: draft.slotToRosterId,
+      pickOverrides: pickOverrides.size > 0 ? pickOverrides : undefined,
+    } : undefined;
+
+    // Atomically create picks + update draft status + league status in one transaction
     const updated = await this.draftRepository.startDraftAtomic(draftId, draft.leagueId, {
       status: 'drafting',
       startTime: new Date().toISOString(),
       ...(Object.keys(metadata).length > 0 ? { metadata } : {}),
-    });
+    }, pickArgs);
 
     if (!updated) throw new NotFoundException('Draft not found');
+
+    // Schedule server-side timer for the first pick
+    await this.autoPickService.schedulePickTimeout(draftId);
+
     return updated;
   }
 
@@ -507,6 +508,11 @@ export class DraftService {
 
     // Process auto-pick chain for subsequent autopick users
     const chainedPicks = completed ? [] : await this.autoPickService.scheduleAutoPickChain(draftId);
+
+    // Schedule server-side timeout for the next pick
+    if (!completed) {
+      await this.autoPickService.schedulePickTimeout(draftId);
+    }
 
     const finalDraft = await this.draftRepository.findById(draftId);
     if (finalDraft) {

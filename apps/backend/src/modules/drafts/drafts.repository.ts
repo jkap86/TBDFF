@@ -108,11 +108,29 @@ export class DraftRepository {
     draftId: string,
     leagueId: string,
     data: Record<string, any>,
+    pickArgs?: {
+      rounds: number;
+      teams: number;
+      draftType: string;
+      draftOrder: Record<string, number>;
+      slotToRosterId: Record<string, number>;
+      pickOverrides?: Map<string, number>;
+    },
   ): Promise<Draft | null> {
     const { fields, values } = this.buildUpdateClauses(data);
     const client: PoolClient = await this.db.connect();
     try {
       await client.query('BEGIN');
+
+      // Create picks inside the transaction if provided
+      if (pickArgs) {
+        await this.createPicks(
+          draftId, pickArgs.rounds, pickArgs.teams, pickArgs.draftType,
+          pickArgs.draftOrder, pickArgs.slotToRosterId, pickArgs.pickOverrides,
+          client,
+        );
+      }
+
       let draft: Draft | null = null;
       if (fields.length > 0) {
         const params = [...values, draftId];
@@ -212,7 +230,8 @@ export class DraftRepository {
 
   // ---- Draft Picks ----
 
-  async createPicks(draftId: string, rounds: number, teams: number, draftType: string, draftOrder: Record<string, number>, slotToRosterId: Record<string, number>, pickOverrides?: Map<string, number>): Promise<DraftPick[]> {
+  async createPicks(draftId: string, rounds: number, teams: number, draftType: string, draftOrder: Record<string, number>, slotToRosterId: Record<string, number>, pickOverrides?: Map<string, number>, client?: PoolClient): Promise<DraftPick[]> {
+    const db = client ?? this.db;
     // Generate all pick slots based on draft type and order
     const pickValues: string[] = [];
     const params: any[] = [draftId];
@@ -246,7 +265,7 @@ export class DraftRepository {
       }
     }
 
-    const result = await this.db.query(
+    const result = await db.query(
       `INSERT INTO draft_picks (draft_id, roster_id, round, pick_no, draft_slot)
        VALUES ${pickValues.join(', ')}
        ON CONFLICT (draft_id, round, pick_no) DO NOTHING
@@ -947,7 +966,7 @@ export class DraftRepository {
 
   async insertAutoPickJob(
     draftId: string,
-    jobType: 'continuation' | 'recovery',
+    jobType: 'continuation' | 'recovery' | 'timeout',
     runAt?: Date,
   ): Promise<void> {
     await this.db.query(
@@ -1009,6 +1028,22 @@ export class DraftRepository {
          AND type NOT IN ('auction', 'slow_auction')
          AND jsonb_array_length(COALESCE(metadata->'auto_pick_users', '[]'::jsonb)) > 0
          AND (metadata->>'clock_state' IS NULL OR metadata->>'clock_state' = 'running')`,
+    );
+    return result.rows.map(Draft.fromDatabase);
+  }
+
+  async deleteAutoPickJobsByDraft(draftId: string): Promise<void> {
+    await this.db.query(
+      'DELETE FROM auto_pick_jobs WHERE draft_id = $1 AND claimed_by IS NULL',
+      [draftId],
+    );
+  }
+
+  async findDraftingNormalDrafts(): Promise<Draft[]> {
+    const result = await this.db.query(
+      `SELECT * FROM drafts
+       WHERE status = 'drafting'
+         AND type NOT IN ('auction', 'slow_auction')`,
     );
     return result.rows.map(Draft.fromDatabase);
   }

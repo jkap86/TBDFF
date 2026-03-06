@@ -147,6 +147,11 @@ export class AutoPickService {
     // Process auto-pick chain for subsequent autopick users
     const chainedPicks = completed ? [] : await this.scheduleAutoPickChain(draftId);
 
+    // Schedule server-side timeout for the next pick
+    if (!completed) {
+      await this.schedulePickTimeout(draftId);
+    }
+
     const finalDraft = await this.draftRepository.findById(draftId);
     if (finalDraft) {
       this.draftGateway?.broadcast(draftId, 'draft:state_updated', {
@@ -336,6 +341,127 @@ export class AutoPickService {
           server_time: new Date().toISOString(),
         });
       }
+    }
+    await this.schedulePickTimeout(draftId);
+  }
+
+  /**
+   * Schedule a server-side timeout job for the current pick.
+   * When pick_timer expires, the poller will auto-pick for the timed-out user.
+   */
+  async schedulePickTimeout(draftId: string): Promise<void> {
+    const draft = await this.draftRepository.findById(draftId);
+    if (!draft || draft.status !== 'drafting') return;
+    if (!draft.settings.pick_timer || draft.settings.pick_timer <= 0) return;
+
+    const clockState = draft.metadata?.clock_state ?? 'running';
+    if (clockState !== 'running') return;
+
+    if (draft.type === 'auction' || draft.type === 'slow_auction') return;
+
+    const nextPick = await this.draftRepository.findNextPick(draftId);
+    if (!nextPick) return;
+
+    const ref = draft.lastPicked || draft.startTime;
+    if (!ref) return;
+
+    const runAt = new Date(new Date(ref).getTime() + draft.settings.pick_timer * 1000);
+    await this.draftRepository.insertAutoPickJob(draftId, 'timeout', runAt);
+  }
+
+  /**
+   * Called by the AutoPickJob poller when a timeout job fires.
+   * Makes one pick for the timed-out user, then chains for subsequent auto-pick users.
+   */
+  async processTimeoutPick(draftId: string): Promise<void> {
+    const draft = await this.draftRepository.findById(draftId);
+    if (!draft || draft.status !== 'drafting') return;
+
+    const clockState = draft.metadata?.clock_state ?? 'running';
+    if (clockState === 'paused' || clockState === 'stopped') return;
+
+    if (draft.type === 'auction' || draft.type === 'slow_auction') return;
+
+    const nextPick = await this.draftRepository.findNextPick(draftId);
+    if (!nextPick) return;
+
+    // Validate timer has actually expired (server-side)
+    const ref = draft.lastPicked || draft.startTime;
+    if (ref) {
+      const deadline = new Date(ref).getTime() + draft.settings.pick_timer * 1000;
+      if (Date.now() < deadline) return;
+    }
+
+    const pickOwner = findUserByRosterId(draft.draftOrder, draft.slotToRosterId, nextPick.rosterId);
+    if (!pickOwner) return;
+
+    // Find best player (queue first, then BPA)
+    const playerType = draft.settings.player_type;
+    const queuedPlayer = await this.draftRepository.findFirstAvailableFromQueue(draftId, pickOwner, undefined, playerType);
+
+    let rookiePickId: string | null = null;
+    if (!queuedPlayer && draft.settings.include_rookie_picks) {
+      rookiePickId = await this.draftRepository.findFirstRookiePickFromQueue(draftId, pickOwner);
+    }
+
+    let pick: DraftPick | null;
+
+    if (rookiePickId) {
+      const parts = rookiePickId.split(':');
+      const rpRound = parseInt(parts[1], 10);
+      const rpPick = parseInt(parts[2], 10);
+      const pickLabel = `${rpRound}.${String(rpPick).padStart(2, '0')}`;
+      pick = await this.draftRepository.makePick(nextPick.id, rookiePickId, pickOwner, {
+        rookie_pick: true,
+        first_name: 'Rookie Pick',
+        last_name: pickLabel,
+        full_name: `Rookie Pick ${pickLabel}`,
+        position: 'PICK',
+        team: null,
+        auto_pick: true,
+      });
+    } else {
+      const bestPlayer = queuedPlayer ?? (await this.draftRepository.findBestAvailable(draftId, undefined, playerType));
+      if (!bestPlayer) return;
+      pick = await this.draftRepository.makePick(nextPick.id, bestPlayer.id, pickOwner, {
+        first_name: bestPlayer.firstName,
+        last_name: bestPlayer.lastName,
+        full_name: bestPlayer.fullName,
+        position: bestPlayer.position,
+        team: bestPlayer.team,
+        auto_pick: true,
+      });
+    }
+
+    if (!pick) return; // Another instance or client already made the pick
+
+    console.log(`[AutoPickService] Timeout pick for draft ${draftId}: ${pick.metadata?.full_name ?? pick.playerId}`);
+
+    await this.draftRepository.update(draftId, { lastPicked: new Date().toISOString() });
+    await this.draftRepository.addAutoPickUser(draftId, pickOwner);
+
+    const completed = await this.draftRepository.completeAndUpdateLeague(draftId, draft.leagueId);
+    if (completed) {
+      await this.onVetDraftCompleted?.(draft);
+    }
+
+    // Chain for subsequent auto-pick users
+    const chainedPicks = completed ? [] : await this.scheduleAutoPickChain(draftId);
+
+    // Schedule next timeout
+    if (!completed) {
+      await this.schedulePickTimeout(draftId);
+    }
+
+    // Broadcast
+    const finalDraft = await this.draftRepository.findById(draftId);
+    if (finalDraft) {
+      this.draftGateway?.broadcast(draftId, 'draft:state_updated', {
+        draft: finalDraft,
+        pick,
+        chained_picks: chainedPicks,
+        server_time: new Date().toISOString(),
+      });
     }
   }
 }
