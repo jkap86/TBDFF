@@ -50,6 +50,14 @@ export class TradeRepository {
     return results;
   }
 
+  async findProposalByIdForUpdate(id: string, client: PoolClient): Promise<TradeProposal | null> {
+    const result = await client.query(
+      `SELECT * FROM trade_proposals WHERE id = $1 FOR UPDATE`,
+      [id],
+    );
+    return result.rows[0] ? TradeProposal.fromDatabase(result.rows[0]) : null;
+  }
+
   async findProposalById(id: string, client?: PoolClient): Promise<TradeProposal | null> {
     const conn = client ?? this.db;
     const result = await conn.query(
@@ -128,6 +136,35 @@ export class TradeRepository {
       `UPDATE trade_proposals SET ${sets.join(', ')} WHERE id = $1`,
       params,
     );
+  }
+
+  async updateProposalStatusIfCurrent(
+    client: PoolClient,
+    id: string,
+    nextStatus: string,
+    allowedCurrentStatuses: string[],
+    extra?: { reviewExpiresAt?: Date; transactionId?: string },
+  ): Promise<boolean> {
+    const sets = ['status = $2'];
+    const params: any[] = [id, nextStatus, allowedCurrentStatuses];
+    let idx = 4;
+
+    if (extra?.reviewExpiresAt) {
+      sets.push(`review_expires_at = $${idx}`);
+      params.push(extra.reviewExpiresAt);
+      idx++;
+    }
+    if (extra?.transactionId) {
+      sets.push(`transaction_id = $${idx}`);
+      params.push(extra.transactionId);
+      idx++;
+    }
+
+    const result = await client.query(
+      `UPDATE trade_proposals SET ${sets.join(', ')} WHERE id = $1 AND status = ANY($3)`,
+      params,
+    );
+    return (result.rowCount ?? 0) > 0;
   }
 
   async findExpiredReviews(): Promise<TradeProposal[]> {

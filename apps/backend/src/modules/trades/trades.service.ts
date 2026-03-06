@@ -11,6 +11,7 @@ import {
   NotFoundException,
   ForbiddenException,
   ValidationException,
+  ConflictException,
 } from '../../shared/exceptions';
 
 export class TradeService {
@@ -78,6 +79,9 @@ export class TradeService {
     const receiverRoster = await this.leagueRostersRepo.findRosterByOwner(leagueId, request.proposed_to);
     if (!proposerRoster || !receiverRoster) throw new ValidationException('Both users must own a roster');
 
+    // Reject duplicates and mismatched roster ids before any persistence
+    validateTradeItems(request.items, proposerRoster.rosterId, receiverRoster.rosterId);
+
     for (const item of request.items) {
       if (item.item_type === 'player' && item.player_id) {
         const roster = item.side === 'proposer' ? proposerRoster : receiverRoster;
@@ -134,7 +138,14 @@ export class TradeService {
       expiresAt.setDate(expiresAt.getDate() + reviewDays);
 
       const updated = await this.tradeRepo.withTransaction(async (client) => {
-        await this.tradeRepo.updateProposalStatus(client, tradeId, 'review', { reviewExpiresAt: expiresAt });
+        const locked = await this.tradeRepo.findProposalByIdForUpdate(tradeId, client);
+        if (!locked) throw new NotFoundException('Trade not found');
+        if (locked.proposedTo !== userId) throw new ForbiddenException('Only the receiver can accept this trade');
+        if (locked.status !== 'pending') throw new ConflictException('Trade is no longer in a valid state for this action');
+
+        const changed = await this.tradeRepo.updateProposalStatusIfCurrent(client, tradeId, 'review', ['pending'], { reviewExpiresAt: expiresAt });
+        if (!changed) throw new ConflictException('Trade is no longer in a valid state for this action');
+
         return this.tradeRepo.findProposalById(tradeId, client);
       });
 
@@ -179,6 +190,13 @@ export class TradeService {
     }
 
     const completed = await this.tradeRepo.withTransaction(async (client) => {
+      // Lock the proposal row and re-validate status
+      const locked = await this.tradeRepo.findProposalByIdForUpdate(tradeId, client);
+      if (!locked) throw new NotFoundException('Trade not found');
+      if (locked.status !== 'pending' && locked.status !== 'review' && locked.status !== 'accepted') {
+        throw new ConflictException('Trade is no longer in a valid state for this action');
+      }
+
       // Lock both roster rows to prevent concurrent modifications (trades, waivers, add/drops)
       await client.query(
         'SELECT id FROM rosters WHERE league_id = $1 AND owner_id IN ($2, $3) ORDER BY id FOR UPDATE',
@@ -330,9 +348,11 @@ export class TradeService {
         [trade.leagueId, rosterIds, playerIds, JSON.stringify(adds), JSON.stringify(drops), draftPickIds, trade.proposedBy],
       );
 
-      await this.tradeRepo.updateProposalStatus(client, tradeId, 'completed', {
-        transactionId: txResult.rows[0].id,
-      });
+      const changed = await this.tradeRepo.updateProposalStatusIfCurrent(
+        client, tradeId, 'completed', ['pending', 'review', 'accepted'],
+        { transactionId: txResult.rows[0].id },
+      );
+      if (!changed) throw new ConflictException('Trade is no longer in a valid state for this action');
 
       return this.tradeRepo.findProposalById(tradeId, client);
     });
@@ -390,7 +410,14 @@ export class TradeService {
     if (trade.status !== 'pending') throw new ValidationException('Trade is not in pending status');
 
     const updated = await this.tradeRepo.withTransaction(async (client) => {
-      await this.tradeRepo.updateProposalStatus(client, tradeId, 'declined');
+      const locked = await this.tradeRepo.findProposalByIdForUpdate(tradeId, client);
+      if (!locked) throw new NotFoundException('Trade not found');
+      if (locked.proposedTo !== userId) throw new ForbiddenException('Only the receiver can decline this trade');
+      if (locked.status !== 'pending') throw new ConflictException('Trade is no longer in a valid state for this action');
+
+      const changed = await this.tradeRepo.updateProposalStatusIfCurrent(client, tradeId, 'declined', ['pending']);
+      if (!changed) throw new ConflictException('Trade is no longer in a valid state for this action');
+
       return this.tradeRepo.findProposalById(tradeId, client);
     });
 
@@ -407,7 +434,14 @@ export class TradeService {
     if (trade.status !== 'pending') throw new ValidationException('Trade is not in pending status');
 
     const updated = await this.tradeRepo.withTransaction(async (client) => {
-      await this.tradeRepo.updateProposalStatus(client, tradeId, 'withdrawn');
+      const locked = await this.tradeRepo.findProposalByIdForUpdate(tradeId, client);
+      if (!locked) throw new NotFoundException('Trade not found');
+      if (locked.proposedBy !== userId) throw new ForbiddenException('Only the proposer can withdraw this trade');
+      if (locked.status !== 'pending') throw new ConflictException('Trade is no longer in a valid state for this action');
+
+      const changed = await this.tradeRepo.updateProposalStatusIfCurrent(client, tradeId, 'withdrawn', ['pending']);
+      if (!changed) throw new ConflictException('Trade is no longer in a valid state for this action');
+
       return this.tradeRepo.findProposalById(tradeId, client);
     });
 
@@ -442,6 +476,9 @@ export class TradeService {
     const counterReceiverRoster = await this.leagueRostersRepo.findRosterByOwner(original.leagueId, original.proposedBy);
     if (!counterProposerRoster || !counterReceiverRoster) throw new ValidationException('Both users must own a roster');
 
+    // Reject duplicates and mismatched roster ids before any persistence
+    validateTradeItems(request.items, counterProposerRoster.rosterId, counterReceiverRoster.rosterId);
+
     for (const item of request.items) {
       if (item.item_type === 'player' && item.player_id) {
         const roster = item.side === 'proposer' ? counterProposerRoster : counterReceiverRoster;
@@ -462,8 +499,15 @@ export class TradeService {
     }
 
     const counterTrade = await this.tradeRepo.withTransaction(async (client) => {
+      // Lock and re-validate original proposal
+      const locked = await this.tradeRepo.findProposalByIdForUpdate(tradeId, client);
+      if (!locked) throw new NotFoundException('Trade not found');
+      if (locked.proposedTo !== userId) throw new ForbiddenException('Only the receiver can counter this trade');
+      if (locked.status !== 'pending') throw new ConflictException('Trade is no longer in a valid state for this action');
+
       // Mark original as countered
-      await this.tradeRepo.updateProposalStatus(client, tradeId, 'countered');
+      const changed = await this.tradeRepo.updateProposalStatusIfCurrent(client, tradeId, 'countered', ['pending']);
+      if (!changed) throw new ConflictException('Trade is no longer in a valid state for this action');
 
       // Create new counter-proposal (swap proposer/receiver)
       const counter = await this.tradeRepo.createProposal(client, {
@@ -500,7 +544,15 @@ export class TradeService {
     }
 
     const updated = await this.tradeRepo.withTransaction(async (client) => {
-      await this.tradeRepo.updateProposalStatus(client, tradeId, 'vetoed');
+      const locked = await this.tradeRepo.findProposalByIdForUpdate(tradeId, client);
+      if (!locked) throw new NotFoundException('Trade not found');
+      if (locked.status !== 'review' && locked.status !== 'pending') {
+        throw new ConflictException('Trade is no longer in a valid state for this action');
+      }
+
+      const changed = await this.tradeRepo.updateProposalStatusIfCurrent(client, tradeId, 'vetoed', ['review', 'pending']);
+      if (!changed) throw new ConflictException('Trade is no longer in a valid state for this action');
+
       return this.tradeRepo.findProposalById(tradeId, client);
     });
 
@@ -587,6 +639,36 @@ export class TradeService {
     }
 
     return picks;
+  }
+}
+
+function validateTradeItems(
+  items: Array<{ side: string; item_type: string; player_id?: string; draft_pick_id?: string; roster_id: number }>,
+  proposerRosterId: number,
+  receiverRosterId: number,
+): void {
+  const seenPlayerIds = new Set<string>();
+  const seenDraftPickIds = new Set<string>();
+
+  for (const item of items) {
+    if (item.player_id) {
+      if (seenPlayerIds.has(item.player_id)) {
+        throw new ValidationException(`Duplicate player in trade proposal: ${item.player_id}`);
+      }
+      seenPlayerIds.add(item.player_id);
+    }
+
+    if (item.draft_pick_id) {
+      if (seenDraftPickIds.has(item.draft_pick_id)) {
+        throw new ValidationException(`Duplicate draft pick in trade proposal: ${item.draft_pick_id}`);
+      }
+      seenDraftPickIds.add(item.draft_pick_id);
+    }
+
+    const expectedRosterId = item.side === 'proposer' ? proposerRosterId : receiverRosterId;
+    if (item.roster_id !== expectedRosterId) {
+      throw new ValidationException(`Item roster_id does not match the expected roster for ${item.side} side`);
+    }
   }
 }
 
