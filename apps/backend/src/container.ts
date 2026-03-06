@@ -1,64 +1,29 @@
 import { Pool } from 'pg';
 import { config } from './config';
 
-// Integrations
+// Infrastructure
 import { SleeperApiClient } from './integrations/sleeper/sleeper-api-client';
 import { SleeperPlayerProvider } from './integrations/sleeper/sleeper-player-provider';
 import { SleeperStatsProvider } from './integrations/sleeper/sleeper-stats-provider';
-
-// Repositories
-import { UserRepository } from './modules/auth/auth.repository';
-import { LeagueRepository } from './modules/leagues/leagues.repository';
-import { PlayerRepository } from './modules/players/players.repository';
-import { ScoringRepository } from './modules/scoring/scoring.repository';
-import { DraftRepository } from './modules/drafts/drafts.repository';
-import { AuctionLotRepository } from './modules/drafts/auction-lot.repository';
-import { MatchupRepository } from './modules/matchups/matchups.repository';
-import { MatchupDerbyRepository } from './modules/matchups/matchup-derby.repository';
-import { ChatRepository } from './modules/chat/chat.repository';
-import { TradeRepository } from './modules/trades/trades.repository';
-import { TransactionRepository } from './modules/transactions/transactions.repository';
-import { PaymentRepository } from './modules/payments/payments.repository';
-
-// Shared
 import { EmailService } from './shared/email';
 
-// Services
-import { AuthService } from './modules/auth/auth.service';
-import { LeagueService } from './modules/leagues/leagues.service';
-import { PlayerService } from './modules/players/players.service';
-import { ScoringService } from './modules/scoring/scoring.service';
-import { DraftService } from './modules/drafts/drafts.service';
-import { AuctionService } from './modules/drafts/auction.service';
-import { SlowAuctionService } from './modules/drafts/slow-auction.service';
-import { DerbyService } from './modules/drafts/derby.service';
-import { MatchupService } from './modules/matchups/matchups.service';
-import { MatchupDerbyService } from './modules/matchups/matchup-derby.service';
-import { ChatService } from './modules/chat/chat.service';
-import { SystemMessageService } from './modules/chat/system-message.service';
-import { TradeService } from './modules/trades/trades.service';
-import { TransactionService } from './modules/transactions/transactions.service';
-import { PaymentService } from './modules/payments/payments.service';
+// Shared repositories (cross-cutting, used by 4+ modules)
+import { LeagueRepository } from './modules/leagues/leagues.repository';
+import { PlayerRepository } from './modules/players/players.repository';
+import { DraftRepository } from './modules/drafts/drafts.repository';
 
-// Controllers
-import { AuthController } from './modules/auth/auth.controller';
-import { LeagueController } from './modules/leagues/leagues.controller';
-import { PlayerController } from './modules/players/players.controller';
-import { ScoringController } from './modules/scoring/scoring.controller';
-import { DraftController } from './modules/drafts/drafts.controller';
-import { MatchupController } from './modules/matchups/matchups.controller';
-import { ChatController } from './modules/chat/chat.controller';
-import { TradeController } from './modules/trades/trades.controller';
-import { TransactionController } from './modules/transactions/transactions.controller';
-import { PaymentController } from './modules/payments/payments.controller';
-
-// Jobs
-import { PlayerSyncJob } from './jobs/player-sync.job';
-import { StatsSyncJob } from './jobs/stats-sync.job';
-import { WaiverProcessJob } from './jobs/waiver-process.job';
-import { TradeReviewJob } from './jobs/trade-review.job';
-import { SlowAuctionSettlementJob } from './jobs/slow-auction-settlement.job';
-import { AuctionTimerJob } from './jobs/auction-timer.job';
+// Domain modules
+import { registerAuthModule } from './modules/auth/auth.module';
+import { registerPlayersModule } from './modules/players/players.module';
+import { registerChatModule } from './modules/chat/chat.module';
+import { registerLeaguesModule } from './modules/leagues/leagues.module';
+import { registerDraftsModule } from './modules/drafts/drafts.module';
+import { registerScoringModule } from './modules/scoring/scoring.module';
+import { registerMatchupsModule } from './modules/matchups/matchups.module';
+import { registerTradesModule } from './modules/trades/trades.module';
+import { registerTransactionsModule } from './modules/transactions/transactions.module';
+import { registerPaymentsModule } from './modules/payments/payments.module';
+import { registerJobs } from './jobs/jobs.module';
 
 function createPool(): Pool {
   const pool = new Pool({
@@ -78,72 +43,59 @@ function createPool(): Pool {
 }
 
 export function createContainer() {
+  // ── Infrastructure ──────────────────────────────────────────────
   const pool = createPool();
 
-  // Integrations
   const sleeperApi = new SleeperApiClient();
   const sleeperPlayerProvider = new SleeperPlayerProvider(sleeperApi);
   const sleeperStatsProvider = new SleeperStatsProvider(sleeperApi);
-
-  // Repositories
-  const userRepository = new UserRepository(pool);
-  const leagueRepository = new LeagueRepository(pool);
-  const playerRepository = new PlayerRepository(pool);
-  const scoringRepository = new ScoringRepository(pool);
-  const draftRepository = new DraftRepository(pool);
-  const auctionLotRepository = new AuctionLotRepository(pool);
-  const matchupRepository = new MatchupRepository(pool);
-  const matchupDerbyRepository = new MatchupDerbyRepository(pool);
-  const chatRepository = new ChatRepository(pool);
-  const tradeRepository = new TradeRepository(pool);
-  const transactionRepository = new TransactionRepository(pool);
-  const paymentRepository = new PaymentRepository(pool);
-
-  // Shared
   const emailService = new EmailService();
 
-  // Services
-  const authService = new AuthService(userRepository, emailService);
-  const chatService = new ChatService(chatRepository);
-  const systemMessageService = new SystemMessageService(chatRepository);
-  const leagueService = new LeagueService(leagueRepository, draftRepository, systemMessageService);
-  const playerService = new PlayerService(playerRepository, sleeperPlayerProvider);
-  const scoringService = new ScoringService(
-    scoringRepository,
+  // ── Shared repositories (used across 4+ modules) ───────────────
+  const leagueRepository = new LeagueRepository(pool);
+  const playerRepository = new PlayerRepository(pool);
+  const draftRepository = new DraftRepository(pool);
+
+  // ── Tier 1: No cross-module dependencies ───────────────────────
+  const auth = registerAuthModule({ pool, emailService });
+  const players = registerPlayersModule({ playerRepository, playerDataProvider: sleeperPlayerProvider });
+  const chat = registerChatModule({ pool });
+
+  // ── Tier 2: Depends on shared repos + Tier 1 ──────────────────
+  const leagues = registerLeaguesModule({
+    leagueRepository,
+    draftRepository,
+    systemMessageService: chat.systemMessageService,
+  });
+
+  const drafts = registerDraftsModule({ pool, draftRepository, leagueRepository, playerRepository });
+
+  const scoring = registerScoringModule({
+    pool,
     playerRepository,
     leagueRepository,
-    sleeperStatsProvider,
-  );
-  const draftService = new DraftService(draftRepository, leagueRepository, playerRepository);
-  const auctionService = new AuctionService(draftRepository, leagueRepository, playerRepository);
-  const slowAuctionService = new SlowAuctionService(auctionLotRepository, draftRepository, leagueRepository, playerRepository, pool);
-  const derbyService = new DerbyService(draftRepository, leagueRepository);
-  const matchupService = new MatchupService(matchupRepository, leagueRepository, draftRepository);
-  const matchupDerbyService = new MatchupDerbyService(matchupDerbyRepository, matchupRepository, leagueRepository, draftRepository);
-  const tradeService = new TradeService(tradeRepository, leagueRepository, draftRepository, playerRepository);
-  const transactionService = new TransactionService(transactionRepository, leagueRepository, playerRepository);
-  const paymentService = new PaymentService(paymentRepository, leagueRepository, systemMessageService);
+    statsDataProvider: sleeperStatsProvider,
+  });
 
-  // Controllers
-  const authController = new AuthController(authService);
-  const leagueController = new LeagueController(leagueService);
-  const playerController = new PlayerController(playerService);
-  const scoringController = new ScoringController(scoringService);
-  const draftController = new DraftController(draftService, auctionService, slowAuctionService, derbyService);
-  const matchupController = new MatchupController(matchupService, matchupDerbyService);
-  const chatController = new ChatController(chatService);
-  const tradeController = new TradeController(tradeService);
-  const transactionController = new TransactionController(transactionService);
-  const paymentController = new PaymentController(paymentService);
+  // ── Tier 3: Depends on shared repos ────────────────────────────
+  const matchups = registerMatchupsModule({ pool, leagueRepository, draftRepository });
+  const trades = registerTradesModule({ pool, leagueRepository, draftRepository, playerRepository });
+  const transactions = registerTransactionsModule({ pool, leagueRepository, playerRepository });
+  const payments = registerPaymentsModule({ pool, leagueRepository, systemMessageService: chat.systemMessageService });
 
-  // Jobs
-  const playerSyncJob = new PlayerSyncJob(playerService);
-  const statsSyncJob = new StatsSyncJob(scoringService);
-  const waiverProcessJob = new WaiverProcessJob(transactionService);
-  const tradeReviewJob = new TradeReviewJob(tradeService);
-  const slowAuctionSettlementJob = new SlowAuctionSettlementJob(slowAuctionService, pool);
-  const auctionTimerJob = new AuctionTimerJob(auctionService, draftRepository);
+  // ── Jobs ────────────────────────────────────────────────────────
+  const jobs = registerJobs({
+    pool,
+    draftRepository,
+    playerService: players.playerService,
+    scoringService: scoring.scoringService,
+    transactionService: transactions.transactionService,
+    tradeService: trades.tradeService,
+    slowAuctionService: drafts.slowAuctionService,
+    auctionService: drafts.auctionService,
+  });
 
+  // ── Return (same shape as original) ─────────────────────────────
   return {
     pool,
     repositories: {
@@ -151,36 +103,29 @@ export function createContainer() {
       leagueRepository,
     },
     services: {
-      chatService,
-      systemMessageService,
-      draftService,
-      auctionService,
-      slowAuctionService,
-      derbyService,
-      matchupDerbyService,
-      tradeService,
-      transactionService,
+      chatService: chat.chatService,
+      systemMessageService: chat.systemMessageService,
+      draftService: drafts.draftService,
+      auctionService: drafts.auctionService,
+      slowAuctionService: drafts.slowAuctionService,
+      derbyService: drafts.derbyService,
+      matchupDerbyService: matchups.matchupDerbyService,
+      tradeService: trades.tradeService,
+      transactionService: transactions.transactionService,
     },
     controllers: {
-      authController,
-      leagueController,
-      playerController,
-      scoringController,
-      draftController,
-      matchupController,
-      chatController,
-      tradeController,
-      transactionController,
-      paymentController,
+      authController: auth.authController,
+      leagueController: leagues.leagueController,
+      playerController: players.playerController,
+      scoringController: scoring.scoringController,
+      draftController: drafts.draftController,
+      matchupController: matchups.matchupController,
+      chatController: chat.chatController,
+      tradeController: trades.tradeController,
+      transactionController: transactions.transactionController,
+      paymentController: payments.paymentController,
     },
-    jobs: {
-      playerSyncJob,
-      statsSyncJob,
-      waiverProcessJob,
-      tradeReviewJob,
-      slowAuctionSettlementJob,
-      auctionTimerJob,
-    },
+    jobs,
   };
 }
 
