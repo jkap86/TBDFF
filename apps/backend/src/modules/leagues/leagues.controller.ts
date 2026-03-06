@@ -1,11 +1,17 @@
 import { Request, Response } from 'express';
 import { AuthRequest } from '../../middleware/auth.middleware';
 import { LeagueService } from './leagues.service';
+import { LeagueInviteService } from './league-invite.service';
+import { LeagueRosterService } from './league-roster.service';
 import { InvalidCredentialsException, NotFoundException } from '../../shared/exceptions';
 import { UpdateLeagueInput, CreateInviteInput } from './leagues.schemas';
 
 export class LeagueController {
-  constructor(private readonly leagueService: LeagueService) {}
+  constructor(
+    private readonly leagueService: LeagueService,
+    private readonly leagueInviteService: LeagueInviteService,
+    private readonly leagueRosterService: LeagueRosterService,
+  ) {}
 
   create = async (req: AuthRequest, res: Response): Promise<void> => {
     const userId = req.user?.userId;
@@ -150,7 +156,7 @@ export class LeagueController {
 
     const { username } = req.body as CreateInviteInput;
 
-    const invite = await this.leagueService.createInvite(leagueId, userId, username);
+    const invite = await this.leagueInviteService.createInvite(leagueId, userId, username);
     res.status(201).json({ invite: invite.toSafeObject() });
   };
 
@@ -162,7 +168,7 @@ export class LeagueController {
       ? req.params.leagueId[0]
       : req.params.leagueId;
 
-    const invites = await this.leagueService.getLeagueInvites(leagueId, userId);
+    const invites = await this.leagueInviteService.getLeagueInvites(leagueId, userId);
     res.status(200).json({ invites: invites.map(i => i.toSafeObject()) });
   };
 
@@ -170,7 +176,7 @@ export class LeagueController {
     const userId = req.user?.userId;
     if (!userId) throw new InvalidCredentialsException();
 
-    const invites = await this.leagueService.getMyInvites(userId);
+    const invites = await this.leagueInviteService.getMyInvites(userId);
     res.status(200).json({ invites: invites.map(i => i.toSafeObject()) });
   };
 
@@ -182,7 +188,7 @@ export class LeagueController {
       ? req.params.inviteId[0]
       : req.params.inviteId;
 
-    const member = await this.leagueService.acceptInvite(inviteId, userId);
+    const member = await this.leagueInviteService.acceptInvite(inviteId, userId);
     res.status(200).json({ member: member.toSafeObject() });
   };
 
@@ -194,19 +200,8 @@ export class LeagueController {
       ? req.params.inviteId[0]
       : req.params.inviteId;
 
-    // Determine if this is a decline (invitee) or cancel (inviter/commissioner)
-    const invite = await this.leagueService['leagueRepository'].findInviteById(inviteId);
-    if (!invite) throw new NotFoundException('Invite not found');
-
-    if (invite.inviteeId === userId) {
-      // User is declining their own invite
-      await this.leagueService.declineInvite(inviteId, userId);
-      res.status(200).json({ message: 'Invite declined' });
-    } else {
-      // User is canceling an invite they sent (or they're a commissioner)
-      await this.leagueService.cancelInvite(inviteId, userId);
-      res.status(200).json({ message: 'Invite cancelled' });
-    }
+    const result = await this.leagueInviteService.cancelOrDeclineInvite(inviteId, userId);
+    res.status(200).json({ message: result === 'declined' ? 'Invite declined' : 'Invite cancelled' });
   };
 
   // ---- Rosters ----
@@ -219,7 +214,7 @@ export class LeagueController {
       ? req.params.leagueId[0]
       : req.params.leagueId;
 
-    const rosters = await this.leagueService.getLeagueRosters(leagueId, userId);
+    const rosters = await this.leagueRosterService.getLeagueRosters(leagueId, userId);
     res.status(200).json({ rosters: rosters.map((r) => r.toSafeObject()) });
   };
 
@@ -234,7 +229,7 @@ export class LeagueController {
     const rosterId = parseInt(rosterIdParam, 10);
     const targetUserId = req.body.user_id;
 
-    const result = await this.leagueService.assignMemberToRoster(
+    const result = await this.leagueRosterService.assignMemberToRoster(
       leagueId,
       userId,
       targetUserId,
@@ -257,11 +252,11 @@ export class LeagueController {
     const rosterId = parseInt(rosterIdParam, 10);
 
     // Find who owns this roster to unassign them
-    const rosters = await this.leagueService.getLeagueRosters(leagueId, userId);
+    const rosters = await this.leagueRosterService.getLeagueRosters(leagueId, userId);
     const roster = rosters.find((r) => r.rosterId === rosterId);
     if (!roster || !roster.ownerId) throw new NotFoundException('Roster not found or not assigned');
 
-    await this.leagueService.unassignMemberFromRoster(leagueId, userId, roster.ownerId);
+    await this.leagueRosterService.unassignMemberFromRoster(leagueId, userId, roster.ownerId);
     res.status(200).json({ message: 'Roster unassigned' });
   };
 }

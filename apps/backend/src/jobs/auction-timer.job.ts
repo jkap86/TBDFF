@@ -1,7 +1,7 @@
 import cron from 'node-cron';
 import type { ScheduledTask } from 'node-cron';
 import { randomUUID } from 'crypto';
-import { AuctionService } from '../modules/drafts/auction.service';
+import { AuctionAutoBidService } from '../modules/drafts/auction-auto-bid.service';
 import { DraftRepository } from '../modules/drafts/drafts.repository';
 
 /**
@@ -17,7 +17,7 @@ export class AuctionTimerJob {
   private readonly instanceId: string;
 
   constructor(
-    private readonly auctionService: AuctionService,
+    private readonly auctionAutoBidService: AuctionAutoBidService,
     private readonly draftRepository: DraftRepository,
   ) {
     this.instanceId = randomUUID();
@@ -39,7 +39,7 @@ export class AuctionTimerJob {
 
       for (const timer of timers) {
         try {
-          await this.auctionService.processAutoBidsFromTimer(timer.draft_id);
+          await this.auctionAutoBidService.processAutoBidsFromTimer(timer.draft_id);
         } catch (err) {
           console.error(`[AuctionTimerJob] Failed for draft ${timer.draft_id}:`, err);
         } finally {

@@ -3,6 +3,9 @@
 import { useState, useEffect } from 'react';
 import type { Draft, DraftType, UpdateDraftRequest } from '@/lib/api';
 import { ApiError } from '@/lib/api';
+import { AuctionSettingsSection } from './AuctionSettingsSection';
+import { SlowAuctionSettingsSection } from './SlowAuctionSettingsSection';
+import { DerbySettingsSection } from './DerbySettingsSection';
 
 const DRAFT_TYPE_OPTIONS: { value: DraftType; label: string }[] = [
   { value: 'snake', label: 'Snake' },
@@ -16,36 +19,6 @@ const PLAYER_TYPE_LABELS: Record<number, string> = {
   1: 'Rookies Only',
   2: 'Veterans Only',
 };
-
-const NOMINATION_TIMER_PRESETS = [
-  { label: '15s', value: 15 },
-  { label: '30s', value: 30 },
-  { label: '45s', value: 45 },
-  { label: '1m', value: 60 },
-];
-
-const OFFERING_TIMER_PRESETS = [
-  { label: '30s', value: 30 },
-  { label: '1m', value: 60 },
-  { label: '2m', value: 120 },
-  { label: '5m', value: 300 },
-];
-
-const BID_WINDOW_PRESETS = [
-  { label: '4h', value: 14400 },
-  { label: '8h', value: 28800 },
-  { label: '12h', value: 43200 },
-  { label: '24h', value: 86400 },
-  { label: '48h', value: 172800 },
-];
-
-const MAX_LOT_DURATION_PRESETS = [
-  { label: 'No cap', value: 0 },
-  { label: '3 days', value: 259200 },
-  { label: '5 days', value: 432000 },
-  { label: '7 days', value: 604800 },
-  { label: '14 days', value: 1209600 },
-];
 
 interface DraftSettingsFormProps {
   draft: Draft;
@@ -111,9 +84,7 @@ export function DraftSettingsForm({ draft, onSave, onSaveSuccess, readOnly, vetD
   const isAuction = draftType === 'auction';
   const isSlowAuction = draftType === 'slow_auction';
   const isAnyAuction = isAuction || isSlowAuction;
-  const isPresetNomTimer = NOMINATION_TIMER_PRESETS.some((p) => p.value === nominationTimer);
-  const isPresetOfferingTimer = OFFERING_TIMER_PRESETS.some((p) => p.value === offeringTimer);
-  const isPresetBidWindow = BID_WINDOW_PRESETS.some((p) => p.value === bidWindowSeconds);
+
   const handleSave = async () => {
     const updates: UpdateDraftRequest = {};
 
@@ -387,123 +358,33 @@ export function DraftSettingsForm({ draft, onSave, onSaveSuccess, readOnly, vetD
             </div>
           )}
 
-          {/* Derby Settings (shown when Derby selected) */}
+          {/* Derby Settings */}
           {orderMethod === 'derby' && !isSlowAuction && (
-            <>
-              <div>
-                <label className="block text-xs font-medium text-muted-foreground mb-1">Derby Pick Timer</label>
-                <div className="flex items-center gap-3">
-                  <label className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      checked={derbyTimer > 0}
-                      onChange={(e) => setDerbyTimer(e.target.checked ? 60 : 0)}
-                      className="h-4 w-4 rounded border-input text-primary focus:ring-ring"
-                    />
-                    <span className="text-xs text-accent-foreground">{derbyTimer > 0 ? 'Enabled' : 'Off'}</span>
-                  </label>
-                  {derbyTimer > 0 && (
-                    <div className="flex items-center gap-2">
-                      <div className="flex items-center gap-1">
-                        <input
-                          type="number"
-                          value={Math.floor(derbyTimer / 3600)}
-                          onChange={(e) => {
-                            const hrs = Math.max(0, Math.min(24, parseInt(e.target.value) || 0));
-                            const remainingSecs = derbyTimer % 3600;
-                            setDerbyTimer(hrs * 3600 + remainingSecs);
-                          }}
-                          min={0}
-                          max={24}
-                          className="w-14 rounded-lg border border-input px-2 py-2 text-sm text-center text-foreground bg-card focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
-                        />
-                        <span className="text-sm text-muted-foreground">h</span>
-                      </div>
-                      <span className="text-lg font-medium text-muted-foreground">:</span>
-                      <div className="flex items-center gap-1">
-                        <input
-                          type="number"
-                          value={Math.floor((derbyTimer % 3600) / 60)}
-                          onChange={(e) => {
-                            const mins = Math.max(0, Math.min(59, parseInt(e.target.value) || 0));
-                            const hrs = Math.floor(derbyTimer / 3600);
-                            const secs = derbyTimer % 60;
-                            setDerbyTimer(hrs * 3600 + mins * 60 + secs);
-                          }}
-                          min={0}
-                          max={59}
-                          className="w-14 rounded-lg border border-input px-2 py-2 text-sm text-center text-foreground bg-card focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
-                        />
-                        <span className="text-sm text-muted-foreground">m</span>
-                      </div>
-                      <span className="text-lg font-medium text-muted-foreground">:</span>
-                      <div className="flex items-center gap-1">
-                        <input
-                          type="number"
-                          value={derbyTimer % 60}
-                          onChange={(e) => {
-                            const secs = Math.max(0, Math.min(59, parseInt(e.target.value) || 0));
-                            const hrs = Math.floor(derbyTimer / 3600);
-                            const mins = Math.floor((derbyTimer % 3600) / 60);
-                            setDerbyTimer(hrs * 3600 + mins * 60 + secs);
-                          }}
-                          min={0}
-                          max={59}
-                          className="w-14 rounded-lg border border-input px-2 py-2 text-sm text-center text-foreground bg-card focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
-                        />
-                        <span className="text-sm text-muted-foreground">s</span>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-muted-foreground mb-1">Timer Expiry Action</label>
-                <div className="flex gap-1.5">
-                  {([
-                    { value: 0, label: 'Autopick' },
-                    { value: 1, label: 'Skip' },
-                  ] as const).map((opt) => (
-                    <button
-                      key={opt.value}
-                      type="button"
-                      onClick={() => setDerbyTimeoutAction(opt.value)}
-                      className={`rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors ${
-                        derbyTimeoutAction === opt.value
-                          ? 'bg-primary text-primary-foreground ring-2 ring-ring'
-                          : 'bg-muted text-accent-foreground hover:bg-muted-hover'
-                      }`}
-                    >
-                      {opt.label}
-                    </button>
-                  ))}
-                </div>
-                <p className="text-xs text-disabled mt-1">
-                  {derbyTimeoutAction === 0
-                    ? 'Random slot assigned when timer expires'
-                    : 'User is skipped and can pick later at any time'}
-                </p>
-              </div>
-            </>
+            <DerbySettingsSection
+              derbyTimer={derbyTimer}
+              onDerbyTimerChange={setDerbyTimer}
+              derbyTimeoutAction={derbyTimeoutAction}
+              onDerbyTimeoutActionChange={setDerbyTimeoutAction}
+            />
           )}
 
-          {/* Max Players Per Team (any auction) */}
-          {isAnyAuction && (
-            <div>
-              <label className="block text-xs font-medium text-muted-foreground mb-1">Max Players / Team</label>
-              <div className="flex items-center gap-2">
-                <input
-                  type="number"
-                  value={maxPlayersPerTeam}
-                  onChange={(e) => setMaxPlayersPerTeam(Math.max(0, Math.min(50, parseInt(e.target.value) || 0)))}
-                  min={0}
-                  max={50}
-                  className="w-20 rounded-lg border border-input px-3 py-2 text-sm text-foreground bg-card focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
-                />
-                <span className="text-xs text-disabled">0 = same as rounds</span>
-              </div>
-            </div>
-          )}
+          {/* Auction Settings */}
+          <AuctionSettingsSection
+            isAuction={isAuction}
+            isSlowAuction={isSlowAuction}
+            maxPlayersPerTeam={maxPlayersPerTeam}
+            onMaxPlayersPerTeamChange={setMaxPlayersPerTeam}
+            nominationTimer={nominationTimer}
+            onNominationTimerChange={setNominationTimer}
+            offeringTimer={offeringTimer}
+            onOfferingTimerChange={setOfferingTimer}
+            budget={budget}
+            onBudgetChange={setBudget}
+            customNomTimer={customNomTimer}
+            onCustomNomTimerChange={setCustomNomTimer}
+            customOfferingTimer={customOfferingTimer}
+            onCustomOfferingTimerChange={setCustomOfferingTimer}
+          />
 
           {/* Pick Timer (non-auction only) */}
           {!isAnyAuction && <div>
@@ -574,218 +455,24 @@ export function DraftSettingsForm({ draft, onSave, onSaveSuccess, readOnly, vetD
             </div>
           </div>}
 
-          {/* Offering Timer (auction only) */}
-          {isAuction && (
-            <div>
-              <label className="block text-xs font-medium text-muted-foreground mb-1">Offering Timer</label>
-              <div className="flex flex-wrap gap-1.5">
-                {OFFERING_TIMER_PRESETS.map((preset) => (
-                  <button
-                    key={preset.value}
-                    type="button"
-                    onClick={() => { setOfferingTimer(preset.value); setCustomOfferingTimer(''); }}
-                    className={`rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors ${
-                      offeringTimer === preset.value
-                        ? 'bg-primary text-primary-foreground ring-2 ring-ring'
-                        : 'bg-muted text-accent-foreground hover:bg-muted-hover'
-                    }`}
-                  >
-                    {preset.label}
-                  </button>
-                ))}
-                <div className="flex items-center gap-1">
-                  <input
-                    type="number"
-                    value={!isPresetOfferingTimer ? offeringTimer : customOfferingTimer}
-                    onChange={(e) => {
-                      const val = parseInt(e.target.value) || 0;
-                      setCustomOfferingTimer(e.target.value);
-                      setOfferingTimer(Math.max(0, Math.min(86400, val)));
-                    }}
-                    placeholder="Custom"
-                    min={0}
-                    max={86400}
-                    className="w-20 rounded-lg border border-input px-2 py-1.5 text-xs text-foreground bg-card focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
-                  />
-                  <span className="text-xs text-disabled">sec</span>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Bid Timer (auction only) */}
-          {isAuction && (
-            <div>
-              <label className="block text-xs font-medium text-muted-foreground mb-1">Bid Timer</label>
-              <div className="flex flex-wrap gap-1.5">
-                {NOMINATION_TIMER_PRESETS.map((preset) => (
-                  <button
-                    key={preset.value}
-                    type="button"
-                    onClick={() => { setNominationTimer(preset.value); setCustomNomTimer(''); }}
-                    className={`rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors ${
-                      nominationTimer === preset.value
-                        ? 'bg-primary text-primary-foreground ring-2 ring-ring'
-                        : 'bg-muted text-accent-foreground hover:bg-muted-hover'
-                    }`}
-                  >
-                    {preset.label}
-                  </button>
-                ))}
-                <div className="flex items-center gap-1">
-                  <input
-                    type="number"
-                    value={!isPresetNomTimer ? nominationTimer : customNomTimer}
-                    onChange={(e) => {
-                      const val = parseInt(e.target.value) || 0;
-                      setCustomNomTimer(e.target.value);
-                      setNominationTimer(Math.max(0, Math.min(86400, val)));
-                    }}
-                    placeholder="Custom"
-                    min={0}
-                    max={86400}
-                    className="w-20 rounded-lg border border-input px-2 py-1.5 text-xs text-foreground bg-card focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
-                  />
-                  <span className="text-xs text-disabled">sec</span>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Budget (any auction) */}
-          {isAnyAuction && (
-            <div>
-              <label className="block text-xs font-medium text-muted-foreground mb-1">Auction Budget</label>
-              <div className="flex items-center gap-1">
-                <span className="text-sm text-muted-foreground">$</span>
-                <input
-                  type="number"
-                  value={budget}
-                  onChange={(e) => setBudget(Math.max(1, Math.min(9999, parseInt(e.target.value) || 1)))}
-                  min={1}
-                  max={9999}
-                  className="w-24 rounded-lg border border-input px-3 py-2 text-sm text-foreground bg-card focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
-                />
-              </div>
-            </div>
-          )}
-
           {/* Slow Auction Settings */}
           {isSlowAuction && (
-            <>
-              <div>
-                <label className="block text-xs font-medium text-muted-foreground mb-1">Bid Window</label>
-                <div className="flex flex-wrap gap-1.5">
-                  {BID_WINDOW_PRESETS.map((preset) => (
-                    <button
-                      key={preset.value}
-                      type="button"
-                      onClick={() => setBidWindowSeconds(preset.value)}
-                      className={`rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors ${
-                        bidWindowSeconds === preset.value
-                          ? 'bg-primary text-primary-foreground ring-2 ring-ring'
-                          : 'bg-muted text-accent-foreground hover:bg-muted-hover'
-                      }`}
-                    >
-                      {preset.label}
-                    </button>
-                  ))}
-                  {!isPresetBidWindow && (
-                    <span className="text-xs text-muted-foreground self-center">{Math.round(bidWindowSeconds / 3600)}h</span>
-                  )}
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-medium text-muted-foreground mb-1">Max Noms / Team</label>
-                  <input
-                    type="number"
-                    value={maxNominationsPerTeam}
-                    onChange={(e) => setMaxNominationsPerTeam(Math.max(1, Math.min(50, parseInt(e.target.value) || 1)))}
-                    min={1}
-                    max={50}
-                    className="w-20 rounded-lg border border-input px-3 py-2 text-sm text-foreground bg-card focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-muted-foreground mb-1">Max Active Global</label>
-                  <input
-                    type="number"
-                    value={maxNominationsGlobal}
-                    onChange={(e) => setMaxNominationsGlobal(Math.max(1, Math.min(200, parseInt(e.target.value) || 1)))}
-                    min={1}
-                    max={200}
-                    className="w-20 rounded-lg border border-input px-3 py-2 text-sm text-foreground bg-card focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-muted-foreground mb-1">Daily Nom Limit</label>
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="number"
-                      value={dailyNominationLimit}
-                      onChange={(e) => setDailyNominationLimit(Math.max(0, Math.min(100, parseInt(e.target.value) || 0)))}
-                      min={0}
-                      max={100}
-                      className="w-20 rounded-lg border border-input px-3 py-2 text-sm text-foreground bg-card focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
-                    />
-                    <span className="text-xs text-disabled">0 = unlimited</span>
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-muted-foreground mb-1">Min Bid</label>
-                  <div className="flex items-center gap-1">
-                    <span className="text-sm text-muted-foreground">$</span>
-                    <input
-                      type="number"
-                      value={minBid}
-                      onChange={(e) => setMinBid(Math.max(1, Math.min(999, parseInt(e.target.value) || 1)))}
-                      min={1}
-                      max={999}
-                      className="w-20 rounded-lg border border-input px-3 py-2 text-sm text-foreground bg-card focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
-                    />
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-muted-foreground mb-1">Min Increment</label>
-                  <div className="flex items-center gap-1">
-                    <span className="text-sm text-muted-foreground">$</span>
-                    <input
-                      type="number"
-                      value={minIncrement}
-                      onChange={(e) => setMinIncrement(Math.max(1, Math.min(100, parseInt(e.target.value) || 1)))}
-                      min={1}
-                      max={100}
-                      className="w-20 rounded-lg border border-input px-3 py-2 text-sm text-foreground bg-card focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-medium text-muted-foreground mb-1">Max Lot Duration</label>
-                <div className="flex flex-wrap gap-1.5">
-                  {MAX_LOT_DURATION_PRESETS.map((preset) => (
-                    <button
-                      key={preset.value}
-                      type="button"
-                      onClick={() => setMaxLotDurationSeconds(preset.value)}
-                      className={`rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors ${
-                        maxLotDurationSeconds === preset.value
-                          ? 'bg-primary text-primary-foreground ring-2 ring-ring'
-                          : 'bg-muted text-accent-foreground hover:bg-muted-hover'
-                      }`}
-                    >
-                      {preset.label}
-                    </button>
-                  ))}
-                </div>
-                <span className="text-xs text-disabled mt-1 block">
-                  0 = lots can extend indefinitely
-                </span>
-              </div>
-            </>
+            <SlowAuctionSettingsSection
+              bidWindowSeconds={bidWindowSeconds}
+              onBidWindowSecondsChange={setBidWindowSeconds}
+              maxNominationsPerTeam={maxNominationsPerTeam}
+              onMaxNominationsPerTeamChange={setMaxNominationsPerTeam}
+              maxNominationsGlobal={maxNominationsGlobal}
+              onMaxNominationsGlobalChange={setMaxNominationsGlobal}
+              dailyNominationLimit={dailyNominationLimit}
+              onDailyNominationLimitChange={setDailyNominationLimit}
+              minBid={minBid}
+              onMinBidChange={setMinBid}
+              minIncrement={minIncrement}
+              onMinIncrementChange={setMinIncrement}
+              maxLotDurationSeconds={maxLotDurationSeconds}
+              onMaxLotDurationSecondsChange={setMaxLotDurationSeconds}
+            />
           )}
         </div>
       </div>

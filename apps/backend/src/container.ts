@@ -92,7 +92,7 @@ export function createContainer() {
     transactionService: transactions.transactionService,
     tradeService: trades.tradeService,
     slowAuctionService: drafts.slowAuctionService,
-    auctionService: drafts.auctionService,
+    auctionAutoBidService: drafts.auctionAutoBidService,
   });
 
   // ── Return (same shape as original) ─────────────────────────────
@@ -109,6 +109,7 @@ export function createContainer() {
       draftQueueService: drafts.draftQueueService,
       draftClockService: drafts.draftClockService,
       autoPickService: drafts.autoPickService,
+      auctionAutoBidService: drafts.auctionAutoBidService,
       auctionService: drafts.auctionService,
       slowAuctionService: drafts.slowAuctionService,
       derbyService: drafts.derbyService,

@@ -10,7 +10,7 @@ import { ScoringService } from '../modules/scoring/scoring.service';
 import { TransactionService } from '../modules/transactions/transactions.service';
 import { TradeService } from '../modules/trades/trades.service';
 import { SlowAuctionService } from '../modules/drafts/slow-auction.service';
-import { AuctionService } from '../modules/drafts/auction.service';
+import { AuctionAutoBidService } from '../modules/drafts/auction-auto-bid.service';
 import { DraftRepository } from '../modules/drafts/drafts.repository';
 
 interface JobsDeps {
@@ -21,7 +21,7 @@ interface JobsDeps {
   transactionService: TransactionService;
   tradeService: TradeService;
   slowAuctionService: SlowAuctionService;
-  auctionService: AuctionService;
+  auctionAutoBidService: AuctionAutoBidService;
 }
 
 export function registerJobs(deps: JobsDeps) {
@@ -30,7 +30,7 @@ export function registerJobs(deps: JobsDeps) {
   const waiverProcessJob = new WaiverProcessJob(deps.transactionService);
   const tradeReviewJob = new TradeReviewJob(deps.tradeService);
   const slowAuctionSettlementJob = new SlowAuctionSettlementJob(deps.slowAuctionService, deps.pool);
-  const auctionTimerJob = new AuctionTimerJob(deps.auctionService, deps.draftRepository);
+  const auctionTimerJob = new AuctionTimerJob(deps.auctionAutoBidService, deps.draftRepository);
 
   return {
     playerSyncJob,

@@ -1,5 +1,7 @@
 import { LeagueRepository } from './leagues.repository';
 import { LeagueService } from './leagues.service';
+import { LeagueInviteService } from './league-invite.service';
+import { LeagueRosterService } from './league-roster.service';
 import { LeagueController } from './leagues.controller';
 import { DraftRepository } from '../drafts/drafts.repository';
 import { SystemMessageService } from '../chat/system-message.service';
@@ -16,7 +18,16 @@ export function registerLeaguesModule(deps: LeaguesModuleDeps) {
     deps.draftRepository,
     deps.systemMessageService,
   );
-  const leagueController = new LeagueController(leagueService);
+  const leagueInviteService = new LeagueInviteService(
+    deps.leagueRepository,
+    deps.systemMessageService,
+  );
+  const leagueRosterService = new LeagueRosterService(
+    deps.leagueRepository,
+    deps.draftRepository,
+    deps.systemMessageService,
+  );
+  const leagueController = new LeagueController(leagueService, leagueInviteService, leagueRosterService);
 
   return { leagueController };
 }

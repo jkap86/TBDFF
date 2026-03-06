@@ -5,6 +5,7 @@ import { DraftService } from './drafts.service';
 import { DraftQueueService } from './draft-queue.service';
 import { DraftClockService } from './draft-clock.service';
 import { AutoPickService } from './auto-pick.service';
+import { AuctionAutoBidService } from './auction-auto-bid.service';
 import { AuctionService } from './auction.service';
 import { SlowAuctionService } from './slow-auction.service';
 import { DerbyService } from './derby.service';
@@ -26,7 +27,9 @@ export function registerDraftsModule(deps: DraftsModuleDeps) {
   const draftClockService = new DraftClockService(deps.draftRepository, deps.leagueRepository);
   const autoPickService = new AutoPickService(deps.draftRepository, deps.leagueRepository);
   const draftService = new DraftService(deps.draftRepository, deps.leagueRepository, deps.playerRepository, autoPickService);
-  const auctionService = new AuctionService(deps.draftRepository, deps.leagueRepository, deps.playerRepository);
+  const auctionAutoBidService = new AuctionAutoBidService(deps.draftRepository, deps.leagueRepository, deps.playerRepository);
+  const auctionService = new AuctionService(deps.draftRepository, deps.leagueRepository, deps.playerRepository, auctionAutoBidService);
+  auctionAutoBidService.setOnDeadlineExpired((draftId, userId) => auctionService.resolveNomination(draftId, userId));
   const slowAuctionService = new SlowAuctionService(
     auctionLotRepository,
     deps.draftRepository,
@@ -35,7 +38,7 @@ export function registerDraftsModule(deps: DraftsModuleDeps) {
     deps.pool,
   );
   const derbyService = new DerbyService(deps.draftRepository, deps.leagueRepository);
-  const draftController = new DraftController(draftService, draftQueueService, draftClockService, autoPickService, auctionService, slowAuctionService, derbyService);
+  const draftController = new DraftController(draftService, draftQueueService, draftClockService, autoPickService, auctionAutoBidService, auctionService, slowAuctionService, derbyService);
 
-  return { draftService, draftQueueService, draftClockService, autoPickService, auctionService, slowAuctionService, derbyService, draftController };
+  return { draftService, draftQueueService, draftClockService, autoPickService, auctionAutoBidService, auctionService, slowAuctionService, derbyService, draftController };
 }

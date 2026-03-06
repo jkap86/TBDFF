@@ -1,11 +1,14 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { ChevronDown, Check, X, Plus, Pencil, Trash2, DollarSign, Trophy, TrendingUp, AlertTriangle } from 'lucide-react';
+import { ChevronDown, Check, X, Plus, Pencil, DollarSign, Trophy, TrendingUp, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
 import { paymentApi, ApiError } from '@/lib/api';
 import type { LeaguePayment, LeagueMember, LeagueSettings, PayoutCategory, PayoutEntry } from '@tbdff/shared';
 import { useAuth } from '@/features/auth/hooks/useAuth';
+import { PayoutForm } from './PayoutForm';
+import { PayoutEntryList } from './PayoutEntryList';
+import { BuyInStatusSection } from './BuyInStatusSection';
 
 interface EditModeProps {
   leagueId: string;
@@ -30,12 +33,6 @@ interface CreateModeProps {
 
 type PaymentsSettingsProps = EditModeProps | CreateModeProps;
 
-const ordinal = (n: number) => {
-  const s = ['th', 'st', 'nd', 'rd'];
-  const v = n % 100;
-  return n + (s[(v - 20) % 10] || s[v] || s[0]);
-};
-
 function computeAllocation(payouts: PayoutEntry[], buyIn: number, totalRosters: number) {
   const totalPot = buyIn * totalRosters;
   if (totalPot <= 0) return { totalPot: 0, totalAllocated: 0, percentage: 0 };
@@ -46,18 +43,6 @@ function computeAllocation(payouts: PayoutEntry[], buyIn: number, totalRosters: 
   }
 
   return { totalPot, totalAllocated, percentage: (totalAllocated / totalPot) * 100 };
-}
-
-function wouldOverAllocate(
-  currentPayouts: PayoutEntry[],
-  newEntry: PayoutEntry,
-  buyIn: number,
-  totalRosters: number,
-): boolean {
-  const { totalPot } = computeAllocation(currentPayouts, buyIn, totalRosters);
-  if (totalPot <= 0) return false;
-  const { totalAllocated } = computeAllocation([...currentPayouts, newEntry], buyIn, totalRosters);
-  return totalAllocated > totalPot + 0.01; // small epsilon for floating-point
 }
 
 function AllocationBanner({ payouts, buyIn, totalRosters }: { payouts: PayoutEntry[]; buyIn: number; totalRosters: number }) {
@@ -95,7 +80,6 @@ function AllocationBanner({ payouts, buyIn, totalRosters }: { payouts: PayoutEnt
 }
 
 export function PaymentsSettings(props: PaymentsSettingsProps) {
-  const { isOpen, onToggle } = props;
   const isCreateMode = 'mode' in props && props.mode === 'create';
 
   if (isCreateMode) {
@@ -109,62 +93,13 @@ export function PaymentsSettings(props: PaymentsSettingsProps) {
 
 function CreatePayments({ buyIn, totalRosters, onBuyInChange, payouts, onPayoutsChange, isOpen, onToggle }: CreateModeProps) {
   const [showPayoutForm, setShowPayoutForm] = useState(false);
-  const [newCategory, setNewCategory] = useState<PayoutCategory>('place');
-  const [newPosition, setNewPosition] = useState('');
-  const [newValue, setNewValue] = useState('');
-  const [newIsPercentage, setNewIsPercentage] = useState(false);
 
   const placeEntries = payouts.filter((e) => e.category === 'place').sort((a, b) => a.position - b.position);
   const pointsEntries = payouts.filter((e) => e.category === 'points').sort((a, b) => a.position - b.position);
 
-  const handleAddEntry = () => {
-    const pos = parseInt(newPosition, 10);
-    const val = parseFloat(newValue);
-    if (isNaN(pos) || pos < 1) return;
-    if (isNaN(val) || val <= 0) return;
-    if (newIsPercentage && val > 100) return;
-    if (payouts.find((e) => e.category === newCategory && e.position === pos)) return;
-
-    const newEntry: PayoutEntry = { category: newCategory, position: pos, value: val, is_percentage: newIsPercentage };
-    if (wouldOverAllocate(payouts, newEntry, buyIn, totalRosters)) return;
-
-    onPayoutsChange([...payouts, newEntry]);
-    setNewPosition('');
-    setNewValue('');
-    setShowPayoutForm(false);
-  };
-
   const handleRemoveEntry = (category: PayoutCategory, position: number) => {
     onPayoutsChange(payouts.filter((e) => !(e.category === category && e.position === position)));
   };
-
-  const renderEntryList = (entries: PayoutEntry[]) => (
-    <div className="space-y-1">
-      {entries.map((entry) => (
-        <div
-          key={`${entry.category}-${entry.position}`}
-          className="flex items-center justify-between rounded border border-border px-3 py-2"
-        >
-          <span className="text-sm font-medium text-foreground">
-            {ordinal(entry.position)}
-          </span>
-          <div className="flex items-center gap-2">
-            <span className="text-sm font-medium text-success-foreground">
-              {entry.is_percentage ? `${entry.value}%` : `$${entry.value.toFixed(2)}`}
-            </span>
-            <button
-              type="button"
-              onClick={() => handleRemoveEntry(entry.category, entry.position)}
-              className="rounded p-1 text-disabled hover:bg-destructive hover:text-destructive-foreground"
-              title="Remove"
-            >
-              <Trash2 className="h-3.5 w-3.5" />
-            </button>
-          </div>
-        </div>
-      ))}
-    </div>
-  );
 
   return (
     <div className="mb-4 rounded-lg border border-border">
@@ -219,67 +154,16 @@ function CreatePayments({ buyIn, totalRosters, onBuyInChange, payouts, onPayouts
             </div>
 
             {showPayoutForm && (
-              <div className="mb-3 rounded border border-primary/20 bg-primary/10 p-3 space-y-2">
-                <div className="flex gap-2">
-                  <select
-                    value={newCategory}
-                    onChange={(e) => setNewCategory(e.target.value as PayoutCategory)}
-                    className="rounded border border-input bg-card px-2 py-1.5 text-sm text-foreground"
-                  >
-                    <option value="place">Place Finish</option>
-                    <option value="points">Points Finish</option>
-                  </select>
-                  <input
-                    type="number"
-                    min="1"
-                    step="1"
-                    placeholder="Position (1, 2, 3...)"
-                    value={newPosition}
-                    onChange={(e) => setNewPosition(e.target.value)}
-                    className="w-full flex-1 rounded border border-input bg-card px-2 py-1.5 text-sm text-foreground"
-                  />
-                </div>
-                <div className="flex gap-2">
-                  <div className="flex items-center gap-1 flex-1">
-                    <span className="text-sm text-muted-foreground">
-                      {newIsPercentage ? '%' : '$'}
-                    </span>
-                    <input
-                      type="number"
-                      min="0.01"
-                      step="0.01"
-                      placeholder="Amount"
-                      value={newValue}
-                      onChange={(e) => setNewValue(e.target.value)}
-                      className="w-full rounded border border-input bg-card px-2 py-1.5 text-sm text-foreground"
-                    />
-                  </div>
-                  <select
-                    value={newIsPercentage ? 'percent' : 'dollar'}
-                    onChange={(e) => setNewIsPercentage(e.target.value === 'percent')}
-                    className="rounded border border-input bg-card px-2 py-1.5 text-sm text-foreground"
-                  >
-                    <option value="dollar">$</option>
-                    <option value="percent">%</option>
-                  </select>
-                </div>
-                <div className="flex gap-2 justify-end">
-                  <button
-                    type="button"
-                    onClick={() => { setShowPayoutForm(false); setNewPosition(''); setNewValue(''); }}
-                    className="rounded px-3 py-1.5 text-xs font-medium text-muted-foreground hover:bg-muted"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleAddEntry}
-                    className="rounded bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary-hover"
-                  >
-                    Add
-                  </button>
-                </div>
-              </div>
+              <PayoutForm
+                payouts={payouts}
+                buyIn={buyIn}
+                totalRosters={totalRosters}
+                onAdd={(entry) => {
+                  onPayoutsChange([...payouts, entry]);
+                  setShowPayoutForm(false);
+                }}
+                onCancel={() => setShowPayoutForm(false)}
+              />
             )}
 
             {placeEntries.length > 0 && (
@@ -288,7 +172,7 @@ function CreatePayments({ buyIn, totalRosters, onBuyInChange, payouts, onPayouts
                   <Trophy className="h-3 w-3" />
                   Place Finish
                 </div>
-                {renderEntryList(placeEntries)}
+                <PayoutEntryList entries={placeEntries} onRemove={handleRemoveEntry} />
               </div>
             )}
 
@@ -298,7 +182,7 @@ function CreatePayments({ buyIn, totalRosters, onBuyInChange, payouts, onPayouts
                   <TrendingUp className="h-3 w-3" />
                   Points Finish
                 </div>
-                {renderEntryList(pointsEntries)}
+                <PayoutEntryList entries={pointsEntries} onRemove={handleRemoveEntry} />
               </div>
             )}
 
@@ -341,10 +225,6 @@ function EditPayments({
   const existingPayouts = (settings as Record<string, unknown>).payouts as PayoutEntry[] | undefined;
   const [payoutEntries, setPayoutEntries] = useState<PayoutEntry[]>(existingPayouts ?? []);
   const [showPayoutForm, setShowPayoutForm] = useState(false);
-  const [newCategory, setNewCategory] = useState<PayoutCategory>('place');
-  const [newPosition, setNewPosition] = useState('');
-  const [newValue, setNewValue] = useState('');
-  const [newIsPercentage, setNewIsPercentage] = useState(false);
   const [isSavingPayouts, setIsSavingPayouts] = useState(false);
 
   const buyInAmount = (settings as Record<string, unknown>).buy_in as number | undefined;
@@ -459,40 +339,6 @@ function EditPayments({
 
   // ---- Payout structure ----
 
-  const handleAddEntry = () => {
-    const pos = parseInt(newPosition, 10);
-    const val = parseFloat(newValue);
-    if (isNaN(pos) || pos < 1) {
-      toast.error('Enter a valid position (1, 2, 3...)');
-      return;
-    }
-    if (isNaN(val) || val <= 0) {
-      toast.error('Enter a valid amount');
-      return;
-    }
-    if (newIsPercentage && val > 100) {
-      toast.error('Percentage cannot exceed 100');
-      return;
-    }
-
-    const duplicate = payoutEntries.find((e) => e.category === newCategory && e.position === pos);
-    if (duplicate) {
-      toast.error(`${newCategory === 'place' ? 'Place' : 'Points'} ${ordinal(pos)} already exists`);
-      return;
-    }
-
-    const newEntry: PayoutEntry = { category: newCategory, position: pos, value: val, is_percentage: newIsPercentage };
-    if (wouldOverAllocate(payoutEntries, newEntry, buyInAmount ?? 0, totalRosters)) {
-      toast.error('Cannot add — this would exceed the total pot');
-      return;
-    }
-
-    setPayoutEntries((prev) => [...prev, newEntry]);
-    setNewPosition('');
-    setNewValue('');
-    setShowPayoutForm(false);
-  };
-
   const handleRemoveEntry = (category: PayoutCategory, position: number) => {
     setPayoutEntries((prev) => prev.filter((e) => !(e.category === category && e.position === position)));
   };
@@ -513,34 +359,6 @@ function EditPayments({
   };
 
   const hasPayoutChanges = JSON.stringify(payoutEntries) !== JSON.stringify(existingPayouts ?? []);
-
-  const renderEntryList = (entries: PayoutEntry[]) => (
-    <div className="space-y-1">
-      {entries.map((entry) => (
-        <div
-          key={`${entry.category}-${entry.position}`}
-          className="flex items-center justify-between rounded border border-border px-3 py-2"
-        >
-          <span className="text-sm font-medium text-foreground">
-            {ordinal(entry.position)}
-          </span>
-          <div className="flex items-center gap-2">
-            <span className="text-sm font-medium text-success-foreground">
-              {entry.is_percentage ? `${entry.value}%` : `$${entry.value.toFixed(2)}`}
-            </span>
-            <button
-              type="button"
-              onClick={() => handleRemoveEntry(entry.category, entry.position)}
-              className="rounded p-1 text-disabled hover:bg-destructive hover:text-destructive-foreground"
-              title="Remove"
-            >
-              <Trash2 className="h-3.5 w-3.5" />
-            </button>
-          </div>
-        </div>
-      ))}
-    </div>
-  );
 
   return (
     <div className="mb-4 rounded-lg border border-border">
@@ -626,70 +444,17 @@ function EditPayments({
               </div>
 
               {/* Buy-in Status */}
-              {buyInAmount != null && activeMembers.length > 0 && (
-                <div>
-                  <div className="mb-2 flex items-center justify-between">
-                    <h4 className="text-sm font-semibold text-accent-foreground">Buy-in Status</h4>
-                    {activeMembers.some((m) => !paidUserIds.has(m.user_id)) && (
-                      <button
-                        type="button"
-                        onClick={handleMarkAllPaid}
-                        disabled={isMarkingAll}
-                        className="rounded bg-green-600 px-3 py-1 text-xs font-medium text-white hover:bg-green-700 disabled:opacity-50"
-                      >
-                        {isMarkingAll ? 'Marking...' : `Mark All Paid (${activeMembers.filter((m) => !paidUserIds.has(m.user_id)).length})`}
-                      </button>
-                    )}
-                  </div>
-                  <div className="space-y-1">
-                    {activeMembers.map((member) => {
-                      const buyInPayment = buyIns.find((p) => p.user_id === member.user_id);
-                      const isPaid = !!buyInPayment;
-
-                      return (
-                        <div
-                          key={member.user_id}
-                          className="flex items-center justify-between rounded border border-border px-3 py-2"
-                        >
-                          <span className="text-sm font-medium text-foreground">
-                            {member.display_name || member.username}
-                          </span>
-                          <div className="flex items-center gap-2">
-                            {isPaid ? (
-                              <>
-                                <span className="rounded-full bg-success px-2 py-0.5 text-xs font-medium text-success-foreground">
-                                  Paid
-                                </span>
-                                <button
-                                  type="button"
-                                  onClick={() => handleMarkUnpaid(buyInPayment.id)}
-                                  className="rounded p-1 text-disabled hover:bg-destructive hover:text-destructive-foreground"
-                                  title="Remove payment"
-                                >
-                                  <X className="h-3.5 w-3.5" />
-                                </button>
-                              </>
-                            ) : (
-                              <>
-                                <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
-                                  Unpaid
-                                </span>
-                                <button
-                                  type="button"
-                                  onClick={() => handleMarkPaid(member.user_id)}
-                                  className="rounded p-1 text-disabled hover:bg-success hover:text-success-foreground"
-                                  title="Mark as paid"
-                                >
-                                  <Check className="h-3.5 w-3.5" />
-                                </button>
-                              </>
-                            )}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
+              {buyInAmount != null && (
+                <BuyInStatusSection
+                  members={activeMembers}
+                  paidUserIds={paidUserIds}
+                  buyInPayments={buyIns}
+                  buyInAmount={buyInAmount}
+                  isMarkingAll={isMarkingAll}
+                  onMarkPaid={handleMarkPaid}
+                  onMarkUnpaid={handleMarkUnpaid}
+                  onMarkAllPaid={handleMarkAllPaid}
+                />
               )}
 
               {/* Payout Structure */}
@@ -708,94 +473,37 @@ function EditPayments({
                   )}
                 </div>
 
-                {/* Add payout form */}
                 {showPayoutForm && (
-                  <div className="mb-3 rounded border border-primary/20 bg-primary/10 p-3 space-y-2">
-                    <div className="flex gap-2">
-                      <select
-                        value={newCategory}
-                        onChange={(e) => setNewCategory(e.target.value as PayoutCategory)}
-                        className="rounded border border-input bg-card px-2 py-1.5 text-sm text-foreground"
-                      >
-                        <option value="place">Place Finish</option>
-                        <option value="points">Points Finish</option>
-                      </select>
-                      <input
-                        type="number"
-                        min="1"
-                        step="1"
-                        placeholder="Position (1, 2, 3...)"
-                        value={newPosition}
-                        onChange={(e) => setNewPosition(e.target.value)}
-                        className="w-full flex-1 rounded border border-input bg-card px-2 py-1.5 text-sm text-foreground"
-                      />
-                    </div>
-                    <div className="flex gap-2">
-                      <div className="flex items-center gap-1 flex-1">
-                        <span className="text-sm text-muted-foreground">
-                          {newIsPercentage ? '%' : '$'}
-                        </span>
-                        <input
-                          type="number"
-                          min="0.01"
-                          step="0.01"
-                          placeholder="Amount"
-                          value={newValue}
-                          onChange={(e) => setNewValue(e.target.value)}
-                          className="w-full rounded border border-input bg-card px-2 py-1.5 text-sm text-foreground"
-                        />
-                      </div>
-                      <select
-                        value={newIsPercentage ? 'percent' : 'dollar'}
-                        onChange={(e) => setNewIsPercentage(e.target.value === 'percent')}
-                        className="rounded border border-input bg-card px-2 py-1.5 text-sm text-foreground"
-                      >
-                        <option value="dollar">$</option>
-                        <option value="percent">%</option>
-                      </select>
-                    </div>
-                    <div className="flex gap-2 justify-end">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setShowPayoutForm(false);
-                          setNewPosition('');
-                          setNewValue('');
-                        }}
-                        className="rounded px-3 py-1.5 text-xs font-medium text-muted-foreground hover:bg-muted"
-                      >
-                        Cancel
-                      </button>
-                      <button
-                        type="button"
-                        onClick={handleAddEntry}
-                        className="rounded bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary-hover"
-                      >
-                        Add
-                      </button>
-                    </div>
-                  </div>
+                  <PayoutForm
+                    payouts={payoutEntries}
+                    buyIn={buyInAmount ?? 0}
+                    totalRosters={totalRosters}
+                    onAdd={(entry) => {
+                      setPayoutEntries((prev) => [...prev, entry]);
+                      setShowPayoutForm(false);
+                    }}
+                    onCancel={() => setShowPayoutForm(false)}
+                    onError={(msg) => toast.error(msg)}
+                  />
                 )}
 
-                {/* Place Finish */}
                 {placeEntries.length > 0 && (
                   <div className="mb-3">
                     <div className="mb-1 flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">
                       <Trophy className="h-3 w-3" />
                       Place Finish
                     </div>
-                    {renderEntryList(placeEntries)}
+                    <PayoutEntryList entries={placeEntries} onRemove={handleRemoveEntry} />
                   </div>
                 )}
 
-                {/* Points Finish */}
                 {pointsEntries.length > 0 && (
                   <div className="mb-3">
                     <div className="mb-1 flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">
                       <TrendingUp className="h-3 w-3" />
                       Points Finish
                     </div>
-                    {renderEntryList(pointsEntries)}
+                    <PayoutEntryList entries={pointsEntries} onRemove={handleRemoveEntry} />
                   </div>
                 )}
 

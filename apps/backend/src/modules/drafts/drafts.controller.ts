@@ -4,6 +4,7 @@ import { DraftService } from './drafts.service';
 import { DraftQueueService } from './draft-queue.service';
 import { DraftClockService } from './draft-clock.service';
 import { AutoPickService } from './auto-pick.service';
+import { AuctionAutoBidService } from './auction-auto-bid.service';
 import { AuctionService } from './auction.service';
 import { SlowAuctionService } from './slow-auction.service';
 import { DerbyService } from './derby.service';
@@ -30,6 +31,7 @@ export class DraftController {
     private readonly draftQueueService: DraftQueueService,
     private readonly draftClockService: DraftClockService,
     private readonly autoPickService: AutoPickService,
+    private readonly auctionAutoBidService: AuctionAutoBidService,
     private readonly auctionService: AuctionService,
     private readonly slowAuctionService: SlowAuctionService,
     private readonly derbyService: DerbyService,
@@ -274,7 +276,7 @@ export class DraftController {
 
     // Trigger auto-bid re-evaluation when a max_bid is set during an active nomination
     if (body.max_bid != null) {
-      this.auctionService.scheduleAutoBids(draftId);
+      this.auctionAutoBidService.scheduleAutoBids(draftId);
     }
 
     res.status(200).json({ queue });
@@ -291,7 +293,7 @@ export class DraftController {
 
     // Trigger auto-bid re-evaluation when a max_bid is set during an active nomination
     if (body.max_bid != null) {
-      this.auctionService.scheduleAutoBids(draftId);
+      this.auctionAutoBidService.scheduleAutoBids(draftId);
     }
 
     res.status(200).json({ queue });

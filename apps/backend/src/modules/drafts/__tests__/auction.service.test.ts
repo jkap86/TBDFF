@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { AuctionService } from '../auction.service';
+import { AuctionAutoBidService } from '../auction-auto-bid.service';
 import { Draft, DEFAULT_DRAFT_SETTINGS, AuctionNomination } from '../drafts.model';
 
 function makeDraft(overrides: Partial<ConstructorParameters<typeof Draft>> = {}): Draft {
@@ -42,6 +43,7 @@ describe('AuctionService.placeBid', () => {
   let draftRepo: any;
   let leagueRepo: any;
   let playerRepo: any;
+  let autoBidService: AuctionAutoBidService;
 
   beforeEach(() => {
     draftRepo = {
@@ -62,7 +64,8 @@ describe('AuctionService.placeBid', () => {
 
     playerRepo = {};
 
-    service = new AuctionService(draftRepo, leagueRepo, playerRepo);
+    autoBidService = new AuctionAutoBidService(draftRepo, leagueRepo, playerRepo);
+    service = new AuctionService(draftRepo, leagueRepo, playerRepo, autoBidService);
   });
 
   it('acquires advisory lock via withTransaction and re-reads draft', async () => {
@@ -156,6 +159,7 @@ describe('AuctionService.resolveNomination', () => {
   let draftRepo: any;
   let leagueRepo: any;
   let playerRepo: any;
+  let autoBidService: AuctionAutoBidService;
 
   beforeEach(() => {
     draftRepo = {
@@ -180,7 +184,8 @@ describe('AuctionService.resolveNomination', () => {
 
     playerRepo = {};
 
-    service = new AuctionService(draftRepo, leagueRepo, playerRepo);
+    autoBidService = new AuctionAutoBidService(draftRepo, leagueRepo, playerRepo);
+    service = new AuctionService(draftRepo, leagueRepo, playerRepo, autoBidService);
   });
 
   it('resolves pick, deducts budget, and sets next nomination in one transaction', async () => {
@@ -256,8 +261,8 @@ describe('AuctionService.resolveNomination', () => {
   });
 });
 
-describe('AuctionService._processAutoBids (incremental bidding)', () => {
-  let service: AuctionService;
+describe('AuctionAutoBidService._processAutoBids (incremental bidding)', () => {
+  let autoBidService: AuctionAutoBidService;
   let draftRepo: any;
   let leagueRepo: any;
   let playerRepo: any;
@@ -290,7 +295,7 @@ describe('AuctionService._processAutoBids (incremental bidding)', () => {
       }),
     };
 
-    service = new AuctionService(draftRepo, leagueRepo, playerRepo);
+    autoBidService = new AuctionAutoBidService(draftRepo, leagueRepo, playerRepo);
   });
 
   function makeAutoBidDraft(
@@ -340,7 +345,7 @@ describe('AuctionService._processAutoBids (incremental bidding)', () => {
     draftRepo.update.mockResolvedValue(draft);
 
     // Trigger processAutoBids via public scheduleAutoBids
-    await (service as any)._processAutoBids('draft-1');
+    await (autoBidService as any)._processAutoBids('draft-1');
 
     const updateCall = draftRepo.update.mock.calls[0];
     const nom = updateCall[1].metadata.current_nomination;
@@ -361,7 +366,7 @@ describe('AuctionService._processAutoBids (incremental bidding)', () => {
     draftRepo.findById.mockResolvedValue(draft);
     draftRepo.update.mockResolvedValue(draft);
 
-    await (service as any)._processAutoBids('draft-1');
+    await (autoBidService as any)._processAutoBids('draft-1');
 
     const updateCall = draftRepo.update.mock.calls[0];
     const nom = updateCall[1].metadata.current_nomination;
@@ -378,7 +383,7 @@ describe('AuctionService._processAutoBids (incremental bidding)', () => {
     });
     draftRepo.findById.mockResolvedValue(draft);
 
-    const result = await (service as any)._processAutoBids('draft-1');
+    const result = await (autoBidService as any)._processAutoBids('draft-1');
 
     expect(result).toBeNull();
     expect(draftRepo.update).not.toHaveBeenCalled();
@@ -398,7 +403,7 @@ describe('AuctionService._processAutoBids (incremental bidding)', () => {
       new Map([['user-b', { max_bid: 15 }]]),
     );
 
-    await (service as any)._processAutoBids('draft-1');
+    await (autoBidService as any)._processAutoBids('draft-1');
 
     const updateCall = draftRepo.update.mock.calls[0];
     const nom = updateCall[1].metadata.current_nomination;
@@ -424,7 +429,7 @@ describe('AuctionService._processAutoBids (incremental bidding)', () => {
       ]),
     );
 
-    await (service as any)._processAutoBids('draft-1');
+    await (autoBidService as any)._processAutoBids('draft-1');
 
     const updateCall = draftRepo.update.mock.calls[0];
     const nom = updateCall[1].metadata.current_nomination;
@@ -449,7 +454,7 @@ describe('AuctionService._processAutoBids (incremental bidding)', () => {
       new Map([['user-a', { max_bid: 20 }]]),
     );
 
-    await (service as any)._processAutoBids('draft-1');
+    await (autoBidService as any)._processAutoBids('draft-1');
 
     const updateCall = draftRepo.update.mock.calls[0];
     const nom = updateCall[1].metadata.current_nomination;
@@ -472,7 +477,7 @@ describe('AuctionService._processAutoBids (incremental bidding)', () => {
       new Map([['user-a', { max_bid: null }]]),
     );
 
-    const result = await (service as any)._processAutoBids('draft-1');
+    const result = await (autoBidService as any)._processAutoBids('draft-1');
 
     expect(result).toBeNull();
     expect(draftRepo.update).not.toHaveBeenCalled();
@@ -521,7 +526,8 @@ describe('AuctionService.autoNominate', () => {
 
     playerRepo = {};
 
-    service = new AuctionService(draftRepo, leagueRepo, playerRepo);
+    const autoBidService = new AuctionAutoBidService(draftRepo, leagueRepo, playerRepo);
+    service = new AuctionService(draftRepo, leagueRepo, playerRepo, autoBidService);
   });
 
   it('acquires advisory lock and re-reads draft inside transaction', async () => {
@@ -691,8 +697,9 @@ describe('AuctionService.autoNominate', () => {
   });
 });
 
-describe('AuctionService._processAutoBids (auto-resolution & fallback)', () => {
-  let service: AuctionService;
+describe('AuctionAutoBidService._processAutoBids (auto-resolution & fallback)', () => {
+  let autoBidService: AuctionAutoBidService;
+  let auctionService: AuctionService;
   let draftRepo: any;
   let leagueRepo: any;
   let playerRepo: any;
@@ -728,7 +735,9 @@ describe('AuctionService._processAutoBids (auto-resolution & fallback)', () => {
       findById: vi.fn(),
     };
 
-    service = new AuctionService(draftRepo, leagueRepo, playerRepo);
+    autoBidService = new AuctionAutoBidService(draftRepo, leagueRepo, playerRepo);
+    auctionService = new AuctionService(draftRepo, leagueRepo, playerRepo, autoBidService);
+    autoBidService.setOnDeadlineExpired((draftId, userId) => auctionService.resolveNomination(draftId, userId));
   });
 
   it('auto-resolves nomination when bid_deadline has expired', async () => {
@@ -756,7 +765,7 @@ describe('AuctionService._processAutoBids (auto-resolution & fallback)', () => {
     draftRepo.completeAndUpdateLeagueInTx.mockResolvedValue(null);
     draftRepo.update.mockResolvedValue(draft);
 
-    const result = await (service as any)._processAutoBids('draft-1');
+    const result = await (autoBidService as any)._processAutoBids('draft-1');
 
     // resolveNomination was triggered — makeAuctionPick should have been called
     expect(draftRepo.makeAuctionPick).toHaveBeenCalled();
@@ -795,7 +804,7 @@ describe('AuctionService._processAutoBids (auto-resolution & fallback)', () => {
       searchRank: null,
     });
 
-    await (service as any)._processAutoBids('draft-1');
+    await (autoBidService as any)._processAutoBids('draft-1');
 
     // Auto-bid should have fired (not returned null due to missing auctionValue)
     expect(draftRepo.update).toHaveBeenCalled();
@@ -830,7 +839,8 @@ describe('Concurrent bid race (stale-read under lock)', () => {
       findMember: vi.fn().mockResolvedValue({ role: 'member' }),
     };
 
-    service = new AuctionService(draftRepo, leagueRepo, {});
+    const autoBidService = new AuctionAutoBidService(draftRepo, leagueRepo, {});
+    service = new AuctionService(draftRepo, leagueRepo, {}, autoBidService);
   });
 
   it('second bid fails after re-reading higher bid under lock', async () => {
@@ -885,7 +895,7 @@ describe('Concurrent bid race (stale-read under lock)', () => {
 });
 
 describe('Auto-bid war continues until lower target exceeded', () => {
-  let service: AuctionService;
+  let autoBidService: AuctionAutoBidService;
   let draftRepo: any;
 
   beforeEach(() => {
@@ -904,9 +914,9 @@ describe('Auto-bid war continues until lower target exceeded', () => {
       }),
     };
 
-    service = new AuctionService(draftRepo, { findMember: vi.fn() }, {
+    autoBidService = new AuctionAutoBidService(draftRepo, { findMember: vi.fn() } as any, {
       findById: vi.fn().mockResolvedValue({ id: 'player-1', auctionValue: 40, searchRank: 5 }),
-    });
+    } as any);
   });
 
   it('war stops at lower_target + 1 with two different max_bids', async () => {
@@ -949,7 +959,7 @@ describe('Auto-bid war continues until lower target exceeded', () => {
     // Drive the bidding war
     const bids: Array<{ bidder: string; amount: number }> = [];
     for (let i = 0; i < 50; i++) {
-      const result = await (service as any)._processAutoBids('draft-1');
+      const result = await (autoBidService as any)._processAutoBids('draft-1');
       if (!result) break;
       bids.push({ bidder: currentBidder, amount: currentBid });
     }
@@ -1006,7 +1016,7 @@ describe('Auto-bid war continues until lower target exceeded', () => {
 
     const bids: Array<{ bidder: string; amount: number }> = [];
     for (let i = 0; i < 50; i++) {
-      const result = await (service as any)._processAutoBids('draft-1');
+      const result = await (autoBidService as any)._processAutoBids('draft-1');
       if (!result) break;
       bids.push({ bidder: currentBidder, amount: currentBid });
     }
@@ -1021,7 +1031,7 @@ describe('Auto-bid war continues until lower target exceeded', () => {
 });
 
 describe('Recovery: auto-resolves expired nomination after restart', () => {
-  let service: AuctionService;
+  let autoBidService: AuctionAutoBidService;
   let draftRepo: any;
   let capturedClient: any;
 
@@ -1047,11 +1057,12 @@ describe('Recovery: auto-resolves expired nomination after restart', () => {
       withTransaction: vi.fn(async (fn: any) => fn(capturedClient)),
     };
 
-    service = new AuctionService(
-      draftRepo,
-      { findMember: vi.fn().mockResolvedValue({ role: 'member' }) },
-      { findById: vi.fn().mockResolvedValue({ id: 'player-1', auctionValue: 40 }) },
-    );
+    const leagueRepo = { findMember: vi.fn().mockResolvedValue({ role: 'member' }) };
+    const playerRepo = { findById: vi.fn().mockResolvedValue({ id: 'player-1', auctionValue: 40 }) };
+
+    autoBidService = new AuctionAutoBidService(draftRepo, leagueRepo as any, playerRepo as any);
+    const auctionService = new AuctionService(draftRepo, leagueRepo as any, playerRepo as any, autoBidService);
+    autoBidService.setOnDeadlineExpired((draftId, userId) => auctionService.resolveNomination(draftId, userId));
   });
 
   it('resolves expired nomination via processAutoBidsFromTimer', async () => {
@@ -1077,7 +1088,7 @@ describe('Recovery: auto-resolves expired nomination after restart', () => {
     draftRepo.deductBudget.mockResolvedValue(afterDeduct);
     draftRepo.update.mockResolvedValue(draft);
 
-    await service.processAutoBidsFromTimer('draft-1');
+    await autoBidService.processAutoBidsFromTimer('draft-1');
 
     // Should have resolved the expired nomination
     expect(draftRepo.makeAuctionPick).toHaveBeenCalled();
@@ -1109,7 +1120,7 @@ describe('Recovery: auto-resolves expired nomination after restart', () => {
     draftRepo.deductBudget.mockResolvedValue(afterDeduct);
     draftRepo.update.mockResolvedValue(draft);
 
-    await service.processAutoBidsFromTimer('draft-1');
+    await autoBidService.processAutoBidsFromTimer('draft-1');
 
     expect(draftRepo.deductBudget).toHaveBeenCalled();
     const deductCall = draftRepo.deductBudget.mock.calls[0];
@@ -1134,7 +1145,7 @@ describe('Recovery: auto-resolves expired nomination after restart', () => {
 
     draftRepo.findById.mockResolvedValue(draft);
 
-    await service.processAutoBidsFromTimer('draft-1');
+    await autoBidService.processAutoBidsFromTimer('draft-1');
 
     // No auto-bid placed, no resolution — should schedule a deadline follow-up
     expect(draftRepo.makeAuctionPick).not.toHaveBeenCalled();
