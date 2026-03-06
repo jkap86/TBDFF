@@ -1,3 +1,4 @@
+import { Pool } from 'pg';
 import { DraftRepository } from './drafts.repository';
 import { LeagueRepository } from '../leagues/leagues.repository';
 import { DraftGateway } from './draft.gateway';
@@ -11,8 +12,6 @@ import {
 import { findUserByRosterId, findRosterIdByUserId } from './draft-helpers';
 
 export class AutoPickService {
-  /** Per-draft lock to prevent concurrent processAutoPickChain executions */
-  private autoPickChainLocks = new Map<string, Promise<DraftPick[]>>();
   private draftGateway?: DraftGateway;
 
   /** Callback invoked after vet draft completion to set up rookie draft */
@@ -21,6 +20,7 @@ export class AutoPickService {
   constructor(
     private readonly draftRepository: DraftRepository,
     private readonly leagueRepository: LeagueRepository,
+    private readonly pool: Pool,
   ) {}
 
   setGateway(gateway: DraftGateway): void {
@@ -207,24 +207,30 @@ export class AutoPickService {
   }
 
   /**
-   * Serialize processAutoPickChain calls per draft to prevent concurrent
-   * auto-pick chains from racing and creating duplicate picks.
+   * Run the auto-pick chain under a per-draft advisory lock.
+   * Safe across multiple Node processes — only one instance can run
+   * the chain for a given draft at a time.
    */
-  scheduleAutoPickChain(draftId: string): Promise<DraftPick[]> {
-    const existing = this.autoPickChainLocks.get(draftId);
-    const run = (existing ?? Promise.resolve([] as DraftPick[]))
-      .then(() => this.processAutoPickChain(draftId))
-      .catch((err) => {
-        console.error(`[AutoPickService] autoPickChain failed for draft ${draftId}:`, err);
-        return [] as DraftPick[];
-      });
-    this.autoPickChainLocks.set(draftId, run);
-    run.finally(() => {
-      if (this.autoPickChainLocks.get(draftId) === run) {
-        this.autoPickChainLocks.delete(draftId);
-      }
-    });
-    return run;
+  async scheduleAutoPickChain(draftId: string): Promise<DraftPick[]> {
+    const client = await this.pool.connect();
+    try {
+      await client.query('BEGIN');
+      await client.query(
+        'SELECT pg_advisory_xact_lock(hashtext($1))',
+        [`autopick:${draftId}`],
+      );
+
+      const picks = await this.processAutoPickChain(draftId);
+
+      await client.query('COMMIT');
+      return picks;
+    } catch (err) {
+      await client.query('ROLLBACK');
+      console.error(`[AutoPickService] autoPickChain failed for draft ${draftId}:`, err);
+      return [];
+    } finally {
+      client.release();
+    }
   }
 
   private async processAutoPickChain(draftId: string): Promise<DraftPick[]> {
@@ -305,24 +311,21 @@ export class AutoPickService {
       }
     }
 
-    // If we hit the batch limit, schedule a server-side continuation so we
-    // don't rely on clients to trigger the next batch of auto-picks.
+    // If we hit the batch limit, insert a DB job for continuation
+    // instead of setImmediate (which is process-local and not multi-instance safe)
     if (chainedPicks.length >= MAX_CHAIN) {
-      setImmediate(() => {
-        this.continueAutoPickChain(draftId).catch((err) => {
-          console.error(`[AutoPickService] auto-pick continuation failed for draft ${draftId}:`, err);
-        });
-      });
+      await this.draftRepository.insertAutoPickJob(draftId, 'continuation');
+      console.log(`[AutoPickService] Scheduled continuation job for draft ${draftId}`);
     }
 
     return chainedPicks;
   }
 
   /**
-   * Continue processing auto-picks after a chain hit MAX_CHAIN.
-   * Broadcasts its own results so clients stay updated.
+   * Called by the AutoPickJob poller when it claims a continuation or recovery job.
+   * Runs the chain and broadcasts results via WebSocket.
    */
-  private async continueAutoPickChain(draftId: string): Promise<void> {
+  async processAutoPickFromJob(draftId: string): Promise<void> {
     const chainedPicks = await this.scheduleAutoPickChain(draftId);
     if (chainedPicks.length > 0) {
       const draft = await this.draftRepository.findById(draftId);

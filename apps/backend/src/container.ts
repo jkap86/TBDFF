@@ -93,6 +93,7 @@ export function createContainer() {
     tradeService: trades.tradeService,
     slowAuctionService: drafts.slowAuctionService,
     auctionAutoBidService: drafts.auctionAutoBidService,
+    autoPickService: drafts.autoPickService,
   });
 
   // ── Return (same shape as original) ─────────────────────────────

@@ -5,12 +5,14 @@ import { WaiverProcessJob } from './waiver-process.job';
 import { TradeReviewJob } from './trade-review.job';
 import { SlowAuctionSettlementJob } from './slow-auction-settlement.job';
 import { AuctionTimerJob } from './auction-timer.job';
+import { AutoPickJob } from './auto-pick.job';
 import { PlayerService } from '../modules/players/players.service';
 import { ScoringService } from '../modules/scoring/scoring.service';
 import { TransactionService } from '../modules/transactions/transactions.service';
 import { TradeService } from '../modules/trades/trades.service';
 import { SlowAuctionService } from '../modules/drafts/slow-auction.service';
 import { AuctionAutoBidService } from '../modules/drafts/auction-auto-bid.service';
+import { AutoPickService } from '../modules/drafts/auto-pick.service';
 import { DraftRepository } from '../modules/drafts/drafts.repository';
 
 interface JobsDeps {
@@ -22,6 +24,7 @@ interface JobsDeps {
   tradeService: TradeService;
   slowAuctionService: SlowAuctionService;
   auctionAutoBidService: AuctionAutoBidService;
+  autoPickService: AutoPickService;
 }
 
 export function registerJobs(deps: JobsDeps) {
@@ -31,6 +34,7 @@ export function registerJobs(deps: JobsDeps) {
   const tradeReviewJob = new TradeReviewJob(deps.tradeService);
   const slowAuctionSettlementJob = new SlowAuctionSettlementJob(deps.slowAuctionService, deps.pool);
   const auctionTimerJob = new AuctionTimerJob(deps.auctionAutoBidService, deps.draftRepository);
+  const autoPickJob = new AutoPickJob(deps.autoPickService, deps.draftRepository);
 
   return {
     playerSyncJob,
@@ -39,5 +43,6 @@ export function registerJobs(deps: JobsDeps) {
     tradeReviewJob,
     slowAuctionSettlementJob,
     auctionTimerJob,
+    autoPickJob,
   };
 }

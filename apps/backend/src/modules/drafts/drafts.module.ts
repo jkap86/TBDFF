@@ -25,7 +25,7 @@ export function registerDraftsModule(deps: DraftsModuleDeps) {
 
   const draftQueueService = new DraftQueueService(deps.draftRepository, deps.leagueRepository);
   const draftClockService = new DraftClockService(deps.draftRepository, deps.leagueRepository);
-  const autoPickService = new AutoPickService(deps.draftRepository, deps.leagueRepository);
+  const autoPickService = new AutoPickService(deps.draftRepository, deps.leagueRepository, deps.pool);
   const draftService = new DraftService(deps.draftRepository, deps.leagueRepository, deps.playerRepository, autoPickService);
   const auctionAutoBidService = new AuctionAutoBidService(deps.draftRepository, deps.leagueRepository, deps.playerRepository);
   const auctionService = new AuctionService(deps.draftRepository, deps.leagueRepository, deps.playerRepository, auctionAutoBidService);

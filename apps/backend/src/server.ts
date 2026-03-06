@@ -65,6 +65,7 @@ container.services.transactionService.setSystemMessages(container.services.syste
 if (config.ENABLE_JOBS) {
   container.jobs.auctionTimerJob.start();
   container.jobs.slowAuctionSettlementJob.start();
+  container.jobs.autoPickJob.start();
 }
 
 server.listen(config.PORT, '0.0.0.0', () => {
@@ -85,6 +86,7 @@ const gracefulShutdown = () => {
   if (config.ENABLE_JOBS) {
     container.jobs.auctionTimerJob.stop();
     container.jobs.slowAuctionSettlementJob.stop();
+    container.jobs.autoPickJob.stop();
   }
 
   server.close(async () => {
