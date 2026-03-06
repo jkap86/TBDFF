@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useQueryClient } from '@tanstack/react-query';
-import { Settings, ChevronDown } from 'lucide-react';
+import { Settings, ChevronDown, Shuffle } from 'lucide-react';
 import { matchupApi, ApiError } from '@/lib/api';
 import type { League, LeagueMember, Roster, Matchup } from '@tbdff/shared';
 
@@ -33,6 +33,7 @@ export function LeagueMatchupsCard({
   const [selectedWeek, setSelectedWeek] = useState(1);
   const [isGeneratingMatchups, setIsGeneratingMatchups] = useState(false);
   const [mutationError, setMutationError] = useState<string | null>(null);
+  const [confirmReRandomize, setConfirmReRandomize] = useState(false);
 
   const handleGenerateMatchups = async () => {
     if (!accessToken) return;
@@ -84,14 +85,34 @@ export function LeagueMatchupsCard({
       {matchups.length > 0 ? (
         <div>
           {isCommissioner && (league.settings?.matchup_type ?? 0) === 0 && (
-            <div className="mb-4 flex justify-end">
-              <button
-                onClick={handleGenerateMatchups}
-                disabled={isGeneratingMatchups}
-                className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary-hover disabled:opacity-50"
-              >
-                {isGeneratingMatchups ? 'Generating...' : 'Re-Randomize Schedule'}
-              </button>
+            <div className="mb-4 flex items-center justify-end gap-2">
+              {confirmReRandomize ? (
+                <>
+                  <span className="text-sm text-warning">Re-randomize schedule?</span>
+                  <button
+                    onClick={() => { setConfirmReRandomize(false); handleGenerateMatchups(); }}
+                    disabled={isGeneratingMatchups}
+                    className="rounded-lg bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:bg-primary-hover disabled:opacity-50"
+                  >
+                    {isGeneratingMatchups ? 'Generating...' : 'Confirm'}
+                  </button>
+                  <button
+                    onClick={() => setConfirmReRandomize(false)}
+                    className="rounded-lg bg-muted px-3 py-1.5 text-sm font-medium text-accent-foreground hover:bg-muted-hover"
+                  >
+                    Cancel
+                  </button>
+                </>
+              ) : (
+                <button
+                  onClick={() => setConfirmReRandomize(true)}
+                  disabled={isGeneratingMatchups}
+                  className="rounded p-2 text-muted-foreground hover:bg-muted hover:text-accent-foreground disabled:opacity-50"
+                  title="Re-Randomize Schedule"
+                >
+                  <Shuffle className="h-5 w-5" />
+                </button>
+              )}
             </div>
           )}
           {/* Week selector */}
