@@ -215,7 +215,7 @@ export function AuctionBoard({ draft, picks, members, currentUserId, rosterPosit
           {nomination.bid_history && nomination.bid_history.length > 1 && (
             <div className="mt-3 border-t border-border pt-2">
               <div className="text-xs font-medium text-muted-foreground mb-1">Bid History</div>
-              <div className="flex flex-wrap gap-2">
+              <div className="flex gap-2 overflow-x-auto">
                 {[...nomination.bid_history].reverse().map((bid: any, i: number) => {
                   const bidder = members.find((m) => m.user_id === bid.user_id);
                   return (
