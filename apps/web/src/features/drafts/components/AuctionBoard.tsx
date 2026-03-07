@@ -5,12 +5,24 @@ import type { Draft, DraftPick, LeagueMember, RosterPosition } from '@/lib/api';
 
 function getPositionColor(position: string | undefined): string {
   switch (position) {
-    case 'QB': return 'rgba(239, 68, 68, 0.25)';
-    case 'RB': return 'rgba(34, 197, 94, 0.25)';
-    case 'WR': return 'rgba(59, 130, 246, 0.25)';
-    case 'TE': return 'rgba(249, 115, 22, 0.25)';
-    case 'K':  return 'rgba(168, 85, 247, 0.25)';
-    case 'DEF': return 'rgba(161, 98, 7, 0.25)';
+    case 'QB': return 'rgba(239, 68, 68, 0.45)';
+    case 'RB': return 'rgba(34, 197, 94, 0.45)';
+    case 'WR': return 'rgba(59, 130, 246, 0.45)';
+    case 'TE': return 'rgba(249, 115, 22, 0.45)';
+    case 'K':  return 'rgba(168, 85, 247, 0.45)';
+    case 'DEF': return 'rgba(234, 179, 8, 0.45)';
+    default:   return 'transparent';
+  }
+}
+
+function getPositionBorder(position: string | undefined): string {
+  switch (position) {
+    case 'QB': return 'rgba(239, 68, 68, 0.7)';
+    case 'RB': return 'rgba(34, 197, 94, 0.7)';
+    case 'WR': return 'rgba(59, 130, 246, 0.7)';
+    case 'TE': return 'rgba(249, 115, 22, 0.7)';
+    case 'K':  return 'rgba(168, 85, 247, 0.7)';
+    case 'DEF': return 'rgba(234, 179, 8, 0.7)';
     default:   return 'transparent';
   }
 }
@@ -236,29 +248,32 @@ export function AuctionBoard({ draft, picks, members, currentUserId, rosterPosit
 
       {/* Draft Board — teams as columns, roster positions as rows */}
       {rosterPositions.length > 0 && (
-        <div className="overflow-auto" style={{ WebkitOverflowScrolling: 'touch' }}>
-          <table className="min-w-max" style={{ borderSpacing: 0 }}>
+        <div className="overflow-auto rounded-lg shadow-lg border border-border" style={{ WebkitOverflowScrolling: 'touch' }}>
+          <table className="min-w-max w-full" style={{ borderSpacing: 0 }}>
             <thead>
               <tr>
                 {/* Position column header */}
                 <th
-                  className="sticky left-0 z-30 bg-muted border-b border-r border-border px-3 py-2 text-xs font-heading font-semibold text-muted-foreground"
-                  style={{ boxShadow: '2px 2px 4px rgba(0,0,0,0.15)' }}
+                  className="sticky left-0 z-30 bg-card border-b-2 border-r border-border px-3 py-2.5 text-xs font-heading font-bold text-foreground uppercase tracking-wider"
+                  style={{ boxShadow: '2px 2px 4px rgba(0,0,0,0.2)' }}
                 >
                   Pos
                 </th>
                 {teamsInOrder.map((team) => {
-                  const budget = budgets[String(team.rosterId)] ?? 0;
+                  const budget = budgets[String(team.rosterId)] ?? draft.settings.budget;
                   const isCurrentUser = team.userId === currentUserId;
                   return (
                     <th
                       key={team.rosterId}
-                      className={`sticky top-0 z-20 border-b border-r border-border px-3 py-2 text-center whitespace-nowrap bg-muted ${
-                        isCurrentUser ? 'text-primary' : 'text-muted-foreground'
+                      className={`sticky top-0 z-20 border-b-2 border-r border-border px-3 py-2.5 text-center whitespace-nowrap ${
+                        isCurrentUser ? 'bg-primary/10 text-primary' : 'bg-card text-foreground'
                       }`}
-                      style={{ boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}
+                      style={{
+                        boxShadow: '0 2px 4px rgba(0,0,0,0.15)',
+                        ...(isCurrentUser ? { borderBottom: '2px solid var(--color-primary)' } : {}),
+                      }}
                     >
-                      <div className="text-xs font-heading font-semibold truncate max-w-[100px]">
+                      <div className="text-xs font-heading font-bold truncate max-w-[100px]">
                         {rosterToUser[team.rosterId] || `Team ${team.rosterId}`}
                       </div>
                       <div className={`text-[10px] font-bold ${budget > 0 ? 'text-success-foreground' : 'text-destructive-foreground'}`}>
@@ -271,33 +286,40 @@ export function AuctionBoard({ draft, picks, members, currentUserId, rosterPosit
             </thead>
             <tbody>
               {rosterPositions.map((pos, rowIdx) => (
-                <tr key={rowIdx}>
+                <tr key={rowIdx} className="hover:bg-muted/30 transition-colors">
                   {/* Position label */}
                   <td
-                    className="sticky left-0 z-10 border-b border-r border-border bg-muted px-3 py-1.5 text-center text-xs font-heading font-semibold text-muted-foreground whitespace-nowrap"
-                    style={{ boxShadow: '2px 0 4px rgba(0,0,0,0.1)', background: getPositionColor(pos) || undefined }}
+                    className="sticky left-0 z-10 border-b border-r border-border px-3 py-1.5 text-center text-xs font-heading font-bold text-foreground whitespace-nowrap uppercase tracking-wide"
+                    style={{ boxShadow: '2px 0 4px rgba(0,0,0,0.15)', background: getPositionColor(pos) || undefined }}
                   >
                     {SLOT_LABELS[pos] ?? pos}
                   </td>
                   {teamsInOrder.map((team) => {
                     const pick = teamSlots[team.rosterId]?.[rowIdx] ?? null;
                     const isUserTeam = team.userId === currentUserId;
+                    const posColor = pick ? getPositionColor(pick.metadata?.position) : undefined;
+                    const posBorder = pick ? getPositionBorder(pick.metadata?.position) : undefined;
                     return (
                       <td
                         key={team.rosterId}
-                        className={`border-b border-r border-border px-2 py-1.5 text-center min-w-[110px] ${
+                        className={`border-b border-r border-border px-2 py-1.5 text-center w-[110px] min-w-[110px] max-w-[110px] h-[38px] transition-colors ${
                           isUserTeam && !pick ? 'bg-primary/5' : ''
                         }`}
                         style={{
-                          background: pick ? getPositionColor(pick.metadata?.position) : undefined,
+                          background: posColor,
                         }}
                       >
                         {pick ? (
-                          <div className="leading-tight">
-                            <div className="text-xs font-semibold text-foreground truncate">
+                          <div
+                            className="leading-tight rounded px-1 py-0.5"
+                            style={{
+                              borderLeft: `3px solid ${posBorder}`,
+                            }}
+                          >
+                            <div className="text-xs font-bold text-foreground truncate">
                               {pick.metadata?.first_name?.[0]}. {pick.metadata?.last_name || pick.player_id}
                             </div>
-                            <div className="text-[10px] text-disabled">
+                            <div className="text-[10px] text-foreground/60">
                               {pick.metadata?.position}{pick.metadata?.team ? ` - ${pick.metadata.team}` : ''}
                               {pick.amount != null ? ` · $${pick.amount}` : ''}
                             </div>
