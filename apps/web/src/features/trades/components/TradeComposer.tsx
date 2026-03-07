@@ -118,12 +118,17 @@ export function TradeComposer({
 
   const isCounter = mode === 'counter';
 
-  // Set partner from fixedPartner when in counter mode
+  // Reset all form state when modal closes; prefill partner when reopening in counter mode
   useEffect(() => {
+    if (!isOpen) {
+      resetForm();
+      return;
+    }
     if (isCounter && fixedPartner) {
       setSelectedPartner(fixedPartner.userId);
     }
-  }, [isCounter, fixedPartner]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen]);
 
   const myRoster = rosters.find((r) => r.owner_id === currentUserId);
   const otherRosters = rosters.filter((r) => r.owner_id !== currentUserId);
@@ -205,7 +210,6 @@ export function TradeComposer({
         });
       }
       onClose();
-      resetForm();
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : isCounter ? 'Failed to send counter-offer' : 'Failed to propose trade');
     } finally {
