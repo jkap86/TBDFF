@@ -19,11 +19,14 @@ const typeColors: Record<string, string> = {
 interface TransactionCardProps {
   transaction: Transaction;
   playerNames?: Record<string, string>;
+  rosterLabels?: Record<number, string>;
 }
 
-export function TransactionCard({ transaction, playerNames }: TransactionCardProps) {
+export function TransactionCard({ transaction, playerNames, rosterLabels }: TransactionCardProps) {
   const adds = Object.entries(transaction.adds) as [string, number][];
   const drops = Object.entries(transaction.drops) as [string, number][];
+
+  const rosterLabel = (rosterId: number) => rosterLabels?.[rosterId] ?? `Roster ${rosterId}`;
 
   return (
     <div className="rounded-lg border border-border bg-card p-4 glow-border">
@@ -41,14 +44,14 @@ export function TransactionCard({ transaction, playerNames }: TransactionCardPro
           <div key={`add-${playerId}`} className="flex items-center gap-2">
             <span className="text-success-foreground font-medium text-xs">+ ADD</span>
             <span className="text-accent-foreground">{playerNames?.[playerId] || playerId}</span>
-            <span className="text-disabled text-xs">to Roster {rosterId}</span>
+            <span className="text-disabled text-xs">to {rosterLabel(rosterId)}</span>
           </div>
         ))}
         {drops.map(([playerId, rosterId]) => (
           <div key={`drop-${playerId}`} className="flex items-center gap-2">
             <span className="text-destructive-foreground font-medium text-xs">- DROP</span>
             <span className="text-accent-foreground">{playerNames?.[playerId] || playerId}</span>
-            <span className="text-disabled text-xs">from Roster {rosterId}</span>
+            <span className="text-disabled text-xs">from {rosterLabel(rosterId)}</span>
           </div>
         ))}
         {adds.length === 0 && drops.length === 0 && (

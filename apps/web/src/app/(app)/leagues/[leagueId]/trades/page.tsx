@@ -46,14 +46,19 @@ export default function TradesPage() {
     pushTrade,
   } = useTrades(leagueId, statusFilter);
 
-  // Fetch player data for all rostered players
+  // Fetch player data for all rostered players + visible trade item players
   const allPlayerIds = useMemo(() => {
     const ids = new Set<string>();
     for (const r of rosters) {
       for (const pid of r.players) ids.add(pid);
     }
+    for (const t of trades) {
+      for (const item of t.items ?? []) {
+        if (item.item_type === 'player' && item.player_id) ids.add(item.player_id);
+      }
+    }
     return Array.from(ids);
-  }, [rosters]);
+  }, [rosters, trades]);
 
   useEffect(() => {
     if (!accessToken || allPlayerIds.length === 0) return;

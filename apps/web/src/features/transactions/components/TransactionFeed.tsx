@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import type { Transaction, TransactionType } from '@/lib/api';
+import type { Transaction } from '@/lib/api';
 import { TransactionCard } from './TransactionCard';
 
 const typeFilters: Array<{ label: string; value: string | undefined }> = [
@@ -15,6 +15,7 @@ interface TransactionFeedProps {
   transactions: Transaction[];
   total: number;
   playerNames?: Record<string, string>;
+  rosterLabels?: Record<number, string>;
   isLoading: boolean;
   isFetchingNextPage?: boolean;
   hasNextPage?: boolean;
@@ -22,7 +23,7 @@ interface TransactionFeedProps {
   onLoadMore?: () => void;
 }
 
-export function TransactionFeed({ transactions, total, playerNames, isLoading, isFetchingNextPage, hasNextPage, onFilterChange, onLoadMore }: TransactionFeedProps) {
+export function TransactionFeed({ transactions, total, playerNames, rosterLabels, isLoading, isFetchingNextPage, hasNextPage, onFilterChange, onLoadMore }: TransactionFeedProps) {
   const [activeFilter, setActiveFilter] = useState<string | undefined>(undefined);
 
   const handleFilter = (type: string | undefined) => {
@@ -55,7 +56,7 @@ export function TransactionFeed({ transactions, total, playerNames, isLoading, i
       ) : (
         <div className="space-y-3">
           {transactions.map((tx) => (
-            <TransactionCard key={tx.id} transaction={tx} playerNames={playerNames} />
+            <TransactionCard key={tx.id} transaction={tx} playerNames={playerNames} rosterLabels={rosterLabels} />
           ))}
           {hasNextPage && onLoadMore && (
             <button

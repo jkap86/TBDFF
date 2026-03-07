@@ -9,15 +9,25 @@ interface WaiverClaimFormProps {
   roster: Roster;
   playerNames?: Record<string, string>;
   waiverType: number;
+  initialDropPlayerId?: string;
+  initialFaabAmount?: number;
+  submitLabel?: string;
   onSubmit: (data: PlaceWaiverClaimRequest) => Promise<void>;
   onCancel: () => void;
 }
 
-export function WaiverClaimForm({ playerId, playerName, roster, playerNames, waiverType, onSubmit, onCancel }: WaiverClaimFormProps) {
-  const [dropPlayerId, setDropPlayerId] = useState('');
-  const [faabAmount, setFaabAmount] = useState(0);
+export function WaiverClaimForm({
+  playerId, playerName, roster, playerNames, waiverType,
+  initialDropPlayerId, initialFaabAmount, submitLabel,
+  onSubmit, onCancel,
+}: WaiverClaimFormProps) {
+  const [dropPlayerId, setDropPlayerId] = useState(initialDropPlayerId ?? '');
+  const [faabAmount, setFaabAmount] = useState(initialFaabAmount ?? 0);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const budget = roster.waiver_budget;
+  const overBudget = waiverType === 2 && faabAmount > budget;
 
   const handleSubmit = async () => {
     try {
@@ -46,14 +56,22 @@ export function WaiverClaimForm({ playerId, playerName, roster, playerNames, wai
       {/* FAAB bid for FAAB leagues */}
       {waiverType === 2 && (
         <div>
-          <label className="block text-xs font-medium text-muted-foreground mb-1">FAAB Bid ($)</label>
+          <label className="block text-xs font-medium text-muted-foreground mb-1">
+            FAAB Bid — Available: ${budget}
+          </label>
           <input
             type="number"
             min={0}
+            max={budget}
             value={faabAmount}
             onChange={(e) => setFaabAmount(parseInt(e.target.value) || 0)}
-            className="w-full rounded border border-input bg-card px-2 py-1 text-sm text-foreground"
+            className={`w-full rounded border px-2 py-1 text-sm text-foreground ${overBudget ? 'border-destructive bg-destructive/10' : 'border-input bg-card'}`}
           />
+          {overBudget && (
+            <p className="text-xs text-destructive-foreground mt-1">
+              Bid exceeds available budget (${budget})
+            </p>
+          )}
         </div>
       )}
 
@@ -81,10 +99,10 @@ export function WaiverClaimForm({ playerId, playerName, roster, playerNames, wai
         </button>
         <button
           onClick={handleSubmit}
-          disabled={isSubmitting}
+          disabled={isSubmitting || overBudget}
           className="rounded bg-primary px-3 py-1 text-xs font-medium text-primary-foreground hover:bg-primary-hover disabled:opacity-50"
         >
-          {isSubmitting ? 'Placing...' : 'Place Claim'}
+          {isSubmitting ? 'Saving...' : (submitLabel ?? 'Place Claim')}
         </button>
       </div>
     </div>

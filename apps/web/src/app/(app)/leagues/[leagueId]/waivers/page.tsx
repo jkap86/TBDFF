@@ -5,7 +5,7 @@ import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft, Search } from 'lucide-react';
 import { playerApi } from '@/lib/api';
-import type { Player } from '@/lib/api';
+import type { Player, WaiverClaim } from '@/lib/api';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import { useWaivers } from '@/features/transactions/hooks/useWaivers';
 import { useTransactions } from '@/features/transactions/hooks/useTransactions';
@@ -22,6 +22,7 @@ export default function WaiversPage() {
   const [rosterPlayerNames, setRosterPlayerNames] = useState<Record<string, string>>({});
   const [claimingPlayer, setClaimingPlayer] = useState<string | null>(null);
   const [claimingPlayerName, setClaimingPlayerName] = useState<string | undefined>(undefined);
+  const [editingClaim, setEditingClaim] = useState<WaiverClaim | null>(null);
   const [addError, setAddError] = useState<string | null>(null);
 
   // Player search state
@@ -33,8 +34,8 @@ export default function WaiversPage() {
   const { data: league } = useLeagueQuery(leagueId);
   const { data: rosters = [] } = useRostersQuery(leagueId);
 
-  const { claims, playerNames: claimPlayerNames, isLoading: claimsLoading, fetchClaims, placeClaim, cancelClaim } = useWaivers(leagueId);
-  const { addPlayer, dropPlayer } = useTransactions(leagueId);
+  const { claims, playerNames: claimPlayerNames, isLoading: claimsLoading, fetchClaims, placeClaim, updateClaim, cancelClaim } = useWaivers(leagueId);
+  const { dropPlayer } = useTransactions(leagueId);
   useTransactionSocket(leagueId);
 
   // Collect all rostered player IDs
@@ -94,15 +95,6 @@ export default function WaiversPage() {
 
   const myRoster = rosters.find((r) => r.owner_id === user?.id);
 
-  const handleAddPlayer = async (playerId: string) => {
-    try {
-      setAddError(null);
-      await addPlayer(playerId);
-    } catch (err: unknown) {
-      setAddError(err instanceof Error ? err.message : 'Failed to add player');
-    }
-  };
-
   const handleDropPlayer = async (playerId: string) => {
     try {
       setAddError(null);
@@ -123,7 +115,7 @@ export default function WaiversPage() {
           >
             <ArrowLeft className="h-5 w-5" />
           </Link>
-          <h1 className="text-2xl font-bold text-foreground">Waivers & Free Agents</h1>
+          <h1 className="text-2xl font-bold text-foreground">Waiver Claims</h1>
         </div>
 
         {addError && (
@@ -138,11 +130,35 @@ export default function WaiversPage() {
             playerNames={{ ...rosterPlayerNames, ...claimPlayerNames }}
             isLoading={claimsLoading}
             onCancel={cancelClaim}
+            onEdit={(claim) => { setEditingClaim(claim); setClaimingPlayer(null); }}
           />
         </div>
 
+        {/* Edit Claim Form */}
+        {editingClaim && myRoster && league && (
+          <WaiverClaimForm
+            playerId={editingClaim.player_id}
+            playerName={rosterPlayerNames[editingClaim.player_id] || claimPlayerNames[editingClaim.player_id]}
+            roster={myRoster}
+            playerNames={rosterPlayerNames}
+            waiverType={league.settings.waiver_type}
+            initialDropPlayerId={editingClaim.drop_player_id ?? undefined}
+            initialFaabAmount={editingClaim.faab_amount}
+            submitLabel="Update Claim"
+            onSubmit={async (data) => {
+              await updateClaim(editingClaim.id, {
+                drop_player_id: data.drop_player_id ?? null,
+                faab_amount: data.faab_amount,
+              });
+              setEditingClaim(null);
+              fetchClaims();
+            }}
+            onCancel={() => setEditingClaim(null)}
+          />
+        )}
+
         {/* Player Search / Claim Entry */}
-        {!claimingPlayer && myRoster && (
+        {!claimingPlayer && !editingClaim && myRoster && (
           <div className="rounded-lg bg-card p-6 shadow">
             <h2 className="text-lg font-bold text-foreground mb-4">Place a Waiver Claim</h2>
             <div className="relative">

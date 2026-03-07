@@ -1,16 +1,17 @@
 'use client';
 
 import type { WaiverClaim } from '@/lib/api';
-import { X } from 'lucide-react';
+import { Pencil, X } from 'lucide-react';
 
 interface MyWaiverClaimsProps {
   claims: WaiverClaim[];
   playerNames?: Record<string, string>;
   isLoading: boolean;
   onCancel: (claimId: string) => void;
+  onEdit?: (claim: WaiverClaim) => void;
 }
 
-export function MyWaiverClaims({ claims, playerNames, isLoading, onCancel }: MyWaiverClaimsProps) {
+export function MyWaiverClaims({ claims, playerNames, isLoading, onCancel, onEdit }: MyWaiverClaimsProps) {
   if (isLoading) {
     return <p className="text-sm text-muted-foreground">Loading claims...</p>;
   }
@@ -42,13 +43,24 @@ export function MyWaiverClaims({ claims, playerNames, isLoading, onCancel }: MyW
               </p>
             )}
           </div>
-          <button
-            onClick={() => onCancel(claim.id)}
-            className="rounded p-1 text-disabled hover:text-destructive-foreground hover:bg-muted"
-            title="Cancel claim"
-          >
-            <X className="h-4 w-4" />
-          </button>
+          <div className="flex items-center gap-1">
+            {claim.status === 'pending' && onEdit && (
+              <button
+                onClick={() => onEdit(claim)}
+                className="rounded p-1 text-disabled hover:text-accent-foreground hover:bg-muted"
+                title="Edit claim"
+              >
+                <Pencil className="h-4 w-4" />
+              </button>
+            )}
+            <button
+              onClick={() => onCancel(claim.id)}
+              className="rounded p-1 text-disabled hover:text-destructive-foreground hover:bg-muted"
+              title="Cancel claim"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
         </div>
       ))}
     </div>
