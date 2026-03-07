@@ -22,6 +22,7 @@ export default function TradesPage() {
 
   const [playerMap, setPlayerMap] = useState<Record<string, Player>>({});
   const [isComposerOpen, setIsComposerOpen] = useState(false);
+  const [counterTarget, setCounterTarget] = useState<TradeProposal | null>(null);
   const [statusFilter, setStatusFilter] = useState<string | undefined>(undefined);
   const [confirmAction, setConfirmAction] = useState<{ label: string; tradeId: string; action: (id: string) => Promise<any> } | null>(null);
 
@@ -40,6 +41,7 @@ export default function TradesPage() {
     acceptTrade,
     declineTrade,
     withdrawTrade,
+    counterTrade,
     vetoTrade,
     pushTrade,
   } = useTrades(leagueId, statusFilter);
@@ -99,6 +101,11 @@ export default function TradesPage() {
 
   const confirmAndAct = (label: string, action: (id: string) => Promise<any>, tradeId: string) => {
     setConfirmAction({ label, tradeId, action });
+  };
+
+  const handleCounter = (trade: TradeProposal) => {
+    setCounterTarget(trade);
+    setIsComposerOpen(true);
   };
 
   return (
@@ -186,6 +193,7 @@ export default function TradesPage() {
                 onAccept={(id) => confirmAndAct('Accept', acceptTrade, id)}
                 onDecline={(id) => confirmAndAct('Decline', declineTrade, id)}
                 onWithdraw={(id) => confirmAndAct('Withdraw', withdrawTrade, id)}
+                onCounter={handleCounter}
                 onVeto={(id) => confirmAndAct('Veto', vetoTrade, id)}
                 onPush={(id) => confirmAndAct('Push Through', pushTrade, id)}
               />
@@ -197,7 +205,7 @@ export default function TradesPage() {
       {/* Trade Composer Modal */}
       <TradeComposer
         isOpen={isComposerOpen}
-        onClose={() => setIsComposerOpen(false)}
+        onClose={() => { setIsComposerOpen(false); setCounterTarget(null); }}
         members={members}
         rosters={rosters}
         currentUserId={user?.id ?? ''}
@@ -205,6 +213,13 @@ export default function TradesPage() {
         futurePicks={futurePicks}
         picksError={picksError}
         onSubmit={proposeTrade}
+        mode={counterTarget ? 'counter' : 'propose'}
+        counterTradeId={counterTarget?.id}
+        fixedPartner={counterTarget ? {
+          userId: counterTarget.proposed_by,
+          username: counterTarget.proposed_by_username ?? 'Unknown',
+        } : undefined}
+        onSubmitCounter={counterTrade}
       />
 
       {/* Confirmation Dialog */}

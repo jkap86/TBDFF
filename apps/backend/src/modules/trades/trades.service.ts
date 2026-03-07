@@ -144,7 +144,7 @@ export class TradeService {
       });
 
       // Post-commit broadcast
-      this.gateway?.broadcastToLeague(trade.leagueId, 'trade:accepted', { trade: updated!.toSafeObject() });
+      this.gateway?.broadcastToLeague(trade.leagueId, 'trade:review', { trade: updated!.toSafeObject() });
       return updated!;
     }
 

@@ -23,6 +23,7 @@ interface TradeCardProps {
   onAccept?: (tradeId: string) => void;
   onDecline?: (tradeId: string) => void;
   onWithdraw?: (tradeId: string) => void;
+  onCounter?: (trade: TradeProposal) => void;
   onVeto?: (tradeId: string) => void;
   onPush?: (tradeId: string) => void;
   onViewDetail?: (trade: TradeProposal) => void;
@@ -37,6 +38,7 @@ export function TradeCard({
   onAccept,
   onDecline,
   onWithdraw,
+  onCounter,
   onVeto,
   onPush,
   onViewDetail,
@@ -117,6 +119,12 @@ export function TradeCard({
                 className="rounded bg-green-600 px-3 py-1 text-xs font-medium text-white hover:bg-green-700"
               >
                 Accept
+              </button>
+              <button
+                onClick={() => onCounter?.(trade)}
+                className="rounded bg-secondary px-3 py-1 text-xs font-medium text-primary-foreground hover:bg-secondary-hover"
+              >
+                Counter
               </button>
               <button
                 onClick={() => onDecline?.(trade.id)}

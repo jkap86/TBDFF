@@ -47,5 +47,8 @@ export const counterTradeSchema = z.object({
 export type CounterTradeInput = z.infer<typeof counterTradeSchema>;
 
 export const tradeListQuerySchema = z.object({
-  status: z.string().optional(),
+  status: z.enum([
+    'pending', 'accepted', 'declined', 'withdrawn',
+    'review', 'vetoed', 'completed', 'countered', 'expired',
+  ]).optional(),
 }).passthrough();

@@ -16,6 +16,7 @@ export function useTradeSocket(
     const events = [
       'trade:proposed',
       'trade:accepted',
+      'trade:review',
       'trade:declined',
       'trade:countered',
       'trade:completed',
