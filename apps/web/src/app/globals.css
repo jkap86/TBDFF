@@ -289,6 +289,34 @@
   animation: shine-sweep 2s ease-in-out infinite;
 }
 
+/* ── Custom Scrollbar ── */
+.scrollbar-sleek {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+.scrollbar-sleek:hover {
+  scrollbar-color: var(--muted-foreground) transparent;
+}
+.scrollbar-sleek::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.scrollbar-sleek::-webkit-scrollbar-track {
+  background: transparent;
+  border-radius: 3px;
+}
+.scrollbar-sleek::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 3px;
+  transition: background 0.2s;
+}
+.scrollbar-sleek::-webkit-scrollbar-thumb:hover {
+  background: var(--muted-foreground);
+}
+.scrollbar-sleek::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
 /* ── Font heading class ── */
 .font-heading {
   font-family: var(--font-heading), ui-sans-serif, system-ui, sans-serif;

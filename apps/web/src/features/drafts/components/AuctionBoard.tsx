@@ -191,10 +191,10 @@ export function AuctionBoard({ draft, picks, members, currentUserId, rosterPosit
   }, [teamsInOrder, teamPicksMap, rosterPositions]);
 
   return (
-    <div className="space-y-4">
-      {/* Active Nomination Panel / Waiting State — fixed height to prevent layout shift */}
+    <div className="flex flex-col flex-1 min-h-0 gap-4">
+      {/* Active Nomination Panel / Waiting State */}
       {nomination ? (
-        <div className="rounded-lg border border-border bg-card p-5 shadow-lg min-h-[120px]" style={{ borderLeft: '3px solid var(--color-primary)' }}>
+        <div className="shrink-0 rounded-lg border border-border bg-card p-5 shadow-lg min-h-[120px]" style={{ borderLeft: '3px solid var(--color-primary)', background: 'var(--background)' }}>
           <div className="flex items-center justify-between mb-3">
             <h3 className="text-xs font-heading font-bold uppercase tracking-widest text-primary">Current Nomination</h3>
             <span className="text-[10px] font-heading font-bold uppercase tracking-wide text-muted-foreground">by {nominatorName}</span>
@@ -227,7 +227,7 @@ export function AuctionBoard({ draft, picks, members, currentUserId, rosterPosit
           {nomination.bid_history && nomination.bid_history.length > 1 && (
             <div className="mt-3 border-t border-border pt-2.5">
               <div className="text-[10px] font-heading font-bold uppercase tracking-widest text-muted-foreground mb-1.5">Bid History</div>
-              <div className="flex gap-1.5 overflow-x-auto">
+              <div className="flex gap-1.5 overflow-x-auto scrollbar-sleek pb-1">
                 {[...nomination.bid_history].reverse().map((bid: any, i: number) => {
                   const bidder = members.find((m) => m.user_id === bid.user_id);
                   return (
@@ -248,21 +248,21 @@ export function AuctionBoard({ draft, picks, members, currentUserId, rosterPosit
           )}
         </div>
       ) : draft.status === 'drafting' ? (
-        <div className="rounded-lg border border-border bg-card p-5 shadow-lg text-center min-h-[120px] flex items-center justify-center">
+        <div className="shrink-0 rounded-lg border border-border p-5 shadow-lg text-center min-h-[120px] flex items-center justify-center" style={{ background: 'var(--background)' }}>
           <p className="text-xs font-heading font-bold uppercase tracking-widest text-muted-foreground">Waiting for nomination...</p>
         </div>
       ) : null}
 
       {/* Draft Board — teams as columns, roster positions as rows */}
       {rosterPositions.length > 0 && (
-        <div className="overflow-auto rounded-lg shadow-lg border border-border" style={{ WebkitOverflowScrolling: 'touch' }}>
+        <div className="flex-1 min-h-0 overflow-auto rounded-lg shadow-lg border border-border scrollbar-sleek" style={{ WebkitOverflowScrolling: 'touch' }}>
           <table className="min-w-max w-full" style={{ borderSpacing: 0 }}>
             <thead>
               <tr>
                 {/* Position column header */}
                 <th
-                  className="sticky left-0 z-30 bg-card border-b-2 border-r border-border px-3 py-2.5 text-xs font-heading font-bold text-foreground uppercase tracking-wider"
-                  style={{ boxShadow: '2px 2px 4px rgba(0,0,0,0.2)' }}
+                  className="sticky top-0 left-0 z-30 border-b-2 border-r border-border px-3 py-2.5 text-xs font-heading font-bold text-foreground uppercase tracking-wider"
+                  style={{ boxShadow: '2px 2px 4px rgba(0,0,0,0.2)', background: 'var(--background)' }}
                 >
                   Pos
                 </th>
@@ -273,9 +273,10 @@ export function AuctionBoard({ draft, picks, members, currentUserId, rosterPosit
                     <th
                       key={team.rosterId}
                       className={`sticky top-0 z-20 border-b-2 border-r border-border px-3 py-2.5 text-center whitespace-nowrap ${
-                        isCurrentUser ? 'bg-primary/10 text-primary' : 'bg-card text-foreground'
+                        isCurrentUser ? 'text-primary' : 'text-foreground'
                       }`}
                       style={{
+                        background: isCurrentUser ? 'color-mix(in srgb, var(--primary) 10%, var(--background))' : 'var(--background)',
                         boxShadow: '0 2px 4px rgba(0,0,0,0.15)',
                         ...(isCurrentUser ? { borderBottom: '2px solid var(--color-primary)' } : {}),
                       }}
@@ -296,8 +297,8 @@ export function AuctionBoard({ draft, picks, members, currentUserId, rosterPosit
                 <tr key={rowIdx} className="hover:bg-muted/30 transition-colors">
                   {/* Position label */}
                   <td
-                    className="sticky left-0 z-10 border-b border-r border-border bg-card px-3 py-1.5 text-center text-xs font-heading font-bold text-foreground whitespace-nowrap uppercase tracking-wide"
-                    style={{ boxShadow: '2px 0 4px rgba(0,0,0,0.15)' }}
+                    className="sticky left-0 z-10 border-b border-r border-border px-3 py-1.5 text-center text-xs font-heading font-bold text-foreground whitespace-nowrap uppercase tracking-wide"
+                    style={{ boxShadow: '2px 0 4px rgba(0,0,0,0.15)', background: 'var(--background)' }}
                   >
                     {SLOT_LABELS[pos] ?? pos}
                   </td>

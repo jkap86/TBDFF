@@ -125,8 +125,39 @@ export default function DraftRoomPage() {
         </div>
       </div>
 
-      {/* Board content — fills remaining space, scrolls vertically */}
-      <div className="flex-1 min-h-0 overflow-y-auto flex flex-col p-4 gap-4">
+      {/* Auction Controls — pinned below header during live auction */}
+      {draft.status === 'drafting' && room.isAuction && (
+        <div className="shrink-0 px-4 pt-4">
+          <AuctionControls
+            draft={draft}
+            timeRemaining={room.timeRemaining}
+            formatTime={room.formatTime}
+            userSlot={room.userSlot}
+            isMyTurn={!!room.isMyTurn}
+            isAutoPick={room.isAutoPick}
+            isTogglingAutoPick={room.isTogglingAutoPick}
+            nominateAmount={room.nominateAmount}
+            setNominateAmount={room.setNominateAmount}
+            bidAmount={room.bidAmount}
+            setBidAmount={room.setBidAmount}
+            isBidding={room.isBidding}
+            pickError={room.pickError}
+            queue={queue}
+            onBid={room.handleBid}
+            onToggleAutoPick={room.handleToggleAutoPick}
+            onNominationMaxBid={room.handleNominationMaxBid}
+            isCommissioner={room.isCommissioner}
+            clockState={room.clockState}
+            onPause={room.handlePauseDraft}
+            onStop={room.handleStopDraft}
+          />
+        </div>
+      )}
+
+      {/* Board content — fills remaining space */}
+      <div className={`flex-1 min-h-0 flex flex-col p-4 gap-4 ${
+        draft.status === 'drafting' && room.isAuction ? '' : 'overflow-y-auto scrollbar-sleek'
+      }`}>
         {/* Pre-Draft Board */}
         {draft.status === 'pre_draft' && (
           room.isSlowAuction
@@ -148,32 +179,7 @@ export default function DraftRoomPage() {
 
         {/* Auction Draft Board */}
         {draft.status === 'drafting' && room.isAuction && (
-          <>
-            <AuctionControls
-              draft={draft}
-              timeRemaining={room.timeRemaining}
-              formatTime={room.formatTime}
-              userSlot={room.userSlot}
-              isMyTurn={!!room.isMyTurn}
-              isAutoPick={room.isAutoPick}
-              isTogglingAutoPick={room.isTogglingAutoPick}
-              nominateAmount={room.nominateAmount}
-              setNominateAmount={room.setNominateAmount}
-              bidAmount={room.bidAmount}
-              setBidAmount={room.setBidAmount}
-              isBidding={room.isBidding}
-              pickError={room.pickError}
-              queue={queue}
-              onBid={room.handleBid}
-              onToggleAutoPick={room.handleToggleAutoPick}
-              onNominationMaxBid={room.handleNominationMaxBid}
-              isCommissioner={room.isCommissioner}
-              clockState={room.clockState}
-              onPause={room.handlePauseDraft}
-              onStop={room.handleStopDraft}
-            />
-            <AuctionBoard draft={draft} picks={picks} members={members} currentUserId={user?.id} rosterPositions={league?.roster_positions ?? []} />
-          </>
+          <AuctionBoard draft={draft} picks={picks} members={members} currentUserId={user?.id} rosterPositions={league?.roster_positions ?? []} />
         )}
 
         {/* Slow Auction Draft Board */}
