@@ -180,9 +180,9 @@ export function AuctionBoard({ draft, picks, members, currentUserId, rosterPosit
 
   return (
     <div className="space-y-4">
-      {/* Active Nomination Panel */}
-      {nomination && (
-        <div className="rounded-lg bg-card p-5 shadow border-l-4 border-yellow-400">
+      {/* Active Nomination Panel / Waiting State — fixed height to prevent layout shift */}
+      {nomination ? (
+        <div className="rounded-lg bg-card p-5 shadow border-l-4 border-yellow-400 min-h-[120px]">
           <div className="flex items-center justify-between mb-3">
             <h3 className="text-lg font-bold text-foreground">Current Nomination</h3>
             <span className="text-xs text-muted-foreground">Nominated by {nominatorName}</span>
@@ -228,14 +228,11 @@ export function AuctionBoard({ draft, picks, members, currentUserId, rosterPosit
             </div>
           )}
         </div>
-      )}
-
-      {/* No active nomination message */}
-      {!nomination && draft.status === 'drafting' && (
-        <div className="rounded-lg bg-card p-5 shadow text-center">
+      ) : draft.status === 'drafting' ? (
+        <div className="rounded-lg bg-card p-5 shadow text-center min-h-[120px] flex items-center justify-center">
           <p className="text-muted-foreground">Waiting for nomination...</p>
         </div>
-      )}
+      ) : null}
 
       {/* Draft Board — teams as columns, roster positions as rows */}
       {rosterPositions.length > 0 && (

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import type { Draft, DraftQueueItem } from '@/lib/api';
 
 function NominationMaxBid({ nomination, queue, budget, teams, onUpdateMaxBid }: {
@@ -110,6 +110,39 @@ export function AuctionControls({
 }: AuctionControlsProps) {
   const isStopped = clockState === 'stopped';
 
+  // Compute bid constraints for stepper
+  const nominationData = draft.metadata?.current_nomination as Record<string, any> | undefined;
+  const currentBid = (nominationData?.current_bid as number) ?? 0;
+  const userRosterId = userSlot !== undefined ? (draft.slot_to_roster_id ?? {} as Record<string, number>)[String(userSlot)] : undefined;
+  const userBudget = userRosterId != null ? ((draft.metadata?.auction_budgets ?? {} as Record<string, number>)[String(userRosterId)] ?? 0) : 0;
+  const minBid = currentBid + 1;
+  const maxBid = userBudget;
+
+  const [localBid, setLocalBid] = useState(minBid);
+  const [isEditing, setIsEditing] = useState(false);
+
+  // Reset bid to current + 1 whenever the current bid changes (new bid placed by anyone)
+  useEffect(() => {
+    if (!isEditing) {
+      setLocalBid(currentBid + 1);
+    }
+  }, [currentBid, isEditing]);
+
+  const handleBidInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const raw = e.target.value.replace(/[^0-9]/g, '');
+    if (raw === '') {
+      setLocalBid(0);
+    } else {
+      setLocalBid(parseInt(raw, 10));
+    }
+  }, []);
+
+  const handleBidInputBlur = useCallback(() => {
+    setIsEditing(false);
+    // Clamp value on blur
+    setLocalBid((prev) => Math.max(minBid, Math.min(maxBid, prev)));
+  }, [minBid, maxBid]);
+
   return (
     <div className="rounded-lg bg-card p-4 shadow">
       <div className="flex flex-wrap items-center gap-4">
@@ -210,49 +243,52 @@ export function AuctionControls({
 
         {/* Bidding Controls (active nomination) */}
         {draft.metadata?.current_nomination && userSlot !== undefined && (
-          <div className="flex flex-1 items-center gap-2">
-            <span className="text-sm font-medium text-accent-foreground">
-              Current: <span className="text-success-foreground font-bold">${draft.metadata.current_nomination.current_bid}</span>
+          <div className="flex flex-1 items-center gap-3">
+            {/* Current bid label */}
+            <span className="text-sm text-muted-foreground whitespace-nowrap">
+              Current: <span className="text-success-foreground font-bold">${currentBid}</span>
             </span>
-            <button
-              onClick={() => onBid(draft.metadata.current_nomination!.current_bid + 1)}
-              disabled={isBidding || isStopped}
-              className="rounded-lg bg-green-600 px-3 py-2 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-50"
-            >
-              +$1
-            </button>
-            <button
-              onClick={() => onBid(draft.metadata.current_nomination!.current_bid + 5)}
-              disabled={isBidding || isStopped}
-              className="rounded-lg bg-green-600 px-3 py-2 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-50"
-            >
-              +$5
-            </button>
-            <button
-              onClick={() => onBid(draft.metadata.current_nomination!.current_bid + 10)}
-              disabled={isBidding || isStopped}
-              className="rounded-lg bg-green-600 px-3 py-2 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-50"
-            >
-              +$10
-            </button>
-            <div className="flex items-center gap-1">
-              <span className="text-sm text-muted-foreground">$</span>
-              <input
-                type="number"
-                value={bidAmount || ''}
-                onChange={(e) => setBidAmount(parseInt(e.target.value) || 0)}
-                placeholder="Custom"
-                min={1}
-                className="w-20 rounded-lg border border-input px-2 py-2 text-sm text-foreground bg-card focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
-              />
+
+            {/* Stepper bid input */}
+            <div className="flex items-center">
+              <button
+                onClick={() => setLocalBid((prev) => Math.max(minBid, prev - 1))}
+                disabled={isBidding || isStopped || localBid <= minBid}
+                className="rounded-l-lg border border-r-0 border-input bg-muted px-3 py-2 text-lg font-bold text-foreground hover:bg-muted-hover disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+              >
+                −
+              </button>
+              <div className="flex items-center border-y border-input bg-card">
+                <span className="text-sm text-muted-foreground pl-2">$</span>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  value={localBid}
+                  onFocus={() => setIsEditing(true)}
+                  onChange={handleBidInputChange}
+                  onBlur={handleBidInputBlur}
+                  onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
+                  className="w-14 bg-transparent py-2 pr-2 text-center text-lg font-bold text-foreground focus:outline-none"
+                />
+              </div>
+              <button
+                onClick={() => setLocalBid((prev) => Math.min(maxBid, prev + 1))}
+                disabled={isBidding || isStopped || localBid >= maxBid}
+                className="rounded-r-lg border border-l-0 border-input bg-muted px-3 py-2 text-lg font-bold text-foreground hover:bg-muted-hover disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+              >
+                +
+              </button>
             </div>
+
+            {/* Place Bid button */}
             <button
-              onClick={() => onBid()}
-              disabled={isBidding || bidAmount < 1 || isStopped}
-              className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary-hover disabled:opacity-50"
+              onClick={() => onBid(localBid)}
+              disabled={isBidding || localBid < minBid || localBid > maxBid || isStopped}
+              className="rounded-lg bg-green-600 px-5 py-2 text-sm font-semibold text-white hover:bg-green-700 disabled:opacity-50 transition-colors"
             >
-              {isBidding ? 'Bidding...' : 'Bid'}
+              {isBidding ? 'Bidding...' : 'Place Bid'}
             </button>
+
             {!isStopped && (
               <NominationMaxBid
                 nomination={draft.metadata.current_nomination}
