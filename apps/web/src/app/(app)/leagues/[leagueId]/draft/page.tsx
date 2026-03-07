@@ -125,8 +125,8 @@ export default function DraftRoomPage() {
         </div>
       </div>
 
-      {/* Board content — fills remaining space, grid scrolls inside */}
-      <div className="flex-1 min-h-0 flex flex-col">
+      {/* Board content — fills remaining space, scrolls vertically */}
+      <div className="flex-1 min-h-0 overflow-y-auto flex flex-col p-4 gap-4">
         {/* Pre-Draft Board */}
         {draft.status === 'pre_draft' && (
           room.isSlowAuction

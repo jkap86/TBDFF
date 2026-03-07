@@ -194,45 +194,52 @@ export function AuctionBoard({ draft, picks, members, currentUserId, rosterPosit
     <div className="space-y-4">
       {/* Active Nomination Panel / Waiting State — fixed height to prevent layout shift */}
       {nomination ? (
-        <div className="rounded-lg bg-card p-5 shadow border-l-4 border-yellow-400 min-h-[120px]">
+        <div className="rounded-lg border border-border bg-card p-5 shadow-lg min-h-[120px]" style={{ borderLeft: '3px solid var(--color-primary)' }}>
           <div className="flex items-center justify-between mb-3">
-            <h3 className="text-lg font-bold text-foreground">Current Nomination</h3>
-            <span className="text-xs text-muted-foreground">Nominated by {nominatorName}</span>
+            <h3 className="text-xs font-heading font-bold uppercase tracking-widest text-primary">Current Nomination</h3>
+            <span className="text-[10px] font-heading font-bold uppercase tracking-wide text-muted-foreground">by {nominatorName}</span>
           </div>
           <div className="flex items-center gap-6">
             <div className="flex-1">
-              <div className="text-xl font-bold text-foreground">
+              <div className="text-xl font-heading font-bold text-foreground tracking-tight">
                 {nomination.player_metadata?.full_name || nomination.player_id}
               </div>
-              <div className="flex items-center gap-2 mt-1">
+              <div className="flex items-center gap-2 mt-1.5">
                 {nomination.player_metadata?.position && (
-                  <span className="rounded bg-muted px-2 py-0.5 text-xs font-medium text-accent-foreground">
+                  <span className="rounded-full bg-primary/15 border border-primary/30 px-2 py-0.5 text-[10px] font-heading font-bold uppercase tracking-wide text-primary">
                     {nomination.player_metadata.position}
                   </span>
                 )}
                 {nomination.player_metadata?.team && (
-                  <span className="text-sm text-muted-foreground">
+                  <span className="text-xs font-heading font-bold uppercase tracking-wide text-muted-foreground">
                     {nomination.player_metadata.team}
                   </span>
                 )}
               </div>
             </div>
             <div className="text-right">
-              <div className="text-3xl font-bold text-success-foreground">${nomination.current_bid}</div>
-              <div className="text-sm text-muted-foreground">{currentBidderName}</div>
+              <div className="text-3xl font-mono font-bold text-success-foreground tracking-tight">${nomination.current_bid}</div>
+              <div className="text-[10px] font-heading font-bold uppercase tracking-wide text-muted-foreground">{currentBidderName}</div>
             </div>
           </div>
 
           {/* Bid History */}
           {nomination.bid_history && nomination.bid_history.length > 1 && (
-            <div className="mt-3 border-t border-border pt-2">
-              <div className="text-xs font-medium text-muted-foreground mb-1">Bid History</div>
-              <div className="flex gap-2 overflow-x-auto">
+            <div className="mt-3 border-t border-border pt-2.5">
+              <div className="text-[10px] font-heading font-bold uppercase tracking-widest text-muted-foreground mb-1.5">Bid History</div>
+              <div className="flex gap-1.5 overflow-x-auto">
                 {[...nomination.bid_history].reverse().map((bid: any, i: number) => {
                   const bidder = members.find((m) => m.user_id === bid.user_id);
                   return (
-                    <span key={i} className={`rounded px-2 py-0.5 text-xs ${i === 0 ? 'bg-success text-success-foreground font-medium' : 'bg-muted text-muted-foreground'}`}>
-                      {bidder?.display_name || bidder?.username || 'Unknown'}: ${bid.amount}
+                    <span
+                      key={i}
+                      className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold whitespace-nowrap ${
+                        i === 0
+                          ? 'bg-success/15 border border-success-foreground/30 text-success-foreground'
+                          : 'bg-card border border-border text-muted-foreground'
+                      }`}
+                    >
+                      {bidder?.display_name || bidder?.username || 'Unknown'}: <span className="font-mono">${bid.amount}</span>
                     </span>
                   );
                 })}
@@ -241,8 +248,8 @@ export function AuctionBoard({ draft, picks, members, currentUserId, rosterPosit
           )}
         </div>
       ) : draft.status === 'drafting' ? (
-        <div className="rounded-lg bg-card p-5 shadow text-center min-h-[120px] flex items-center justify-center">
-          <p className="text-muted-foreground">Waiting for nomination...</p>
+        <div className="rounded-lg border border-border bg-card p-5 shadow-lg text-center min-h-[120px] flex items-center justify-center">
+          <p className="text-xs font-heading font-bold uppercase tracking-widest text-muted-foreground">Waiting for nomination...</p>
         </div>
       ) : null}
 
@@ -289,8 +296,8 @@ export function AuctionBoard({ draft, picks, members, currentUserId, rosterPosit
                 <tr key={rowIdx} className="hover:bg-muted/30 transition-colors">
                   {/* Position label */}
                   <td
-                    className="sticky left-0 z-10 border-b border-r border-border px-3 py-1.5 text-center text-xs font-heading font-bold text-foreground whitespace-nowrap uppercase tracking-wide"
-                    style={{ boxShadow: '2px 0 4px rgba(0,0,0,0.15)', background: getPositionColor(pos) || undefined }}
+                    className="sticky left-0 z-10 border-b border-r border-border bg-card px-3 py-1.5 text-center text-xs font-heading font-bold text-foreground whitespace-nowrap uppercase tracking-wide"
+                    style={{ boxShadow: '2px 0 4px rgba(0,0,0,0.15)' }}
                   >
                     {SLOT_LABELS[pos] ?? pos}
                   </td>

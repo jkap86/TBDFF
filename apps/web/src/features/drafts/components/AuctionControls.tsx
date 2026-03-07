@@ -42,9 +42,8 @@ function NominationMaxBid({ nomination, queue, budget, teams, onUpdateMaxBid }: 
   };
 
   return (
-    <div className="flex items-center gap-1 border-l border-border pl-2 ml-1">
-      <span className="text-xs text-muted-foreground whitespace-nowrap">Auto-bid up to</span>
-      <span className="text-xs text-disabled">$</span>
+    <div className="flex items-center gap-1.5 border-l border-border pl-3 ml-1">
+      <span className="text-[10px] font-heading font-bold uppercase tracking-wide text-muted-foreground whitespace-nowrap">Max $</span>
       <input
         type="text"
         inputMode="numeric"
@@ -55,7 +54,7 @@ function NominationMaxBid({ nomination, queue, budget, teams, onUpdateMaxBid }: 
         onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
         placeholder={defaultBid != null ? String(defaultBid) : '—'}
         title={defaultBid != null ? `Default: $${defaultBid} (80% of AAV $${aav})` : 'Set max auto-bid'}
-        className="w-14 rounded border border-border px-1 py-1 text-center text-sm text-accent-foreground bg-card focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
+        className="w-14 rounded-lg border border-border bg-card px-1.5 py-1.5 text-center text-sm font-mono font-bold text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary/50"
       />
     </div>
   );
@@ -143,100 +142,111 @@ export function AuctionControls({
     setLocalBid((prev) => Math.max(minBid, Math.min(maxBid, prev)));
   }, [minBid, maxBid]);
 
+  const timerLabel = clockState === 'paused' ? 'PAUSED' : clockState === 'stopped' ? 'STOPPED' : draft.metadata?.current_nomination ? 'BID' : 'NOM';
+
   return (
-    <div className="rounded-lg bg-card p-4 shadow">
-      <div className="flex flex-wrap items-center gap-4">
+    <div className="rounded-lg border border-border bg-card p-3 shadow-lg">
+      <div className="flex flex-wrap items-center gap-3">
         {/* Timer */}
         {timeRemaining !== null && (
-          <div className={`flex items-center gap-2 rounded-lg px-4 py-2 font-mono text-lg font-bold ${
-            clockState === 'stopped'
-              ? 'bg-destructive text-destructive-foreground'
-              : clockState === 'paused'
-                ? 'bg-yellow-100 text-yellow-800'
-                : timeRemaining <= 10
-                  ? 'bg-destructive text-destructive-foreground'
-                  : timeRemaining <= 20
-                    ? 'bg-warning text-warning-foreground'
-                    : 'bg-muted text-accent-foreground'
-          }`}>
+          <div
+            className={`flex items-center gap-2 rounded-lg px-4 py-2 font-mono text-xl font-bold tracking-tight transition-colors ${
+              clockState === 'stopped'
+                ? 'bg-destructive/15 text-destructive-foreground border border-destructive-foreground/30'
+                : clockState === 'paused'
+                  ? 'bg-warning/15 text-warning-foreground border border-warning-foreground/30'
+                  : timeRemaining <= 10
+                    ? 'bg-destructive/15 text-destructive-foreground border border-destructive-foreground/30'
+                    : timeRemaining <= 20
+                      ? 'bg-warning/15 text-warning-foreground border border-warning-foreground/30'
+                      : 'bg-primary/10 text-primary border border-primary/30'
+            }`}
+          >
             {formatTime(timeRemaining)}
-            <span className="text-xs font-normal text-accent-foreground">
-              {clockState === 'paused' ? 'PAUSED' : clockState === 'stopped' ? 'STOPPED' : draft.metadata?.current_nomination ? 'Bidding' : 'Nominate'}
+            <span className="text-[10px] font-heading font-bold uppercase tracking-widest opacity-70">
+              {timerLabel}
             </span>
           </div>
         )}
-        {/* Commissioner Pause/Stop Controls */}
+
+        {/* Commissioner Controls */}
         {isCommissioner && (
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5">
             <button
               onClick={onPause}
-              className={`rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+              className={`rounded-lg px-3 py-2 text-xs font-heading font-bold uppercase tracking-wide transition-colors ${
                 clockState === 'paused'
-                  ? 'bg-yellow-500 text-white hover:bg-yellow-600'
-                  : 'bg-muted text-muted-foreground hover:bg-muted-hover'
+                  ? 'bg-warning/15 text-warning-foreground border border-warning-foreground/30 hover:bg-warning/25'
+                  : 'border border-border bg-card text-muted-foreground hover:text-foreground hover:border-foreground/30'
               }`}
             >
               {clockState === 'paused' ? 'Resume' : 'Pause'}
             </button>
             <button
               onClick={onStop}
-              className={`rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+              className={`rounded-lg px-3 py-2 text-xs font-heading font-bold uppercase tracking-wide transition-colors ${
                 clockState === 'stopped'
-                  ? 'bg-red-600 text-white hover:bg-red-700'
-                  : 'bg-muted text-muted-foreground hover:bg-muted-hover'
+                  ? 'bg-destructive/15 text-destructive-foreground border border-destructive-foreground/30 hover:bg-destructive/25'
+                  : 'border border-border bg-card text-muted-foreground hover:text-foreground hover:border-foreground/30'
               }`}
             >
               {clockState === 'stopped' ? 'Resume' : 'Stop'}
             </button>
           </div>
         )}
+
+        {/* Divider */}
+        {(timeRemaining !== null || isCommissioner) && (
+          <div className="hidden sm:block h-8 w-px bg-border" />
+        )}
+
         {/* Autopick Toggle */}
         {userSlot !== undefined && (
           <button
             onClick={onToggleAutoPick}
             disabled={isTogglingAutoPick}
-            className={`rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+            className={`rounded-full px-3 py-1.5 text-xs font-heading font-bold uppercase tracking-wide transition-all disabled:opacity-50 ${
               isAutoPick
-                ? 'bg-orange-100 text-orange-700 hover:bg-orange-200'
-                : 'bg-muted text-muted-foreground hover:bg-muted-hover'
-            } disabled:opacity-50`}
+                ? 'bg-neon-orange/15 text-neon-orange border border-neon-orange/40'
+                : 'border border-border bg-card text-muted-foreground hover:text-foreground hover:border-foreground/30'
+            }`}
           >
-            {isTogglingAutoPick ? '...' : isAutoPick ? 'Auto: ON' : 'Auto: OFF'}
+            {isTogglingAutoPick ? '...' : isAutoPick ? 'Auto ON' : 'Auto OFF'}
           </button>
         )}
 
         {/* Nomination (no active nomination, user's turn) */}
         {!draft.metadata?.current_nomination && isMyTurn && !isAutoPick && !isStopped && (
-          <div className="flex flex-1 items-center gap-2">
-            <span className="rounded-full bg-success px-3 py-1 text-sm font-medium text-success-foreground">
-              Your Nomination!
+          <div className="flex flex-1 items-center gap-3">
+            <span className="rounded-full bg-primary/15 border border-primary/40 px-3 py-1 text-xs font-heading font-bold uppercase tracking-wide text-primary">
+              Your Nomination
             </span>
-            <div className="flex items-center gap-1">
-              <span className="text-sm text-muted-foreground">Starting bid: $</span>
+            <div className="flex items-center gap-1.5">
+              <span className="text-xs font-heading font-bold uppercase tracking-wide text-muted-foreground">Bid $</span>
               <input
                 type="number"
                 value={nominateAmount}
                 onChange={(e) => setNominateAmount(Math.max(1, parseInt(e.target.value) || 1))}
                 min={1}
-                className="w-20 rounded-lg border border-input px-2 py-2 text-sm text-foreground bg-card focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
+                className="w-16 rounded-lg border border-border bg-card px-2 py-1.5 text-center text-sm font-bold text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary/50"
               />
             </div>
-            <span className="text-sm text-disabled">
+            <span className="text-xs text-muted-foreground">
               Select a player from the Players tab
             </span>
           </div>
         )}
 
-        {/* Stopped indicator when it would be user's turn */}
+        {/* Stopped indicator */}
         {!draft.metadata?.current_nomination && isMyTurn && !isAutoPick && isStopped && (
-          <span className="rounded-full bg-red-100 px-3 py-1 text-sm font-medium text-red-700">
-            Nominations disabled
+          <span className="rounded-full bg-destructive/15 border border-destructive-foreground/30 px-3 py-1 text-xs font-heading font-bold uppercase tracking-wide text-destructive-foreground">
+            Nominations Paused
           </span>
         )}
 
         {/* Waiting for nomination */}
         {!draft.metadata?.current_nomination && !isMyTurn && (
-          <span className="text-sm text-muted-foreground">
+          <span className="text-xs font-heading font-bold uppercase tracking-wide text-muted-foreground">
             Waiting for nomination...
           </span>
         )}
@@ -244,22 +254,17 @@ export function AuctionControls({
         {/* Bidding Controls (active nomination) */}
         {draft.metadata?.current_nomination && userSlot !== undefined && (
           <div className="flex flex-1 items-center gap-3">
-            {/* Current bid label */}
-            <span className="text-sm text-muted-foreground whitespace-nowrap">
-              Current: <span className="text-success-foreground font-bold">${currentBid}</span>
-            </span>
-
             {/* Stepper bid input */}
-            <div className="flex items-center">
+            <div className="flex items-center rounded-lg border border-border overflow-hidden">
               <button
                 onClick={() => setLocalBid((prev) => Math.max(minBid, prev - 1))}
                 disabled={isBidding || isStopped || localBid <= minBid}
-                className="rounded-l-lg border border-r-0 border-input bg-muted px-3 py-2 text-lg font-bold text-foreground hover:bg-muted-hover disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                className="bg-card px-3 py-2 text-base font-bold text-foreground hover:bg-muted transition-colors disabled:opacity-20 disabled:cursor-not-allowed border-r border-border"
               >
                 −
               </button>
-              <div className="flex items-center border-y border-input bg-card">
-                <span className="text-sm text-muted-foreground pl-2">$</span>
+              <div className="flex items-center bg-card px-1">
+                <span className="text-xs text-muted-foreground pl-1.5">$</span>
                 <input
                   type="text"
                   inputMode="numeric"
@@ -268,13 +273,13 @@ export function AuctionControls({
                   onChange={handleBidInputChange}
                   onBlur={handleBidInputBlur}
                   onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
-                  className="w-14 bg-transparent py-2 pr-2 text-center text-lg font-bold text-foreground focus:outline-none"
+                  className="w-12 bg-transparent py-2 pr-1 text-center text-base font-mono font-bold text-foreground focus:outline-none"
                 />
               </div>
               <button
                 onClick={() => setLocalBid((prev) => Math.min(maxBid, prev + 1))}
                 disabled={isBidding || isStopped || localBid >= maxBid}
-                className="rounded-r-lg border border-l-0 border-input bg-muted px-3 py-2 text-lg font-bold text-foreground hover:bg-muted-hover disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                className="bg-card px-3 py-2 text-base font-bold text-foreground hover:bg-muted transition-colors disabled:opacity-20 disabled:cursor-not-allowed border-l border-border"
               >
                 +
               </button>
@@ -284,11 +289,12 @@ export function AuctionControls({
             <button
               onClick={() => onBid(localBid)}
               disabled={isBidding || localBid < minBid || localBid > maxBid || isStopped}
-              className="rounded-lg bg-green-600 px-5 py-2 text-sm font-semibold text-white hover:bg-green-700 disabled:opacity-50 transition-colors"
+              className="rounded-lg bg-primary px-5 py-2 text-xs font-heading font-bold uppercase tracking-wide text-primary-foreground hover:bg-primary-hover disabled:opacity-40 transition-colors glow-primary"
             >
               {isBidding ? 'Bidding...' : 'Place Bid'}
             </button>
 
+            {/* Auto-bid max */}
             {!isStopped && (
               <NominationMaxBid
                 nomination={draft.metadata.current_nomination}
@@ -302,7 +308,7 @@ export function AuctionControls({
         )}
       </div>
       {pickError && (
-        <p className="mt-2 text-sm text-destructive-foreground">{pickError}</p>
+        <p className="mt-2 text-xs font-medium text-destructive-foreground">{pickError}</p>
       )}
     </div>
   );
