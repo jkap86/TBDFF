@@ -37,7 +37,7 @@ export function useMatchupDerby(leagueId: string): UseMatchupDerbyReturn {
   const [pickError, setPickError] = useState<string | null>(null);
 
   const clockOffsetRef = useRef(0);
-  const autoPickTriggered = useRef(false);
+  const autoPickedForDeadline = useRef<string | null>(null);
 
   const updateClockOffset = useCallback((serverTime: string) => {
     const serverTs = new Date(serverTime).getTime();
@@ -84,7 +84,6 @@ export function useMatchupDerby(leagueId: string): UseMatchupDerbyReturn {
     const handleUpdate = (data: { derby: MatchupDerbyState; server_time: string }) => {
       setDerby(data.derby);
       updateClockOffset(data.server_time);
-      autoPickTriggered.current = false;
     };
 
     socket.on('matchup_derby:state_updated', handleUpdate);
@@ -102,7 +101,6 @@ export function useMatchupDerby(leagueId: string): UseMatchupDerbyReturn {
       return;
     }
 
-    autoPickTriggered.current = false;
     const deadline = new Date(derby.pick_deadline).getTime();
     const clientNow = () => Date.now() + clockOffsetRef.current;
 
@@ -119,10 +117,17 @@ export function useMatchupDerby(leagueId: string): UseMatchupDerbyReturn {
   // Auto-pick on timer expiry
   useEffect(() => {
     if (timeRemaining !== 0 || !derby || derby.status !== 'active') return;
-    if (autoPickTriggered.current) return;
-    if (!accessToken) return;
+    if (!derby.pick_deadline || !accessToken) return;
 
-    autoPickTriggered.current = true;
+    // Only fire once per unique deadline
+    if (autoPickedForDeadline.current === derby.pick_deadline) return;
+
+    // Direct time guard: verify the deadline has actually passed (prevents stale timeRemaining triggers)
+    const deadline = new Date(derby.pick_deadline).getTime();
+    const serverNow = Date.now() + clockOffsetRef.current;
+    if (serverNow < deadline - 2000) return;
+
+    autoPickedForDeadline.current = derby.pick_deadline;
 
     const attempt = async () => {
       try {
