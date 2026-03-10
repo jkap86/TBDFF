@@ -192,12 +192,16 @@ export class MatchupDerbyService {
 
       const currentPicker = this.getCurrentPicker(freshDerby);
       if (!currentPicker) {
+        // Past all picks — check if derby should complete (skipped users with no options)
+        if ((freshDerby.skippedUsers ?? []).length > 0) {
+          return this.tryCompleteDerby(freshDerby, allRosterIds, regularSeasonWeeks, client);
+        }
         throw new ValidationException('No more picks remaining');
       }
 
       // Check timeout action: skip or autopick
       if ((freshDerby.timeoutAction ?? 0) === 1) {
-        return this.executeSkip(freshDerby, client);
+        return this.executeSkip(freshDerby, allRosterIds, regularSeasonWeeks, client);
       }
 
       // Autopick: random valid cell
@@ -209,8 +213,8 @@ export class MatchupDerbyService {
       );
 
       if (available.length === 0) {
-        // No valid cells — skip this user
-        return this.executeSkip(freshDerby, client);
+        // No valid cells — skip this user (and chain-skip subsequent no-option pickers)
+        return this.executeSkip(freshDerby, allRosterIds, regularSeasonWeeks, client);
       }
 
       const pick = available[Math.floor(Math.random() * available.length)];
@@ -357,6 +361,19 @@ export class MatchupDerbyService {
           await this.leagueRepository.update(derby.leagueId, { status: 'reg_season' });
         }
       }
+      return updated;
+    }
+
+    // Chain-skip any subsequent pickers who have no available cells
+    if (!isSkippedUser) {
+      const allRosterIds = derby.derbyOrder.map((e: any) => e.roster_id);
+      return this.chainSkipNoOptions(updated, allRosterIds, totalWeeks, client);
+    }
+
+    // If a skipped user just picked and we're past all picks, check completion
+    if (updated.currentPickIndex >= updated.totalPicks) {
+      const allRosterIds = derby.derbyOrder.map((e: any) => e.roster_id);
+      return this.tryCompleteDerby(updated, allRosterIds, totalWeeks, client);
     }
 
     return updated;
@@ -478,31 +495,122 @@ export class MatchupDerbyService {
 
   private async executeSkip(
     derby: MatchupDerby,
+    allRosterIds: number[],
+    totalWeeks: number,
     client: any,
   ): Promise<MatchupDerby> {
-    const currentPicker = this.getCurrentPicker(derby);
-    if (!currentPicker) throw new ValidationException('No more picks remaining');
+    let current = derby;
 
+    // Skip current picker and chain-skip any subsequent pickers with no options
+    while (true) {
+      const picker = this.getCurrentPicker(current);
+      if (!picker) break; // past all picks
+
+      const skippedUsers = current.skippedUsers ?? [];
+      const newSkippedUsers = skippedUsers.includes(picker.user_id)
+        ? [...skippedUsers]
+        : [...skippedUsers, picker.user_id];
+
+      const newIndex = current.currentPickIndex + 1;
+      const pastAllPicks = newIndex >= current.totalPicks;
+
+      const updated = await this.derbyRepository.update(current.id, {
+        currentPickIndex: newIndex,
+        skippedUsers: newSkippedUsers,
+        status: 'active',
+        pickDeadline: pastAllPicks
+          ? current.pickDeadline
+          : new Date(Date.now() + current.pickTimer * 1000),
+      }, client);
+      if (!updated) throw new NotFoundException('Derby not found');
+      current = updated;
+
+      if (pastAllPicks) break;
+
+      // Check if the next picker has available cells; if so, stop chaining
+      const nextPicker = this.getCurrentPicker(current);
+      if (!nextPicker) break;
+      const nextAvailable = this.getAvailableCells(current, nextPicker.roster_id, allRosterIds, totalWeeks);
+      if (nextAvailable.length > 0) break;
+    }
+
+    // If past all picks, check whether the derby should complete
+    if (current.currentPickIndex >= current.totalPicks) {
+      return this.tryCompleteDerby(current, allRosterIds, totalWeeks, client);
+    }
+
+    return current;
+  }
+
+  /**
+   * If all skipped users have no available cells, complete the derby.
+   * Otherwise keep it active with a fresh deadline for the skipped-user phase.
+   */
+  private async tryCompleteDerby(
+    derby: MatchupDerby,
+    allRosterIds: number[],
+    totalWeeks: number,
+    client: any,
+  ): Promise<MatchupDerby> {
     const skippedUsers = derby.skippedUsers ?? [];
-    const newSkippedUsers = skippedUsers.includes(currentPicker.user_id)
-      ? [...skippedUsers]
-      : [...skippedUsers, currentPicker.user_id];
 
-    const newIndex = derby.currentPickIndex + 1;
-    const pastAllPicks = newIndex >= derby.totalPicks;
-    const isComplete = pastAllPicks && newSkippedUsers.length === 0;
+    // Check if any skipped user still has options
+    const anyCanPick = skippedUsers.some((userId) => {
+      const entry = derby.derbyOrder.find((e: any) => e.user_id === userId);
+      if (!entry) return false;
+      return this.getAvailableCells(derby, entry.roster_id, allRosterIds, totalWeeks).length > 0;
+    });
 
-    const updated = await this.derbyRepository.update(derby.id, {
-      currentPickIndex: newIndex,
-      skippedUsers: newSkippedUsers,
-      status: isComplete ? 'complete' : 'active',
-      pickDeadline: isComplete || pastAllPicks
-        ? derby.pickDeadline
-        : new Date(Date.now() + derby.pickTimer * 1000),
+    if (anyCanPick) {
+      // Skipped users still have options — reset deadline so they can pick
+      const updated = await this.derbyRepository.update(derby.id, {
+        pickDeadline: new Date(Date.now() + derby.pickTimer * 1000),
+      }, client);
+      return updated ?? derby;
+    }
+
+    // No one can pick — complete the derby
+    const completed = await this.derbyRepository.update(derby.id, {
+      status: 'complete',
+      completedAt: new Date(),
     }, client);
-    if (!updated) throw new NotFoundException('Derby not found');
+    if (!completed) throw new NotFoundException('Derby not found');
 
-    return updated;
+    await this.convertDerbyToMatchups(derby.leagueId, derby.picks, derby.derbyOrder, totalWeeks, client);
+
+    const league = await this.leagueRepository.findById(derby.leagueId);
+    if (league && league.status === 'offseason') {
+      const drafts = await this.draftRepository.findByLeagueId(derby.leagueId);
+      const allComplete = drafts.length > 0 && drafts.every((d) => d.status === 'complete');
+      if (allComplete) {
+        await this.leagueRepository.update(derby.leagueId, { status: 'reg_season' });
+      }
+    }
+
+    return completed;
+  }
+
+  /**
+   * After a normal pick advances the index, chain-skip any subsequent
+   * pickers who have no available cells.
+   */
+  private async chainSkipNoOptions(
+    derby: MatchupDerby,
+    allRosterIds: number[],
+    totalWeeks: number,
+    client: any,
+  ): Promise<MatchupDerby> {
+    const nextPicker = this.getCurrentPicker(derby);
+    if (!nextPicker) {
+      // Past all picks after the pick — check completion
+      return this.tryCompleteDerby(derby, allRosterIds, totalWeeks, client);
+    }
+
+    const available = this.getAvailableCells(derby, nextPicker.roster_id, allRosterIds, totalWeeks);
+    if (available.length > 0) return derby; // next picker has options
+
+    // Next picker has no options — delegate to executeSkip which handles chaining
+    return this.executeSkip(derby, allRosterIds, totalWeeks, client);
   }
 
   private async convertDerbyToMatchups(
