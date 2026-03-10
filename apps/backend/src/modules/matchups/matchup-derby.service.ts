@@ -385,24 +385,32 @@ export class MatchupDerbyService {
       }
     }
 
-    // Check cycle uniqueness: within the current round-robin cycle,
-    // picker has not already faced this opponent
-    const teamCount = derby.derbyOrder.length;
-    const cycleLength = teamCount % 2 === 0 ? teamCount - 1 : teamCount;
-    const cycleStart = Math.floor((week - 1) / cycleLength) * cycleLength + 1;
-    const cycleEnd = cycleStart + cycleLength - 1;
-
+    // Global round-robin: must complete a full round before any rematches.
+    // Count how many times each pair has played across all picks.
+    const allRosterIds = derby.derbyOrder.map((e: any) => e.roster_id);
+    const pairCounts = new Map<string, number>();
     for (const p of picks) {
-      if (p.week >= cycleStart && p.week <= cycleEnd) {
-        const isMatch =
-          (p.picker_roster_id === pickerRosterId && p.opponent_roster_id === opponentRosterId) ||
-          (p.picker_roster_id === opponentRosterId && p.opponent_roster_id === pickerRosterId);
-        if (isMatch) {
-          throw new ConflictException(
-            'You have already played this opponent in the current schedule cycle'
-          );
-        }
+      const pairKey = `${Math.min(p.picker_roster_id, p.opponent_roster_id)}:${Math.max(p.picker_roster_id, p.opponent_roster_id)}`;
+      pairCounts.set(pairKey, (pairCounts.get(pairKey) ?? 0) + 1);
+    }
+
+    // Find the minimum count across ALL possible pairs (unpicked pairs = 0)
+    let minPairCount = Infinity;
+    for (let i = 0; i < allRosterIds.length; i++) {
+      for (let j = i + 1; j < allRosterIds.length; j++) {
+        const key = `${Math.min(allRosterIds[i], allRosterIds[j])}:${Math.max(allRosterIds[i], allRosterIds[j])}`;
+        const count = pairCounts.get(key) ?? 0;
+        if (count < minPairCount) minPairCount = count;
       }
+    }
+    if (minPairCount === Infinity) minPairCount = 0;
+
+    const thisPairKey = `${Math.min(pickerRosterId, opponentRosterId)}:${Math.max(pickerRosterId, opponentRosterId)}`;
+    const thisPairCount = pairCounts.get(thisPairKey) ?? 0;
+    if (thisPairCount > minPairCount) {
+      throw new ConflictException(
+        'All other teams must complete their round-robin matchups before you can rematch this opponent'
+      );
     }
   }
 
@@ -414,13 +422,11 @@ export class MatchupDerbyService {
   ): Array<{ opponent_roster_id: number; week: number }> {
     const available: Array<{ opponent_roster_id: number; week: number }> = [];
     const picks = derby.picks;
-    const teamCount = derby.derbyOrder.length;
-    const cycleLength = teamCount % 2 === 0 ? teamCount - 1 : teamCount;
 
     // Build lookup sets for efficiency
     const pickerWeeks = new Set<number>();
     const rosterWeeks = new Map<number, Set<number>>();
-    const cyclePairings = new Map<string, Set<number>>();
+    const pairCounts = new Map<string, number>();
 
     for (const p of picks) {
       // Track which weeks each roster is busy
@@ -433,19 +439,25 @@ export class MatchupDerbyService {
         pickerWeeks.add(p.week);
       }
 
-      // Track cycle pairings
-      const pair = [Math.min(p.picker_roster_id, p.opponent_roster_id), Math.max(p.picker_roster_id, p.opponent_roster_id)].join(':');
-      const cycleIdx = Math.floor((p.week - 1) / cycleLength);
-      const cycleKey = `${pair}:${cycleIdx}`;
-      if (!cyclePairings.has(cycleKey)) cyclePairings.set(cycleKey, new Set());
-      cyclePairings.get(cycleKey)!.add(p.week);
+      // Track global pair counts
+      const pairKey = `${Math.min(p.picker_roster_id, p.opponent_roster_id)}:${Math.max(p.picker_roster_id, p.opponent_roster_id)}`;
+      pairCounts.set(pairKey, (pairCounts.get(pairKey) ?? 0) + 1);
     }
+
+    // Find min pair count across ALL possible pairs (unpicked = 0)
+    let minPairCount = Infinity;
+    for (let i = 0; i < allRosterIds.length; i++) {
+      for (let j = i + 1; j < allRosterIds.length; j++) {
+        const key = `${Math.min(allRosterIds[i], allRosterIds[j])}:${Math.max(allRosterIds[i], allRosterIds[j])}`;
+        const count = pairCounts.get(key) ?? 0;
+        if (count < minPairCount) minPairCount = count;
+      }
+    }
+    if (minPairCount === Infinity) minPairCount = 0;
 
     for (let week = 1; week <= totalWeeks; week++) {
       // Skip if picker already plays this week
       if (pickerWeeks.has(week)) continue;
-
-      const cycleIdx = Math.floor((week - 1) / cycleLength);
 
       for (const opponentId of allRosterIds) {
         if (opponentId === pickerRosterId) continue;
@@ -453,10 +465,9 @@ export class MatchupDerbyService {
         // Skip if opponent already plays this week
         if (rosterWeeks.get(opponentId)?.has(week)) continue;
 
-        // Skip if already faced in this cycle
-        const pair = [Math.min(pickerRosterId, opponentId), Math.max(pickerRosterId, opponentId)].join(':');
-        const cycleKey = `${pair}:${cycleIdx}`;
-        if (cyclePairings.has(cycleKey)) continue;
+        // Skip if this pair is ahead of the round-robin minimum
+        const pairKey = `${Math.min(pickerRosterId, opponentId)}:${Math.max(pickerRosterId, opponentId)}`;
+        if ((pairCounts.get(pairKey) ?? 0) > minPairCount) continue;
 
         available.push({ opponent_roster_id: opponentId, week });
       }

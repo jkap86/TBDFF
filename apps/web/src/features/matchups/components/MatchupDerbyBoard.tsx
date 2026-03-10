@@ -67,12 +67,9 @@ export function MatchupDerbyBoard({
   const pickingRosterId = isMyTurn && myRosterId ? myRosterId : currentPickerRosterId;
 
   // Build occupancy maps for constraint checking
-  const { weekOccupancy, cyclePairings } = useMemo(() => {
+  const { weekOccupancy, pairCounts } = useMemo(() => {
     const occ = new Map<string, number>(); // `${rosterId}:${week}` -> opponent
-    const pairs = new Set<string>(); // `${min}:${max}:${cycleIdx}`
-
-    const teamCount = derby.derby_order.length;
-    const cycleLength = teamCount % 2 === 0 ? teamCount - 1 : teamCount;
+    const counts = new Map<string, number>(); // `${min}:${max}` -> count
 
     for (const pick of derby.picks) {
       occ.set(`${pick.picker_roster_id}:${pick.week}`, pick.opponent_roster_id);
@@ -80,41 +77,48 @@ export function MatchupDerbyBoard({
 
       const min = Math.min(pick.picker_roster_id, pick.opponent_roster_id);
       const max = Math.max(pick.picker_roster_id, pick.opponent_roster_id);
-      const cycleIdx = Math.floor((pick.week - 1) / cycleLength);
-      pairs.add(`${min}:${max}:${cycleIdx}`);
+      const pairKey = `${min}:${max}`;
+      counts.set(pairKey, (counts.get(pairKey) ?? 0) + 1);
     }
 
-    return { weekOccupancy: occ, cyclePairings: pairs };
-  }, [derby.picks, derby.derby_order.length]);
+    return { weekOccupancy: occ, pairCounts: counts };
+  }, [derby.picks]);
 
   // Get available cells for the current picker
   const availableCells = useMemo(() => {
     if (!pickingRosterId || derby.status !== 'active') return new Set<string>();
 
     const available = new Set<string>();
-    const teamCount = derby.derby_order.length;
-    const cycleLength = teamCount % 2 === 0 ? teamCount - 1 : teamCount;
     const derbyRosterIds = derby.derby_order.map((e) => e.roster_id);
+
+    // Find min pair count across all possible pairs (unpicked = 0)
+    let minPairCount = Infinity;
+    for (let i = 0; i < derbyRosterIds.length; i++) {
+      for (let j = i + 1; j < derbyRosterIds.length; j++) {
+        const key = `${Math.min(derbyRosterIds[i], derbyRosterIds[j])}:${Math.max(derbyRosterIds[i], derbyRosterIds[j])}`;
+        const count = pairCounts.get(key) ?? 0;
+        if (count < minPairCount) minPairCount = count;
+      }
+    }
+    if (minPairCount === Infinity) minPairCount = 0;
 
     for (let week = 1; week <= totalWeeks; week++) {
       if (weekOccupancy.has(`${pickingRosterId}:${week}`)) continue;
-
-      const cycleIdx = Math.floor((week - 1) / cycleLength);
 
       for (const opponentId of derbyRosterIds) {
         if (opponentId === pickingRosterId) continue;
         if (weekOccupancy.has(`${opponentId}:${week}`)) continue;
 
-        const min = Math.min(pickingRosterId, opponentId);
-        const max = Math.max(pickingRosterId, opponentId);
-        if (cyclePairings.has(`${min}:${max}:${cycleIdx}`)) continue;
+        // Skip if this pair is ahead of the round-robin minimum
+        const pairKey = `${Math.min(pickingRosterId, opponentId)}:${Math.max(pickingRosterId, opponentId)}`;
+        if ((pairCounts.get(pairKey) ?? 0) > minPairCount) continue;
 
         available.add(`${week}:${opponentId}`);
       }
     }
 
     return available;
-  }, [pickingRosterId, derby.status, derby.derby_order, totalWeeks, weekOccupancy, cyclePairings]);
+  }, [pickingRosterId, derby.status, derby.derby_order, totalWeeks, weekOccupancy, pairCounts]);
 
   // Determine which picks the user has already made
   const userPickCount = useMemo(() => {
