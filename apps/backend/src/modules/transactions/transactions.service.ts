@@ -44,13 +44,7 @@ export class TransactionService {
     const league = await this.leagueRepo.findById(leagueId);
     if (!league) throw new NotFoundException('League not found');
 
-    if (league.settings.disable_adds) throw new ValidationException('Adds are disabled for this league');
-    if (league.status === 'not_filled') {
-      throw new ValidationException('Adds are not allowed before the league is active');
-    }
-    if (league.status === 'complete' && !league.settings.offseason_adds) {
-      throw new ValidationException('Adds are not allowed after the season is complete');
-    }
+    this.validateLeagueAllowsAcquisitions(league);
 
     const roster = await this.leagueRostersRepo.findRosterByOwner(leagueId, userId);
     if (!roster) throw new ValidationException('You do not own a roster in this league');
@@ -182,6 +176,8 @@ export class TransactionService {
 
     const league = await this.leagueRepo.findById(leagueId);
     if (!league) throw new NotFoundException('League not found');
+
+    this.validateLeagueAllowsAcquisitions(league);
 
     const roster = await this.leagueRostersRepo.findRosterByOwner(leagueId, userId);
     if (!roster) throw new ValidationException('You do not own a roster in this league');
@@ -361,6 +357,17 @@ export class TransactionService {
       const league = await this.leagueRepo.findById(leagueId, client);
       if (!league) return;
 
+      // If league no longer allows acquisitions, fail all pending claims
+      try {
+        this.validateLeagueAllowsAcquisitions(league);
+      } catch {
+        const staleClaims = await this.txRepo.findPendingClaimsByLeague(client, leagueId);
+        for (const claim of staleClaims) {
+          await this.txRepo.updateClaimStatus(client, claim.id, 'failed');
+        }
+        return;
+      }
+
       const claims = await this.txRepo.findPendingClaimsByLeague(client, leagueId);
       if (claims.length === 0) return;
 
@@ -532,6 +539,23 @@ export class TransactionService {
   }
 
   // ---- Helpers ----
+
+  /**
+   * Validates that the league allows roster acquisitions (adds/waivers).
+   * Throws if adds are disabled, league is not yet active, or season is
+   * complete without offseason_adds enabled.
+   */
+  private validateLeagueAllowsAcquisitions(league: { settings: { disable_adds?: boolean; offseason_adds?: boolean }; status: string }): void {
+    if (league.settings.disable_adds) {
+      throw new ValidationException('Adds are disabled for this league');
+    }
+    if (league.status === 'not_filled') {
+      throw new ValidationException('Adds are not allowed before the league is active');
+    }
+    if (league.status === 'complete' && !league.settings.offseason_adds) {
+      throw new ValidationException('Adds are not allowed after the season is complete');
+    }
+  }
 
   private calculateWaiverProcessTime(settings: any): Date {
     const now = new Date();

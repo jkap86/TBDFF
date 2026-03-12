@@ -92,6 +92,15 @@ export class AuthController {
     res.status(200).json({ message: 'Logged out successfully' });
   };
 
+  clearSession = async (req: Request, res: Response): Promise<void> => {
+    const refreshToken = getRefreshCookie(req.cookies) || req.body?.refreshToken;
+    if (refreshToken) {
+      await this.authService.clearSession(refreshToken);
+    }
+    clearRefreshCookie(res);
+    res.status(200).json({ message: 'Session cleared' });
+  };
+
   forgotPassword = async (req: Request, res: Response): Promise<void> => {
     const { email } = req.body;
     await this.authService.requestPasswordReset(email);

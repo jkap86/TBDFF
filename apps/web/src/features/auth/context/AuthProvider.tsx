@@ -6,6 +6,7 @@ import { authApi, tokenManager } from '@/lib/api';
 // This cookie is NOT httpOnly and is trivially forgeable — it only controls client-side
 // redirects in middleware.ts. Actual authentication uses JWT tokens via Authorization header.
 import { setSessionCookie, clearSessionCookie } from '@/lib/cookie';
+import { queryClient } from '@/lib/queryClient';
 import type { User } from '@tbdff/shared';
 
 export interface AuthContextType {
@@ -69,16 +70,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = useCallback(async () => {
     try {
-      if (accessToken) {
-        await authApi.logout(accessToken);
-      }
+      await authApi.clearSession();
     } catch {
-      // Ignore logout errors — clear local state regardless
+      // Best-effort — clear local state regardless
     }
     setUser(null);
     setAccessToken(null);
     clearSessionCookie();
-  }, [accessToken]);
+    queryClient.clear();
+  }, []);
 
   // Register refresh/logout handlers so the API client can auto-refresh on 401
   useEffect(() => {
@@ -95,9 +95,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
       },
       async () => {
+        try {
+          await authApi.clearSession();
+        } catch {
+          // best-effort
+        }
         setUser(null);
         setAccessToken(null);
         clearSessionCookie();
+        queryClient.clear();
       }
     );
 

@@ -17,6 +17,9 @@ export const authApi = {
   logout: (token: string) =>
     apiClient.post<{ message: string }>('/auth/logout', undefined, token),
 
+  clearSession: (refreshToken?: string) =>
+    apiClient.post<{ message: string }>('/auth/clear-session', refreshToken ? { refreshToken } : undefined),
+
   forgotPassword: (email: string) =>
     apiClient.post<{ message: string }>('/auth/forgot-password', { email }),
 

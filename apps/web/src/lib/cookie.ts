@@ -1,5 +1,5 @@
 const COOKIE_NAME = 'tbdff_session';
-const MAX_AGE = 60 * 60 * 24 * 7; // 7 days
+const MAX_AGE = 60 * 60 * 24 * 30; // 30 days — match refresh token lifetime
 
 export function setSessionCookie() {
   const secure = location.protocol === 'https:' ? '; Secure' : '';

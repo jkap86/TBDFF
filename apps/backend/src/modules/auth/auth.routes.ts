@@ -51,6 +51,7 @@ export function createAuthRoutes(controller: AuthController): Router {
   router.post('/refresh', refreshLimiter, validate(refreshSchema), asyncHandler(controller.refresh));
   router.get('/me', authMiddleware, asyncHandler(controller.me));
   router.post('/logout', authMiddleware, asyncHandler(controller.logout));
+  router.post('/clear-session', refreshLimiter, asyncHandler(controller.clearSession));
   router.post('/forgot-password', forgotPasswordLimiter, validate(forgotPasswordSchema), asyncHandler(controller.forgotPassword));
   router.post('/reset-password', resetPasswordLimiter, validate(resetPasswordSchema), asyncHandler(controller.resetPassword));
   router.get('/users/search', authMiddleware, validate(searchUsersSchema, 'query'), asyncHandler(controller.searchUsers));

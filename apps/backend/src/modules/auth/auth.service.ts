@@ -158,6 +158,24 @@ export class AuthService {
     await this.userRepository.clearRefreshToken(userId);
   }
 
+  /**
+   * Clear a session using only the refresh token (no access token required).
+   * Best-effort: silently ignores invalid/expired tokens.
+   */
+  async clearSession(refreshToken: string): Promise<void> {
+    try {
+      const payload = verifyToken(refreshToken);
+      if (payload.type !== 'refresh') return;
+
+      const { token: storedHash } = await this.userRepository.getRefreshTokenWithExpiry(payload.sub);
+      if (storedHash === hashToken(refreshToken)) {
+        await this.userRepository.clearRefreshToken(payload.sub);
+      }
+    } catch {
+      // Token is invalid/expired/malformed — nothing to clear
+    }
+  }
+
   async requestPasswordReset(email: string): Promise<void> {
     const user = await this.userRepository.findByEmail(email.toLowerCase().trim());
     if (!user) return; // Silent — no email enumeration

@@ -62,16 +62,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = useCallback(async () => {
     try {
-      if (accessToken) {
-        await authApi.logout(accessToken);
+      const storedRefreshToken = await storage.getItem(REFRESH_TOKEN_KEY);
+      if (storedRefreshToken) {
+        await authApi.clearSession(storedRefreshToken);
       }
     } catch {
-      // Ignore logout errors - clear local state regardless
+      // Best-effort — clear local state regardless
     }
     setUser(null);
     setAccessToken(null);
     await storage.deleteItem(REFRESH_TOKEN_KEY);
-  }, [accessToken]);
+  }, []);
 
   // Register refresh/logout handlers so the API client can auto-refresh on 401
   useEffect(() => {
@@ -91,6 +92,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
       },
       async () => {
+        try {
+          const storedRefreshToken = await storage.getItem(REFRESH_TOKEN_KEY);
+          if (storedRefreshToken) {
+            await authApi.clearSession(storedRefreshToken);
+          }
+        } catch {
+          // best-effort
+        }
         setUser(null);
         setAccessToken(null);
         await storage.deleteItem(REFRESH_TOKEN_KEY);
