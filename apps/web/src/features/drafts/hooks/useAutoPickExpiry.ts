@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { toast } from 'sonner';
 import { draftApi, ApiError, type Draft, type DraftPick } from '@/lib/api';
-import { applyChainedPicks } from './useDraftSocket';
+import { applyChainedPicksSequentially } from './useDraftSocket';
 
 interface UseAutoPickExpiryParams {
   timeRemaining: number | null;
@@ -81,13 +81,10 @@ export function useAutoPickExpiry({
               return;
             }
             const result = await draftApi.autoPick(capturedDraftId, accessToken!);
-            setPicks((prev) => {
-              let updated = prev.map((p) => (p.id === result.pick.id ? result.pick : p));
-              if (result.chained_picks?.length) {
-                updated = applyChainedPicks(updated, result.chained_picks);
-              }
-              return updated;
-            });
+            setPicks((prev) => prev.map((p) => (p.id === result.pick.id ? result.pick : p)));
+            if (result.chained_picks?.length) {
+              applyChainedPicksSequentially(setPicks, result.chained_picks);
+            }
             const draftResult = await draftApi.getById(capturedDraftId, accessToken!);
             setDraft(draftResult.draft);
           } catch (err) {

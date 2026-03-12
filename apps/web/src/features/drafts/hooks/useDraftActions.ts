@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react';
 import { toast } from 'sonner';
 import { draftApi, ApiError, type Draft, type DraftPick, type DraftQueueItem, type Roster, type UpdateDraftRequest, type AuctionLot, type RosterBudget, type NominationStatsResponse } from '@/lib/api';
-import { applyChainedPicks } from './useDraftSocket';
+import { applyChainedPicksSequentially } from './useDraftSocket';
 
 interface UseDraftActionsParams {
   draft: Draft | null;
@@ -107,13 +107,10 @@ export function useDraftActions({
       setIsPicking(true);
       setPickError(null);
       const result = await draftApi.makePick(draft.id, { player_id: playerId.trim() }, accessToken);
-      setPicks((prev) => {
-        let updated = prev.map((p) => (p.id === result.pick.id ? result.pick : p));
-        if (result.chained_picks?.length) {
-          updated = applyChainedPicks(updated, result.chained_picks);
-        }
-        return updated;
-      });
+      setPicks((prev) => prev.map((p) => (p.id === result.pick.id ? result.pick : p)));
+      if (result.chained_picks?.length) {
+        applyChainedPicksSequentially(setPicks, result.chained_picks);
+      }
 
       const draftResult = await draftApi.getById(draft.id, accessToken);
       setDraft(draftResult.draft);
@@ -271,7 +268,7 @@ export function useDraftActions({
       setDraft(result.draft);
 
       if (result.picks.length > 0) {
-        setPicks((prev) => applyChainedPicks(prev, result.picks));
+        applyChainedPicksSequentially(setPicks, result.picks);
       }
     } catch (err) {
       if (err instanceof ApiError) {

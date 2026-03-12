@@ -10,6 +10,18 @@ export function applyChainedPicks(prev: DraftPick[], chainedPicks: DraftPick[]):
   return updated;
 }
 
+export function applyChainedPicksSequentially(
+  setPicks: React.Dispatch<React.SetStateAction<DraftPick[]>>,
+  chainedPicks: DraftPick[],
+  delayMs = 750,
+): void {
+  chainedPicks.forEach((cp, index) => {
+    setTimeout(() => {
+      setPicks((prev) => prev.map((p) => (p.id === cp.id ? cp : p)));
+    }, (index + 1) * delayMs);
+  });
+}
+
 interface UseDraftSocketParams {
   socket: any;
   draft: Draft | null;
@@ -63,15 +75,14 @@ export function useDraftSocket({
       if (data.server_time) updateClockOffset(data.server_time);
       if (data.pick || data.chained_picks?.length) {
         setPicks((prev) => {
-          let updated = prev;
           if (data.pick) {
-            updated = updated.map((p) => (p.id === data.pick!.id ? data.pick! : p));
+            return prev.map((p) => (p.id === data.pick!.id ? data.pick! : p));
           }
-          if (data.chained_picks?.length) {
-            updated = applyChainedPicks(updated, data.chained_picks);
-          }
-          return updated;
+          return prev;
         });
+        if (data.chained_picks?.length) {
+          applyChainedPicksSequentially(setPicks, data.chained_picks);
+        }
         if (accessToken) {
           draftApi.getQueue(draft.id, accessToken).then((res) => setQueue(res.queue)).catch(() => {});
         }
