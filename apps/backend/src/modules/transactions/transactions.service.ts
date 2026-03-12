@@ -545,7 +545,7 @@ export class TransactionService {
    * Throws if adds are disabled, league is not yet active, or season is
    * complete without offseason_adds enabled.
    */
-  private validateLeagueAllowsAcquisitions(league: { settings: { disable_adds?: boolean; offseason_adds?: boolean }; status: string }): void {
+  private validateLeagueAllowsAcquisitions(league: { settings: { disable_adds?: number; offseason_adds?: number }; status: string }): void {
     if (league.settings.disable_adds) {
       throw new ValidationException('Adds are disabled for this league');
     }
