@@ -9,7 +9,7 @@ export const authApi = {
     apiClient.post<AuthResponse>('/auth/login', { username, password }),
 
   refresh: (refreshToken?: string) =>
-    apiClient.post<AuthResponse>('/auth/refresh', refreshToken ? { refreshToken } : undefined),
+    apiClient.post<AuthResponse>('/auth/refresh', refreshToken ? { refreshToken } : {}),
 
   me: (token: string) =>
     apiClient.get<UserResponse>('/auth/me', token),
@@ -18,7 +18,7 @@ export const authApi = {
     apiClient.post<{ message: string }>('/auth/logout', undefined, token),
 
   clearSession: (refreshToken?: string) =>
-    apiClient.post<{ message: string }>('/auth/clear-session', refreshToken ? { refreshToken } : undefined),
+    apiClient.post<{ message: string }>('/auth/clear-session', refreshToken ? { refreshToken } : {}),
 
   forgotPassword: (email: string) =>
     apiClient.post<{ message: string }>('/auth/forgot-password', { email }),

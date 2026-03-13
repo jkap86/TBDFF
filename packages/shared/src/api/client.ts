@@ -35,9 +35,11 @@ async function request<T>(
     throw new Error('@tbdff/shared: apiClient not initialized. Call initApiClient() first.');
   }
 
-  const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
-  };
+  const headers: Record<string, string> = {};
+
+  if (body !== undefined) {
+    headers['Content-Type'] = 'application/json';
+  }
 
   if (clientType) {
     headers['X-Client'] = clientType;
@@ -51,7 +53,7 @@ async function request<T>(
     method,
     headers,
     credentials: 'include',
-    body: body ? JSON.stringify(body) : undefined,
+    body: body !== undefined ? JSON.stringify(body) : undefined,
   });
 
   // Safely parse the response body — avoid crashing on 204, HTML proxy errors, etc.
