@@ -100,6 +100,44 @@ export class MatchupDerbyService {
     return derby;
   }
 
+  async updateDerbySettings(
+    leagueId: string,
+    userId: string,
+    timer: number,
+    timeout: number,
+  ): Promise<MatchupDerby | null> {
+    const league = await this.leagueRepository.findById(leagueId);
+    if (!league) throw new NotFoundException('League not found');
+
+    const member = await this.leagueMembersRepository.findMember(leagueId, userId);
+    if (!member || member.role !== 'commissioner') {
+      throw new ForbiddenException('Only commissioners can update derby settings');
+    }
+
+    await this.leagueRepository.update(leagueId, {
+      settings: { matchup_derby_timer: timer, matchup_derby_timeout: timeout },
+    });
+
+    const derby = await this.derbyRepository.findActiveByLeagueId(leagueId);
+    if (!derby) return null;
+
+    const pickDeadline = timer > 0 ? new Date(Date.now() + timer * 1000) : null;
+    const updated = await this.derbyRepository.update(derby.id, {
+      pickTimer: timer,
+      timeoutAction: timeout,
+      pickDeadline,
+    });
+
+    if (updated) {
+      this.gateway?.broadcast(leagueId, 'matchup_derby:state_updated', {
+        derby: updated.toSafeObject(),
+        server_time: new Date().toISOString(),
+      });
+    }
+
+    return updated;
+  }
+
   async getDerbyState(leagueId: string, userId: string): Promise<MatchupDerby | null> {
     const league = await this.leagueRepository.findById(leagueId);
     if (!league) throw new NotFoundException('League not found');

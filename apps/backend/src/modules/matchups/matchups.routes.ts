@@ -18,6 +18,7 @@ export function createMatchupRoutes(controller: MatchupController): Router {
   router.get('/:leagueId/matchups/derby', asyncHandler(controller.getDerbyState));
   router.post('/:leagueId/matchups/derby/pick', asyncHandler(controller.makeDerbyPick));
   router.post('/:leagueId/matchups/derby/autopick', asyncHandler(controller.derbyAutoPick));
+  router.patch('/:leagueId/matchups/derby/settings', asyncHandler(controller.updateDerbySettings));
 
   // Get all matchups for a league
   router.get('/:leagueId/matchups', asyncHandler(controller.getAll));

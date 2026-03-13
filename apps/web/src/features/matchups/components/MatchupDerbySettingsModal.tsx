@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import type { League } from '@tbdff/shared';
-import { leagueApi } from '@tbdff/shared';
+import { matchupApi } from '@tbdff/shared';
 import { ApiError } from '@/lib/api';
 
 const TIMER_OPTIONS = [
@@ -46,9 +46,9 @@ export function MatchupDerbySettingsModal({
     try {
       setIsSaving(true);
       setError(null);
-      await leagueApi.update(
+      await matchupApi.updateDerbySettings(
         league.id,
-        { settings: { matchup_derby_timer: timer, matchup_derby_timeout: timeout } },
+        { timer, timeout },
         accessToken,
       );
       onSaved();

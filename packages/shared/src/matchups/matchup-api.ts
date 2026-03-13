@@ -48,4 +48,11 @@ export const matchupApi = {
       undefined,
       token
     ),
+
+  updateDerbySettings: (leagueId: string, body: { timer: number; timeout: number }, token: string) =>
+    apiClient.patch<MatchupDerbyResponse>(
+      `/leagues/${leagueId}/matchups/derby/settings`,
+      body,
+      token
+    ),
 };

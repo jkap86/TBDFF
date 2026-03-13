@@ -89,4 +89,15 @@ export class MatchupController {
 
     res.status(200).json({ derby: derby.toSafeObject(), server_time: new Date().toISOString() });
   };
+
+  updateDerbySettings = async (req: AuthRequest, res: Response): Promise<void> => {
+    const userId = req.user?.userId;
+    if (!userId) throw new InvalidCredentialsException();
+
+    const leagueId = Array.isArray(req.params.leagueId) ? req.params.leagueId[0] : req.params.leagueId;
+    const { timer, timeout } = req.body;
+    const derby = await this.matchupDerbyService.updateDerbySettings(leagueId, userId, timer, timeout);
+
+    res.status(200).json({ derby: derby?.toSafeObject() ?? null, server_time: new Date().toISOString() });
+  };
 }

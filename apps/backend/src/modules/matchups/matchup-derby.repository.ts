@@ -81,6 +81,7 @@ export class MatchupDerbyRepository {
       picks?: MatchupDerbyPick[];
       currentPickIndex?: number;
       totalPicks?: number;
+      pickTimer?: number;
       pickDeadline?: Date | null;
       timeoutAction?: number;
       skippedUsers?: string[];
@@ -113,6 +114,10 @@ export class MatchupDerbyRepository {
     if (data.totalPicks !== undefined) {
       sets.push(`total_picks = $${idx++}`);
       params.push(data.totalPicks);
+    }
+    if (data.pickTimer !== undefined) {
+      sets.push(`pick_timer = $${idx++}`);
+      params.push(data.pickTimer);
     }
     if (data.pickDeadline !== undefined) {
       sets.push(`pick_deadline = $${idx++}`);
