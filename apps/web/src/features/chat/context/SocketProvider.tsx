@@ -40,6 +40,7 @@ interface ServerToClientEvents {
   'trade:completed': (data: { trade: Record<string, unknown> }) => void;
   'trade:vetoed': (data: { trade: Record<string, unknown> }) => void;
   'trade:withdrawn': (data: { trade: Record<string, unknown> }) => void;
+  'trade:review': (data: { trade: Record<string, unknown> }) => void;
 }
 
 interface ClientToServerEvents {
