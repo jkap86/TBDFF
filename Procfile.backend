@@ -1,0 +1,2 @@
+web: node apps/backend/dist/server.js
+release: node apps/backend/dist/migrate.js

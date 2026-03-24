@@ -20,7 +20,11 @@ async function releaseLock(client: PoolClient): Promise<void> {
 }
 
 async function migrate() {
-  const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+  const ssl = process.env.DATABASE_SSL === 'true' || process.env.DATABASE_SSL === '1';
+  const pool = new Pool({
+    connectionString: process.env.DATABASE_URL,
+    ...(ssl && { ssl: { rejectUnauthorized: false } }),
+  });
   const lockClient = await pool.connect();
 
   try {

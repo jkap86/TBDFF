@@ -12,7 +12,8 @@
     "build:web": "pnpm --filter @tbdff/web build",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
-    "format": "prettier --write ."
+    "format": "prettier --write .",
+    "heroku-postbuild": "if [ \"$APP_TARGET\" = 'web' ]; then pnpm build:shared && pnpm build:web; else pnpm build:shared && pnpm build:backend; fi"
   },
   "engines": {
     "node": ">=20"
