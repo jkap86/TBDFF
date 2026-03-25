@@ -82,8 +82,6 @@ export function LeagueSettingsModal({
     const currentDailyWaiversHour = league.settings?.daily_waivers_hour ?? 0;
     const currentDraftSetup = league.settings?.draft_setup ?? 0;
     const currentMatchupType = league.settings?.matchup_type ?? 0;
-    const currentBuyIn = ((league.settings as Record<string, unknown>).buy_in as number) ?? 0;
-    const currentPayouts = ((league.settings as Record<string, unknown>).payouts as unknown[]) ?? [];
     if (
       values.isPublic !== currentIsPublic || values.memberCanInvite !== currentMemberCanInvite ||
       values.leagueType !== currentLeagueType || values.bestBall !== currentBestBall ||
@@ -92,9 +90,7 @@ export function LeagueSettingsModal({
       values.waiverClearDays !== currentWaiverClearDays || values.dailyWaivers !== currentDailyWaivers ||
       values.dailyWaiversHour !== currentDailyWaiversHour ||
       values.draftSetup !== currentDraftSetup ||
-      values.matchupType !== currentMatchupType ||
-      values.buyIn !== currentBuyIn ||
-      JSON.stringify(values.payouts) !== JSON.stringify(currentPayouts)
+      values.matchupType !== currentMatchupType
     ) {
       updates.settings = {
         public: values.isPublic ? 1 : 0,
@@ -110,9 +106,7 @@ export function LeagueSettingsModal({
         daily_waivers_hour: values.dailyWaiversHour,
         draft_setup: values.draftSetup,
         matchup_type: values.matchupType,
-        buy_in: values.buyIn,
-        payouts: values.payouts,
-      } as any;
+      };
     }
 
     // Check roster positions
