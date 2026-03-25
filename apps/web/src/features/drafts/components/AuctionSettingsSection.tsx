@@ -17,6 +17,7 @@ const OFFERING_TIMER_PRESETS = [
 interface AuctionSettingsSectionProps {
   isAuction: boolean;
   isSlowAuction: boolean;
+  rounds: number;
   maxPlayersPerTeam: number;
   onMaxPlayersPerTeamChange: (v: number) => void;
   nominationTimer: number;
@@ -34,6 +35,7 @@ interface AuctionSettingsSectionProps {
 export function AuctionSettingsSection({
   isAuction,
   isSlowAuction,
+  rounds,
   maxPlayersPerTeam,
   onMaxPlayersPerTeamChange,
   nominationTimer,
@@ -57,17 +59,14 @@ export function AuctionSettingsSection({
       {isAnyAuction && (
         <div>
           <label className="block text-xs font-medium text-muted-foreground mb-1">Max Players / Team</label>
-          <div className="flex items-center gap-2">
-            <input
-              type="number"
-              value={maxPlayersPerTeam}
-              onChange={(e) => onMaxPlayersPerTeamChange(Math.max(0, Math.min(50, parseInt(e.target.value) || 0)))}
-              min={0}
-              max={50}
-              className="w-20 rounded-lg border border-input px-3 py-2 text-sm text-foreground bg-card focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
-            />
-            <span className="text-xs text-disabled">0 = same as rounds</span>
-          </div>
+          <input
+            type="number"
+            value={maxPlayersPerTeam}
+            onChange={(e) => onMaxPlayersPerTeamChange(Math.max(1, Math.min(50, parseInt(e.target.value) || rounds)))}
+            min={1}
+            max={50}
+            className="w-20 rounded-lg border border-input px-3 py-2 text-sm text-foreground bg-card focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
+          />
         </div>
       )}
 

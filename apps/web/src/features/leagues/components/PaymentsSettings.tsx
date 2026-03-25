@@ -130,6 +130,7 @@ function CreatePayments({
   isOpen,
   onToggle,
 }: CreateModeProps) {
+  const [isPaidLeague, setIsPaidLeague] = useState(buyIn > 0);
   const [showPayoutForm, setShowPayoutForm] = useState(false);
 
   const placeEntries = payouts
@@ -158,26 +159,43 @@ function CreatePayments({
 
       {isOpen && (
         <div className="border-t border-border px-4 py-4 space-y-5">
-          {/* Buy-in Amount */}
+          {/* Paid League Toggle */}
           <div>
-            <h4 className="mb-2 text-sm font-semibold text-accent-foreground">Buy-in Amount</h4>
-            <div className="flex items-center gap-2">
-              <span className="text-muted-foreground">$</span>
+            <label className="flex items-center gap-2 cursor-pointer">
               <input
-                type="number"
-                min="0"
-                step="1"
-                value={buyIn || ''}
-                onChange={(e) => onBuyInChange(parseFloat(e.target.value) || 0)}
-                className="w-28 rounded border border-input bg-card px-2 py-1 text-sm text-foreground"
-                placeholder="0 (Free)"
+                type="checkbox"
+                checked={isPaidLeague}
+                onChange={(e) => {
+                  const checked = e.target.checked;
+                  setIsPaidLeague(checked);
+                  if (!checked) onBuyInChange(0);
+                }}
+                className="h-4 w-4 rounded border-input accent-primary"
               />
-            </div>
-            <p className="mt-1 text-xs text-muted-foreground">Leave at 0 for a free league</p>
+              <span className="text-sm font-semibold text-accent-foreground">Paid League</span>
+            </label>
+
+            {isPaidLeague && (
+              <div className="mt-3">
+                <h4 className="mb-2 text-sm font-semibold text-accent-foreground">Buy-in Amount</h4>
+                <div className="flex items-center gap-2">
+                  <span className="text-muted-foreground">$</span>
+                  <input
+                    type="number"
+                    min="1"
+                    step="1"
+                    value={buyIn || ''}
+                    onChange={(e) => onBuyInChange(parseFloat(e.target.value) || 0)}
+                    className="w-28 rounded border border-input bg-card px-2 py-1 text-sm text-foreground"
+                    placeholder="Enter amount"
+                  />
+                </div>
+              </div>
+            )}
           </div>
 
-          {/* Payout Structure */}
-          <div>
+          {/* Payout Structure - only for paid leagues */}
+          {isPaidLeague && <div>
             <div className="mb-2 flex items-center justify-between">
               <h4 className="text-sm font-semibold text-accent-foreground">Payout Structure</h4>
               {!showPayoutForm && (
@@ -232,7 +250,7 @@ function CreatePayments({
             )}
 
             <AllocationBanner payouts={payouts} buyIn={buyIn} totalRosters={totalRosters} />
-          </div>
+          </div>}
         </div>
       )}
     </div>

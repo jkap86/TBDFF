@@ -36,7 +36,7 @@ export function DraftSettingsForm({ draft, onSave, onSaveSuccess, readOnly, vetD
   const [nominationTimer, setNominationTimer] = useState(draft.settings.nomination_timer);
   const [offeringTimer, setOfferingTimer] = useState(draft.settings.offering_timer ?? 120);
   const [budget, setBudget] = useState(draft.settings.budget);
-  const [maxPlayersPerTeam, setMaxPlayersPerTeam] = useState(draft.settings.max_players_per_team ?? 0);
+  const [maxPlayersPerTeam, setMaxPlayersPerTeam] = useState(draft.settings.max_players_per_team || draft.settings.rounds);
   // Slow auction state
   const [bidWindowSeconds, setBidWindowSeconds] = useState(draft.settings.bid_window_seconds ?? 43200);
   const [maxNominationsPerTeam, setMaxNominationsPerTeam] = useState(draft.settings.max_nominations_per_team ?? 2);
@@ -66,7 +66,7 @@ export function DraftSettingsForm({ draft, onSave, onSaveSuccess, readOnly, vetD
     setNominationTimer(draft.settings.nomination_timer);
     setOfferingTimer(draft.settings.offering_timer ?? 120);
     setBudget(draft.settings.budget);
-    setMaxPlayersPerTeam(draft.settings.max_players_per_team ?? 0);
+    setMaxPlayersPerTeam(draft.settings.max_players_per_team || draft.settings.rounds);
     setBidWindowSeconds(draft.settings.bid_window_seconds ?? 43200);
     setMaxNominationsPerTeam(draft.settings.max_nominations_per_team ?? 2);
     setMaxNominationsGlobal(draft.settings.max_nominations_global ?? 25);
@@ -99,7 +99,7 @@ export function DraftSettingsForm({ draft, onSave, onSaveSuccess, readOnly, vetD
     if (isAuction && nominationTimer !== draft.settings.nomination_timer) settingsUpdates.nomination_timer = nominationTimer;
     if (isAuction && offeringTimer !== (draft.settings.offering_timer ?? 120)) settingsUpdates.offering_timer = offeringTimer;
     if (isAnyAuction && budget !== draft.settings.budget) settingsUpdates.budget = budget;
-    if (isAnyAuction && maxPlayersPerTeam !== (draft.settings.max_players_per_team ?? 0)) settingsUpdates.max_players_per_team = maxPlayersPerTeam;
+    if (isAnyAuction && maxPlayersPerTeam !== (draft.settings.max_players_per_team || draft.settings.rounds)) settingsUpdates.max_players_per_team = maxPlayersPerTeam;
     // Slow auction settings
     if (isSlowAuction) {
       if (bidWindowSeconds !== (draft.settings.bid_window_seconds ?? 43200)) settingsUpdates.bid_window_seconds = bidWindowSeconds;
@@ -199,7 +199,7 @@ export function DraftSettingsForm({ draft, onSave, onSaveSuccess, readOnly, vetD
               <>
                 <div className="text-muted-foreground">Max Players / Team</div>
                 <div className="font-medium text-foreground">
-                  {draft.settings.max_players_per_team ? draft.settings.max_players_per_team : `${draft.settings.rounds} (same as rounds)`}
+                  {draft.settings.max_players_per_team || draft.settings.rounds}
                 </div>
                 <div className="text-muted-foreground">Offering Timer</div>
                 <div className="font-medium text-foreground">{formatTimer(draft.settings.offering_timer ?? 120)}</div>
@@ -372,6 +372,7 @@ export function DraftSettingsForm({ draft, onSave, onSaveSuccess, readOnly, vetD
           <AuctionSettingsSection
             isAuction={isAuction}
             isSlowAuction={isSlowAuction}
+            rounds={rounds}
             maxPlayersPerTeam={maxPlayersPerTeam}
             onMaxPlayersPerTeamChange={setMaxPlayersPerTeam}
             nominationTimer={nominationTimer}
