@@ -15,6 +15,11 @@ container.jobs.waiverProcessJob.start();
 container.jobs.tradeReviewJob.start();
 console.log('TBDFF Worker started — background jobs running');
 
+// Sync players immediately on boot so the DB is populated without waiting for the 12h cron
+container.jobs.playerSyncJob.runNow().catch((err) => {
+  console.error('[worker] Initial player sync failed:', err);
+});
+
 // Graceful shutdown
 let isShuttingDown = false;
 const gracefulShutdown = () => {

@@ -13,6 +13,7 @@
     "start": "node dist/server.js",
     "worker": "node dist/worker.js",
     "migrate": "ts-node src/migrate.ts",
+    "sync:players": "ts-node src/scripts/sync-players.ts",
     "test": "vitest run",
     "test:watch": "vitest"
   },
