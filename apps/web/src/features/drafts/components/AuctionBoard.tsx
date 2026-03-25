@@ -197,7 +197,7 @@ export function AuctionBoard({ draft, picks, members, currentUserId, rosterPosit
         <div className="shrink-0 rounded-lg border border-border bg-card p-5 shadow-lg min-h-[120px]" style={{ borderLeft: '3px solid var(--color-primary)', background: 'var(--background)' }}>
           <div className="flex items-center justify-between mb-3">
             <h3 className="text-xs font-heading font-bold uppercase tracking-widest text-primary">Current Nomination</h3>
-            <span className="text-[10px] font-heading font-bold uppercase tracking-wide text-muted-foreground">by {nominatorName}</span>
+            <span className="text-xs font-heading font-bold uppercase tracking-wide text-muted-foreground">by {nominatorName}</span>
           </div>
           <div className="flex items-center gap-6">
             <div className="flex-1">
@@ -206,7 +206,7 @@ export function AuctionBoard({ draft, picks, members, currentUserId, rosterPosit
               </div>
               <div className="flex items-center gap-2 mt-1.5">
                 {nomination.player_metadata?.position && (
-                  <span className="rounded-full bg-primary/15 border border-primary/30 px-2 py-0.5 text-[10px] font-heading font-bold uppercase tracking-wide text-primary">
+                  <span className="rounded-full bg-primary/15 border border-primary/30 px-2 py-0.5 text-xs font-heading font-bold uppercase tracking-wide text-primary">
                     {nomination.player_metadata.position}
                   </span>
                 )}
@@ -219,21 +219,21 @@ export function AuctionBoard({ draft, picks, members, currentUserId, rosterPosit
             </div>
             <div className="text-right">
               <div className="text-3xl font-mono font-bold text-success-foreground tracking-tight">${nomination.current_bid}</div>
-              <div className="text-[10px] font-heading font-bold uppercase tracking-wide text-muted-foreground">{currentBidderName}</div>
+              <div className="text-xs font-heading font-bold uppercase tracking-wide text-muted-foreground">{currentBidderName}</div>
             </div>
           </div>
 
           {/* Bid History */}
           {nomination.bid_history && nomination.bid_history.length > 1 && (
             <div className="mt-3 border-t border-border pt-2.5">
-              <div className="text-[10px] font-heading font-bold uppercase tracking-widest text-muted-foreground mb-1.5">Bid History</div>
+              <div className="text-xs font-heading font-bold uppercase tracking-widest text-muted-foreground mb-1.5">Bid History</div>
               <div className="flex gap-1.5 overflow-x-auto scrollbar-sleek pb-1">
                 {[...nomination.bid_history].reverse().map((bid: any, i: number) => {
                   const bidder = members.find((m) => m.user_id === bid.user_id);
                   return (
                     <span
                       key={i}
-                      className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold whitespace-nowrap ${
+                      className={`rounded-full px-2.5 py-0.5 text-xs font-bold whitespace-nowrap ${
                         i === 0
                           ? 'bg-success/15 border border-success-foreground/30 text-success-foreground'
                           : 'bg-card border border-border text-muted-foreground'
@@ -284,7 +284,7 @@ export function AuctionBoard({ draft, picks, members, currentUserId, rosterPosit
                       <div className="text-xs font-heading font-bold truncate max-w-[100px]">
                         {rosterToUser[team.rosterId] || `Team ${team.rosterId}`}
                       </div>
-                      <div className={`text-[10px] font-bold ${budget > 0 ? 'text-success-foreground' : 'text-destructive-foreground'}`}>
+                      <div className={`text-xs font-bold ${budget > 0 ? 'text-success-foreground' : 'text-destructive-foreground'}`}>
                         ${budget}
                       </div>
                     </th>
@@ -327,7 +327,7 @@ export function AuctionBoard({ draft, picks, members, currentUserId, rosterPosit
                             <div className="text-xs font-bold text-foreground truncate">
                               {pick.metadata?.first_name?.[0]}. {pick.metadata?.last_name || pick.player_id}
                             </div>
-                            <div className="text-[10px] text-foreground/60">
+                            <div className="text-xs text-foreground/60">
                               {pick.metadata?.position}{pick.metadata?.team ? ` - ${pick.metadata.team}` : ''}
                               {pick.amount != null ? ` · $${pick.amount}` : ''}
                             </div>

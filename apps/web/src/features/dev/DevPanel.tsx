@@ -129,13 +129,13 @@ export function DevPanel() {
           {/* User buttons — click to login, checkbox to select for league */}
           <div className="border-b border-gray-700 px-3 py-2">
             <div className="mb-1 flex items-center justify-between">
-              <p className="text-[10px] font-semibold uppercase text-gray-500">
+              <p className="text-xs font-semibold uppercase text-gray-500">
                 Test Users
               </p>
               <div className="flex gap-1">
-                <button onClick={selectAll} className="text-[10px] text-gray-500 hover:text-gray-300">all</button>
-                <span className="text-[10px] text-gray-700">/</span>
-                <button onClick={selectNone} className="text-[10px] text-gray-500 hover:text-gray-300">none</button>
+                <button onClick={selectAll} className="text-xs text-gray-500 hover:text-gray-300">all</button>
+                <span className="text-xs text-gray-700">/</span>
+                <button onClick={selectNone} className="text-xs text-gray-500 hover:text-gray-300">none</button>
               </div>
             </div>
             <div className="grid grid-cols-4 gap-1">
@@ -150,7 +150,7 @@ export function DevPanel() {
                   <button
                     onClick={() => handleLogin(username)}
                     disabled={busy !== null}
-                    className={`flex-1 rounded px-1 py-1 text-[11px] font-medium transition-colors ${
+                    className={`flex-1 rounded px-1 py-1 text-xs font-medium transition-colors ${
                       user?.username === username
                         ? 'bg-purple-600 text-white'
                         : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
@@ -165,7 +165,7 @@ export function DevPanel() {
 
           {/* League actions */}
           <div className="border-b border-gray-700 px-3 py-2">
-            <p className="mb-1 text-[10px] font-semibold uppercase text-gray-500">
+            <p className="mb-1 text-xs font-semibold uppercase text-gray-500">
               League Actions
             </p>
             {leagueId ? (
@@ -179,7 +179,7 @@ export function DevPanel() {
                   : `Add Selected (${selected.size}) to League`}
               </button>
             ) : (
-              <p className="text-[11px] text-gray-600">
+              <p className="text-xs text-gray-600">
                 Navigate to a league page to add users
               </p>
             )}
@@ -188,11 +188,11 @@ export function DevPanel() {
           {/* Log */}
           {log.length > 0 && (
             <div className="max-h-32 overflow-y-auto px-3 py-2">
-              <p className="mb-1 text-[10px] font-semibold uppercase text-gray-500">
+              <p className="mb-1 text-xs font-semibold uppercase text-gray-500">
                 Log
               </p>
               {log.map((msg, i) => (
-                <p key={i} className="text-[10px] leading-tight text-gray-400">
+                <p key={i} className="text-xs leading-tight text-gray-400">
                   {msg}
                 </p>
               ))}

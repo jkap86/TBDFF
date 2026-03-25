@@ -121,7 +121,7 @@ export function DraftBoard({ draft, picks, members, rosters, currentUserId }: Dr
       >
         {isFilled ? (
           <>
-            <span className="absolute top-0.5 right-1 text-[10px] text-foreground/40">{roundNum}.{String(slot).padStart(2, '0')}</span>
+            <span className="absolute top-0.5 right-1 text-xs text-foreground/40">{roundNum}.{String(slot).padStart(2, '0')}</span>
             <div className="leading-tight">
               {pick.metadata?.rookie_pick ? (
                 <span className="font-heading font-bold text-amber-600">
@@ -133,12 +133,12 @@ export function DraftBoard({ draft, picks, members, rosters, currentUserId }: Dr
                     {pick.metadata?.first_name?.[0]}. {pick.metadata?.last_name || pick.player_id}
                   </span>
                   {(pick.metadata?.position || pick.metadata?.team) && (
-                    <div className="text-[11px] text-disabled">{pick.metadata.position}{pick.metadata.team ? ` - ${pick.metadata.team}` : ''}</div>
+                    <div className="text-xs text-disabled">{pick.metadata.position}{pick.metadata.team ? ` - ${pick.metadata.team}` : ''}</div>
                   )}
                 </>
               )}
               {isTraded && tradedOwnerName && (
-                <div className="text-[11px] text-info-foreground">{tradedOwnerName}</div>
+                <div className="text-xs text-info-foreground">{tradedOwnerName}</div>
               )}
             </div>
           </>
@@ -146,11 +146,11 @@ export function DraftBoard({ draft, picks, members, rosters, currentUserId }: Dr
           <div>
             <span className="text-highlight-foreground font-bold animate-pulse">OTC</span>
             {isTraded && tradedOwnerName && (
-              <div className="text-[11px] text-info-foreground">&rarr; {tradedOwnerName}</div>
+              <div className="text-xs text-info-foreground">&rarr; {tradedOwnerName}</div>
             )}
           </div>
         ) : isTraded && tradedOwnerName ? (
-          <span className="text-[11px] text-info-foreground">&rarr; {tradedOwnerName}</span>
+          <span className="text-xs text-info-foreground">&rarr; {tradedOwnerName}</span>
         ) : (
           <span className="font-heading font-bold text-disabled/40">{roundNum}.{String(slot).padStart(2, '0')}</span>
         )}
@@ -194,7 +194,7 @@ export function DraftBoard({ draft, picks, members, rosters, currentUserId }: Dr
                     <div className="flex items-center justify-center gap-1">
                       Rd {roundNum}
                       {isSnake && (
-                        <span className="text-[10px] text-disabled" title={isReversed ? 'Reverse order' : 'Normal order'}>
+                        <span className="text-xs text-disabled" title={isReversed ? 'Reverse order' : 'Normal order'}>
                           {isReversed ? '\u2193' : '\u2191'}
                         </span>
                       )}
@@ -219,7 +219,7 @@ export function DraftBoard({ draft, picks, members, rosters, currentUserId }: Dr
                   <div className="flex items-center justify-center gap-1.5">
                     {slotToUser[slot] || `Slot ${slot}`}
                     {autoPickUsers.includes(slotToUserId[slot]) && (
-                      <span className="rounded bg-orange-500/20 px-1 text-[9px] font-bold text-orange-500" title="Auto-picking">AUTO</span>
+                      <span className="rounded bg-orange-500/20 px-1 text-xs font-bold text-orange-500" title="Auto-picking">AUTO</span>
                     )}
                   </div>
                 </th>
@@ -244,7 +244,7 @@ export function DraftBoard({ draft, picks, members, rosters, currentUserId }: Dr
                     <div className="flex items-center justify-center gap-1.5">
                       {slotToUser[slot] || `Slot ${slot}`}
                       {autoPickUsers.includes(slotToUserId[slot]) && (
-                        <span className="rounded bg-orange-500/20 px-1 text-[9px] font-bold text-orange-500" title="Auto-picking">AUTO</span>
+                        <span className="rounded bg-orange-500/20 px-1 text-xs font-bold text-orange-500" title="Auto-picking">AUTO</span>
                       )}
                     </div>
                   </td>
@@ -270,7 +270,7 @@ export function DraftBoard({ draft, picks, members, rosters, currentUserId }: Dr
                     <div className="flex items-center justify-center gap-1">
                       {roundNum}
                       {isSnake && (
-                        <span className="text-[10px] text-disabled" title={isReversed ? 'Reverse order' : 'Normal order'}>
+                        <span className="text-xs text-disabled" title={isReversed ? 'Reverse order' : 'Normal order'}>
                           {isReversed ? '\u2190' : '\u2192'}
                         </span>
                       )}

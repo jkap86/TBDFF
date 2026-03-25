@@ -118,7 +118,7 @@ export function SlowAuctionBoard({
                 {rosterToUser[entry.roster_id] || entry.username || `Team ${entry.roster_id}`}
               </span>
               {entry.is_proxy && (
-                <span className="text-[10px] px-1 rounded bg-info text-info-foreground">
+                <span className="text-xs px-1 rounded bg-info text-info-foreground">
                   auto
                 </span>
               )}
@@ -267,7 +267,7 @@ export function SlowAuctionBoard({
                     <div className={`text-lg font-bold ${budget.available > 0 ? 'text-success-foreground' : 'text-destructive-foreground'}`}>
                       ${budget.available}
                     </div>
-                    <div className="text-[10px] text-disabled">
+                    <div className="text-xs text-disabled">
                       {budget.won_count}/{budget.total_slots} | ${budget.spent} spent
                     </div>
                   </div>

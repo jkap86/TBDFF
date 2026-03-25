@@ -139,7 +139,7 @@ export function DraftQueue({ queue, draftedPlayerIds, onReorder, onRemove, onUpd
                   )}
                 </div>
                 {isDrafted && (
-                  <span className="shrink-0 rounded bg-muted-hover px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
+                  <span className="shrink-0 rounded bg-muted-hover px-1.5 py-0.5 text-xs font-medium text-muted-foreground">
                     Drafted
                   </span>
                 )}

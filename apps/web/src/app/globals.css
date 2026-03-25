@@ -175,6 +175,12 @@
   --color-neon-orange: var(--neon-orange);
   --color-neon-rose: var(--neon-rose);
   --color-chat-bg: var(--chat-bg);
+
+  /* Enforce minimum 16px – remap small font sizes to base */
+  --text-xs: 1rem;
+  --text-xs--line-height: 1.5rem;
+  --text-sm: 1rem;
+  --text-sm--line-height: 1.5rem;
 }
 
 /* ── Glass Utility Classes ── */

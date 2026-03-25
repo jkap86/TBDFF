@@ -81,7 +81,7 @@ export function MessageList({ messages, currentUserId, onLoadMore, hasMore }: Pr
                 <span className="text-xs text-white italic">
                   {msg.content}
                 </span>
-                <span className="ml-2 inline-block align-bottom text-[10px] leading-none text-white/60">{time}</span>
+                <span className="ml-2 inline-block align-bottom text-xs leading-none text-white/60">{time}</span>
               </div>
             </div>
           );
@@ -104,7 +104,7 @@ export function MessageList({ messages, currentUserId, onLoadMore, hasMore }: Pr
                 </span>
               )}
               {msg.content}
-              <span className={`ml-2 inline-block align-bottom text-[10px] leading-none ${
+              <span className={`ml-2 inline-block align-bottom text-xs leading-none ${
                 isOwn ? 'text-primary-foreground/60' : 'text-white/60'
               }`}>{time}</span>
             </div>

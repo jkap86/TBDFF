@@ -152,12 +152,12 @@ export function DerbyPickBoard({ draft, members, userId, isCommissioner, accessT
                       {member?.display_name || entry.username}
                     </span>
                     {isCurrentTurn && (
-                      <span className="shrink-0 text-[10px] bg-primary/10 text-primary px-1.5 py-0.5 rounded font-medium">
+                      <span className="shrink-0 text-xs bg-primary/10 text-primary px-1.5 py-0.5 rounded font-medium">
                         Picking
                       </span>
                     )}
                     {isSkipped && (
-                      <span className="shrink-0 text-[10px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded font-medium">
+                      <span className="shrink-0 text-xs bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded font-medium">
                         Skipped
                       </span>
                     )}
@@ -202,7 +202,7 @@ export function DerbyPickBoard({ draft, members, userId, isCommissioner, accessT
                     'text-disabled'
                   }`}>{slot}</div>
                   {isTaken && (
-                    <div className="text-[10px] text-muted-foreground truncate">
+                    <div className="text-xs text-muted-foreground truncate">
                       {pickerMember?.display_name || pickerMember?.username || 'Taken'}
                     </div>
                   )}

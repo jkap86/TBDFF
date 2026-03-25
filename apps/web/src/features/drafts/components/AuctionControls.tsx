@@ -43,7 +43,7 @@ function NominationMaxBid({ nomination, queue, budget, teams, onUpdateMaxBid }: 
 
   return (
     <div className="flex items-center gap-1.5 border-l border-border pl-3 ml-1">
-      <span className="text-[10px] font-heading font-bold uppercase tracking-wide text-muted-foreground whitespace-nowrap">Max $</span>
+      <span className="text-xs font-heading font-bold uppercase tracking-wide text-muted-foreground whitespace-nowrap">Max $</span>
       <input
         type="text"
         inputMode="numeric"
@@ -163,7 +163,7 @@ export function AuctionControls({
             }`}
           >
             {formatTime(timeRemaining)}
-            <span className="text-[10px] font-heading font-bold uppercase tracking-widest opacity-70">
+            <span className="text-xs font-heading font-bold uppercase tracking-widest opacity-70">
               {timerLabel}
             </span>
           </div>
