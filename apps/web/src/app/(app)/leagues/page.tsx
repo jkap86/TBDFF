@@ -57,13 +57,14 @@ export default function LeaguesPage() {
       <div className="sticky top-14 z-10 border-b border-border bg-surface px-6 py-4">
         <div className="mx-auto max-w-2xl space-y-3">
           <div className="flex items-center justify-between">
-            <h1 className="text-3xl font-bold font-heading gradient-text glow-text-strong">Leagues</h1>
+            <h1 className="text-3xl font-bold font-heading gradient-text glow-text-strong">
+              Leagues
+            </h1>
             <Link
               href="/leagues/add"
-              className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 font-medium text-primary-foreground hover:bg-primary/90 transition-colors glow-border"
+              className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-primary-foreground hover:bg-primary/90 transition-colors glow-border"
             >
               <Plus className="h-4 w-4" />
-              Add League
             </Link>
           </div>
 
@@ -136,18 +137,17 @@ export default function LeaguesPage() {
 
       <div className="flex-1 overflow-y-auto px-6 py-4 scrollbar-sleek">
         <div className="mx-auto max-w-2xl">
-          {error && <div className="mb-4 rounded bg-destructive p-4 text-sm text-destructive-foreground">{error}</div>}
+          {error && (
+            <div className="mb-4 rounded bg-destructive p-4 text-sm text-destructive-foreground">
+              {error}
+            </div>
+          )}
 
           {leagues.length === 0 ? (
             <div className="rounded-lg border-2 border-dashed border-input bg-card p-12 text-center">
-              <p className="mb-4 text-lg text-muted-foreground">You haven&apos;t joined any leagues yet</p>
-              <Link
-                href="/leagues/add"
-                className="inline-flex items-center gap-2 rounded-lg bg-primary px-6 py-3 font-medium text-primary-foreground hover:bg-primary/90 transition-colors glow-border"
-              >
-                <Plus className="h-4 w-4" />
-                Add Your First League
-              </Link>
+              <p className="mb-4 text-lg text-muted-foreground">
+                You haven&apos;t joined any leagues yet
+              </p>
             </div>
           ) : filtered.length === 0 ? (
             <p className="py-8 text-center text-muted-foreground">No leagues match your filters</p>

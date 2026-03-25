@@ -1,10 +1,26 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { ChevronDown, Check, X, Plus, Pencil, DollarSign, Trophy, TrendingUp, AlertTriangle } from 'lucide-react';
+import {
+  ChevronDown,
+  Check,
+  X,
+  Plus,
+  Pencil,
+  DollarSign,
+  Trophy,
+  TrendingUp,
+  AlertTriangle,
+} from 'lucide-react';
 import { toast } from 'sonner';
 import { paymentApi, ApiError } from '@/lib/api';
-import type { LeaguePayment, LeagueMember, LeagueSettings, PayoutCategory, PayoutEntry } from '@tbdff/shared';
+import type {
+  LeaguePayment,
+  LeagueMember,
+  LeagueSettings,
+  PayoutCategory,
+  PayoutEntry,
+} from '@tbdff/shared';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import { PayoutForm } from './PayoutForm';
 import { PayoutEntryList } from './PayoutEntryList';
@@ -45,7 +61,15 @@ function computeAllocation(payouts: PayoutEntry[], buyIn: number, totalRosters: 
   return { totalPot, totalAllocated, percentage: (totalAllocated / totalPot) * 100 };
 }
 
-function AllocationBanner({ payouts, buyIn, totalRosters }: { payouts: PayoutEntry[]; buyIn: number; totalRosters: number }) {
+function AllocationBanner({
+  payouts,
+  buyIn,
+  totalRosters,
+}: {
+  payouts: PayoutEntry[];
+  buyIn: number;
+  totalRosters: number;
+}) {
   const { totalPot, totalAllocated, percentage } = computeAllocation(payouts, buyIn, totalRosters);
   if (totalPot <= 0) return null;
 
@@ -57,7 +81,10 @@ function AllocationBanner({ payouts, buyIn, totalRosters }: { payouts: PayoutEnt
     return (
       <div className="flex items-center gap-2 rounded border border-destructive bg-destructive/10 px-3 py-2 text-sm text-destructive-foreground">
         <AlertTriangle className="h-4 w-4 flex-shrink-0" />
-        <span>Over-allocated by <strong>${diff.toFixed(2)}</strong> — ${totalAllocated.toFixed(2)} of ${totalPot.toFixed(2)} pot</span>
+        <span>
+          Over-allocated by <strong>${diff.toFixed(2)}</strong> — ${totalAllocated.toFixed(2)} of $
+          {totalPot.toFixed(2)} pot
+        </span>
       </div>
     );
   }
@@ -66,7 +93,10 @@ function AllocationBanner({ payouts, buyIn, totalRosters }: { payouts: PayoutEnt
     return (
       <div className="flex items-center gap-2 rounded border border-yellow-500/30 bg-yellow-500/10 px-3 py-2 text-sm text-yellow-200">
         <AlertTriangle className="h-4 w-4 flex-shrink-0" />
-        <span>${totalAllocated.toFixed(2)} of ${totalPot.toFixed(2)} allocated ({percentage.toFixed(0)}%) — <strong>${diff.toFixed(2)}</strong> remaining</span>
+        <span>
+          ${totalAllocated.toFixed(2)} of ${totalPot.toFixed(2)} allocated ({percentage.toFixed(0)}
+          %) — <strong>${diff.toFixed(2)}</strong> remaining
+        </span>
       </div>
     );
   }
@@ -91,11 +121,23 @@ export function PaymentsSettings(props: PaymentsSettingsProps) {
 
 // ---- Create mode: buy-in + payout structure ----
 
-function CreatePayments({ buyIn, totalRosters, onBuyInChange, payouts, onPayoutsChange, isOpen, onToggle }: CreateModeProps) {
+function CreatePayments({
+  buyIn,
+  totalRosters,
+  onBuyInChange,
+  payouts,
+  onPayoutsChange,
+  isOpen,
+  onToggle,
+}: CreateModeProps) {
   const [showPayoutForm, setShowPayoutForm] = useState(false);
 
-  const placeEntries = payouts.filter((e) => e.category === 'place').sort((a, b) => a.position - b.position);
-  const pointsEntries = payouts.filter((e) => e.category === 'points').sort((a, b) => a.position - b.position);
+  const placeEntries = payouts
+    .filter((e) => e.category === 'place')
+    .sort((a, b) => a.position - b.position);
+  const pointsEntries = payouts
+    .filter((e) => e.category === 'points')
+    .sort((a, b) => a.position - b.position);
 
   const handleRemoveEntry = (category: PayoutCategory, position: number) => {
     onPayoutsChange(payouts.filter((e) => !(e.category === category && e.position === position)));
@@ -109,7 +151,6 @@ function CreatePayments({ buyIn, totalRosters, onBuyInChange, payouts, onPayouts
         className="flex w-full items-center justify-between px-4 py-3 text-sm font-medium text-accent-foreground hover:bg-accent rounded-lg"
       >
         <div className="flex items-center gap-2">
-          <DollarSign className="h-4 w-4" />
           <span>Payments</span>
         </div>
         <ChevronDown className={`h-4 w-4 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
@@ -132,9 +173,7 @@ function CreatePayments({ buyIn, totalRosters, onBuyInChange, payouts, onPayouts
                 placeholder="0 (Free)"
               />
             </div>
-            <p className="mt-1 text-xs text-muted-foreground">
-              Leave at 0 for a free league
-            </p>
+            <p className="mt-1 text-xs text-muted-foreground">Leave at 0 for a free league</p>
           </div>
 
           {/* Payout Structure */}
@@ -222,7 +261,9 @@ function EditPayments({
   const [isSavingBuyIn, setIsSavingBuyIn] = useState(false);
 
   // Payout structure
-  const existingPayouts = (settings as Record<string, unknown>).payouts as PayoutEntry[] | undefined;
+  const existingPayouts = (settings as Record<string, unknown>).payouts as
+    | PayoutEntry[]
+    | undefined;
   const [payoutEntries, setPayoutEntries] = useState<PayoutEntry[]>(existingPayouts ?? []);
   const [showPayoutForm, setShowPayoutForm] = useState(false);
   const [isSavingPayouts, setIsSavingPayouts] = useState(false);
@@ -261,8 +302,12 @@ function EditPayments({
   const paidUserIds = new Set(buyIns.map((p) => p.user_id));
   const totalCollected = buyIns.reduce((sum, p) => sum + p.amount, 0);
 
-  const placeEntries = payoutEntries.filter((e) => e.category === 'place').sort((a, b) => a.position - b.position);
-  const pointsEntries = payoutEntries.filter((e) => e.category === 'points').sort((a, b) => a.position - b.position);
+  const placeEntries = payoutEntries
+    .filter((e) => e.category === 'place')
+    .sort((a, b) => a.position - b.position);
+  const pointsEntries = payoutEntries
+    .filter((e) => e.category === 'points')
+    .sort((a, b) => a.position - b.position);
 
   // ---- Buy-in amount ----
 
@@ -295,7 +340,11 @@ function EditPayments({
     if (!accessToken || !buyInAmount) return;
 
     try {
-      const result = await paymentApi.recordBuyIn(leagueId, { user_id: userId, amount: buyInAmount }, accessToken);
+      const result = await paymentApi.recordBuyIn(
+        leagueId,
+        { user_id: userId, amount: buyInAmount },
+        accessToken,
+      );
       setPayments((prev) => [...prev, result.payment]);
       toast.success('Marked as paid');
     } catch (err) {
@@ -313,7 +362,11 @@ function EditPayments({
 
     for (const member of unpaidMembers) {
       try {
-        const result = await paymentApi.recordBuyIn(leagueId, { user_id: member.user_id, amount: buyInAmount }, accessToken);
+        const result = await paymentApi.recordBuyIn(
+          leagueId,
+          { user_id: member.user_id, amount: buyInAmount },
+          accessToken,
+        );
         setPayments((prev) => [...prev, result.payment]);
       } catch (err) {
         toast.error(err instanceof ApiError ? err.message : 'Failed to record payment');
@@ -340,7 +393,9 @@ function EditPayments({
   // ---- Payout structure ----
 
   const handleRemoveEntry = (category: PayoutCategory, position: number) => {
-    setPayoutEntries((prev) => prev.filter((e) => !(e.category === category && e.position === position)));
+    setPayoutEntries((prev) =>
+      prev.filter((e) => !(e.category === category && e.position === position)),
+    );
   };
 
   const handleSavePayouts = async () => {
@@ -386,7 +441,8 @@ function EditPayments({
                   <h4 className="text-sm font-semibold text-accent-foreground">Buy-in Amount</h4>
                   {buyInAmount != null && (
                     <span className="text-xs text-muted-foreground">
-                      {paidUserIds.size}/{totalRosters} paid · ${totalCollected.toFixed(2)} collected
+                      {paidUserIds.size}/{totalRosters} paid · ${totalCollected.toFixed(2)}{' '}
+                      collected
                     </span>
                   )}
                 </div>
@@ -403,7 +459,10 @@ function EditPayments({
                       className="w-28 rounded border border-input bg-card px-2 py-1 text-sm text-foreground"
                       autoFocus
                       onKeyDown={(e) => {
-                        if (e.key === 'Enter') { e.preventDefault(); handleSaveBuyIn(); }
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          handleSaveBuyIn();
+                        }
                         if (e.key === 'Escape') setIsEditingBuyIn(false);
                       }}
                     />
@@ -513,7 +572,11 @@ function EditPayments({
                   </p>
                 )}
 
-                <AllocationBanner payouts={payoutEntries} buyIn={buyInAmount ?? 0} totalRosters={totalRosters} />
+                <AllocationBanner
+                  payouts={payoutEntries}
+                  buyIn={buyInAmount ?? 0}
+                  totalRosters={totalRosters}
+                />
 
                 {/* Save payouts button */}
                 {hasPayoutChanges && (

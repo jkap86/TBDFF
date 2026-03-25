@@ -37,7 +37,11 @@ const DEFAULT_VALUES: LeagueFormValues = {
 export function CreateTab() {
   const router = useRouter();
   const { accessToken } = useAuth();
-  const [values, setValues] = useState<LeagueFormValues>({ ...DEFAULT_VALUES, rosterCounts: { ...DEFAULT_ROSTER_COUNTS }, scoring: { ...DEFAULT_SCORING } });
+  const [values, setValues] = useState<LeagueFormValues>({
+    ...DEFAULT_VALUES,
+    rosterCounts: { ...DEFAULT_ROSTER_COUNTS },
+    scoring: { ...DEFAULT_SCORING },
+  });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showPayments, setShowPayments] = useState(false);
@@ -110,7 +114,9 @@ export function CreateTab() {
       <h2 className="mb-4 text-lg font-semibold text-foreground">Create New League</h2>
 
       {error && (
-        <div className="mb-4 rounded bg-destructive p-3 text-sm text-destructive-foreground">{error}</div>
+        <div className="mb-4 rounded bg-destructive p-3 text-sm text-destructive-foreground">
+          {error}
+        </div>
       )}
 
       <form onSubmit={handleSubmit}>
@@ -135,7 +141,7 @@ export function CreateTab() {
 
         <button
           type="submit"
-          className="w-full rounded bg-primary px-4 py-2 font-medium text-primary-foreground hover:bg-primary-hover disabled:opacity-50"
+          className="w-full rounded bg-primary px-4 py-2 font-medium text-primary-foreground hover:bg-primary-hover disabled:opacity-50 sticky bottom-0 left-0 right-0"
           disabled={isSubmitting}
         >
           {isSubmitting ? 'Creating...' : 'Create League'}

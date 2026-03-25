@@ -21,17 +21,10 @@ export default function AddLeaguePage() {
   return (
     <div className="min-h-screen bg-surface p-6">
       <div className="mx-auto max-w-2xl">
-        <button
-          onClick={() => router.push('/leagues')}
-          className="mb-4 text-sm text-muted-foreground hover:text-accent-foreground"
-        >
-          &larr; Back to Leagues
-        </button>
-
-        <h1 className="mb-6 text-3xl font-bold text-foreground">Add League</h1>
+        <h1 className="mb-6 text-3xl font-bold text-foreground text-center">Add League</h1>
 
         {/* Tabs */}
-        <div className="mb-6 flex border-b border-border">
+        <div className="mb-6 flex border-b border-border justify-evenly">
           {tabs.map((tab) => (
             <button
               key={tab.key}

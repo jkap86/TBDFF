@@ -1,6 +1,12 @@
 import type { RosterPosition } from '@tbdff/shared';
 
-export const ROSTER_POSITION_CONFIG: { key: RosterPosition; label: string; defaultCount: number; min: number; max: number }[] = [
+export const ROSTER_POSITION_CONFIG: {
+  key: RosterPosition;
+  label: string;
+  defaultCount: number;
+  min: number;
+  max: number;
+}[] = [
   { key: 'QB', label: 'QB', defaultCount: 1, min: 0, max: 5 },
   { key: 'RB', label: 'RB', defaultCount: 2, min: 0, max: 8 },
   { key: 'WR', label: 'WR', defaultCount: 2, min: 0, max: 8 },
@@ -9,10 +15,10 @@ export const ROSTER_POSITION_CONFIG: { key: RosterPosition; label: string; defau
   { key: 'SUPER_FLEX', label: 'SUPER FLEX (QB/RB/WR/TE)', defaultCount: 1, min: 0, max: 5 },
   { key: 'REC_FLEX', label: 'REC FLEX (WR/TE)', defaultCount: 0, min: 0, max: 5 },
   { key: 'WRRB_FLEX', label: 'WRRB FLEX (WR/RB)', defaultCount: 0, min: 0, max: 5 },
-  { key: 'K', label: 'K', defaultCount: 1, min: 0, max: 3 },
-  { key: 'DEF', label: 'DEF', defaultCount: 1, min: 0, max: 3 },
-  { key: 'BN', label: 'Bench', defaultCount: 5, min: 0, max: 15 },
-  { key: 'IR', label: 'IR', defaultCount: 1, min: 0, max: 5 },
+  { key: 'K', label: 'K', defaultCount: 0, min: 0, max: 3 },
+  { key: 'DEF', label: 'DEF', defaultCount: 0, min: 0, max: 3 },
+  { key: 'BN', label: 'Bench', defaultCount: 10, min: 0, max: 50 },
+  { key: 'IR', label: 'IR', defaultCount: 0, min: 0, max: 15 },
 ];
 
 export const DEFAULT_ROSTER_COUNTS: Record<string, number> = {};
