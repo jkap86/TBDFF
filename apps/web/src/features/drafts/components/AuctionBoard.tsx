@@ -132,14 +132,21 @@ export function AuctionBoard({ draft, picks, members, currentUserId, rosterPosit
   const budgets: Record<string, number> = draft.metadata?.auction_budgets ?? {};
   const completedPicks = picks.filter((p) => p.player_id);
 
+  // Build slot -> userId from draft_order (which maps userId -> slot)
+  const slotToUserId: Record<number, string> = {};
+  for (const [userId, slot] of Object.entries(draft.draft_order ?? {}) as [string, number][]) {
+    slotToUserId[slot] = userId;
+  }
+
   // Build roster_id -> team name and roster_id -> userId mappings
   const rosterToUser: Record<number, string> = {};
   const rosterToUserId: Record<number, string> = {};
-  for (const [userId, slot] of Object.entries(draft.draft_order ?? {}) as [string, number][]) {
-    const rosterId = (draft.slot_to_roster_id ?? {})[String(slot)];
-    const member = members.find((m) => m.user_id === userId);
-    rosterToUser[rosterId] = member?.display_name || member?.username || `Team ${rosterId}`;
-    rosterToUserId[rosterId] = userId;
+  for (const [slotStr, rosterId] of Object.entries(draft.slot_to_roster_id ?? {})) {
+    const slot = Number(slotStr);
+    const userId = slotToUserId[slot];
+    const member = userId ? members.find((m) => m.user_id === userId) : null;
+    rosterToUser[rosterId] = member?.display_name || member?.username || `Slot ${slot}`;
+    if (userId) rosterToUserId[rosterId] = userId;
   }
 
   // Find who the current bidder is
@@ -158,12 +165,18 @@ export function AuctionBoard({ draft, picks, members, currentUserId, rosterPosit
       })()
     : null;
 
-  // Teams sorted by draft slot (nomination order)
+  // Teams sorted by draft slot (nomination order) — includes unfilled slots
   const teamsInOrder = useMemo(() => {
-    return Object.entries(draft.draft_order ?? {})
-      .sort(([, a], [, b]) => a - b)
-      .map(([userId, slot]) => {
-        const rosterId = (draft.slot_to_roster_id ?? {})[String(slot)];
+    const draftOrder = draft.draft_order ?? {};
+    const slotToUserIdLocal: Record<number, string> = {};
+    for (const [userId, slot] of Object.entries(draftOrder) as [string, number][]) {
+      slotToUserIdLocal[slot] = userId;
+    }
+    return Object.entries(draft.slot_to_roster_id ?? {})
+      .sort(([a], [b]) => Number(a) - Number(b))
+      .map(([slotStr, rosterId]) => {
+        const slot = Number(slotStr);
+        const userId = slotToUserIdLocal[slot] ?? '';
         return { userId, slot, rosterId };
       });
   }, [draft.draft_order, draft.slot_to_roster_id]);
@@ -282,7 +295,7 @@ export function AuctionBoard({ draft, picks, members, currentUserId, rosterPosit
                       }}
                     >
                       <div className="text-xs font-heading font-bold truncate max-w-[100px]">
-                        {rosterToUser[team.rosterId] || `Team ${team.rosterId}`}
+                        {rosterToUser[team.rosterId] || `Slot ${team.slot}`}
                       </div>
                       <div className={`text-xs font-bold ${budget > 0 ? 'text-success-foreground' : 'text-destructive-foreground'}`}>
                         ${budget}
