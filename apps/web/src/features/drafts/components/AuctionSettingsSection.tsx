@@ -1,19 +1,5 @@
 'use client';
 
-const NOMINATION_TIMER_PRESETS = [
-  { label: '15s', value: 15 },
-  { label: '30s', value: 30 },
-  { label: '45s', value: 45 },
-  { label: '1m', value: 60 },
-];
-
-const OFFERING_TIMER_PRESETS = [
-  { label: '30s', value: 30 },
-  { label: '1m', value: 60 },
-  { label: '2m', value: 120 },
-  { label: '5m', value: 300 },
-];
-
 interface AuctionSettingsSectionProps {
   isAuction: boolean;
   isSlowAuction: boolean;
@@ -26,10 +12,6 @@ interface AuctionSettingsSectionProps {
   onOfferingTimerChange: (v: number) => void;
   budget: number;
   onBudgetChange: (v: number) => void;
-  customNomTimer: string;
-  onCustomNomTimerChange: (v: string) => void;
-  customOfferingTimer: string;
-  onCustomOfferingTimerChange: (v: string) => void;
 }
 
 export function AuctionSettingsSection({
@@ -44,124 +26,72 @@ export function AuctionSettingsSection({
   onOfferingTimerChange,
   budget,
   onBudgetChange,
-  customNomTimer,
-  onCustomNomTimerChange,
-  customOfferingTimer,
-  onCustomOfferingTimerChange,
 }: AuctionSettingsSectionProps) {
   const isAnyAuction = isAuction || isSlowAuction;
-  const isPresetNomTimer = NOMINATION_TIMER_PRESETS.some((p) => p.value === nominationTimer);
-  const isPresetOfferingTimer = OFFERING_TIMER_PRESETS.some((p) => p.value === offeringTimer);
 
   return (
     <>
-      {/* Max Players Per Team (any auction) */}
+      {/* Shared auction fields: Max Players + Budget */}
       {isAnyAuction && (
-        <div>
-          <label className="block text-xs font-medium text-muted-foreground mb-1">Max Players / Team</label>
-          <input
-            type="number"
-            value={maxPlayersPerTeam}
-            onChange={(e) => onMaxPlayersPerTeamChange(Math.max(1, Math.min(50, parseInt(e.target.value) || rounds)))}
-            min={1}
-            max={50}
-            className="w-20 rounded-lg border border-input px-3 py-2 text-sm text-foreground bg-card focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
-          />
-        </div>
-      )}
-
-      {/* Offering Timer (auction only) */}
-      {isAuction && (
-        <div>
-          <label className="block text-xs font-medium text-muted-foreground mb-1">Offering Timer</label>
-          <div className="flex flex-wrap gap-1.5">
-            {OFFERING_TIMER_PRESETS.map((preset) => (
-              <button
-                key={preset.value}
-                type="button"
-                onClick={() => { onOfferingTimerChange(preset.value); onCustomOfferingTimerChange(''); }}
-                className={`rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors ${
-                  offeringTimer === preset.value
-                    ? 'bg-primary text-primary-foreground ring-2 ring-ring'
-                    : 'bg-muted text-accent-foreground hover:bg-muted-hover'
-                }`}
-              >
-                {preset.label}
-              </button>
-            ))}
-            <div className="flex items-center gap-1">
-              <input
-                type="number"
-                value={!isPresetOfferingTimer ? offeringTimer : customOfferingTimer}
-                onChange={(e) => {
-                  const val = parseInt(e.target.value) || 0;
-                  onCustomOfferingTimerChange(e.target.value);
-                  onOfferingTimerChange(Math.max(0, Math.min(86400, val)));
-                }}
-                placeholder="Custom"
-                min={0}
-                max={86400}
-                className="w-20 rounded-lg border border-input px-2 py-1.5 text-xs text-foreground bg-card focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
-              />
-              <span className="text-xs text-disabled">sec</span>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Bid Timer (auction only) */}
-      {isAuction && (
-        <div>
-          <label className="block text-xs font-medium text-muted-foreground mb-1">Bid Timer</label>
-          <div className="flex flex-wrap gap-1.5">
-            {NOMINATION_TIMER_PRESETS.map((preset) => (
-              <button
-                key={preset.value}
-                type="button"
-                onClick={() => { onNominationTimerChange(preset.value); onCustomNomTimerChange(''); }}
-                className={`rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors ${
-                  nominationTimer === preset.value
-                    ? 'bg-primary text-primary-foreground ring-2 ring-ring'
-                    : 'bg-muted text-accent-foreground hover:bg-muted-hover'
-                }`}
-              >
-                {preset.label}
-              </button>
-            ))}
-            <div className="flex items-center gap-1">
-              <input
-                type="number"
-                value={!isPresetNomTimer ? nominationTimer : customNomTimer}
-                onChange={(e) => {
-                  const val = parseInt(e.target.value) || 0;
-                  onCustomNomTimerChange(e.target.value);
-                  onNominationTimerChange(Math.max(0, Math.min(86400, val)));
-                }}
-                placeholder="Custom"
-                min={0}
-                max={86400}
-                className="w-20 rounded-lg border border-input px-2 py-1.5 text-xs text-foreground bg-card focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
-              />
-              <span className="text-xs text-disabled">sec</span>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Budget (any auction) */}
-      {isAnyAuction && (
-        <div>
-          <label className="block text-xs font-medium text-muted-foreground mb-1">Auction Budget</label>
-          <div className="flex items-center gap-1">
-            <span className="text-sm text-muted-foreground">$</span>
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="block text-xs font-medium text-muted-foreground mb-1">Max Players / Team</label>
             <input
               type="number"
-              value={budget}
-              onChange={(e) => onBudgetChange(Math.max(1, Math.min(9999, parseInt(e.target.value) || 1)))}
+              value={maxPlayersPerTeam}
+              onChange={(e) => onMaxPlayersPerTeamChange(Math.max(1, Math.min(50, parseInt(e.target.value) || rounds)))}
               min={1}
-              max={9999}
-              className="w-24 rounded-lg border border-input px-3 py-2 text-sm text-foreground bg-card focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
+              max={50}
+              className="w-full rounded-lg border border-input px-3 py-2 text-sm text-foreground bg-card focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
             />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-muted-foreground mb-1">Budget</label>
+            <div className="flex items-center gap-1.5">
+              <span className="text-sm text-muted-foreground">$</span>
+              <input
+                type="number"
+                value={budget}
+                onChange={(e) => onBudgetChange(Math.max(1, Math.min(9999, parseInt(e.target.value) || 1)))}
+                min={1}
+                max={9999}
+                className="w-full rounded-lg border border-input px-3 py-2 text-sm text-foreground bg-card focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Auction-only timer fields: Offering + Bid on same row */}
+      {isAuction && (
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="block text-xs font-medium text-muted-foreground mb-1">Offering Timer</label>
+            <div className="flex items-center gap-1.5">
+              <input
+                type="number"
+                value={offeringTimer}
+                onChange={(e) => onOfferingTimerChange(Math.max(0, Math.min(86400, parseInt(e.target.value) || 0)))}
+                min={0}
+                max={86400}
+                className="w-full rounded-lg border border-input px-3 py-2 text-sm text-foreground bg-card focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
+              />
+              <span className="text-xs text-muted-foreground">sec</span>
+            </div>
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-muted-foreground mb-1">Bid Timer</label>
+            <div className="flex items-center gap-1.5">
+              <input
+                type="number"
+                value={nominationTimer}
+                onChange={(e) => onNominationTimerChange(Math.max(0, Math.min(86400, parseInt(e.target.value) || 0)))}
+                min={0}
+                max={86400}
+                className="w-full rounded-lg border border-input px-3 py-2 text-sm text-foreground bg-card focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
+              />
+              <span className="text-xs text-muted-foreground">sec</span>
+            </div>
           </div>
         </div>
       )}

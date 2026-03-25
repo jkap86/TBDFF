@@ -54,8 +54,6 @@ export function DraftSettingsForm({ draft, onSave, onSaveSuccess, readOnly, vetD
 
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [customNomTimer, setCustomNomTimer] = useState('');
-  const [customOfferingTimer, setCustomOfferingTimer] = useState('');
 
   // Reset form when draft changes
   useEffect(() => {
@@ -252,86 +250,84 @@ export function DraftSettingsForm({ draft, onSave, onSaveSuccess, readOnly, vetD
       <div>
         <h3 className="text-sm font-semibold text-accent-foreground mb-3">Draft Format</h3>
         <div className="space-y-3">
-          {/* Type */}
-          <div>
-            <label className="block text-xs font-medium text-muted-foreground mb-1">Type</label>
-            <select
-              value={draftType}
-              onChange={(e) => {
-                const val = e.target.value as DraftType;
-                setDraftType(val);
-                if (val !== 'snake') setThirdRoundReversal(false);
-              }}
-              className="rounded-lg border border-input px-3 py-2 text-sm text-foreground bg-card focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
-            >
-              {DRAFT_TYPE_OPTIONS.map((opt) => (
-                <option key={opt.value} value={opt.value}>{opt.label}</option>
-              ))}
-            </select>
+          {/* Type + Rounds on one row */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-medium text-muted-foreground mb-1">Type</label>
+              <select
+                value={draftType}
+                onChange={(e) => {
+                  const val = e.target.value as DraftType;
+                  setDraftType(val);
+                  if (val !== 'snake') setThirdRoundReversal(false);
+                }}
+                className="w-full rounded-lg border border-input px-3 py-2 text-sm text-foreground bg-card focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
+              >
+                {DRAFT_TYPE_OPTIONS.map((opt) => (
+                  <option key={opt.value} value={opt.value}>{opt.label}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-muted-foreground mb-1">Rounds</label>
+              <input
+                type="number"
+                value={rounds}
+                onChange={(e) => setRounds(Math.max(1, Math.min(50, parseInt(e.target.value) || 1)))}
+                min={1}
+                max={50}
+                className="w-full rounded-lg border border-input px-3 py-2 text-sm text-foreground bg-card focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
+              />
+            </div>
           </div>
 
           {/* 3rd Round Reversal (snake only) */}
           {draftType === 'snake' && (
-            <div>
-              <label className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  checked={thirdRoundReversal}
-                  onChange={(e) => setThirdRoundReversal(e.target.checked)}
-                  className="h-4 w-4 rounded border-input text-primary focus:ring-ring"
-                />
-                <span className="text-sm font-medium text-accent-foreground">3rd Round Reversal</span>
-              </label>
-              <p className="text-xs text-disabled mt-0.5 ml-6">
-                Reverses draft order in the 3rd round then continues alternating
-              </p>
-            </div>
+            <label className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={thirdRoundReversal}
+                onChange={(e) => setThirdRoundReversal(e.target.checked)}
+                className="h-4 w-4 rounded border-input text-primary focus:ring-ring"
+              />
+              <span className="text-sm font-medium text-accent-foreground">3rd Round Reversal</span>
+              <span className="text-xs text-disabled">- reverses 3rd round order</span>
+            </label>
           )}
 
-          {/* Player Pool (read-only, managed by league settings) */}
-          <div>
-            <label className="block text-xs font-medium text-muted-foreground mb-1">Player Pool</label>
-            <p className="text-sm font-medium text-accent-foreground">
-              {PLAYER_TYPE_LABELS[draft.settings.player_type] ?? 'All Players'}
-            </p>
-            <p className="text-xs text-disabled mt-0.5">Managed in league settings</p>
+          {/* Player Pool (read-only) */}
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-medium text-muted-foreground">Player Pool</span>
+            <div className="text-right">
+              <span className="text-sm font-medium text-accent-foreground">
+                {PLAYER_TYPE_LABELS[draft.settings.player_type] ?? 'All Players'}
+              </span>
+              <span className="text-xs text-disabled ml-1.5">(league setting)</span>
+            </div>
           </div>
 
           {/* Include Rookie Picks (vet draft only) */}
           {draft.settings.player_type === 2 && (
-            <div>
-              <label className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  checked={includeRookiePicks === 1}
-                  onChange={(e) => setIncludeRookiePicks(e.target.checked ? 1 : 0)}
-                  className="h-4 w-4 rounded border-input text-primary focus:ring-ring"
-                />
-                <span className="text-sm font-medium text-accent-foreground">Include Rookie Draft Picks</span>
-              </label>
-              <p className="text-xs text-disabled mt-0.5 ml-6">
-                Rookie draft picks (1.01, 1.02, etc.) appear in the player pool
-              </p>
-            </div>
+            <label className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={includeRookiePicks === 1}
+                onChange={(e) => setIncludeRookiePicks(e.target.checked ? 1 : 0)}
+                className="h-4 w-4 rounded border-input text-primary focus:ring-ring"
+              />
+              <span className="text-sm font-medium text-accent-foreground">Include Rookie Draft Picks</span>
+              <span className="text-xs text-disabled">- adds picks to pool</span>
+            </label>
           )}
+        </div>
+      </div>
 
-          {/* Rounds */}
-          <div>
-            <label className="block text-xs font-medium text-muted-foreground mb-1">Rounds</label>
-            <input
-              type="number"
-              value={rounds}
-              onChange={(e) => setRounds(Math.max(1, Math.min(50, parseInt(e.target.value) || 1)))}
-              min={1}
-              max={50}
-              className="w-20 rounded-lg border border-input px-3 py-2 text-sm text-foreground bg-card focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
-            />
-          </div>
-
-          {/* Draft Order Method (non-slow_auction only) */}
-          {!isSlowAuction && (
+      {/* Draft Order (non-slow_auction only) */}
+      {!isSlowAuction && (
+        <div className="border-t border-border pt-4">
+          <h3 className="text-sm font-semibold text-accent-foreground mb-3">Draft Order</h3>
+          <div className="space-y-3">
             <div>
-              <label className="block text-xs font-medium text-muted-foreground mb-1">Draft Order</label>
               {vetDraftIncludesRookiePicks ? (
                 <p className="text-sm font-medium text-accent-foreground">Determined by Vet Draft Picks</p>
               ) : (
@@ -356,127 +352,132 @@ export function DraftSettingsForm({ draft, onSave, onSaveSuccess, readOnly, vetD
                 </div>
               )}
             </div>
-          )}
 
-          {/* Derby Settings */}
-          {orderMethod === 'derby' && !isSlowAuction && (
-            <DerbySettingsSection
-              derbyTimer={derbyTimer}
-              onDerbyTimerChange={setDerbyTimer}
-              derbyTimeoutAction={derbyTimeoutAction}
-              onDerbyTimeoutActionChange={setDerbyTimeoutAction}
-            />
-          )}
+            {/* Derby Settings */}
+            {orderMethod === 'derby' && (
+              <DerbySettingsSection
+                derbyTimer={derbyTimer}
+                onDerbyTimerChange={setDerbyTimer}
+                derbyTimeoutAction={derbyTimeoutAction}
+                onDerbyTimeoutActionChange={setDerbyTimeoutAction}
+              />
+            )}
+          </div>
+        </div>
+      )}
 
-          {/* Auction Settings */}
-          <AuctionSettingsSection
-            isAuction={isAuction}
-            isSlowAuction={isSlowAuction}
-            rounds={rounds}
-            maxPlayersPerTeam={maxPlayersPerTeam}
-            onMaxPlayersPerTeamChange={setMaxPlayersPerTeam}
-            nominationTimer={nominationTimer}
-            onNominationTimerChange={setNominationTimer}
-            offeringTimer={offeringTimer}
-            onOfferingTimerChange={setOfferingTimer}
-            budget={budget}
-            onBudgetChange={setBudget}
-            customNomTimer={customNomTimer}
-            onCustomNomTimerChange={setCustomNomTimer}
-            customOfferingTimer={customOfferingTimer}
-            onCustomOfferingTimerChange={setCustomOfferingTimer}
-          />
-
-          {/* Pick Timer (non-auction only) */}
-          {!isAnyAuction && <div>
-            <label className="block text-xs font-medium text-muted-foreground mb-1">Pick Timer</label>
-            <div className="flex items-center gap-3">
-              <label className="flex items-center gap-2">
+      {/* Timers (non-auction only) */}
+      {!isAnyAuction && (
+        <div className="border-t border-border pt-4">
+          <div className="flex items-center justify-between mb-2">
+            <h3 className="text-sm font-semibold text-accent-foreground">Pick Timer</h3>
+            <label className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={pickTimer > 0}
+                onChange={(e) => setPickTimer(e.target.checked ? 120 : 0)}
+                className="h-4 w-4 rounded border-input text-primary focus:ring-ring"
+              />
+              <span className="text-xs text-accent-foreground">{pickTimer > 0 ? 'Enabled' : 'Off'}</span>
+            </label>
+          </div>
+          {pickTimer > 0 && (
+            <div className="flex items-center justify-center gap-1.5">
+              <div className="flex items-center gap-1">
                 <input
-                  type="checkbox"
-                  checked={pickTimer > 0}
-                  onChange={(e) => setPickTimer(e.target.checked ? 120 : 0)}
-                  className="h-4 w-4 rounded border-input text-primary focus:ring-ring"
+                  type="number"
+                  value={Math.floor(pickTimer / 3600)}
+                  onChange={(e) => {
+                    const hrs = Math.max(0, Math.min(24, parseInt(e.target.value) || 0));
+                    const remainingSecs = pickTimer % 3600;
+                    setPickTimer(hrs * 3600 + remainingSecs);
+                  }}
+                  min={0}
+                  max={24}
+                  className="w-14 rounded-lg border border-input px-2 py-2 text-sm text-center text-foreground bg-card focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
                 />
-                <span className="text-xs text-accent-foreground">{pickTimer > 0 ? 'Enabled' : 'Off'}</span>
-              </label>
-              {pickTimer > 0 && (
-                <div className="flex items-center gap-2">
-                  <div className="flex items-center gap-1">
-                    <input
-                      type="number"
-                      value={Math.floor(pickTimer / 3600)}
-                      onChange={(e) => {
-                        const hrs = Math.max(0, Math.min(24, parseInt(e.target.value) || 0));
-                        const remainingSecs = pickTimer % 3600;
-                        setPickTimer(hrs * 3600 + remainingSecs);
-                      }}
-                      min={0}
-                      max={24}
-                      className="w-14 rounded-lg border border-input px-2 py-2 text-sm text-center text-foreground bg-card focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
-                    />
-                    <span className="text-sm text-muted-foreground">h</span>
-                  </div>
-                  <span className="text-lg font-medium text-muted-foreground">:</span>
-                  <div className="flex items-center gap-1">
-                    <input
-                      type="number"
-                      value={Math.floor((pickTimer % 3600) / 60)}
-                      onChange={(e) => {
-                        const mins = Math.max(0, Math.min(59, parseInt(e.target.value) || 0));
-                        const hrs = Math.floor(pickTimer / 3600);
-                        const secs = pickTimer % 60;
-                        setPickTimer(hrs * 3600 + mins * 60 + secs);
-                      }}
-                      min={0}
-                      max={59}
-                      className="w-14 rounded-lg border border-input px-2 py-2 text-sm text-center text-foreground bg-card focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
-                    />
-                    <span className="text-sm text-muted-foreground">m</span>
-                  </div>
-                  <span className="text-lg font-medium text-muted-foreground">:</span>
-                  <div className="flex items-center gap-1">
-                    <input
-                      type="number"
-                      value={pickTimer % 60}
-                      onChange={(e) => {
-                        const secs = Math.max(0, Math.min(59, parseInt(e.target.value) || 0));
-                        const hrs = Math.floor(pickTimer / 3600);
-                        const mins = Math.floor((pickTimer % 3600) / 60);
-                        setPickTimer(hrs * 3600 + mins * 60 + secs);
-                      }}
-                      min={0}
-                      max={59}
-                      className="w-14 rounded-lg border border-input px-2 py-2 text-sm text-center text-foreground bg-card focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
-                    />
-                    <span className="text-sm text-muted-foreground">s</span>
-                  </div>
-                </div>
-              )}
+                <span className="text-xs text-muted-foreground">h</span>
+              </div>
+              <span className="text-base font-medium text-muted-foreground">:</span>
+              <div className="flex items-center gap-1">
+                <input
+                  type="number"
+                  value={Math.floor((pickTimer % 3600) / 60)}
+                  onChange={(e) => {
+                    const mins = Math.max(0, Math.min(59, parseInt(e.target.value) || 0));
+                    const hrs = Math.floor(pickTimer / 3600);
+                    const secs = pickTimer % 60;
+                    setPickTimer(hrs * 3600 + mins * 60 + secs);
+                  }}
+                  min={0}
+                  max={59}
+                  className="w-14 rounded-lg border border-input px-2 py-2 text-sm text-center text-foreground bg-card focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
+                />
+                <span className="text-xs text-muted-foreground">m</span>
+              </div>
+              <span className="text-base font-medium text-muted-foreground">:</span>
+              <div className="flex items-center gap-1">
+                <input
+                  type="number"
+                  value={pickTimer % 60}
+                  onChange={(e) => {
+                    const secs = Math.max(0, Math.min(59, parseInt(e.target.value) || 0));
+                    const hrs = Math.floor(pickTimer / 3600);
+                    const mins = Math.floor((pickTimer % 3600) / 60);
+                    setPickTimer(hrs * 3600 + mins * 60 + secs);
+                  }}
+                  min={0}
+                  max={59}
+                  className="w-14 rounded-lg border border-input px-2 py-2 text-sm text-center text-foreground bg-card focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
+                />
+                <span className="text-xs text-muted-foreground">s</span>
+              </div>
             </div>
-          </div>}
-
-          {/* Slow Auction Settings */}
-          {isSlowAuction && (
-            <SlowAuctionSettingsSection
-              bidWindowSeconds={bidWindowSeconds}
-              onBidWindowSecondsChange={setBidWindowSeconds}
-              maxNominationsPerTeam={maxNominationsPerTeam}
-              onMaxNominationsPerTeamChange={setMaxNominationsPerTeam}
-              maxNominationsGlobal={maxNominationsGlobal}
-              onMaxNominationsGlobalChange={setMaxNominationsGlobal}
-              dailyNominationLimit={dailyNominationLimit}
-              onDailyNominationLimitChange={setDailyNominationLimit}
-              minBid={minBid}
-              onMinBidChange={setMinBid}
-              minIncrement={minIncrement}
-              onMinIncrementChange={setMinIncrement}
-              maxLotDurationSeconds={maxLotDurationSeconds}
-              onMaxLotDurationSecondsChange={setMaxLotDurationSeconds}
-            />
           )}
         </div>
-      </div>
+      )}
+
+      {/* Auction Settings */}
+      {isAnyAuction && (
+        <div className="border-t border-border pt-4">
+          <h3 className="text-sm font-semibold text-accent-foreground mb-3">Auction Settings</h3>
+          <div className="space-y-3">
+            <AuctionSettingsSection
+              isAuction={isAuction}
+              isSlowAuction={isSlowAuction}
+              rounds={rounds}
+              maxPlayersPerTeam={maxPlayersPerTeam}
+              onMaxPlayersPerTeamChange={setMaxPlayersPerTeam}
+              nominationTimer={nominationTimer}
+              onNominationTimerChange={setNominationTimer}
+              offeringTimer={offeringTimer}
+              onOfferingTimerChange={setOfferingTimer}
+              budget={budget}
+              onBudgetChange={setBudget}
+            />
+
+            {/* Slow Auction Settings */}
+            {isSlowAuction && (
+              <SlowAuctionSettingsSection
+                bidWindowSeconds={bidWindowSeconds}
+                onBidWindowSecondsChange={setBidWindowSeconds}
+                maxNominationsPerTeam={maxNominationsPerTeam}
+                onMaxNominationsPerTeamChange={setMaxNominationsPerTeam}
+                maxNominationsGlobal={maxNominationsGlobal}
+                onMaxNominationsGlobalChange={setMaxNominationsGlobal}
+                dailyNominationLimit={dailyNominationLimit}
+                onDailyNominationLimitChange={setDailyNominationLimit}
+                minBid={minBid}
+                onMinBidChange={setMinBid}
+                minIncrement={minIncrement}
+                onMinIncrementChange={setMinIncrement}
+                maxLotDurationSeconds={maxLotDurationSeconds}
+                onMaxLotDurationSecondsChange={setMaxLotDurationSeconds}
+              />
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Error + Save */}
       {error && (

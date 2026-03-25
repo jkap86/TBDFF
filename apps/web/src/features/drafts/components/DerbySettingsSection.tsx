@@ -16,8 +16,8 @@ export function DerbySettingsSection({
   return (
     <>
       <div>
-        <label className="block text-xs font-medium text-muted-foreground mb-1">Derby Pick Timer</label>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center justify-between mb-2">
+          <label className="text-xs font-medium text-muted-foreground">Derby Pick Timer</label>
           <label className="flex items-center gap-2">
             <input
               type="checkbox"
@@ -27,8 +27,10 @@ export function DerbySettingsSection({
             />
             <span className="text-xs text-accent-foreground">{derbyTimer > 0 ? 'Enabled' : 'Off'}</span>
           </label>
-          {derbyTimer > 0 && (
-            <div className="flex items-center gap-2">
+        </div>
+        {derbyTimer > 0 && (
+          <>
+            <div className="flex items-center justify-center gap-1.5">
               <div className="flex items-center gap-1">
                 <input
                   type="number"
@@ -42,9 +44,9 @@ export function DerbySettingsSection({
                   max={24}
                   className="w-14 rounded-lg border border-input px-2 py-2 text-sm text-center text-foreground bg-card focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
                 />
-                <span className="text-sm text-muted-foreground">h</span>
+                <span className="text-xs text-muted-foreground">h</span>
               </div>
-              <span className="text-lg font-medium text-muted-foreground">:</span>
+              <span className="text-base font-medium text-muted-foreground">:</span>
               <div className="flex items-center gap-1">
                 <input
                   type="number"
@@ -59,9 +61,9 @@ export function DerbySettingsSection({
                   max={59}
                   className="w-14 rounded-lg border border-input px-2 py-2 text-sm text-center text-foreground bg-card focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
                 />
-                <span className="text-sm text-muted-foreground">m</span>
+                <span className="text-xs text-muted-foreground">m</span>
               </div>
-              <span className="text-lg font-medium text-muted-foreground">:</span>
+              <span className="text-base font-medium text-muted-foreground">:</span>
               <div className="flex items-center gap-1">
                 <input
                   type="number"
@@ -76,38 +78,40 @@ export function DerbySettingsSection({
                   max={59}
                   className="w-14 rounded-lg border border-input px-2 py-2 text-sm text-center text-foreground bg-card focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
                 />
-                <span className="text-sm text-muted-foreground">s</span>
+                <span className="text-xs text-muted-foreground">s</span>
               </div>
             </div>
-          )}
-        </div>
-      </div>
-      <div>
-        <label className="block text-xs font-medium text-muted-foreground mb-1">Timer Expiry Action</label>
-        <div className="flex gap-1.5">
-          {([
-            { value: 0, label: 'Autopick' },
-            { value: 1, label: 'Skip' },
-          ] as const).map((opt) => (
-            <button
-              key={opt.value}
-              type="button"
-              onClick={() => onDerbyTimeoutActionChange(opt.value)}
-              className={`rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors ${
-                derbyTimeoutAction === opt.value
-                  ? 'bg-primary text-primary-foreground ring-2 ring-ring'
-                  : 'bg-muted text-accent-foreground hover:bg-muted-hover'
-              }`}
-            >
-              {opt.label}
-            </button>
-          ))}
-        </div>
-        <p className="text-xs text-disabled mt-1">
-          {derbyTimeoutAction === 0
-            ? 'Random slot assigned when timer expires'
-            : 'User is skipped and can pick later at any time'}
-        </p>
+            <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="text-xs font-medium text-muted-foreground">Timer Expiry</label>
+                <div className="flex gap-1.5">
+                  {([
+                    { value: 0, label: 'Autopick' },
+                    { value: 1, label: 'Skip' },
+                  ] as const).map((opt) => (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      onClick={() => onDerbyTimeoutActionChange(opt.value)}
+                      className={`rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors ${
+                        derbyTimeoutAction === opt.value
+                          ? 'bg-primary text-primary-foreground ring-2 ring-ring'
+                          : 'bg-muted text-accent-foreground hover:bg-muted-hover'
+                      }`}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <p className="text-xs text-disabled">
+                {derbyTimeoutAction === 0
+                  ? 'Random slot assigned when timer expires'
+                  : 'User is skipped and can pick later at any time'}
+              </p>
+            </div>
+          </>
+        )}
       </div>
     </>
   );
