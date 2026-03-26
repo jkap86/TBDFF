@@ -4,7 +4,16 @@ import { useState, useEffect, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { DollarSign } from 'lucide-react';
-import { leagueApi, draftApi, matchupApi, paymentApi, ApiError, type UpdateLeagueRequest, type Draft, type Matchup } from '@/lib/api';
+import {
+  leagueApi,
+  draftApi,
+  matchupApi,
+  paymentApi,
+  ApiError,
+  type UpdateLeagueRequest,
+  type Draft,
+  type Matchup,
+} from '@/lib/api';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import { LeagueSettingsModal } from '@/features/leagues/components/LeagueSettingsModal';
 import { DraftSettingsModal } from '@/features/drafts/components/DraftSettingsModal';
@@ -40,7 +49,8 @@ export default function LeagueDetailPage() {
   const drafts = draftsData?.drafts ?? [];
   const { data: matchupsData } = useQuery({
     queryKey: ['matchups', leagueId],
-    queryFn: () => matchupApi.getAll(leagueId, accessToken!).catch(() => ({ matchups: [] as Matchup[] })),
+    queryFn: () =>
+      matchupApi.getAll(leagueId, accessToken!).catch(() => ({ matchups: [] as Matchup[] })),
     enabled: !!accessToken,
   });
   const matchups = matchupsData?.matchups ?? [];
@@ -70,12 +80,15 @@ export default function LeagueDetailPage() {
   const completedDrafts = drafts.filter((d) => d.status === 'complete');
 
   // --- Cache helpers ---
-  const updateDraftsCache = useCallback((updater: (prev: Draft[]) => Draft[]) => {
-    queryClient.setQueryData(['drafts', leagueId], (old: any) => {
-      if (!old) return old;
-      return { ...old, drafts: updater(old.drafts) };
-    });
-  }, [queryClient, leagueId]);
+  const updateDraftsCache = useCallback(
+    (updater: (prev: Draft[]) => Draft[]) => {
+      queryClient.setQueryData(['drafts', leagueId], (old: any) => {
+        if (!old) return old;
+        return { ...old, drafts: updater(old.drafts) };
+      });
+    },
+    [queryClient, leagueId],
+  );
 
   // --- Shuffle hook ---
   const { shuffleDisplay, handleRandomizeDraftOrder } = useDraftOrderShuffle({
@@ -107,7 +120,10 @@ export default function LeagueDetailPage() {
     queryClient.invalidateQueries({ queryKey: ['league', leagueId] });
   };
 
-  const handleUpdateDraft = async (draftId: string, updates: import('@/lib/api').UpdateDraftRequest) => {
+  const handleUpdateDraft = async (
+    draftId: string,
+    updates: import('@/lib/api').UpdateDraftRequest,
+  ) => {
     if (!accessToken) return;
     const result = await draftApi.update(draftId, updates, accessToken);
     updateDraftsCache((prev) => prev.map((d) => (d.id === result.draft.id ? result.draft : d)));
@@ -126,9 +142,12 @@ export default function LeagueDetailPage() {
     }
   };
 
-  const handleDraftUpdated = useCallback((updatedDraft: Draft) => {
-    updateDraftsCache((prev) => prev.map((d) => (d.id === updatedDraft.id ? updatedDraft : d)));
-  }, [updateDraftsCache]);
+  const handleDraftUpdated = useCallback(
+    (updatedDraft: Draft) => {
+      updateDraftsCache((prev) => prev.map((d) => (d.id === updatedDraft.id ? updatedDraft : d)));
+    },
+    [updateDraftsCache],
+  );
 
   const handleStartDM = async (memberId: string) => {
     try {
@@ -144,7 +163,9 @@ export default function LeagueDetailPage() {
   };
 
   // --- Socket subscription for real-time derby updates ---
-  const activeDraftForDerby = drafts.find((d) => d.status === 'pre_draft' || d.status === 'drafting');
+  const activeDraftForDerby = drafts.find(
+    (d) => d.status === 'pre_draft' || d.status === 'drafting',
+  );
   const derbyStatus = (activeDraftForDerby?.metadata?.derby as any)?.status;
 
   useEffect(() => {
@@ -190,7 +211,9 @@ export default function LeagueDetailPage() {
     return (
       <div className="min-h-screen bg-surface p-6">
         <div className="mx-auto max-w-4xl">
-          <div className="rounded bg-destructive p-4 text-destructive-foreground">{error || 'League not found'}</div>
+          <div className="rounded bg-destructive p-4 text-destructive-foreground">
+            {error || 'League not found'}
+          </div>
         </div>
       </div>
     );
@@ -217,20 +240,18 @@ export default function LeagueDetailPage() {
           );
         })()}
 
-        {league.status !== 'offseason' && (
-          <LeagueDuesCard
-            league={league}
-            members={members}
-            rosters={rosters}
-            payments={payments}
-            leagueId={leagueId}
-            currentUserId={user?.id}
-            isCommissioner={isCommissioner}
-            accessToken={accessToken}
-            onStartDM={handleStartDM}
-            onAssignRoster={handleAssignRoster}
-          />
-        )}
+        <LeagueDuesCard
+          league={league}
+          members={members}
+          rosters={rosters}
+          payments={payments}
+          leagueId={leagueId}
+          currentUserId={user?.id}
+          isCommissioner={isCommissioner}
+          accessToken={accessToken}
+          onStartDM={handleStartDM}
+          onAssignRoster={handleAssignRoster}
+        />
 
         <LeagueDraftsCard
           league={league}
@@ -263,29 +284,30 @@ export default function LeagueDetailPage() {
         />
 
         {league.status !== 'not_filled' && (
-          <LeagueLinkCards
-            leagueId={leagueId}
-            leagueStatus={league.status}
-          />
+          <LeagueLinkCards leagueId={leagueId} leagueStatus={league.status} />
         )}
       </div>
 
       {/* Draft Settings Modal */}
-      {editingDraftId && (() => {
-        const editDraft = drafts.find((d) => d.id === editingDraftId);
-        if (!editDraft) return null;
-        const vetDraftIncludesRookiePicks = editDraft.settings.player_type === 1
-          && drafts.some((d) => d.settings.player_type === 2 && d.settings.include_rookie_picks === 1);
-        return (
-          <DraftSettingsModal
-            isOpen={true}
-            onClose={() => setEditingDraftId(null)}
-            draft={editDraft}
-            onSave={(updates) => handleUpdateDraft(editDraft.id, updates)}
-            vetDraftIncludesRookiePicks={vetDraftIncludesRookiePicks}
-          />
-        );
-      })()}
+      {editingDraftId &&
+        (() => {
+          const editDraft = drafts.find((d) => d.id === editingDraftId);
+          if (!editDraft) return null;
+          const vetDraftIncludesRookiePicks =
+            editDraft.settings.player_type === 1 &&
+            drafts.some(
+              (d) => d.settings.player_type === 2 && d.settings.include_rookie_picks === 1,
+            );
+          return (
+            <DraftSettingsModal
+              isOpen={true}
+              onClose={() => setEditingDraftId(null)}
+              draft={editDraft}
+              onSave={(updates) => handleUpdateDraft(editDraft.id, updates)}
+              vetDraftIncludesRookiePicks={vetDraftIncludesRookiePicks}
+            />
+          );
+        })()}
 
       {/* Settings Modal */}
       {league && (
