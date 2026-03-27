@@ -61,11 +61,19 @@ container.services.systemMessageService.setIO(io);
 container.services.tradeService.setSystemMessages(container.services.systemMessageService);
 container.services.transactionService.setSystemMessages(container.services.systemMessageService);
 
-// Start auction jobs only when background jobs are enabled
+// Start background jobs when enabled
 if (config.ENABLE_JOBS) {
   container.jobs.auctionTimerJob.start();
   container.jobs.slowAuctionSettlementJob.start();
   container.jobs.autoPickJob.start();
+  container.jobs.playerSyncJob.start();
+  container.jobs.statsSyncJob.start();
+  container.jobs.waiverProcessJob.start();
+  container.jobs.tradeReviewJob.start();
+  // Sync players immediately on boot so the DB is populated without waiting for the 12h cron
+  container.jobs.playerSyncJob.runNow().catch((err) => {
+    console.error('[server] Initial player sync failed:', err);
+  });
 }
 
 server.listen(config.PORT, '0.0.0.0', () => {
@@ -87,6 +95,10 @@ const gracefulShutdown = () => {
     container.jobs.auctionTimerJob.stop();
     container.jobs.slowAuctionSettlementJob.stop();
     container.jobs.autoPickJob.stop();
+    container.jobs.playerSyncJob.stop();
+    container.jobs.statsSyncJob.stop();
+    container.jobs.waiverProcessJob.stop();
+    container.jobs.tradeReviewJob.stop();
   }
 
   server.close(async () => {
