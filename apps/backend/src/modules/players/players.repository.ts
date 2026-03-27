@@ -1,4 +1,5 @@
 import { Pool } from 'pg';
+import { randomUUID } from 'crypto';
 import { Player } from './players.model';
 
 export class PlayerRepository {
@@ -81,7 +82,7 @@ export class PlayerRepository {
         updated_at = NOW()
       RETURNING *`,
       [
-        data.id || null,
+        data.id || randomUUID(),
         data.firstName,
         data.lastName,
         data.fullName,
