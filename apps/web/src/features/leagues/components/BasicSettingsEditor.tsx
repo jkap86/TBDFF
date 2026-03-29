@@ -43,9 +43,6 @@ export function BasicSettingsEditor({
             />
             <div>
               <span className="text-sm font-medium text-accent-foreground">Best Ball</span>
-              <p className="text-xs text-muted-foreground">
-                Lineups are automatically optimized each week — no need to set starters
-              </p>
             </div>
           </label>
           <label className="flex items-start gap-3 cursor-pointer">
@@ -58,9 +55,6 @@ export function BasicSettingsEditor({
             />
             <div>
               <span className="text-sm font-medium text-accent-foreground">Disable Trades</span>
-              <p className="text-xs text-muted-foreground">
-                Prevent all trades between teams in this league
-              </p>
             </div>
           </label>
         </div>

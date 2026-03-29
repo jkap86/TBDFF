@@ -23,7 +23,14 @@ interface LeagueSettingsModalProps {
 }
 
 export function LeagueSettingsModal({
-  isOpen, onClose, league, members, onUpdate, onDelete, onLeagueRefresh, isOwner,
+  isOpen,
+  onClose,
+  league,
+  members,
+  onUpdate,
+  onDelete,
+  onLeagueRefresh,
+  isOwner,
 }: LeagueSettingsModalProps) {
   const [values, setValues] = useState<LeagueFormValues>(() => leagueToFormValues(league));
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -71,9 +78,8 @@ export function LeagueSettingsModal({
 
     const currentIsPublic = league.settings?.public === 1;
     const currentMemberCanInvite = league.settings?.member_can_invite === 1;
-    const currentLeagueType = (league.settings?.type ?? 0);
+    const currentLeagueType = league.settings?.type ?? 0;
     const currentBestBall = league.settings?.best_ball === 1;
-    const currentDisableTrades = league.settings?.disable_trades === 1;
     const currentWaiverType = league.settings?.waiver_type ?? 2;
     const currentWaiverBudget = league.settings?.waiver_budget ?? 100;
     const currentWaiverBidMin = league.settings?.waiver_bid_min ?? 0;
@@ -84,12 +90,16 @@ export function LeagueSettingsModal({
     const currentDraftSetup = league.settings?.draft_setup ?? 0;
     const currentMatchupType = league.settings?.matchup_type ?? 0;
     if (
-      values.isPublic !== currentIsPublic || values.memberCanInvite !== currentMemberCanInvite ||
-      values.leagueType !== currentLeagueType || values.bestBall !== currentBestBall ||
-      values.disableTrades !== currentDisableTrades ||
-      values.waiverType !== currentWaiverType || values.waiverBudget !== currentWaiverBudget ||
-      values.waiverBidMin !== currentWaiverBidMin || values.waiverDayOfWeek !== currentWaiverDayOfWeek ||
-      values.waiverClearDays !== currentWaiverClearDays || values.dailyWaivers !== currentDailyWaivers ||
+      values.isPublic !== currentIsPublic ||
+      values.memberCanInvite !== currentMemberCanInvite ||
+      values.leagueType !== currentLeagueType ||
+      values.bestBall !== currentBestBall ||
+      values.waiverType !== currentWaiverType ||
+      values.waiverBudget !== currentWaiverBudget ||
+      values.waiverBidMin !== currentWaiverBidMin ||
+      values.waiverDayOfWeek !== currentWaiverDayOfWeek ||
+      values.waiverClearDays !== currentWaiverClearDays ||
+      values.dailyWaivers !== currentDailyWaivers ||
       values.dailyWaiversHour !== currentDailyWaiversHour ||
       values.draftSetup !== currentDraftSetup ||
       values.matchupType !== currentMatchupType
@@ -99,7 +109,6 @@ export function LeagueSettingsModal({
         member_can_invite: values.memberCanInvite ? 1 : 0,
         type: values.leagueType,
         best_ball: values.bestBall ? 1 : 0,
-        disable_trades: values.disableTrades ? 1 : 0,
         waiver_type: values.waiverType,
         waiver_budget: values.waiverBudget,
         waiver_bid_min: values.waiverBidMin,
@@ -172,11 +181,17 @@ export function LeagueSettingsModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
-      <div className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-lg bg-card p-6 shadow-xl glass-strong">
-        <h2 className="mb-4 text-xl font-bold text-foreground font-heading">League Settings</h2>
+      <div className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-lg bg-card px-6 shadow-xl glass-strong">
+        <div className="sticky top-0 py-3 bg-card">
+          <h2 className="mb-4 text-xl font-bold text-foreground font-heading bg-card">
+            League Settings
+          </h2>
+        </div>
 
         {error && (
-          <div className="mb-4 rounded bg-destructive p-3 text-sm text-destructive-foreground">{error}</div>
+          <div className="mb-4 rounded bg-destructive p-3 text-sm text-destructive-foreground">
+            {error}
+          </div>
         )}
 
         <form onSubmit={handleSubmit}>
@@ -201,7 +216,9 @@ export function LeagueSettingsModal({
 
             {isOwner && (
               <div className="mb-6 border-t border-input pt-6">
-                <h3 className="mb-2 text-sm font-semibold text-destructive-foreground">Danger Zone</h3>
+                <h3 className="mb-2 text-sm font-semibold text-destructive-foreground">
+                  Danger Zone
+                </h3>
 
                 {!showDeleteConfirmation ? (
                   <button
@@ -216,7 +233,9 @@ export function LeagueSettingsModal({
                   <div className="space-y-3">
                     <div className="rounded bg-destructive p-3 text-sm text-destructive-foreground">
                       <p className="font-medium">Are you sure you want to delete this league?</p>
-                      <p className="mt-1">This action cannot be undone. All league data will be permanently deleted.</p>
+                      <p className="mt-1">
+                        This action cannot be undone. All league data will be permanently deleted.
+                      </p>
                     </div>
                     <div className="flex gap-2">
                       <button
@@ -242,7 +261,7 @@ export function LeagueSettingsModal({
             )}
           </LeagueSettingsForm>
 
-          <div className="flex gap-3">
+          <div className="flex gap-3 justify-end sticky bottom-0 bg-card py-4 mt-6">
             <button
               type="button"
               onClick={onClose}

@@ -195,62 +195,64 @@ function CreatePayments({
           </div>
 
           {/* Payout Structure - only for paid leagues */}
-          {isPaidLeague && <div>
-            <div className="mb-2 flex items-center justify-between">
-              <h4 className="text-sm font-semibold text-accent-foreground">Payout Structure</h4>
-              {!showPayoutForm && (
-                <button
-                  type="button"
-                  onClick={() => setShowPayoutForm(true)}
-                  className="flex items-center gap-1 rounded px-2 py-1 text-xs font-medium text-link hover:bg-primary/10"
-                >
-                  <Plus className="h-3.5 w-3.5" />
-                  Add Payout
-                </button>
+          {isPaidLeague && (
+            <div>
+              <div className="mb-2 flex items-center justify-between">
+                <h4 className="text-sm font-semibold text-accent-foreground">Payout Structure</h4>
+                {!showPayoutForm && (
+                  <button
+                    type="button"
+                    onClick={() => setShowPayoutForm(true)}
+                    className="flex items-center gap-1 rounded px-2 py-1 text-xs font-medium text-link hover:bg-primary/10"
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                    Add Payout
+                  </button>
+                )}
+              </div>
+
+              {showPayoutForm && (
+                <PayoutForm
+                  payouts={payouts}
+                  buyIn={buyIn}
+                  totalRosters={totalRosters}
+                  onAdd={(entry) => {
+                    onPayoutsChange([...payouts, entry]);
+                    setShowPayoutForm(false);
+                  }}
+                  onCancel={() => setShowPayoutForm(false)}
+                />
               )}
+
+              {placeEntries.length > 0 && (
+                <div className="mb-3">
+                  <div className="mb-1 flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                    <Trophy className="h-3 w-3" />
+                    Place Finish
+                  </div>
+                  <PayoutEntryList entries={placeEntries} onRemove={handleRemoveEntry} />
+                </div>
+              )}
+
+              {pointsEntries.length > 0 && (
+                <div className="mb-3">
+                  <div className="mb-1 flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                    <TrendingUp className="h-3 w-3" />
+                    Points Finish
+                  </div>
+                  <PayoutEntryList entries={pointsEntries} onRemove={handleRemoveEntry} />
+                </div>
+              )}
+
+              {payouts.length === 0 && !showPayoutForm && (
+                <p className="py-2 text-center text-sm text-muted-foreground">
+                  No payouts configured yet.
+                </p>
+              )}
+
+              <AllocationBanner payouts={payouts} buyIn={buyIn} totalRosters={totalRosters} />
             </div>
-
-            {showPayoutForm && (
-              <PayoutForm
-                payouts={payouts}
-                buyIn={buyIn}
-                totalRosters={totalRosters}
-                onAdd={(entry) => {
-                  onPayoutsChange([...payouts, entry]);
-                  setShowPayoutForm(false);
-                }}
-                onCancel={() => setShowPayoutForm(false)}
-              />
-            )}
-
-            {placeEntries.length > 0 && (
-              <div className="mb-3">
-                <div className="mb-1 flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                  <Trophy className="h-3 w-3" />
-                  Place Finish
-                </div>
-                <PayoutEntryList entries={placeEntries} onRemove={handleRemoveEntry} />
-              </div>
-            )}
-
-            {pointsEntries.length > 0 && (
-              <div className="mb-3">
-                <div className="mb-1 flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                  <TrendingUp className="h-3 w-3" />
-                  Points Finish
-                </div>
-                <PayoutEntryList entries={pointsEntries} onRemove={handleRemoveEntry} />
-              </div>
-            )}
-
-            {payouts.length === 0 && !showPayoutForm && (
-              <p className="py-2 text-center text-sm text-muted-foreground">
-                No payouts configured yet.
-              </p>
-            )}
-
-            <AllocationBanner payouts={payouts} buyIn={buyIn} totalRosters={totalRosters} />
-          </div>}
+          )}
         </div>
       )}
     </div>
@@ -441,7 +443,6 @@ function EditPayments({
         className="flex w-full items-center justify-between px-4 py-3 text-sm font-medium text-accent-foreground hover:bg-accent rounded-lg"
       >
         <div className="flex items-center gap-2">
-          <DollarSign className="h-4 w-4" />
           <span>Payments</span>
         </div>
         <ChevronDown className={`h-4 w-4 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
