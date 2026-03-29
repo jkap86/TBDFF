@@ -8,6 +8,7 @@ import { RosterPositionsEditor } from './RosterPositionsEditor';
 import { ScoringSettingsEditor } from './ScoringSettingsEditor';
 import { WaiverSettingsEditor } from './WaiverSettingsEditor';
 import { DraftSetupEditor } from './DraftSetupEditor';
+import { BasicSettingsEditor } from './BasicSettingsEditor';
 import { MatchupSetupEditor } from './MatchupSetupEditor';
 
 const CURRENT_SEASON = new Date().getFullYear().toString();
@@ -17,6 +18,7 @@ export interface LeagueFormValues {
   totalRosters: number;
   leagueType: LeagueType;
   bestBall: boolean;
+  disableTrades: boolean;
   isPublic: boolean;
   memberCanInvite: boolean;
   rosterCounts: Record<string, number>;
@@ -40,6 +42,7 @@ export function leagueToFormValues(league: League): LeagueFormValues {
     totalRosters: league.total_rosters,
     leagueType: (league.settings?.type ?? 0) as LeagueType,
     bestBall: league.settings?.best_ball === 1,
+    disableTrades: league.settings?.disable_trades === 1,
     isPublic: league.settings?.public === 1,
     memberCanInvite: league.settings?.member_can_invite === 1,
     rosterCounts: positionArrayToCounts(league.roster_positions ?? []),
@@ -77,6 +80,7 @@ export function LeagueSettingsForm({
   isSubmitting,
   children,
 }: LeagueSettingsFormProps) {
+  const [showBasic, setShowBasic] = useState(false);
   const [showDrafts, setShowDrafts] = useState(false);
   const [showRoster, setShowRoster] = useState(false);
   const [showScoring, setShowScoring] = useState(false);
@@ -200,22 +204,16 @@ export function LeagueSettingsForm({
         </select>
       </div>
 
-      {/* Best Ball */}
-      <div className="mb-4">
-        <label className="flex items-center gap-3">
-          <input
-            type="checkbox"
-            checked={values.bestBall}
-            onChange={(e) => update('bestBall', e.target.checked)}
-            className="h-4 w-4 rounded border-input text-primary focus:ring-ring"
-            disabled={isSubmitting}
-          />
-          <span className="text-sm font-medium text-accent-foreground">Best Ball</span>
-        </label>
-        <p className="mt-1 ml-7 text-xs text-muted-foreground">
-          Lineups are automatically optimized each week — no need to set starters
-        </p>
-      </div>
+      {/* Basic Settings */}
+      <BasicSettingsEditor
+        bestBall={values.bestBall}
+        onBestBallChange={(v) => update('bestBall', v)}
+        disableTrades={values.disableTrades}
+        onDisableTradesChange={(v) => update('disableTrades', v)}
+        showBasic={showBasic}
+        onToggle={() => setShowBasic(!showBasic)}
+        isSubmitting={isSubmitting}
+      />
 
       {/* Draft Setup (redraft only) */}
       {values.leagueType === 0 && (

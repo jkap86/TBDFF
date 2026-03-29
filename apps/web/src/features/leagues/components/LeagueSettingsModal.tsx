@@ -73,6 +73,7 @@ export function LeagueSettingsModal({
     const currentMemberCanInvite = league.settings?.member_can_invite === 1;
     const currentLeagueType = (league.settings?.type ?? 0);
     const currentBestBall = league.settings?.best_ball === 1;
+    const currentDisableTrades = league.settings?.disable_trades === 1;
     const currentWaiverType = league.settings?.waiver_type ?? 2;
     const currentWaiverBudget = league.settings?.waiver_budget ?? 100;
     const currentWaiverBidMin = league.settings?.waiver_bid_min ?? 0;
@@ -85,6 +86,7 @@ export function LeagueSettingsModal({
     if (
       values.isPublic !== currentIsPublic || values.memberCanInvite !== currentMemberCanInvite ||
       values.leagueType !== currentLeagueType || values.bestBall !== currentBestBall ||
+      values.disableTrades !== currentDisableTrades ||
       values.waiverType !== currentWaiverType || values.waiverBudget !== currentWaiverBudget ||
       values.waiverBidMin !== currentWaiverBidMin || values.waiverDayOfWeek !== currentWaiverDayOfWeek ||
       values.waiverClearDays !== currentWaiverClearDays || values.dailyWaivers !== currentDailyWaivers ||
@@ -97,6 +99,7 @@ export function LeagueSettingsModal({
         member_can_invite: values.memberCanInvite ? 1 : 0,
         type: values.leagueType,
         best_ball: values.bestBall ? 1 : 0,
+        disable_trades: values.disableTrades ? 1 : 0,
         waiver_type: values.waiverType,
         waiver_budget: values.waiverBudget,
         waiver_bid_min: values.waiverBidMin,

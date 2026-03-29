@@ -40,6 +40,7 @@ export interface LeagueSettings {
   member_can_invite: number; // 0 = commissioner only, 1 = all members can invite
   public: number; // 0 = private, 1 = public
   best_ball: number; // 0 = off, 1 = on
+  disable_trades: number; // 0 = trades allowed, 1 = trades disabled
   draft_setup: number; // 0 = combined, 1 = vet + rookie split
   matchup_type: number; // 0 = randomize, 1 = derby
   matchup_derby_timer: number; // seconds: 0=off, 30, 60, 120, 180, 300
@@ -148,6 +149,7 @@ export const DEFAULT_SETTINGS: LeagueSettings = {
   member_can_invite: 0, // Default: only commissioner can invite
   public: 0, // Default: private league
   best_ball: 0, // Default: off
+  disable_trades: 0, // Default: trades allowed
   draft_setup: 0, // Default: combined
   matchup_type: 0, // Default: randomize
   matchup_derby_timer: 120, // Default: 2 minutes

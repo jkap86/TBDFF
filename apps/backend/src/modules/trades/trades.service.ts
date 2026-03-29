@@ -58,6 +58,10 @@ export class TradeService {
     const league = await this.leagueRepo.findById(leagueId);
     if (!league) throw new NotFoundException('League not found');
 
+    if (league.settings.disable_trades) {
+      throw new ValidationException('Trades are disabled in this league');
+    }
+
     if (league.settings.trade_deadline && league.settings.leg > league.settings.trade_deadline) {
       throw new ValidationException('Trade deadline has passed');
     }

@@ -56,6 +56,7 @@ const leagueSettingsPartialSchema = z.object({
   member_can_invite: z.number().int().min(0).max(1).optional(),
   public: z.number().int().min(0).max(1).optional(),
   best_ball: z.number().int().min(0).max(1).optional(),
+  disable_trades: z.number().int().min(0).max(1).optional(),
   draft_setup: z.number().int().min(0).max(1).optional(), // 0=combined, 1=vet+rookie split
   matchup_type: z.number().int().min(0).max(1).optional(), // 0=randomize, 1=derby
   matchup_derby_timer: z.number().int().min(0).max(600).optional(), // seconds per pick

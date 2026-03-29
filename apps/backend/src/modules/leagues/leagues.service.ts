@@ -38,6 +38,7 @@ const SETTINGS_LABELS: Record<string, string> = {
   playoff_seed_type: 'playoff seed type',
   type: 'league type',
   best_ball: 'best ball',
+  disable_trades: 'disable trades',
   draft_rounds: 'draft rounds',
   draft_setup: 'draft setup',
   reserve_slots: 'IR slots',
