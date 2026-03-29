@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { ApiError } from '@/lib/api';
 import type { League, LeagueMember, UpdateLeagueRequest } from '@tbdff/shared';
 import { countsToPositionArray } from '../config/roster-config';
@@ -50,6 +50,32 @@ export function LeagueSettingsModal({
     }
   }, [isOpen, league]);
 
+  const hasChanges = useMemo(() => {
+    const initial = leagueToFormValues(league);
+    return (
+      values.name !== initial.name ||
+      values.totalRosters !== initial.totalRosters ||
+      values.leagueType !== initial.leagueType ||
+      values.bestBall !== initial.bestBall ||
+      values.disableTrades !== initial.disableTrades ||
+      values.isPublic !== initial.isPublic ||
+      values.memberCanInvite !== initial.memberCanInvite ||
+      values.waiverType !== initial.waiverType ||
+      values.waiverBudget !== initial.waiverBudget ||
+      values.waiverBidMin !== initial.waiverBidMin ||
+      values.waiverDayOfWeek !== initial.waiverDayOfWeek ||
+      values.waiverClearDays !== initial.waiverClearDays ||
+      values.dailyWaivers !== initial.dailyWaivers ||
+      values.dailyWaiversHour !== initial.dailyWaiversHour ||
+      values.draftSetup !== initial.draftSetup ||
+      values.matchupType !== initial.matchupType ||
+      values.buyIn !== initial.buyIn ||
+      JSON.stringify(values.rosterCounts) !== JSON.stringify(initial.rosterCounts) ||
+      JSON.stringify(values.scoring) !== JSON.stringify(initial.scoring) ||
+      JSON.stringify(values.payouts) !== JSON.stringify(initial.payouts)
+    );
+  }, [values, league]);
+
   if (!isOpen) return null;
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -80,6 +106,7 @@ export function LeagueSettingsModal({
     const currentMemberCanInvite = league.settings?.member_can_invite === 1;
     const currentLeagueType = league.settings?.type ?? 0;
     const currentBestBall = league.settings?.best_ball === 1;
+    const currentDisableTrades = league.settings?.disable_trades === 1;
     const currentWaiverType = league.settings?.waiver_type ?? 2;
     const currentWaiverBudget = league.settings?.waiver_budget ?? 100;
     const currentWaiverBidMin = league.settings?.waiver_bid_min ?? 0;
@@ -94,6 +121,7 @@ export function LeagueSettingsModal({
       values.memberCanInvite !== currentMemberCanInvite ||
       values.leagueType !== currentLeagueType ||
       values.bestBall !== currentBestBall ||
+      values.disableTrades !== currentDisableTrades ||
       values.waiverType !== currentWaiverType ||
       values.waiverBudget !== currentWaiverBudget ||
       values.waiverBidMin !== currentWaiverBidMin ||
@@ -109,6 +137,7 @@ export function LeagueSettingsModal({
         member_can_invite: values.memberCanInvite ? 1 : 0,
         type: values.leagueType,
         best_ball: values.bestBall ? 1 : 0,
+        disable_trades: values.disableTrades ? 1 : 0,
         waiver_type: values.waiverType,
         waiver_budget: values.waiverBudget,
         waiver_bid_min: values.waiverBidMin,
@@ -273,7 +302,7 @@ export function LeagueSettingsModal({
             <button
               type="submit"
               className="flex-1 rounded bg-primary px-4 py-2 font-medium text-primary-foreground hover:bg-primary-hover disabled:opacity-50"
-              disabled={isSubmitting || isDeleting}
+              disabled={isSubmitting || isDeleting || !hasChanges}
             >
               {isSubmitting ? 'Saving...' : 'Save Changes'}
             </button>
