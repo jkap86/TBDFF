@@ -166,6 +166,7 @@ export default function DraftRoomPage() {
                 lots={room.slowAuctionLots}
                 budgets={room.slowAuctionBudgets}
                 members={members}
+                rosters={rosters}
                 picks={picks}
                 currentUserId={user?.id}
                 myRosterId={room.userRosterId}
@@ -173,13 +174,13 @@ export default function DraftRoomPage() {
                 onSetMaxBid={room.handleSlowSetMaxBid}
               />
             : room.isAuction
-              ? <AuctionBoard draft={draft} picks={picks} members={members} currentUserId={user?.id} rosterPositions={league?.roster_positions ?? []} />
+              ? <AuctionBoard draft={draft} picks={picks} members={members} rosters={rosters} currentUserId={user?.id} rosterPositions={league?.roster_positions ?? []} />
               : <DraftBoard draft={draft} picks={picks} members={members} rosters={rosters} currentUserId={user?.id} />
         )}
 
         {/* Auction Draft Board */}
         {draft.status === 'drafting' && room.isAuction && (
-          <AuctionBoard draft={draft} picks={picks} members={members} currentUserId={user?.id} rosterPositions={league?.roster_positions ?? []} />
+          <AuctionBoard draft={draft} picks={picks} members={members} rosters={rosters} currentUserId={user?.id} rosterPositions={league?.roster_positions ?? []} />
         )}
 
         {/* Slow Auction Draft Board */}
@@ -194,6 +195,7 @@ export default function DraftRoomPage() {
               lots={room.slowAuctionLots}
               budgets={room.slowAuctionBudgets}
               members={members}
+              rosters={rosters}
               picks={picks}
               currentUserId={user?.id}
               myRosterId={room.userRosterId}
@@ -233,6 +235,7 @@ export default function DraftRoomPage() {
                 lots={room.slowAuctionLots}
                 budgets={room.slowAuctionBudgets}
                 members={members}
+                rosters={rosters}
                 picks={picks}
                 currentUserId={user?.id}
                 myRosterId={room.userRosterId}
@@ -240,7 +243,7 @@ export default function DraftRoomPage() {
                 onSetMaxBid={room.handleSlowSetMaxBid}
               />
             : room.isAuction
-              ? <AuctionBoard draft={draft} picks={picks} members={members} currentUserId={user?.id} rosterPositions={league?.roster_positions ?? []} />
+              ? <AuctionBoard draft={draft} picks={picks} members={members} rosters={rosters} currentUserId={user?.id} rosterPositions={league?.roster_positions ?? []} />
               : <DraftBoard draft={draft} picks={picks} members={members} rosters={rosters} currentUserId={user?.id} />
         )}
       </div>

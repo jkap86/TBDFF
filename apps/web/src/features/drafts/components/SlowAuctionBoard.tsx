@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { ChevronDown, ChevronUp } from 'lucide-react';
-import type { AuctionLot, AuctionBidHistoryEntry, RosterBudget, LeagueMember, Draft, DraftPick } from '@/lib/api';
+import type { AuctionLot, AuctionBidHistoryEntry, RosterBudget, LeagueMember, Roster, Draft, DraftPick } from '@/lib/api';
 import { draftApi } from '@/lib/api';
 import { SlowBidDialog } from './SlowBidDialog';
 
@@ -11,6 +11,7 @@ interface SlowAuctionBoardProps {
   lots: AuctionLot[];
   budgets: RosterBudget[];
   members: LeagueMember[];
+  rosters: Roster[];
   picks: DraftPick[];
   currentUserId: string | undefined;
   myRosterId: number | undefined;
@@ -42,6 +43,7 @@ export function SlowAuctionBoard({
   lots,
   budgets,
   members,
+  rosters,
   picks,
   currentUserId,
   myRosterId,
@@ -59,9 +61,20 @@ export function SlowAuctionBoard({
   const rosterToUserId: Record<number, string> = {};
   for (const [userId, slot] of Object.entries(draft.draft_order ?? {}) as [string, number][]) {
     const rosterId = (draft.slot_to_roster_id ?? {})[String(slot)];
+    if (rosterId === undefined) continue;
     const member = members.find((m) => m.user_id === userId);
     rosterToUser[rosterId] = member?.display_name || member?.username || `Team ${rosterId}`;
     rosterToUserId[rosterId] = userId;
+  }
+  // Fallback: fill in any rosters missing from draft_order using roster owner_id
+  for (const roster of rosters) {
+    if (rosterToUser[roster.roster_id] === undefined && roster.owner_id) {
+      const member = members.find((m) => m.user_id === roster.owner_id);
+      if (member) {
+        rosterToUser[roster.roster_id] = member.display_name || member.username;
+        rosterToUserId[roster.roster_id] = roster.owner_id;
+      }
+    }
   }
 
   const myBudget = budgets.find((b) => b.roster_id === myRosterId) ?? null;

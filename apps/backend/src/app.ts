@@ -22,7 +22,7 @@ export function createApp(container: Container) {
     })
   );
   app.use(cors({
-    origin: config.CORS_ORIGINS,
+    origin: config.NODE_ENV === 'development' ? true : config.CORS_ORIGINS,
     credentials: true,
   }));
   app.use(express.json({ limit: '1mb' }));

@@ -59,7 +59,7 @@ export function createChatGateway(
     httpServer,
     {
       cors: {
-        origin: config.CORS_ORIGINS,
+        origin: config.NODE_ENV === 'development' ? true : config.CORS_ORIGINS,
         credentials: true,
       },
       path: '/socket.io',

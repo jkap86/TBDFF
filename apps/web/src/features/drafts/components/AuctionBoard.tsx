@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo } from 'react';
-import type { Draft, DraftPick, LeagueMember, RosterPosition } from '@/lib/api';
+import type { Draft, DraftPick, LeagueMember, Roster, RosterPosition } from '@/lib/api';
 
 function getPositionColor(position: string | undefined): string {
   switch (position) {
@@ -123,11 +123,12 @@ interface AuctionBoardProps {
   draft: Draft;
   picks: DraftPick[];
   members: LeagueMember[];
+  rosters: Roster[];
   currentUserId: string | undefined;
   rosterPositions: RosterPosition[];
 }
 
-export function AuctionBoard({ draft, picks, members, currentUserId, rosterPositions }: AuctionBoardProps) {
+export function AuctionBoard({ draft, picks, members, rosters, currentUserId, rosterPositions }: AuctionBoardProps) {
   const nomination = draft.metadata?.current_nomination as Record<string, any> | undefined;
   const budgets: Record<string, number> = draft.metadata?.auction_budgets ?? {};
   const completedPicks = picks.filter((p) => p.player_id);
@@ -144,9 +145,14 @@ export function AuctionBoard({ draft, picks, members, currentUserId, rosterPosit
   for (const [slotStr, rosterId] of Object.entries(draft.slot_to_roster_id ?? {})) {
     const slot = Number(slotStr);
     const userId = slotToUserId[slot];
-    const member = userId ? members.find((m) => m.user_id === userId) : null;
+    let member = userId ? members.find((m) => m.user_id === userId) : null;
+    if (!member) {
+      const roster = rosters.find((r) => r.roster_id === rosterId);
+      member = roster?.owner_id ? (members.find((m) => m.user_id === roster.owner_id) ?? null) : null;
+    }
     rosterToUser[rosterId] = member?.display_name || member?.username || `Slot ${slot}`;
-    if (userId) rosterToUserId[rosterId] = userId;
+    const resolvedUserId = userId || (rosters.find((r) => r.roster_id === rosterId)?.owner_id ?? '');
+    if (resolvedUserId) rosterToUserId[rosterId] = resolvedUserId;
   }
 
   // Find who the current bidder is
