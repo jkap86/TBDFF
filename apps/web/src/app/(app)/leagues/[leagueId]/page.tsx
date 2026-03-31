@@ -29,6 +29,7 @@ import { LeagueDuesCard } from '@/features/leagues/components/LeagueDuesCard';
 import { LeagueDraftsCard } from '@/features/leagues/components/LeagueDraftsCard';
 import { LeagueMatchupsCard } from '@/features/leagues/components/LeagueMatchupsCard';
 import { LeagueLinkCards } from '@/features/leagues/components/LeagueLinkCards';
+import { LeagueStatusStepper } from '@/features/leagues/components/LeagueStatusStepper';
 
 export default function LeagueDetailPage() {
   const params = useParams();
@@ -222,6 +223,8 @@ export default function LeagueDetailPage() {
   return (
     <div className="min-h-screen bg-surface p-6">
       <div className="mx-auto max-w-4xl space-y-6">
+        <LeagueStatusStepper currentStatus={league.status} />
+
         <LeagueHeaderCard
           league={league}
           isCommissioner={isCommissioner}

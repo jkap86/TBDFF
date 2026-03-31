@@ -22,29 +22,35 @@ function MaxBidInput({ item, budget, teams, onUpdateMaxBid }: {
   onUpdateMaxBid: (playerId: string, maxBid: number | null) => void;
 }) {
   const defaultBid = item.auction_value != null
-    ? Math.floor(item.auction_value * 0.8 * (budget / 200) * (teams / 12))
+    ? Math.max(1, Math.floor(item.auction_value * 0.8 * (budget / 200) * (teams / 12)))
     : null;
-  const [value, setValue] = useState(item.max_bid != null ? String(item.max_bid) : '');
+
+  const isEnabled = item.max_bid != null;
+  const [value, setValue] = useState(item.max_bid != null ? String(item.max_bid) : (defaultBid != null ? String(defaultBid) : ''));
   const [isFocused, setIsFocused] = useState(false);
 
-  // Sync when server state changes
   useEffect(() => {
     if (!isFocused) {
-      setValue(item.max_bid != null ? String(item.max_bid) : '');
+      setValue(item.max_bid != null ? String(item.max_bid) : (defaultBid != null ? String(defaultBid) : ''));
     }
-  }, [item.max_bid, isFocused]);
+  }, [item.max_bid, defaultBid, isFocused]);
+
+  const handleToggle = () => {
+    if (isEnabled) {
+      onUpdateMaxBid(item.player_id, null);
+    } else {
+      const bid = defaultBid ?? 1;
+      setValue(String(bid));
+      onUpdateMaxBid(item.player_id, bid);
+    }
+  };
 
   const commit = () => {
     setIsFocused(false);
     const trimmed = value.trim();
-    if (trimmed === '') {
-      // Clear to use default
-      if (item.max_bid != null) onUpdateMaxBid(item.player_id, null);
-      return;
-    }
+    if (trimmed === '' || !isEnabled) return;
     const num = parseInt(trimmed, 10);
     if (isNaN(num) || num < 0) {
-      // Reset to current
       setValue(item.max_bid != null ? String(item.max_bid) : '');
       return;
     }
@@ -54,19 +60,29 @@ function MaxBidInput({ item, budget, teams, onUpdateMaxBid }: {
   };
 
   return (
-    <div className="flex items-center gap-0.5">
+    <div className="flex items-center gap-1">
+      <input
+        type="checkbox"
+        checked={isEnabled}
+        onChange={handleToggle}
+        title={defaultBid != null ? `Auto-bid up to $${defaultBid} (80% AAV)` : 'Enable auto-bid'}
+        className="h-3 w-3 rounded border-border accent-primary cursor-pointer"
+      />
       <span className="text-xs text-disabled">$</span>
       <input
         type="text"
         inputMode="numeric"
-        value={value}
+        value={isEnabled ? value : ''}
         onChange={(e) => setValue(e.target.value.replace(/[^0-9]/g, ''))}
         onFocus={() => setIsFocused(true)}
         onBlur={commit}
         onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
         placeholder={defaultBid != null ? String(defaultBid) : '—'}
+        disabled={!isEnabled}
         title={defaultBid != null ? `Default: $${defaultBid} (80% of AAV $${item.auction_value})` : 'Set max bid'}
-        className="w-10 rounded border border-border px-1 py-0.5 text-center text-xs text-accent-foreground bg-card focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
+        className={`w-10 rounded border border-border px-1 py-0.5 text-center text-xs bg-card focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring ${
+          isEnabled ? 'text-accent-foreground' : 'text-muted-foreground/30 cursor-not-allowed'
+        }`}
       />
     </div>
   );

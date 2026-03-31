@@ -13,24 +13,32 @@ function NominationMaxBid({ nomination, queue, budget, teams, onUpdateMaxBid }: 
   const queueItem = queue.find((q) => q.player_id === nomination.player_id);
   const currentMaxBid = queueItem?.max_bid ?? null;
   const aav = nomination.player_metadata?.auction_value ?? queueItem?.auction_value ?? null;
-  const defaultBid = aav != null ? Math.floor(aav * 0.8 * (budget / 200) * (teams / 12)) : null;
+  const defaultBid = aav != null ? Math.max(1, Math.floor(aav * 0.8 * (budget / 200) * (teams / 12))) : null;
 
-  const [value, setValue] = useState(currentMaxBid != null ? String(currentMaxBid) : '');
+  const isEnabled = currentMaxBid != null;
+  const [value, setValue] = useState(currentMaxBid != null ? String(currentMaxBid) : (defaultBid != null ? String(defaultBid) : ''));
   const [isFocused, setIsFocused] = useState(false);
 
   useEffect(() => {
     if (!isFocused) {
-      setValue(currentMaxBid != null ? String(currentMaxBid) : '');
+      setValue(currentMaxBid != null ? String(currentMaxBid) : (defaultBid != null ? String(defaultBid) : ''));
     }
-  }, [currentMaxBid, isFocused]);
+  }, [currentMaxBid, defaultBid, isFocused]);
+
+  const handleToggle = () => {
+    if (isEnabled) {
+      onUpdateMaxBid(nomination.player_id, null);
+    } else {
+      const bid = defaultBid ?? 1;
+      setValue(String(bid));
+      onUpdateMaxBid(nomination.player_id, bid);
+    }
+  };
 
   const commit = () => {
     setIsFocused(false);
     const trimmed = value.trim();
-    if (trimmed === '') {
-      if (currentMaxBid != null) onUpdateMaxBid(nomination.player_id, null);
-      return;
-    }
+    if (trimmed === '' || !isEnabled) return;
     const num = parseInt(trimmed, 10);
     if (isNaN(num) || num < 0) {
       setValue(currentMaxBid != null ? String(currentMaxBid) : '');
@@ -43,18 +51,29 @@ function NominationMaxBid({ nomination, queue, budget, teams, onUpdateMaxBid }: 
 
   return (
     <div className="flex items-center gap-1.5 border-l border-border pl-3 ml-1">
-      <span className="text-xs font-heading font-bold uppercase tracking-wide text-muted-foreground whitespace-nowrap">Max $</span>
+      <label className="flex items-center gap-1.5 cursor-pointer" title={defaultBid != null ? `Auto-bid up to 80% of AAV ($${aav})` : 'Enable auto-bid'}>
+        <input
+          type="checkbox"
+          checked={isEnabled}
+          onChange={handleToggle}
+          className="h-3.5 w-3.5 rounded border-border accent-primary cursor-pointer"
+        />
+        <span className="text-xs font-heading font-bold uppercase tracking-wide text-muted-foreground whitespace-nowrap">Max $</span>
+      </label>
       <input
         type="text"
         inputMode="numeric"
-        value={value}
+        value={isEnabled ? value : ''}
         onChange={(e) => setValue(e.target.value.replace(/[^0-9]/g, ''))}
         onFocus={() => setIsFocused(true)}
         onBlur={commit}
         onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
         placeholder={defaultBid != null ? String(defaultBid) : '—'}
+        disabled={!isEnabled}
         title={defaultBid != null ? `Default: $${defaultBid} (80% of AAV $${aav})` : 'Set max auto-bid'}
-        className="w-14 rounded-lg border border-border bg-card px-1.5 py-1.5 text-center text-sm font-mono font-bold text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary/50"
+        className={`w-14 rounded-lg border border-border bg-card px-1.5 py-1.5 text-center text-sm font-mono font-bold focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary/50 ${
+          isEnabled ? 'text-foreground' : 'text-muted-foreground/30 cursor-not-allowed'
+        }`}
       />
     </div>
   );
