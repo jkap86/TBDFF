@@ -9,7 +9,7 @@ import { LeagueSettingsForm, leagueToFormValues } from './LeagueSettingsForm';
 import type { LeagueFormValues } from './LeagueSettingsForm';
 import { PaymentsSettings } from './PaymentsSettings';
 
-const TEAM_OPTIONS = Array.from({ length: 31 }, (_, i) => i + 2); // 2..32
+export const TEAM_OPTIONS = [2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30, 32]; // 2..32
 
 interface LeagueSettingsModalProps {
   isOpen: boolean;

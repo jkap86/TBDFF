@@ -91,14 +91,17 @@ export function LeagueSettingsForm({
     onChange({ ...values, [key]: value });
   };
 
-  const inputClass = 'w-full rounded border border-input px-3 py-2 bg-muted text-foreground focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring';
+  const inputClass =
+    'w-full rounded border border-input px-3 py-2 bg-muted text-foreground focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring';
   const labelClass = 'mb-1 block text-sm font-medium text-accent-foreground';
 
   return (
     <>
       {/* League Name */}
       <div className="mb-4">
-        <label htmlFor="name" className={labelClass}>League Name</label>
+        <label htmlFor="name" className={labelClass}>
+          League Name
+        </label>
         <input
           id="name"
           type="text"
@@ -126,7 +129,9 @@ export function LeagueSettingsForm({
       {showMemberCanInvite ? (
         <>
           <div className="mb-4">
-            <label htmlFor="visibility" className={labelClass}>League Visibility</label>
+            <label htmlFor="visibility" className={labelClass}>
+              League Visibility
+            </label>
             <select
               id="visibility"
               value={values.isPublic ? 'public' : 'private'}
@@ -140,7 +145,9 @@ export function LeagueSettingsForm({
           </div>
           {!values.isPublic && (
             <div className="mb-4">
-              <label htmlFor="invitePermission" className={labelClass}>Who can send invites?</label>
+              <label htmlFor="invitePermission" className={labelClass}>
+                Who can send invites?
+              </label>
               <select
                 id="invitePermission"
                 value={values.memberCanInvite ? 'anyone' : 'commissioner'}
@@ -174,7 +181,9 @@ export function LeagueSettingsForm({
 
       {/* Number of Teams */}
       <div className="mb-4">
-        <label htmlFor="totalRosters" className={labelClass}>Number of Teams</label>
+        <label htmlFor="totalRosters" className={labelClass}>
+          Number of Teams
+        </label>
         <select
           id="totalRosters"
           value={values.totalRosters}
@@ -183,14 +192,18 @@ export function LeagueSettingsForm({
           disabled={isSubmitting}
         >
           {teamOptions.map((num) => (
-            <option key={num} value={num}>{num}</option>
+            <option key={num} value={num}>
+              {num}
+            </option>
           ))}
         </select>
       </div>
 
       {/* League Type */}
       <div className="mb-4">
-        <label htmlFor="leagueType" className={labelClass}>League Type</label>
+        <label htmlFor="leagueType" className={labelClass}>
+          League Type
+        </label>
         <select
           id="leagueType"
           value={values.leagueType}
@@ -199,8 +212,12 @@ export function LeagueSettingsForm({
           disabled={isSubmitting}
         >
           <option value={0}>Redraft</option>
-          <option value={2} disabled>Dynasty (Coming Soon)</option>
-          <option value={1} disabled>Keeper (Coming Soon)</option>
+          <option value={2} disabled>
+            Dynasty (Coming Soon)
+          </option>
+          <option value={1} disabled>
+            Keeper (Coming Soon)
+          </option>
         </select>
       </div>
 
@@ -229,7 +246,9 @@ export function LeagueSettingsForm({
       {/* Roster Positions */}
       <RosterPositionsEditor
         rosterCounts={values.rosterCounts}
-        onCountChange={(key, value) => update('rosterCounts', { ...values.rosterCounts, [key]: value })}
+        onCountChange={(key, value) =>
+          update('rosterCounts', { ...values.rosterCounts, [key]: value })
+        }
         showRoster={showRoster}
         onToggle={() => setShowRoster(!showRoster)}
         isSubmitting={isSubmitting}

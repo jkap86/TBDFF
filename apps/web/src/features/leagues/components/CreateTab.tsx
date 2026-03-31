@@ -9,6 +9,7 @@ import { DEFAULT_SCORING } from '../config/scoring-config';
 import { LeagueSettingsForm } from './LeagueSettingsForm';
 import type { LeagueFormValues } from './LeagueSettingsForm';
 import { PaymentsSettings } from './PaymentsSettings';
+import { TEAM_OPTIONS } from './LeagueSettingsModal';
 
 const CURRENT_SEASON = new Date().getFullYear().toString();
 
@@ -125,7 +126,7 @@ export function CreateTab() {
         <LeagueSettingsForm
           values={values}
           onChange={setValues}
-          teamOptions={[8, 10, 12, 14, 16]}
+          teamOptions={TEAM_OPTIONS}
           showSeason
           isSubmitting={isSubmitting}
         >
