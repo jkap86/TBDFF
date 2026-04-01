@@ -1,6 +1,6 @@
 'use client';
 
-import { ChevronDown } from 'lucide-react';
+import { ChevronDown, Sliders } from 'lucide-react';
 
 interface BasicSettingsEditorProps {
   bestBall: boolean;
@@ -21,6 +21,11 @@ export function BasicSettingsEditor({
   onToggle,
   isSubmitting,
 }: BasicSettingsEditorProps) {
+  const summaryParts: string[] = [];
+  if (bestBall) summaryParts.push('Best Ball');
+  if (disableTrades) summaryParts.push('No Trades');
+  const summary = summaryParts.length > 0 ? summaryParts.join(', ') : 'Default';
+
   return (
     <div className="mb-4 rounded-lg border border-border">
       <button
@@ -28,8 +33,14 @@ export function BasicSettingsEditor({
         onClick={onToggle}
         className="flex w-full items-center justify-between px-4 py-3 text-sm font-medium text-accent-foreground hover:bg-accent rounded-lg"
       >
-        <span>Basic Settings</span>
-        <ChevronDown className={`h-4 w-4 transition-transform ${showBasic ? 'rotate-180' : ''}`} />
+        <div className="flex items-center gap-2">
+          <Sliders className="h-4 w-4 text-muted-foreground" />
+          <span>Basic Settings</span>
+        </div>
+        <div className="flex items-center gap-2">
+          {!showBasic && <span className="text-xs text-muted-foreground">{summary}</span>}
+          <ChevronDown className={`h-4 w-4 transition-transform ${showBasic ? 'rotate-180' : ''}`} />
+        </div>
       </button>
       {showBasic && (
         <div className="border-t border-border px-4 py-3 space-y-3">

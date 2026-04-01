@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { Lock } from 'lucide-react';
 import type { League, LeagueType, PayoutEntry } from '@tbdff/shared';
 import { positionArrayToCounts } from '../config/roster-config';
 import { scoringFromLeague } from '../config/scoring-config';
@@ -97,128 +98,150 @@ export function LeagueSettingsForm({
 
   return (
     <>
-      {/* League Name */}
-      <div className="mb-4">
-        <label htmlFor="name" className={labelClass}>
-          League Name
-        </label>
-        <input
-          id="name"
-          type="text"
-          value={values.name}
-          onChange={(e) => update('name', e.target.value)}
-          className={inputClass}
-          placeholder="My League"
-          disabled={isSubmitting}
-          maxLength={100}
-          required
-        />
-      </div>
-
-      {/* Season (create only) */}
-      {showSeason && (
-        <div className="mb-4">
-          <label className={labelClass}>Season</label>
-          <div className="rounded border border-border bg-surface px-3 py-2 text-sm text-accent-foreground">
-            {CURRENT_SEASON}
-          </div>
-        </div>
-      )}
-
-      {/* Visibility */}
-      {showMemberCanInvite ? (
-        <>
-          <div className="mb-4">
-            <label htmlFor="visibility" className={labelClass}>
-              League Visibility
+      {/* League Info Card */}
+      <div className="mb-4 rounded-lg border border-border px-4 py-4 space-y-4">
+        {/* League Name + Season */}
+        <div>
+          <div className="flex items-center gap-2 mb-1">
+            <label htmlFor="name" className="block text-sm font-medium text-accent-foreground">
+              League Name
             </label>
-            <select
-              id="visibility"
-              value={values.isPublic ? 'public' : 'private'}
-              onChange={(e) => update('isPublic', e.target.value === 'public')}
-              className={inputClass}
-              disabled={isSubmitting}
-            >
-              <option value="public">Public - Anyone can find and join</option>
-              <option value="private">Private - Invite only</option>
-            </select>
+            {showSeason && (
+              <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
+                {CURRENT_SEASON} Season
+              </span>
+            )}
           </div>
-          {!values.isPublic && (
-            <div className="mb-4">
-              <label htmlFor="invitePermission" className={labelClass}>
-                Who can send invites?
+          <input
+            id="name"
+            type="text"
+            value={values.name}
+            onChange={(e) => update('name', e.target.value)}
+            className={inputClass}
+            placeholder="My League"
+            disabled={isSubmitting}
+            maxLength={100}
+            required
+          />
+        </div>
+
+        {/* Visibility */}
+        {showMemberCanInvite ? (
+          <>
+            <div>
+              <label htmlFor="visibility" className={labelClass}>
+                League Visibility
               </label>
               <select
-                id="invitePermission"
-                value={values.memberCanInvite ? 'anyone' : 'commissioner'}
-                onChange={(e) => update('memberCanInvite', e.target.value === 'anyone')}
+                id="visibility"
+                value={values.isPublic ? 'public' : 'private'}
+                onChange={(e) => update('isPublic', e.target.value === 'public')}
                 className={inputClass}
                 disabled={isSubmitting}
               >
-                <option value="commissioner">Commissioner only</option>
-                <option value="anyone">All members</option>
+                <option value="public">Public - Anyone can find and join</option>
+                <option value="private">Private - Invite only</option>
               </select>
             </div>
-          )}
-        </>
-      ) : (
-        <div className="mb-4">
-          <label className="flex items-center gap-3">
-            <input
-              type="checkbox"
-              checked={values.isPublic}
-              onChange={(e) => update('isPublic', e.target.checked)}
-              className="h-4 w-4 rounded border-input text-primary focus:ring-ring"
-              disabled={isSubmitting}
-            />
-            <span className="text-sm font-medium text-accent-foreground">Public league</span>
+            {!values.isPublic && (
+              <div>
+                <label htmlFor="invitePermission" className={labelClass}>
+                  Who can send invites?
+                </label>
+                <select
+                  id="invitePermission"
+                  value={values.memberCanInvite ? 'anyone' : 'commissioner'}
+                  onChange={(e) => update('memberCanInvite', e.target.value === 'anyone')}
+                  className={inputClass}
+                  disabled={isSubmitting}
+                >
+                  <option value="commissioner">Commissioner only</option>
+                  <option value="anyone">All members</option>
+                </select>
+              </div>
+            )}
+          </>
+        ) : (
+          <div>
+            <label className="flex items-center gap-3">
+              <input
+                type="checkbox"
+                checked={values.isPublic}
+                onChange={(e) => update('isPublic', e.target.checked)}
+                className="h-4 w-4 rounded border-input text-primary focus:ring-ring"
+                disabled={isSubmitting}
+              />
+              <span className="text-sm font-medium text-accent-foreground">Public league</span>
+            </label>
+            <p className="mt-1 ml-7 text-xs text-muted-foreground">
+              Anyone can browse and join public leagues
+            </p>
+          </div>
+        )}
+
+        {/* Number of Teams */}
+        <div>
+          <label htmlFor="totalRosters" className={labelClass}>
+            Number of Teams
           </label>
-          <p className="mt-1 ml-7 text-xs text-muted-foreground">
-            Anyone can browse and join public leagues
-          </p>
+          <select
+            id="totalRosters"
+            value={values.totalRosters}
+            onChange={(e) => update('totalRosters', parseInt(e.target.value, 10))}
+            className={inputClass}
+            disabled={isSubmitting}
+          >
+            {teamOptions.map((num) => (
+              <option key={num} value={num}>
+                {num}
+              </option>
+            ))}
+          </select>
         </div>
-      )}
 
-      {/* Number of Teams */}
-      <div className="mb-4">
-        <label htmlFor="totalRosters" className={labelClass}>
-          Number of Teams
-        </label>
-        <select
-          id="totalRosters"
-          value={values.totalRosters}
-          onChange={(e) => update('totalRosters', parseInt(e.target.value, 10))}
-          className={inputClass}
-          disabled={isSubmitting}
-        >
-          {teamOptions.map((num) => (
-            <option key={num} value={num}>
-              {num}
-            </option>
-          ))}
-        </select>
-      </div>
-
-      {/* League Type */}
-      <div className="mb-4">
-        <label htmlFor="leagueType" className={labelClass}>
-          League Type
-        </label>
-        <select
-          id="leagueType"
-          value={values.leagueType}
-          onChange={(e) => update('leagueType', parseInt(e.target.value, 10) as LeagueType)}
-          className={inputClass}
-          disabled={isSubmitting}
-        >
-          <option value={0}>Redraft</option>
-          <option value={2} disabled>
-            Dynasty (Coming Soon)
-          </option>
-          <option value={1} disabled>
-            Keeper (Coming Soon)
-          </option>
-        </select>
+        {/* League Type — Visual Cards */}
+        <div>
+          <label className={labelClass}>League Type</label>
+          <div className="grid grid-cols-3 gap-2">
+            <button
+              type="button"
+              onClick={() => update('leagueType', 0 as LeagueType)}
+              disabled={isSubmitting}
+              className={`rounded-lg border px-3 py-2.5 text-center transition-colors ${
+                values.leagueType === 0
+                  ? 'border-primary bg-primary/10 text-primary'
+                  : 'border-border bg-card text-muted-foreground hover:text-foreground hover:border-foreground/30'
+              }`}
+            >
+              <div className="text-sm font-medium">Redraft</div>
+              <div className="text-xs opacity-70 mt-0.5">New roster each year</div>
+            </button>
+            <button
+              type="button"
+              disabled
+              className="relative rounded-lg border border-border bg-card px-3 py-2.5 text-center opacity-50 cursor-not-allowed"
+            >
+              <div className="text-sm font-medium text-muted-foreground">Dynasty</div>
+              <div className="text-xs text-muted-foreground/70 mt-0.5">Keep your roster</div>
+              <span className="absolute -top-2 right-1 flex items-center gap-0.5 rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
+                <Lock className="h-2.5 w-2.5" />
+                Soon
+              </span>
+            </button>
+            <button
+              type="button"
+              disabled
+              className="relative rounded-lg border border-border bg-card px-3 py-2.5 text-center opacity-50 cursor-not-allowed"
+            >
+              <div className="text-sm font-medium text-muted-foreground">Keeper</div>
+              <div className="text-xs text-muted-foreground/70 mt-0.5">Keep select players</div>
+              <span className="absolute -top-2 right-1 flex items-center gap-0.5 rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
+                <Lock className="h-2.5 w-2.5" />
+                Soon
+              </span>
+            </button>
+          </div>
+        </div>
       </div>
 
       {/* Basic Settings */}
@@ -258,6 +281,7 @@ export function LeagueSettingsForm({
       <ScoringSettingsEditor
         scoring={values.scoring}
         onScoringChange={(key, value) => update('scoring', { ...values.scoring, [key]: value })}
+        onApplyPreset={(preset) => update('scoring', preset)}
         showScoring={showScoring}
         onToggle={() => setShowScoring(!showScoring)}
         isSubmitting={isSubmitting}

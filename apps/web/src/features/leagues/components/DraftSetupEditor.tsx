@@ -1,6 +1,6 @@
 'use client';
 
-import { ChevronDown } from 'lucide-react';
+import { ChevronDown, Shuffle } from 'lucide-react';
 
 interface DraftSetupEditorProps {
   draftSetup: number;
@@ -17,6 +17,8 @@ export function DraftSetupEditor({
   onToggle,
   isSubmitting,
 }: DraftSetupEditorProps) {
+  const summary = draftSetup === 0 ? 'Combined' : 'Vet + Rookie';
+
   return (
     <div className="mb-4 rounded-lg border border-border">
       <button
@@ -24,8 +26,14 @@ export function DraftSetupEditor({
         onClick={onToggle}
         className="flex w-full items-center justify-between px-4 py-3 text-sm font-medium text-accent-foreground hover:bg-accent rounded-lg"
       >
-        <span>Draft Setup</span>
-        <ChevronDown className={`h-4 w-4 transition-transform ${showDrafts ? 'rotate-180' : ''}`} />
+        <div className="flex items-center gap-2">
+          <Shuffle className="h-4 w-4 text-muted-foreground" />
+          <span>Draft Setup</span>
+        </div>
+        <div className="flex items-center gap-2">
+          {!showDrafts && <span className="text-xs text-muted-foreground">{summary}</span>}
+          <ChevronDown className={`h-4 w-4 transition-transform ${showDrafts ? 'rotate-180' : ''}`} />
+        </div>
       </button>
       {showDrafts && (
         <div className="border-t border-border px-4 py-3 space-y-3">

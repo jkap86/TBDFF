@@ -114,10 +114,10 @@ export function CreateTab() {
 
   return (
     <div className="rounded-lg bg-card p-6 shadow">
-      <h2 className="mb-4 text-lg font-semibold text-foreground">Create New League</h2>
+      <h2 className="mb-6 text-xl font-bold text-foreground font-heading">Create New League</h2>
 
       {error && (
-        <div className="mb-4 rounded bg-destructive p-3 text-sm text-destructive-foreground">
+        <div className="mb-4 flex items-center gap-2 rounded-lg bg-destructive/10 border border-destructive p-3 text-sm text-destructive-foreground">
           {error}
         </div>
       )}
@@ -142,13 +142,15 @@ export function CreateTab() {
           />
         </LeagueSettingsForm>
 
-        <button
-          type="submit"
-          className="w-full rounded bg-primary px-4 py-2 font-medium text-primary-foreground hover:bg-primary-hover disabled:opacity-50 sticky bottom-0 left-0 right-0"
-          disabled={isSubmitting}
-        >
-          {isSubmitting ? 'Creating...' : 'Create League'}
-        </button>
+        <div className="sticky bottom-0 left-0 right-0 mt-6 -mx-6 -mb-6 border-t border-border bg-card/95 backdrop-blur-sm px-6 py-4">
+          <button
+            type="submit"
+            className="w-full rounded-lg bg-primary px-4 py-3 text-base font-bold text-primary-foreground hover:bg-primary-hover disabled:opacity-50 transition-colors shadow-lg glow-primary"
+            disabled={isSubmitting}
+          >
+            {isSubmitting ? 'Creating...' : 'Create League'}
+          </button>
+        </div>
       </form>
     </div>
   );

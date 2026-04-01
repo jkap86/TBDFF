@@ -1,7 +1,12 @@
 'use client';
 
-import { ChevronDown } from 'lucide-react';
+import { ChevronDown, Users2 } from 'lucide-react';
 import { ROSTER_POSITION_CONFIG } from '../config/roster-config';
+
+const SUMMARY_KEYS = ['QB', 'RB', 'WR', 'TE', 'FLEX', 'SUPER_FLEX'] as const;
+const SUMMARY_LABELS: Record<string, string> = {
+  QB: 'QB', RB: 'RB', WR: 'WR', TE: 'TE', FLEX: 'FLX', SUPER_FLEX: 'SF',
+};
 
 interface RosterPositionsEditorProps {
   rosterCounts: Record<string, number>;
@@ -18,6 +23,14 @@ export function RosterPositionsEditor({
   onToggle,
   isSubmitting,
 }: RosterPositionsEditorProps) {
+  const summaryParts = SUMMARY_KEYS
+    .filter((k) => (rosterCounts[k] ?? 0) > 0)
+    .map((k) => {
+      const count = rosterCounts[k] ?? 0;
+      return count > 1 ? `${count}${SUMMARY_LABELS[k]}` : SUMMARY_LABELS[k];
+    });
+  const summary = summaryParts.join('/');
+
   return (
     <div className="mb-4 rounded-lg border border-border">
       <button
@@ -25,8 +38,14 @@ export function RosterPositionsEditor({
         onClick={onToggle}
         className="flex w-full items-center justify-between px-4 py-3 text-sm font-medium text-accent-foreground hover:bg-accent rounded-lg"
       >
-        <span>Roster Positions</span>
-        <ChevronDown className={`h-4 w-4 transition-transform ${showRoster ? 'rotate-180' : ''}`} />
+        <div className="flex items-center gap-2">
+          <Users2 className="h-4 w-4 text-muted-foreground" />
+          <span>Roster Positions</span>
+        </div>
+        <div className="flex items-center gap-2">
+          {!showRoster && summary && <span className="text-xs text-muted-foreground">{summary}</span>}
+          <ChevronDown className={`h-4 w-4 transition-transform ${showRoster ? 'rotate-180' : ''}`} />
+        </div>
       </button>
       {showRoster && (
         <div className="border-t border-border px-4 py-3">

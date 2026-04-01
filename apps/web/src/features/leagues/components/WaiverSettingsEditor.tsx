@@ -1,6 +1,6 @@
 'use client';
 
-import { ChevronDown } from 'lucide-react';
+import { ChevronDown, ArrowLeftRight } from 'lucide-react';
 
 interface WaiverSettingsEditorProps {
   waiverType: number;
@@ -44,6 +44,12 @@ export function WaiverSettingsEditor({
   const inputClass = 'w-full rounded border border-input px-3 py-2 bg-muted text-foreground focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring';
   const labelClass = 'mb-1 block text-sm font-medium text-accent-foreground';
 
+  const summary = waiverType === 2
+    ? `FAAB $${waiverBudget}`
+    : waiverType === 1
+      ? 'Rolling'
+      : 'Reverse Standings';
+
   return (
     <div className="mb-4 rounded-lg border border-border">
       <button
@@ -51,8 +57,14 @@ export function WaiverSettingsEditor({
         onClick={onToggle}
         className="flex w-full items-center justify-between px-4 py-3 text-sm font-medium text-accent-foreground hover:bg-accent rounded-lg"
       >
-        <span>Waiver Settings</span>
-        <ChevronDown className={`h-4 w-4 transition-transform ${showWaivers ? 'rotate-180' : ''}`} />
+        <div className="flex items-center gap-2">
+          <ArrowLeftRight className="h-4 w-4 text-muted-foreground" />
+          <span>Waiver Settings</span>
+        </div>
+        <div className="flex items-center gap-2">
+          {!showWaivers && <span className="text-xs text-muted-foreground">{summary}</span>}
+          <ChevronDown className={`h-4 w-4 transition-transform ${showWaivers ? 'rotate-180' : ''}`} />
+        </div>
       </button>
       {showWaivers && (
         <div className="border-t border-border px-4 py-3 space-y-4">

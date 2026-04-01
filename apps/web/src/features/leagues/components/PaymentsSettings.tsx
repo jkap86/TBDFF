@@ -144,6 +144,8 @@ function CreatePayments({
     onPayoutsChange(payouts.filter((e) => !(e.category === category && e.position === position)));
   };
 
+  const summary = buyIn > 0 ? `$${buyIn} buy-in` : 'Free';
+
   return (
     <div className="mb-4 rounded-lg border border-border">
       <button
@@ -152,9 +154,13 @@ function CreatePayments({
         className="flex w-full items-center justify-between px-4 py-3 text-sm font-medium text-accent-foreground hover:bg-accent rounded-lg"
       >
         <div className="flex items-center gap-2">
+          <DollarSign className="h-4 w-4 text-muted-foreground" />
           <span>Payments</span>
         </div>
-        <ChevronDown className={`h-4 w-4 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+        <div className="flex items-center gap-2">
+          {!isOpen && <span className="text-xs text-muted-foreground">{summary}</span>}
+          <ChevronDown className={`h-4 w-4 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+        </div>
       </button>
 
       {isOpen && (
@@ -435,6 +441,8 @@ function EditPayments({
 
   const hasPayoutChanges = JSON.stringify(payoutEntries) !== JSON.stringify(existingPayouts ?? []);
 
+  const editSummary = buyInAmount != null ? `$${buyInAmount} buy-in` : 'Not set';
+
   return (
     <div className="mb-4 rounded-lg border border-border">
       <button
@@ -443,9 +451,13 @@ function EditPayments({
         className="flex w-full items-center justify-between px-4 py-3 text-sm font-medium text-accent-foreground hover:bg-accent rounded-lg"
       >
         <div className="flex items-center gap-2">
+          <DollarSign className="h-4 w-4 text-muted-foreground" />
           <span>Payments</span>
         </div>
-        <ChevronDown className={`h-4 w-4 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+        <div className="flex items-center gap-2">
+          {!isOpen && <span className="text-xs text-muted-foreground">{editSummary}</span>}
+          <ChevronDown className={`h-4 w-4 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+        </div>
       </button>
 
       {isOpen && (

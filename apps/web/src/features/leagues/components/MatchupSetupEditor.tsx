@@ -1,6 +1,6 @@
 'use client';
 
-import { ChevronDown } from 'lucide-react';
+import { ChevronDown, Swords } from 'lucide-react';
 
 interface MatchupSetupEditorProps {
   matchupType: number;
@@ -17,6 +17,8 @@ export function MatchupSetupEditor({
   onToggle,
   isSubmitting,
 }: MatchupSetupEditorProps) {
+  const summary = matchupType === 0 ? 'Random' : 'Derby';
+
   return (
     <div className="mb-4 rounded-lg border border-border">
       <button
@@ -24,8 +26,14 @@ export function MatchupSetupEditor({
         onClick={onToggle}
         className="flex w-full items-center justify-between px-4 py-3 text-sm font-medium text-accent-foreground hover:bg-accent rounded-lg"
       >
-        <span>Matchup Generation</span>
-        <ChevronDown className={`h-4 w-4 transition-transform ${showMatchups ? 'rotate-180' : ''}`} />
+        <div className="flex items-center gap-2">
+          <Swords className="h-4 w-4 text-muted-foreground" />
+          <span>Matchup Generation</span>
+        </div>
+        <div className="flex items-center gap-2">
+          {!showMatchups && <span className="text-xs text-muted-foreground">{summary}</span>}
+          <ChevronDown className={`h-4 w-4 transition-transform ${showMatchups ? 'rotate-180' : ''}`} />
+        </div>
       </button>
       {showMatchups && (
         <div className="border-t border-border px-4 py-3 space-y-3">
