@@ -15,7 +15,6 @@ import {
   ConflictException,
 } from '../../shared/exceptions';
 import {
-  leagueSettingsFullSchema,
   scoringSettingsFullSchema,
 } from './leagues.schemas';
 import { DraftRepository } from '../drafts/drafts.repository';
@@ -226,13 +225,9 @@ export class LeagueService {
     if (data.totalRosters !== undefined) updateData.totalRosters = data.totalRosters;
     if (data.avatar !== undefined) updateData.avatar = data.avatar;
     if (data.settings !== undefined) {
-      const merged = { ...league.settings, ...data.settings };
-      const result = leagueSettingsFullSchema.safeParse(merged);
-      if (!result.success) {
-        const msg = result.error.issues.map((i) => `${i.path.join('.')}: ${i.message}`).join('; ');
-        throw new ValidationException(`Invalid settings: ${msg}`);
-      }
-      updateData.settings = merged;
+      // Incoming partial settings already validated by route middleware (strict schema).
+      // Merge with existing DB settings (which may contain non-schema keys like buy_in, payouts).
+      updateData.settings = { ...league.settings, ...data.settings };
     }
     if (data.scoringSettings !== undefined) {
       const merged = { ...league.scoringSettings, ...data.scoringSettings };

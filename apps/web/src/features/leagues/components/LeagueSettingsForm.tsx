@@ -214,7 +214,6 @@ export function LeagueSettingsForm({
               }`}
             >
               <div className="text-sm font-medium">Redraft</div>
-              <div className="text-xs opacity-70 mt-0.5">New roster each year</div>
             </button>
             <button
               type="button"
@@ -222,7 +221,6 @@ export function LeagueSettingsForm({
               className="relative rounded-lg border border-border bg-card px-3 py-2.5 text-center opacity-50 cursor-not-allowed"
             >
               <div className="text-sm font-medium text-muted-foreground">Dynasty</div>
-              <div className="text-xs text-muted-foreground/70 mt-0.5">Keep your roster</div>
               <span className="absolute -top-2 right-1 flex items-center gap-0.5 rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
                 <Lock className="h-2.5 w-2.5" />
                 Soon
@@ -234,7 +232,6 @@ export function LeagueSettingsForm({
               className="relative rounded-lg border border-border bg-card px-3 py-2.5 text-center opacity-50 cursor-not-allowed"
             >
               <div className="text-sm font-medium text-muted-foreground">Keeper</div>
-              <div className="text-xs text-muted-foreground/70 mt-0.5">Keep select players</div>
               <span className="absolute -top-2 right-1 flex items-center gap-0.5 rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
                 <Lock className="h-2.5 w-2.5" />
                 Soon
