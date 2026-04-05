@@ -560,14 +560,25 @@ export class TransactionService {
   private calculateWaiverProcessTime(settings: any): Date {
     const now = new Date();
     const clearDays = settings.waiver_clear_days ?? 2;
-    const dayOfWeek = settings.waiver_day_of_week ?? 2; // Tuesday
     const hour = settings.daily_waivers_hour ?? 11;
 
-    // Find next processing window
+    if (settings.daily_waivers === 1) {
+      // Daily: next occurrence of daily_waivers_hour (clear days not applied)
+      const processAt = new Date(now);
+      processAt.setHours(hour, 0, 0, 0);
+
+      if (processAt <= now) {
+        processAt.setDate(processAt.getDate() + 1);
+      }
+
+      return processAt;
+    }
+
+    // Weekly: find next waiver_day_of_week
+    const dayOfWeek = settings.waiver_day_of_week ?? 2;
     const processAt = new Date(now);
     processAt.setHours(hour, 0, 0, 0);
 
-    // Move to next waiver day
     const currentDay = processAt.getDay();
     let daysUntilProcess = dayOfWeek - currentDay;
     if (daysUntilProcess === 0 && now >= processAt) daysUntilProcess = 7;
@@ -575,7 +586,6 @@ export class TransactionService {
 
     processAt.setDate(processAt.getDate() + daysUntilProcess);
 
-    // Ensure minimum clear days
     const minProcess = new Date(now);
     minProcess.setDate(minProcess.getDate() + clearDays);
     if (processAt < minProcess) {
