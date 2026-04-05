@@ -245,13 +245,20 @@ export class LeagueService {
     const updated = await this.leagueRepository.update(leagueId, updateData);
     if (!updated) throw new NotFoundException('League not found');
 
-    // Sync roster entries when total_rosters changes
+    // Sync roster entries and pre_draft drafts when total_rosters changes
     if (data.totalRosters !== undefined && data.totalRosters !== league.totalRosters) {
       const rosters = await this.leagueRostersRepository.findRostersByLeagueId(leagueId);
       if (data.totalRosters > rosters.length) {
         await this.leagueRostersRepository.addRosters(leagueId, rosters.length, data.totalRosters);
       } else if (data.totalRosters < rosters.length) {
         await this.leagueRostersRepository.removeEmptyRosters(leagueId, data.totalRosters);
+      }
+      // Update settings.teams on all pre_draft drafts
+      const drafts = await this.draftRepository.findByLeagueId(leagueId);
+      for (const draft of drafts.filter((d) => d.status === 'pre_draft')) {
+        await this.draftRepository.update(draft.id, {
+          settings: { ...draft.settings, teams: data.totalRosters },
+        });
       }
     }
 

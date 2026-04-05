@@ -105,6 +105,7 @@ export default function LeagueDetailPage() {
     await leagueApi.update(leagueId, updates, accessToken);
     queryClient.invalidateQueries({ queryKey: ['league', leagueId] });
     queryClient.invalidateQueries({ queryKey: ['rosters', leagueId] });
+    queryClient.invalidateQueries({ queryKey: ['drafts', leagueId] });
   };
 
   const handleDeleteLeague = async () => {
