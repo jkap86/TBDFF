@@ -20,7 +20,7 @@ export class LeagueRostersRepository {
     await this.db.query(
       `INSERT INTO rosters (roster_id, league_id)
        SELECT s, $1
-       FROM generate_series($2, $3) AS s`,
+       FROM generate_series($2::int, $3::int) AS s`,
       [leagueId, currentCount + 1, newCount]
     );
   }
