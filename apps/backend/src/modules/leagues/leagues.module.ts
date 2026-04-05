@@ -20,6 +20,7 @@ export function registerLeaguesModule(deps: LeaguesModuleDeps) {
   const leagueService = new LeagueService(
     deps.leagueRepository,
     deps.leagueMembersRepository,
+    deps.leagueRostersRepository,
     deps.draftRepository,
     deps.systemMessageService,
   );

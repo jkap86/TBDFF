@@ -15,6 +15,25 @@ export class LeagueRostersRepository {
     return result.rows.map(Roster.fromDatabase);
   }
 
+  async addRosters(leagueId: string, currentCount: number, newCount: number): Promise<void> {
+    if (newCount <= currentCount) return;
+    await this.db.query(
+      `INSERT INTO rosters (roster_id, league_id)
+       SELECT s, $1
+       FROM generate_series($2, $3) AS s`,
+      [leagueId, currentCount + 1, newCount]
+    );
+  }
+
+  async removeEmptyRosters(leagueId: string, keepCount: number): Promise<number> {
+    const result = await this.db.query(
+      `DELETE FROM rosters
+       WHERE league_id = $1 AND owner_id IS NULL AND roster_id > $2`,
+      [leagueId, keepCount]
+    );
+    return result.rowCount ?? 0;
+  }
+
   async findRostersByLeagueId(leagueId: string, client?: PoolClient): Promise<Roster[]> {
     const conn = client ?? this.db;
     const result = await conn.query(

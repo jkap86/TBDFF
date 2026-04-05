@@ -102,8 +102,9 @@ export default function LeagueDetailPage() {
   // --- Handlers ---
   const handleUpdateLeague = async (updates: UpdateLeagueRequest) => {
     if (!accessToken) throw new Error('Not authenticated');
-    const result = await leagueApi.update(leagueId, updates, accessToken);
-    queryClient.setQueryData(['league', leagueId], result);
+    await leagueApi.update(leagueId, updates, accessToken);
+    queryClient.invalidateQueries({ queryKey: ['league', leagueId] });
+    queryClient.invalidateQueries({ queryKey: ['rosters', leagueId] });
   };
 
   const handleDeleteLeague = async () => {

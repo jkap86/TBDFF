@@ -1,5 +1,6 @@
 import { LeagueRepository } from './leagues.repository';
 import { LeagueMembersRepository } from './league-members.repository';
+import { LeagueRostersRepository } from './league-rosters.repository';
 import {
   League,
   LeagueMember,
@@ -95,6 +96,7 @@ export class LeagueService {
   constructor(
     private readonly leagueRepository: LeagueRepository,
     private readonly leagueMembersRepository: LeagueMembersRepository,
+    private readonly leagueRostersRepository: LeagueRostersRepository,
     private readonly draftRepository: DraftRepository,
     private readonly systemMessages: SystemMessageService,
   ) {}
@@ -242,6 +244,16 @@ export class LeagueService {
 
     const updated = await this.leagueRepository.update(leagueId, updateData);
     if (!updated) throw new NotFoundException('League not found');
+
+    // Sync roster entries when total_rosters changes
+    if (data.totalRosters !== undefined && data.totalRosters !== league.totalRosters) {
+      const rosters = await this.leagueRostersRepository.findRostersByLeagueId(leagueId);
+      if (data.totalRosters > rosters.length) {
+        await this.leagueRostersRepository.addRosters(leagueId, rosters.length, data.totalRosters);
+      } else if (data.totalRosters < rosters.length) {
+        await this.leagueRostersRepository.removeEmptyRosters(leagueId, data.totalRosters);
+      }
+    }
 
     // Sync drafts if draft_setup changed
     if (data.settings?.draft_setup !== undefined) {
