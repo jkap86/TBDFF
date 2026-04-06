@@ -106,25 +106,25 @@ export function DerbyPickBoard({ draft, members, userId, isCommissioner, accessT
   };
 
   return (
-    <div className="mt-4 rounded-lg border border-input overflow-hidden">
+    <div className="mt-4 rounded-lg border border-border overflow-hidden">
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 bg-surface border-b border-input">
-        <h3 className="text-sm font-semibold text-foreground">Derby Pick</h3>
+      <div className="flex items-center justify-between px-4 py-3 glass-subtle border-b border-border">
+        <h3 className="text-sm font-heading font-bold uppercase tracking-wide text-foreground">Derby Pick</h3>
         {timeRemaining !== null && !pastAllTurns && (
           <div className={`text-lg font-mono font-bold ${
-            timeRemaining <= 10 ? 'text-red-600 animate-pulse' : 'text-foreground'
+            timeRemaining <= 10 ? 'text-destructive-foreground animate-pulse' : 'text-foreground'
           }`}>
             {formatTime(timeRemaining)}
           </div>
         )}
         {pastAllTurns && skippedUsers.length > 0 && (
-          <span className="text-xs text-amber-600 font-medium">Waiting for skipped users</span>
+          <span className="text-xs text-warning-foreground font-heading font-bold uppercase tracking-wide">Waiting for skipped users</span>
         )}
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-0 sm:gap-0">
         {/* Left column — Pick Order */}
-        <div className="border-b sm:border-b-0 sm:border-r border-input p-4">
+        <div className="border-b sm:border-b-0 sm:border-r border-border p-4">
           <h4 className="text-xs font-medium text-muted-foreground mb-2 uppercase tracking-wide">Pick Order</h4>
           <ol className="space-y-1">
             {derby.derby_order.map((entry, index) => {
@@ -157,7 +157,7 @@ export function DerbyPickBoard({ draft, members, userId, isCommissioner, accessT
                       </span>
                     )}
                     {isSkipped && (
-                      <span className="shrink-0 text-xs bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded font-medium">
+                      <span className="shrink-0 text-xs bg-warning text-warning-foreground px-1.5 py-0.5 rounded font-medium">
                         Skipped
                       </span>
                     )}
@@ -215,7 +215,7 @@ export function DerbyPickBoard({ draft, members, userId, isCommissioner, accessT
 
       {/* Footer — error + commissioner controls */}
       {(pickError || (isCommissioner && currentPicker && !pastAllTurns)) && (
-        <div className="border-t border-input px-4 py-3 flex items-center justify-between">
+        <div className="border-t border-border px-4 py-3 flex items-center justify-between">
           {pickError && (
             <p className="text-xs text-destructive-foreground">{pickError}</p>
           )}
@@ -224,7 +224,7 @@ export function DerbyPickBoard({ draft, members, userId, isCommissioner, accessT
               <button
                 onClick={() => handleCommissionerAction(derby.timeout_action === 1 ? 'skip' : 'autopick')}
                 disabled={isSubmitting}
-                className="rounded-lg bg-muted-hover px-3 py-1.5 text-xs font-medium text-accent-foreground hover:bg-muted disabled:opacity-50"
+                className="rounded-lg bg-muted-hover px-3 py-1.5 text-xs font-heading font-bold uppercase tracking-wide text-accent-foreground hover:bg-muted transition-colors disabled:opacity-50"
               >
                 {derby.timeout_action === 1 ? 'Skip User' : 'Autopick'}
               </button>

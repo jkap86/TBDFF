@@ -124,7 +124,7 @@ export function DraftBoard({ draft, picks, members, rosters, currentUserId }: Dr
             <span className="absolute top-0.5 right-1 text-xs text-foreground/40">{roundNum}.{String(slot).padStart(2, '0')}</span>
             <div className="leading-tight">
               {pick.metadata?.rookie_pick ? (
-                <span className="font-heading font-bold text-amber-600">
+                <span className="font-heading font-bold text-warning-foreground">
                   {pick.metadata.last_name}
                 </span>
               ) : (
@@ -144,7 +144,7 @@ export function DraftBoard({ draft, picks, members, rosters, currentUserId }: Dr
           </>
         ) : isNextPick ? (
           <div>
-            <span className="text-highlight-foreground font-bold animate-pulse">OTC</span>
+            <span className="text-highlight-foreground font-bold animate-pulse glow-text">OTC</span>
             {isTraded && tradedOwnerName && (
               <div className="text-xs text-info-foreground">&rarr; {tradedOwnerName}</div>
             )}
@@ -159,7 +159,7 @@ export function DraftBoard({ draft, picks, members, rosters, currentUserId }: Dr
   };
 
   return (
-    <div className="overflow-auto flex-1" style={{ WebkitOverflowScrolling: 'touch' }}>
+    <div className="overflow-auto flex-1 scrollbar-sleek" style={{ WebkitOverflowScrolling: 'touch' }}>
       <table className="min-w-max" style={{ borderSpacing: 0 }}>
         <thead>
           <tr>
@@ -219,7 +219,7 @@ export function DraftBoard({ draft, picks, members, rosters, currentUserId }: Dr
                   <div className="flex items-center justify-center gap-1.5">
                     {slotToUser[slot] || `Slot ${slot}`}
                     {autoPickUsers.includes(slotToUserId[slot]) && (
-                      <span className="rounded bg-orange-500/20 px-1 text-xs font-bold text-orange-500" title="Auto-picking">AUTO</span>
+                      <span className="rounded bg-neon-orange/20 px-1 text-xs font-bold text-neon-orange" title="Auto-picking">AUTO</span>
                     )}
                   </div>
                 </th>
@@ -244,7 +244,7 @@ export function DraftBoard({ draft, picks, members, rosters, currentUserId }: Dr
                     <div className="flex items-center justify-center gap-1.5">
                       {slotToUser[slot] || `Slot ${slot}`}
                       {autoPickUsers.includes(slotToUserId[slot]) && (
-                        <span className="rounded bg-orange-500/20 px-1 text-xs font-bold text-orange-500" title="Auto-picking">AUTO</span>
+                        <span className="rounded bg-neon-orange/20 px-1 text-xs font-bold text-neon-orange" title="Auto-picking">AUTO</span>
                       )}
                     </div>
                   </td>

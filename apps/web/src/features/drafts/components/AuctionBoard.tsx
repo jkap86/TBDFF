@@ -3,27 +3,41 @@
 import { useMemo } from 'react';
 import type { Draft, DraftPick, LeagueMember, Roster, RosterPosition } from '@/lib/api';
 
-function getPositionColor(position: string | undefined): string {
+function getPositionColor(position: string | undefined): string | undefined {
   switch (position) {
-    case 'QB': return 'rgba(239, 68, 68, 0.45)';
-    case 'RB': return 'rgba(34, 197, 94, 0.45)';
-    case 'WR': return 'rgba(59, 130, 246, 0.45)';
-    case 'TE': return 'rgba(249, 115, 22, 0.45)';
-    case 'K':  return 'rgba(168, 85, 247, 0.45)';
-    case 'DEF': return 'rgba(234, 179, 8, 0.45)';
-    default:   return 'transparent';
+    case 'QB':
+      return 'rgba(239, 68, 68, 0.3)';
+    case 'RB':
+      return 'rgba(34, 197, 94, 0.3)';
+    case 'WR':
+      return 'rgba(59, 130, 246, 0.3)';
+    case 'TE':
+      return 'rgba(249, 115, 22, 0.3)';
+    case 'K':
+      return 'rgba(168, 85, 247, 0.3)';
+    case 'DEF':
+      return 'rgba(234, 179, 8, 0.3)';
+    default:
+      return undefined;
   }
 }
 
 function getPositionBorder(position: string | undefined): string {
   switch (position) {
-    case 'QB': return 'rgba(239, 68, 68, 0.7)';
-    case 'RB': return 'rgba(34, 197, 94, 0.7)';
-    case 'WR': return 'rgba(59, 130, 246, 0.7)';
-    case 'TE': return 'rgba(249, 115, 22, 0.7)';
-    case 'K':  return 'rgba(168, 85, 247, 0.7)';
-    case 'DEF': return 'rgba(234, 179, 8, 0.7)';
-    default:   return 'transparent';
+    case 'QB':
+      return 'rgba(239, 68, 68, 0.8)';
+    case 'RB':
+      return 'rgba(34, 197, 94, 0.8)';
+    case 'WR':
+      return 'rgba(59, 130, 246, 0.8)';
+    case 'TE':
+      return 'rgba(249, 115, 22, 0.8)';
+    case 'K':
+      return 'rgba(168, 85, 247, 0.8)';
+    case 'DEF':
+      return 'rgba(234, 179, 8, 0.8)';
+    default:
+      return 'transparent';
   }
 }
 
@@ -128,7 +142,14 @@ interface AuctionBoardProps {
   rosterPositions: RosterPosition[];
 }
 
-export function AuctionBoard({ draft, picks, members, rosters, currentUserId, rosterPositions }: AuctionBoardProps) {
+export function AuctionBoard({
+  draft,
+  picks,
+  members,
+  rosters,
+  currentUserId,
+  rosterPositions,
+}: AuctionBoardProps) {
   const nomination = draft.metadata?.current_nomination as Record<string, any> | undefined;
   const budgets: Record<string, number> = draft.metadata?.auction_budgets ?? {};
   const completedPicks = picks.filter((p) => p.player_id);
@@ -148,18 +169,23 @@ export function AuctionBoard({ draft, picks, members, rosters, currentUserId, ro
     let member = userId ? members.find((m) => m.user_id === userId) : null;
     if (!member) {
       const roster = rosters.find((r) => r.roster_id === rosterId);
-      member = roster?.owner_id ? (members.find((m) => m.user_id === roster.owner_id) ?? null) : null;
+      member = roster?.owner_id
+        ? (members.find((m) => m.user_id === roster.owner_id) ?? null)
+        : null;
     }
     rosterToUser[rosterId] = member?.display_name || member?.username || `Slot ${slot}`;
-    const resolvedUserId = userId || (rosters.find((r) => r.roster_id === rosterId)?.owner_id ?? '');
+    const resolvedUserId =
+      userId || (rosters.find((r) => r.roster_id === rosterId)?.owner_id ?? '');
     if (resolvedUserId) rosterToUserId[rosterId] = resolvedUserId;
   }
-  // Fill in any rosters not in slot_to_roster_id (pre-randomization fallback)
+  // Fallback: populate from rosters directly (before draft order is randomized)
   for (const roster of rosters) {
     if (!rosterToUser[roster.roster_id]) {
       const member = roster.owner_id ? members.find((m) => m.user_id === roster.owner_id) : null;
       rosterToUser[roster.roster_id] = member?.display_name || member?.username || `Team ${roster.roster_id}`;
-      if (roster.owner_id) rosterToUserId[roster.roster_id] = roster.owner_id;
+    }
+    if (roster.owner_id && !rosterToUserId[roster.roster_id]) {
+      rosterToUserId[roster.roster_id] = roster.owner_id;
     }
   }
 
@@ -180,16 +206,17 @@ export function AuctionBoard({ draft, picks, members, rosters, currentUserId, ro
     : null;
 
   // Teams sorted by draft slot (nomination order) — includes unfilled slots
+  // Falls back to rosters array when slot_to_roster_id isn't populated yet (pre-randomization)
   const teamsInOrder = useMemo(() => {
-    const s2r = draft.slot_to_roster_id ?? {};
-    if (Object.keys(s2r).length > 0) {
-      // Order already set — use it
-      const draftOrder = draft.draft_order ?? {};
-      const slotToUserIdLocal: Record<number, string> = {};
-      for (const [userId, slot] of Object.entries(draftOrder) as [string, number][]) {
-        slotToUserIdLocal[slot] = userId;
-      }
-      return Object.entries(s2r)
+    const draftOrder = draft.draft_order ?? {};
+    const slotToRosterId = draft.slot_to_roster_id ?? {};
+    const slotToUserIdLocal: Record<number, string> = {};
+    for (const [userId, slot] of Object.entries(draftOrder) as [string, number][]) {
+      slotToUserIdLocal[slot] = userId;
+    }
+
+    if (Object.keys(slotToRosterId).length > 0) {
+      return Object.entries(slotToRosterId)
         .sort(([a], [b]) => Number(a) - Number(b))
         .map(([slotStr, rosterId]) => {
           const slot = Number(slotStr);
@@ -197,14 +224,14 @@ export function AuctionBoard({ draft, picks, members, rosters, currentUserId, ro
           return { userId, slot, rosterId };
         });
     }
-    // No order yet — default: rosters sorted by roster_id
-    return rosters
-      .slice()
+
+    // Fallback: build from rosters before order is randomized
+    return [...rosters]
       .sort((a, b) => a.roster_id - b.roster_id)
-      .map((r, i) => ({
-        userId: r.owner_id ?? '',
-        slot: i + 1,
-        rosterId: r.roster_id,
+      .map((roster, idx) => ({
+        userId: roster.owner_id ?? '',
+        slot: idx + 1,
+        rosterId: roster.roster_id,
       }));
   }, [draft.draft_order, draft.slot_to_roster_id, rosters]);
 
@@ -234,14 +261,21 @@ export function AuctionBoard({ draft, picks, members, rosters, currentUserId, ro
     <div className="flex flex-col flex-1 min-h-0 gap-4">
       {/* Active Nomination Panel / Waiting State */}
       {nomination ? (
-        <div className="shrink-0 rounded-lg border border-border bg-card p-5 shadow-lg min-h-[120px]" style={{ borderLeft: '3px solid var(--color-primary)', background: 'var(--background)' }}>
+        <div
+          className="shrink-0 rounded-lg border border-border glass p-5 shadow-lg min-h-[120px]"
+          style={{ borderLeft: '3px solid var(--color-primary)' }}
+        >
           <div className="flex items-center justify-between mb-3">
-            <h3 className="text-xs font-heading font-bold uppercase tracking-widest text-primary">Current Nomination</h3>
-            <span className="text-xs font-heading font-bold uppercase tracking-wide text-muted-foreground">by {nominatorName}</span>
+            <h3 className="text-xs font-heading font-bold uppercase tracking-widest text-primary">
+              Current Nomination
+            </h3>
+            <span className="text-xs font-heading font-bold uppercase tracking-wide text-muted-foreground">
+              by {nominatorName}
+            </span>
           </div>
           <div className="flex items-center gap-6">
             <div className="flex-1">
-              <div className="text-xl font-heading font-bold text-foreground tracking-tight">
+              <div className="text-xl font-heading font-bold text-foreground tracking-tight glow-text">
                 {nomination.player_metadata?.full_name || nomination.player_id}
               </div>
               <div className="flex items-center gap-2 mt-1.5">
@@ -258,15 +292,21 @@ export function AuctionBoard({ draft, picks, members, rosters, currentUserId, ro
               </div>
             </div>
             <div className="text-right">
-              <div className="text-3xl font-mono font-bold text-success-foreground tracking-tight">${nomination.current_bid}</div>
-              <div className="text-xs font-heading font-bold uppercase tracking-wide text-muted-foreground">{currentBidderName}</div>
+              <div className="text-3xl font-mono font-bold text-success-foreground tracking-tight glow-text">
+                ${nomination.current_bid}
+              </div>
+              <div className="text-xs font-heading font-bold uppercase tracking-wide text-muted-foreground">
+                {currentBidderName}
+              </div>
             </div>
           </div>
 
           {/* Bid History */}
           {nomination.bid_history && nomination.bid_history.length > 1 && (
             <div className="mt-3 border-t border-border pt-2.5">
-              <div className="text-xs font-heading font-bold uppercase tracking-widest text-muted-foreground mb-1.5">Bid History</div>
+              <div className="text-xs font-heading font-bold uppercase tracking-widest text-muted-foreground mb-1.5">
+                Bid History
+              </div>
               <div className="flex gap-1.5 overflow-x-auto scrollbar-sleek pb-1">
                 {[...nomination.bid_history].reverse().map((bid: any, i: number) => {
                   const bidder = members.find((m) => m.user_id === bid.user_id);
@@ -279,7 +319,8 @@ export function AuctionBoard({ draft, picks, members, rosters, currentUserId, ro
                           : 'bg-card border border-border text-muted-foreground'
                       }`}
                     >
-                      {bidder?.display_name || bidder?.username || 'Unknown'}: <span className="font-mono">${bid.amount}</span>
+                      {bidder?.display_name || bidder?.username || 'Unknown'}:{' '}
+                      <span className="font-mono">${bid.amount}</span>
                     </span>
                   );
                 })}
@@ -288,21 +329,29 @@ export function AuctionBoard({ draft, picks, members, rosters, currentUserId, ro
           )}
         </div>
       ) : draft.status === 'drafting' ? (
-        <div className="shrink-0 rounded-lg border border-border p-5 shadow-lg text-center min-h-[120px] flex items-center justify-center" style={{ background: 'var(--background)' }}>
-          <p className="text-xs font-heading font-bold uppercase tracking-widest text-muted-foreground">Waiting for nomination...</p>
+        <div
+          className="shrink-0 rounded-lg border border-border glass shimmer-border p-5 shadow-lg text-center min-h-[120px] flex items-center justify-center"
+        >
+          <p className="text-xs font-heading font-bold uppercase tracking-widest text-muted-foreground">
+            Waiting for nomination...
+          </p>
         </div>
       ) : null}
 
       {/* Draft Board — teams as columns, roster positions as rows */}
       {rosterPositions.length > 0 && (
-        <div className="flex-1 min-h-0 overflow-auto rounded-lg shadow-lg border border-border scrollbar-sleek" style={{ WebkitOverflowScrolling: 'touch' }}>
-          <table className="min-w-max w-full" style={{ borderSpacing: 0 }}>
+        <div
+          className="flex-1 min-h-0 overflow-auto rounded-lg shadow-lg border border-border glass-subtle scrollbar-sleek"
+        >
+          <table className="w-full table-fixed" style={{ borderSpacing: 0 }}>
             <thead>
               <tr>
                 {/* Position column header */}
                 <th
-                  className="sticky top-0 left-0 z-30 border-b-2 border-r border-border px-3 py-2.5 text-xs font-heading font-bold text-foreground uppercase tracking-wider"
-                  style={{ boxShadow: '2px 2px 4px rgba(0,0,0,0.2)', background: 'var(--background)' }}
+                  className="sticky top-0 left-0 z-30 border-b-2 border-r border-border px-3 py-2.5 text-xs font-heading font-bold text-foreground uppercase tracking-wider w-[60px] bg-muted"
+                  style={{
+                    boxShadow: '2px 2px 4px rgba(0,0,0,0.2)',
+                  }}
                 >
                   Pos
                 </th>
@@ -313,18 +362,18 @@ export function AuctionBoard({ draft, picks, members, rosters, currentUserId, ro
                     <th
                       key={team.rosterId}
                       className={`sticky top-0 z-20 border-b-2 border-r border-border px-3 py-2.5 text-center whitespace-nowrap ${
-                        isCurrentUser ? 'text-primary' : 'text-foreground'
+                        isCurrentUser ? 'text-primary bg-primary/10 border-b-primary' : 'text-foreground bg-muted'
                       }`}
                       style={{
-                        background: isCurrentUser ? 'color-mix(in srgb, var(--primary) 10%, var(--background))' : 'var(--background)',
                         boxShadow: '0 2px 4px rgba(0,0,0,0.15)',
-                        ...(isCurrentUser ? { borderBottom: '2px solid var(--color-primary)' } : {}),
                       }}
                     >
-                      <div className="text-xs font-heading font-bold truncate max-w-[100px]">
+                      <div className="text-xs font-heading font-bold uppercase tracking-wide truncate">
                         {rosterToUser[team.rosterId] || `Slot ${team.slot}`}
                       </div>
-                      <div className={`text-xs font-bold ${budget > 0 ? 'text-success-foreground' : 'text-destructive-foreground'}`}>
+                      <div
+                        className={`text-xs font-mono font-bold ${budget > 0 ? 'text-success-foreground' : 'text-destructive-foreground'}`}
+                      >
                         ${budget}
                       </div>
                     </th>
@@ -337,8 +386,10 @@ export function AuctionBoard({ draft, picks, members, rosters, currentUserId, ro
                 <tr key={rowIdx} className="hover:bg-muted/30 transition-colors">
                   {/* Position label */}
                   <td
-                    className="sticky left-0 z-10 border-b border-r border-border px-3 py-1.5 text-center text-xs font-heading font-bold text-foreground whitespace-nowrap uppercase tracking-wide"
-                    style={{ boxShadow: '2px 0 4px rgba(0,0,0,0.15)', background: 'var(--background)' }}
+                    className="sticky left-0 z-10 border-b border-r border-border px-3 py-1.5 text-center text-xs font-heading font-bold text-muted-foreground whitespace-nowrap uppercase tracking-wide bg-muted"
+                    style={{
+                      boxShadow: '2px 0 4px rgba(0,0,0,0.15)',
+                    }}
                   >
                     {SLOT_LABELS[pos] ?? pos}
                   </td>
@@ -350,11 +401,11 @@ export function AuctionBoard({ draft, picks, members, rosters, currentUserId, ro
                     return (
                       <td
                         key={team.rosterId}
-                        className={`border-b border-r border-border px-2 py-1.5 text-center w-[110px] min-w-[110px] max-w-[110px] h-[38px] transition-colors ${
+                        className={`border-b border-r border-border px-1.5 py-2 text-left h-[50px] overflow-hidden transition-colors ${
                           isUserTeam && !pick ? 'bg-primary/5' : ''
                         }`}
                         style={{
-                          background: posColor,
+                          background: posColor || undefined,
                         }}
                       >
                         {pick ? (
@@ -364,14 +415,20 @@ export function AuctionBoard({ draft, picks, members, rosters, currentUserId, ro
                               borderLeft: `3px solid ${posBorder}`,
                             }}
                           >
-                            <div className="text-xs font-bold text-foreground truncate">
-                              {pick.metadata?.first_name?.[0]}. {pick.metadata?.last_name || pick.player_id}
+                            <div className="text-xs font-heading font-bold text-foreground truncate">
+                              {pick.metadata?.first_name?.[0]}.{' '}
+                              {pick.metadata?.last_name || pick.player_id}
                             </div>
-                            <div className="text-xs text-foreground/60">
-                              {pick.metadata?.position}{pick.metadata?.team ? ` - ${pick.metadata.team}` : ''}
-                              {pick.amount != null ? ` · $${pick.amount}` : ''}
+                            <div className="text-xs text-foreground/50 truncate">
+                              {pick.metadata?.position}
+                              {pick.metadata?.team ? ` · ${pick.metadata.team}` : ''}
+                              {pick.amount != null && (
+                                <span className="font-mono font-bold text-foreground/70"> ${pick.amount}</span>
+                              )}
                             </div>
                           </div>
+                        ) : isUserTeam ? (
+                          <span className="text-xs text-primary/30 font-heading">—</span>
                         ) : null}
                       </td>
                     );

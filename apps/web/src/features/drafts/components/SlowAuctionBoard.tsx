@@ -155,8 +155,8 @@ export function SlowAuctionBoard({
   return (
     <div className="space-y-4">
       {/* Active Lots */}
-      <div className="rounded-lg bg-card p-4 shadow">
-        <h3 className="text-sm font-bold text-accent-foreground mb-3">
+      <div className="rounded-lg border border-border bg-card p-4 shadow">
+        <h3 className="text-sm font-heading font-bold uppercase tracking-wide text-accent-foreground mb-3">
           Active Lots ({activeLots.length})
         </h3>
         {activeLots.length === 0 ? (
@@ -213,7 +213,7 @@ export function SlowAuctionBoard({
                       </div>
                     </div>
                     {iHaveBid && (
-                      <div className={`text-right text-xs ${isMyBid ? 'text-green-600' : 'text-orange-600'}`}>
+                      <div className={`text-right text-xs ${isMyBid ? 'text-success-foreground' : 'text-neon-orange'}`}>
                         <div>My max: ${lot.my_max_bid}</div>
                         <div className="font-medium">{isMyBid ? 'Winning' : 'Outbid'}</div>
                       </div>
@@ -227,8 +227,8 @@ export function SlowAuctionBoard({
                       onClick={() => setBidDialogLot(lot)}
                       className={`w-full rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${
                         isMyBid
-                          ? 'bg-green-100 text-green-700 hover:bg-green-200'
-                          : 'bg-primary text-primary-foreground hover:bg-primary-hover'
+                          ? 'bg-success text-success-foreground hover:bg-success/80'
+                          : 'bg-primary text-primary-foreground hover:bg-primary-hover glow-primary'
                       }`}
                     >
                       {iHaveBid ? 'Update Max Bid' : 'Place Bid'}
@@ -258,8 +258,8 @@ export function SlowAuctionBoard({
 
       {/* Team Budgets */}
       {budgets.length > 0 && (
-        <div className="rounded-lg bg-card p-4 shadow">
-          <h3 className="text-sm font-bold text-accent-foreground mb-3">Team Budgets</h3>
+        <div className="rounded-lg border border-border bg-card p-4 shadow">
+          <h3 className="text-sm font-heading font-bold uppercase tracking-wide text-accent-foreground mb-3">Team Budgets</h3>
           <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-2">
             {budgets
               .sort((a, b) => b.available - a.available)
@@ -292,8 +292,8 @@ export function SlowAuctionBoard({
 
       {/* Completed Picks */}
       {completedPicks.length > 0 && (
-        <div className="rounded-lg bg-card p-4 shadow">
-          <h3 className="text-sm font-bold text-accent-foreground mb-3">
+        <div className="rounded-lg border border-border bg-card p-4 shadow">
+          <h3 className="text-sm font-heading font-bold uppercase tracking-wide text-accent-foreground mb-3">
             Won Players ({completedPicks.length})
           </h3>
           <div className="overflow-x-auto">

@@ -125,7 +125,7 @@ export function DraftQueue({ queue, draftedPlayerIds, onReorder, onRemove, onUpd
           No players queued. Use the Players tab to add players.
         </div>
       ) : (
-        <ul className="flex-1 divide-y divide-border overflow-y-auto">
+        <ul className="flex-1 divide-y divide-border overflow-y-auto scrollbar-sleek">
           {queue.map((item, index) => {
             const isDrafted = draftedPlayerIds.has(item.player_id);
             return (
@@ -138,10 +138,10 @@ export function DraftQueue({ queue, draftedPlayerIds, onReorder, onRemove, onUpd
                   {item.player_id.startsWith('rpick:') ? (() => {
                     const [, r, p] = item.player_id.split(':');
                     return <>
-                      <div className="truncate text-sm font-medium text-amber-700">
+                      <div className="truncate text-sm font-medium text-warning-foreground">
                         {r}.{p.padStart(2, '0')}
                       </div>
-                      <div className="text-xs text-amber-600/70">Rookie Draft Pick</div>
+                      <div className="text-xs text-warning-foreground/70">Rookie Draft Pick</div>
                     </>;
                   })() : (
                     <>

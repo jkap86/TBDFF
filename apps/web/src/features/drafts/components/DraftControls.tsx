@@ -34,88 +34,94 @@ export function DraftControls({
   onStop,
 }: DraftControlsProps) {
   return (
-    <div className="rounded-lg bg-card p-4 shadow">
-      <div className="flex items-center gap-4">
+    <div className="rounded-lg border border-border bg-card p-3 shadow-lg">
+      <div className="flex flex-wrap items-center gap-3">
         {/* Timer */}
         {timeRemaining !== null && (
-          <div className={`flex items-center gap-2 rounded-lg px-4 py-2 font-mono text-lg font-bold ${
+          <div className={`flex items-center gap-2 rounded-lg px-4 py-2 font-mono text-xl font-bold tracking-tight transition-colors ${
             clockState === 'stopped'
-              ? 'bg-destructive text-destructive-foreground'
+              ? 'bg-destructive/15 text-destructive-foreground border border-destructive-foreground/30'
               : clockState === 'paused'
-                ? 'bg-yellow-100 text-yellow-800'
+                ? 'bg-warning/15 text-warning-foreground border border-warning-foreground/30'
                 : timeRemaining <= 30
-                  ? 'bg-destructive text-destructive-foreground'
+                  ? 'bg-destructive/15 text-destructive-foreground border border-destructive-foreground/30'
                   : timeRemaining <= 60
-                    ? 'bg-warning text-warning-foreground'
-                    : 'bg-muted text-accent-foreground'
+                    ? 'bg-warning/15 text-warning-foreground border border-warning-foreground/30'
+                    : 'bg-primary/10 text-primary border border-primary/30'
           }`}>
             {formatTime(timeRemaining)}
-            {clockState === 'paused' && <span className="text-xs font-semibold">PAUSED</span>}
-            {clockState === 'stopped' && <span className="text-xs font-semibold">STOPPED</span>}
+            {clockState === 'paused' && <span className="text-xs font-heading font-bold uppercase tracking-widest opacity-70">PAUSED</span>}
+            {clockState === 'stopped' && <span className="text-xs font-heading font-bold uppercase tracking-widest opacity-70">STOPPED</span>}
           </div>
         )}
         {/* Commissioner Pause/Stop Controls */}
         {isCommissioner && (
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5">
             <button
               onClick={onPause}
-              className={`rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+              className={`rounded-lg px-3 py-2 text-xs font-heading font-bold uppercase tracking-wide transition-colors ${
                 clockState === 'paused'
-                  ? 'bg-yellow-500 text-white hover:bg-yellow-600'
-                  : 'bg-muted text-muted-foreground hover:bg-muted-hover'
+                  ? 'bg-warning/15 text-warning-foreground border border-warning-foreground/30 hover:bg-warning/25'
+                  : 'border border-border bg-card text-muted-foreground hover:text-foreground hover:border-foreground/30'
               }`}
             >
               {clockState === 'paused' ? 'Resume' : 'Pause'}
             </button>
             <button
               onClick={onStop}
-              className={`rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+              className={`rounded-lg px-3 py-2 text-xs font-heading font-bold uppercase tracking-wide transition-colors ${
                 clockState === 'stopped'
-                  ? 'bg-red-600 text-white hover:bg-red-700'
-                  : 'bg-muted text-muted-foreground hover:bg-muted-hover'
+                  ? 'bg-destructive/15 text-destructive-foreground border border-destructive-foreground/30 hover:bg-destructive/25'
+                  : 'border border-border bg-card text-muted-foreground hover:text-foreground hover:border-foreground/30'
               }`}
             >
               {clockState === 'stopped' ? 'Resume' : 'Stop'}
             </button>
           </div>
         )}
+
+        {/* Divider */}
+        {(timeRemaining !== null || isCommissioner) && (
+          <div className="hidden sm:block h-8 w-px bg-border" />
+        )}
+
         {/* Autopick Toggle */}
         {userSlot !== undefined && (
           <button
             onClick={onToggleAutoPick}
             disabled={isTogglingAutoPick}
-            className={`rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+            className={`rounded-full px-3 py-1.5 text-xs font-heading font-bold uppercase tracking-wide transition-all disabled:opacity-50 ${
               isAutoPick
-                ? 'bg-orange-100 text-orange-700 hover:bg-orange-200'
-                : 'bg-muted text-muted-foreground hover:bg-muted-hover'
-            } disabled:opacity-50`}
+                ? 'bg-neon-orange/15 text-neon-orange border border-neon-orange/40'
+                : 'border border-border bg-card text-muted-foreground hover:text-foreground hover:border-foreground/30'
+            }`}
           >
-            {isTogglingAutoPick ? '...' : isAutoPick ? 'Auto: ON' : 'Auto: OFF'}
+            {isTogglingAutoPick ? '...' : isAutoPick ? 'Auto ON' : 'Auto OFF'}
           </button>
         )}
         {isMyTurn && !isAutoPick && clockState !== 'stopped' && (
-          <span className="rounded-full bg-success px-3 py-1 text-sm font-medium text-success-foreground">
+          <span className="rounded-full bg-success px-3 py-1 text-sm font-heading font-bold uppercase tracking-wide text-success-foreground border border-success-foreground/30 glow-text">
             Your Pick!
           </span>
         )}
         {isMyTurn && !isAutoPick && clockState === 'stopped' && (
-          <span className="rounded-full bg-red-100 px-3 py-1 text-sm font-medium text-red-700">
+          <span className="rounded-full bg-destructive/15 px-3 py-1 text-sm font-heading font-bold uppercase tracking-wide text-destructive-foreground border border-destructive-foreground/30">
             Picks disabled
           </span>
         )}
         {isMyTurn && isAutoPick && (
-          <span className="rounded-full bg-orange-100 px-3 py-1 text-sm font-medium text-orange-700">
+          <span className="rounded-full bg-neon-orange/15 px-3 py-1 text-sm font-heading font-bold uppercase tracking-wide text-neon-orange border border-neon-orange/40">
             Auto-picking...
           </span>
         )}
         {nextPick && !isMyTurn && (
-          <span className="text-sm text-muted-foreground">
+          <span className="text-xs font-heading font-bold uppercase tracking-wide text-muted-foreground">
             Waiting for pick #{nextPick.pick_no} (Round {nextPick.round})
           </span>
         )}
       </div>
       {pickError && (
-        <p className="mt-2 text-sm text-destructive-foreground">{pickError}</p>
+        <p className="mt-2 text-xs font-medium text-destructive-foreground">{pickError}</p>
       )}
     </div>
   );

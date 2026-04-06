@@ -12,7 +12,7 @@ export function SlowAuctionControls({
   nominationStats,
 }: SlowAuctionControlsProps) {
   return (
-    <div className="rounded-lg bg-card p-4 shadow">
+    <div className="rounded-lg border border-border bg-card p-3 shadow-lg">
       <div className="flex flex-wrap items-center gap-4">
         {/* Nomination Stats */}
         {nominationStats && (

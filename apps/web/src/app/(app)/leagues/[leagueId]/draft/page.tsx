@@ -24,22 +24,37 @@ export default function DraftRoomPage() {
   const { draft, league, picks, members, rosters, queue, isLoading, error, user, accessToken } = room;
   const [isStarting, setIsStarting] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [errorDismissed, setErrorDismissed] = useState(false);
 
   if (isLoading) {
     return <DraftRoomSkeleton />;
   }
 
-  if (error || !draft) {
+  // Fatal: no draft data at all — show error modal with back link
+  if (!draft) {
     return (
-      <div className="min-h-screen bg-surface p-6">
-        <div className="mx-auto max-w-6xl">
-          <Link
-            href={`/leagues/${leagueId}`}
-            className="mb-4 flex items-center gap-2 text-sm text-muted-foreground hover:text-accent-foreground"
-          >
-            <ArrowLeft className="h-4 w-4" /> Back to League
-          </Link>
-          <div className="rounded bg-destructive p-4 text-destructive-foreground">{error || 'Draft not found'}</div>
+      <div className="h-[calc(100vh-3.5rem)] flex flex-col bg-surface overflow-hidden">
+        <div className="shrink-0 border-b border-border glass-strong px-4 py-3">
+          <div className="flex items-center gap-4">
+            <h1 className="text-2xl font-bold gradient-text">Draft Room</h1>
+          </div>
+        </div>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="w-full max-w-sm rounded-xl glass-strong border border-border p-6 shadow-xl text-center">
+            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-destructive/15 border border-destructive-foreground/30">
+              <X className="h-6 w-6 text-destructive-foreground" />
+            </div>
+            <h2 className="text-lg font-heading font-bold text-foreground mb-2">Draft not found</h2>
+            <p className="text-sm text-muted-foreground mb-5">
+              {error || 'This draft doesn\u2019t exist or you don\u2019t have access to it.'}
+            </p>
+            <Link
+              href={`/leagues/${leagueId}`}
+              className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-heading font-bold text-primary-foreground hover:bg-primary-hover transition-colors"
+            >
+              <ArrowLeft className="h-4 w-4" /> Back to League
+            </Link>
+          </div>
         </div>
       </div>
     );
@@ -79,20 +94,39 @@ export default function DraftRoomPage() {
 
   return (
     <div className="h-[calc(100vh-3.5rem)] flex flex-col bg-surface overflow-hidden">
+      {/* Dismissible error modal for transient errors */}
+      {error && !errorDismissed && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setErrorDismissed(true)}>
+          <div className="w-full max-w-sm rounded-xl glass-strong border border-border p-6 shadow-xl text-center" onClick={(e) => e.stopPropagation()}>
+            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-destructive/15 border border-destructive-foreground/30">
+              <X className="h-6 w-6 text-destructive-foreground" />
+            </div>
+            <h2 className="text-lg font-heading font-bold text-foreground mb-2">Something went wrong</h2>
+            <p className="text-sm text-muted-foreground mb-5">{error}</p>
+            <button
+              onClick={() => setErrorDismissed(true)}
+              className="rounded-lg bg-primary px-4 py-2 text-sm font-heading font-bold text-primary-foreground hover:bg-primary-hover transition-colors"
+            >
+              Dismiss
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Header - pinned at top */}
-      <div className="shrink-0 border-b border-border bg-surface px-4 py-3">
+      <div className="shrink-0 border-b border-border glass-strong px-4 py-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <h1 className="text-2xl font-bold text-foreground">Draft Room</h1>
+            <h1 className="text-2xl font-bold gradient-text">Draft Room</h1>
             {draft.status !== 'pre_draft' && (
-              <span className={`rounded-full px-3 py-1 text-sm font-medium ${
+              <span className={`rounded-full px-3 py-1 text-sm font-heading font-bold uppercase tracking-wide ${
                 draft.status === 'complete'
-                  ? 'bg-green-100 text-green-700'
+                  ? 'bg-success text-success-foreground border border-success-foreground/30'
                   : room.isDraftStopped
-                    ? 'bg-red-100 text-red-700'
+                    ? 'bg-destructive/15 text-destructive-foreground border border-destructive-foreground/30'
                     : room.isDraftPaused
-                      ? 'bg-yellow-100 text-yellow-800'
-                      : 'bg-blue-100 text-blue-700'
+                      ? 'bg-warning/15 text-warning-foreground border border-warning-foreground/30'
+                      : 'bg-primary/15 text-primary border border-primary/30'
               }`}>
                 {draft.status === 'complete' ? 'Complete' : room.isDraftStopped ? 'Stopped' : room.isDraftPaused ? 'Paused' : 'Live'}
               </span>
@@ -107,7 +141,7 @@ export default function DraftRoomPage() {
                   setIsStarting(false);
                 }}
                 disabled={isStarting}
-                className="rounded-lg bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-50"
+                className="rounded-lg bg-primary px-4 py-2 text-sm font-heading font-bold uppercase tracking-wide text-primary-foreground hover:bg-primary-hover glow-primary disabled:opacity-50"
               >
                 {isStarting ? 'Starting...' : 'Start Draft'}
               </button>
@@ -115,7 +149,7 @@ export default function DraftRoomPage() {
             {draft.status !== 'complete' && (
               <button
                 onClick={() => setDrawerOpen(true)}
-                className="rounded-lg border border-border bg-card px-3 py-2 text-sm font-medium text-foreground hover:bg-muted flex items-center gap-2"
+                className="rounded-lg border border-border bg-card px-3 py-2 text-sm font-heading font-bold uppercase tracking-wide text-foreground hover:bg-muted glow-border transition-all flex items-center gap-2"
               >
                 <PanelRightOpen className="h-4 w-4" />
                 Players
@@ -250,22 +284,31 @@ export default function DraftRoomPage() {
 
       {/* Players/Queue Side Drawer */}
       {draft.status !== 'complete' && (
-        <div className={`fixed top-0 right-0 z-50 h-full w-96 bg-card shadow-2xl border-l border-border transition-transform duration-300 ease-in-out ${
-          drawerOpen ? 'translate-x-0' : 'translate-x-full'
-        }`}>
-          <div className="flex items-center justify-between border-b border-border px-4 py-3">
-            <h2 className="text-sm font-semibold text-foreground">Players & Queue</h2>
-            <button
+        <>
+          {/* Backdrop overlay */}
+          {drawerOpen && (
+            <div
+              className="fixed inset-0 z-40 bg-black/40 transition-opacity duration-300"
               onClick={() => setDrawerOpen(false)}
-              className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
-            >
-              <X className="h-5 w-5" />
-            </button>
+            />
+          )}
+          <div className={`fixed top-0 right-0 z-50 h-full w-96 glass-strong shadow-2xl border-l border-border transition-transform duration-300 ease-in-out ${
+            drawerOpen ? 'translate-x-0' : 'translate-x-full'
+          }`}>
+            <div className="flex items-center justify-between border-b border-border px-4 py-3">
+              <h2 className="text-sm font-heading font-bold uppercase tracking-wide text-foreground">Players & Queue</h2>
+              <button
+                onClick={() => setDrawerOpen(false)}
+                className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <div className="h-[calc(100%-49px)]">
+              <DraftSidebar {...sidebarProps} height="100%" />
+            </div>
           </div>
-          <div className="h-[calc(100%-49px)]">
-            <DraftSidebar {...sidebarProps} height="100%" />
-          </div>
-        </div>
+        </>
       )}
     </div>
   );

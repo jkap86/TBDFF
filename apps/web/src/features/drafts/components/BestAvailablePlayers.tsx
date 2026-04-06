@@ -119,7 +119,7 @@ export function BestAvailablePlayers({
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Filter by name..."
-            className="w-full rounded border border-input py-1.5 pl-7 pr-2 text-sm text-foreground bg-card focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
+            className="w-full rounded-lg border border-input py-1.5 pl-7 pr-2 text-sm text-foreground bg-card focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
           />
         </div>
       </div>
@@ -145,7 +145,7 @@ export function BestAvailablePlayers({
       <div
         ref={scrollRef}
         onScroll={handleScroll}
-        className="flex-1 overflow-y-auto divide-y divide-border"
+        className="flex-1 overflow-y-auto divide-y divide-border scrollbar-sleek"
       >
         {players.length === 0 && !isLoading && (
           <div className="px-4 py-6 text-center text-sm text-disabled">
@@ -158,10 +158,10 @@ export function BestAvailablePlayers({
           return (
             <div
               key={player.id}
-              className={`flex items-center gap-2 px-3 py-1.5 hover:bg-accent ${isRpick ? 'bg-amber-50/50' : ''}`}
+              className={`flex items-center gap-2 px-3 py-1.5 hover:bg-accent transition-colors ${isRpick ? 'bg-warning/30' : ''}`}
             >
               {isRpick ? (
-                <span className="w-6 text-right text-xs font-bold text-amber-600">
+                <span className="w-6 text-right text-xs font-bold text-warning-foreground">
                   R{player.team?.replace('R', '')}
                 </span>
               ) : (
@@ -172,10 +172,10 @@ export function BestAvailablePlayers({
               <div className="flex-1 min-w-0">
                 {isRpick ? (
                   <>
-                    <div className="truncate text-sm font-medium text-amber-700">
+                    <div className="truncate text-sm font-medium text-warning-foreground">
                       {player.last_name}
                     </div>
-                    <div className="text-xs text-amber-600/70">
+                    <div className="text-xs text-warning-foreground/70">
                       Next Available Pick
                     </div>
                   </>
@@ -196,7 +196,7 @@ export function BestAvailablePlayers({
                   disabled={!isMyTurn || isPicking}
                   className={`rounded px-1.5 py-0.5 text-xs font-medium transition-colors ${
                     isMyTurn && !isPicking
-                      ? 'bg-green-600 text-white hover:bg-green-700'
+                      ? 'bg-primary text-primary-foreground hover:bg-primary-hover glow-primary'
                       : 'bg-muted-hover text-disabled cursor-not-allowed'
                   }`}
                   title={!isMyTurn ? 'Not your turn' : `${actionLabel} ${isRpick ? 'pick' : 'player'}`}
@@ -207,10 +207,10 @@ export function BestAvailablePlayers({
               <button
                 onClick={() => !isQueued && onAdd(player.id)}
                 disabled={isQueued}
-                className={`rounded p-1 ${
+                className={`rounded p-1 transition-colors ${
                   isQueued
-                    ? 'text-green-500'
-                    : 'text-disabled hover:bg-blue-50 hover:text-blue-600'
+                    ? 'text-success-foreground'
+                    : 'text-disabled hover:bg-primary/10 hover:text-primary'
                 }`}
                 title={isQueued ? 'Already in queue' : 'Add to queue'}
               >

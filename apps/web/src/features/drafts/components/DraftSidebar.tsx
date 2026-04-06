@@ -48,24 +48,24 @@ export function DraftSidebar({
   includeRookiePicks,
 }: DraftSidebarProps) {
   return (
-    <div className="rounded-lg bg-card shadow flex flex-col" style={{ height }}>
+    <div className="rounded-lg border border-border bg-card shadow flex flex-col" style={{ height }}>
       <div className="flex border-b border-border">
         <button
           onClick={() => onTabChange('players')}
-          className={`flex-1 px-3 py-2.5 text-sm font-medium transition-colors ${
+          className={`flex-1 px-3 py-2.5 text-sm font-heading font-bold uppercase tracking-wide transition-colors ${
             sidebarTab === 'players'
               ? 'border-b-2 border-primary text-primary'
-              : 'text-muted-foreground hover:text-accent-foreground'
+              : 'text-muted-foreground hover:text-accent-foreground hover:bg-accent/50'
           }`}
         >
           Players
         </button>
         <button
           onClick={() => onTabChange('queue')}
-          className={`flex-1 px-3 py-2.5 text-sm font-medium transition-colors ${
+          className={`flex-1 px-3 py-2.5 text-sm font-heading font-bold uppercase tracking-wide transition-colors ${
             sidebarTab === 'queue'
               ? 'border-b-2 border-primary text-primary'
-              : 'text-muted-foreground hover:text-accent-foreground'
+              : 'text-muted-foreground hover:text-accent-foreground hover:bg-accent/50'
           }`}
         >
           My Queue

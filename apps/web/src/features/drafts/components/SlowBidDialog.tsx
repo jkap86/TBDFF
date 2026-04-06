@@ -53,7 +53,7 @@ export function SlowBidDialog({ lot, myBudget, minBid, minIncrement, onSubmit, o
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={onClose}>
       <div
-        className="w-full max-w-md rounded-xl bg-card p-6 shadow-xl"
+        className="w-full max-w-md rounded-xl glass-strong p-6 shadow-xl"
         onClick={(e) => e.stopPropagation()}
       >
         <h3 className="text-lg font-bold text-foreground mb-1">
@@ -112,7 +112,7 @@ export function SlowBidDialog({ lot, myBudget, minBid, minIncrement, onSubmit, o
             className="w-32 rounded-lg border border-input px-3 py-2 text-xl font-bold text-foreground bg-card focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
           />
           {parsedBid > maxAffordable && (
-            <span className="text-xs text-red-500">Exceeds budget</span>
+            <span className="text-xs text-destructive-foreground">Exceeds budget</span>
           )}
         </div>
 
