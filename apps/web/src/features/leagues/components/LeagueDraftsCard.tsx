@@ -28,6 +28,7 @@ interface LeagueDraftsCardProps {
   mutationError: string | null;
   onRandomizeDraftOrder: (draft: Draft) => Promise<void>;
   onStartDerby: (draft: Draft) => Promise<void>;
+  initialExpanded?: boolean;
   onEditDraft: (draftId: string) => void;
   onDraftUpdated: (draft: Draft) => void;
 }
@@ -47,10 +48,11 @@ export function LeagueDraftsCard({
   mutationError,
   onRandomizeDraftOrder,
   onStartDerby,
+  initialExpanded = false,
   onEditDraft,
   onDraftUpdated,
 }: LeagueDraftsCardProps) {
-  const [isDraftsExpanded, setIsDraftsExpanded] = useState(false);
+  const [isDraftsExpanded, setIsDraftsExpanded] = useState(initialExpanded);
   const [expandedDraftOrders, setExpandedDraftOrders] = useState<Set<string>>(new Set());
   const [expandedDerbyResults, setExpandedDerbyResults] = useState<Set<string>>(new Set());
   const [reRandomizeDraftId, setReRandomizeDraftId] = useState<string | null>(null);
@@ -72,9 +74,18 @@ export function LeagueDraftsCard({
     }
   };
 
+  // Detect "Your Turn" for derby picks
+  const isMyTurn = activeDrafts.some((d) => {
+    const derby = d.metadata?.derby as any;
+    if (derby?.status === 'active' && derby.derby_order && derby.current_pick_index != null) {
+      return derby.derby_order[derby.current_pick_index]?.user_id === currentUserId;
+    }
+    return false;
+  });
+
   return (
     <>
-      <div className="rounded-lg bg-card p-6 shadow">
+      <div className={`rounded-lg bg-card shadow ${isDraftsExpanded ? 'p-6 glass-strong glow-border' : 'p-4 glass-subtle'}`}>
         <div className={`flex items-center justify-between ${isDraftsExpanded ? 'mb-4' : ''}`}>
           <button
             onClick={() => setIsDraftsExpanded((prev) => !prev)}
@@ -85,8 +96,19 @@ export function LeagueDraftsCard({
             />
             <h2 className="text-xl font-bold text-foreground">Drafts</h2>
             <span className="text-sm text-muted-foreground">
-              {activeDrafts.length} active{completedDrafts.length > 0 ? `, ${completedDrafts.length} completed` : ''}
+              {!isDraftsExpanded && activeDrafts.length > 0
+                ? activeDrafts.map((d) => `${playerPoolLabel(d.settings.player_type)}: ${draftStatusLabels[d.status]}`).join(', ')
+                : `${activeDrafts.length} active${completedDrafts.length > 0 ? `, ${completedDrafts.length} completed` : ''}`
+              }
             </span>
+            {isMyTurn && (
+              <span
+                className="rounded-full bg-neon-cyan/20 px-2 py-0.5 text-xs font-bold text-neon-cyan"
+                style={{ animation: 'neon-pulse 2s ease-in-out infinite' }}
+              >
+                Your Pick!
+              </span>
+            )}
           </button>
         </div>
 

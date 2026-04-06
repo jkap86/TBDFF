@@ -94,7 +94,7 @@ export function LeagueDuesCard({
   };
 
   return (
-    <div className="rounded-lg bg-card p-6 shadow">
+    <div className={`rounded-lg bg-card shadow ${duesExpanded ? 'p-6 glass-strong glow-border' : 'p-4 glass-subtle'}`}>
       <div className={`flex items-center justify-between ${duesExpanded ? 'mb-4' : ''}`}>
         <button
           onClick={() => setIsDuesExpanded((prev) => ((prev ?? !allPaid) ? false : true))}

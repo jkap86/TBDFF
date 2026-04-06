@@ -15,6 +15,8 @@ interface LeagueMatchupsCardProps {
   rosters: Roster[];
   isCommissioner: boolean;
   accessToken: string | null;
+  initialExpanded?: boolean;
+  currentUserId?: string;
   onOpenDerbySettings: () => void;
 }
 
@@ -26,10 +28,12 @@ export function LeagueMatchupsCard({
   rosters,
   isCommissioner,
   accessToken,
+  initialExpanded = false,
+  currentUserId,
   onOpenDerbySettings,
 }: LeagueMatchupsCardProps) {
   const queryClient = useQueryClient();
-  const [isExpanded, setIsExpanded] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(initialExpanded);
   const [selectedWeek, setSelectedWeek] = useState(1);
   const [isGeneratingMatchups, setIsGeneratingMatchups] = useState(false);
   const [mutationError, setMutationError] = useState<string | null>(null);
@@ -63,7 +67,7 @@ export function LeagueMatchupsCard({
   };
 
   return (
-    <div className="rounded-lg bg-card p-6 shadow">
+    <div className={`rounded-lg bg-card shadow ${isExpanded ? 'p-6 glass-strong glow-border' : 'p-4 glass-subtle'}`}>
       <div className={`flex items-center justify-between ${isExpanded ? 'mb-4' : ''}`}>
         <button
           onClick={() => setIsExpanded((prev) => !prev)}
@@ -74,9 +78,24 @@ export function LeagueMatchupsCard({
           />
           <h2 className="text-xl font-bold text-foreground">Matchups</h2>
           <span className="text-sm text-muted-foreground">
-            {matchups.length > 0
-              ? `${new Set(matchups.map((m) => m.week)).size} weeks`
-              : 'No schedule'}
+            {(() => {
+              if (matchups.length === 0) return 'No schedule';
+              if (isExpanded) return `${new Set(matchups.map((m) => m.week)).size} weeks`;
+              // Rich summary when collapsed: show current user's matchup
+              const currentUserRosterId = rosters.find((r) => r.owner_id === currentUserId)?.roster_id;
+              const weeks = [...new Set(matchups.map((m) => m.week))].sort((a, b) => a - b);
+              const currentWeek = (league.settings as any)?.leg ?? weeks[0] ?? 1;
+              if (currentUserRosterId) {
+                const myMatchup = matchups.find((m) => m.week === currentWeek && m.roster_id === currentUserRosterId);
+                if (myMatchup && myMatchup.matchup_id > 0) {
+                  const opponent = matchups.find(
+                    (m) => m.week === currentWeek && m.matchup_id === myMatchup.matchup_id && m.roster_id !== currentUserRosterId,
+                  );
+                  if (opponent) return `Wk ${currentWeek}: vs ${getRosterLabel(opponent.roster_id)}`;
+                }
+              }
+              return `${weeks.length} weeks`;
+            })()}
           </span>
         </button>
       </div>
