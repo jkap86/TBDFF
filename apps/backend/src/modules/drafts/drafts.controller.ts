@@ -429,6 +429,16 @@ export class DraftController {
     res.status(200).json({ draft: draft.toSafeObject(), server_time: new Date().toISOString() });
   };
 
+  updateTimers = async (req: AuthRequest, res: Response): Promise<void> => {
+    const userId = req.user?.userId;
+    if (!userId) throw new InvalidCredentialsException();
+
+    const draftId = Array.isArray(req.params.draftId) ? req.params.draftId[0] : req.params.draftId;
+    const draft = await this.draftClockService.updateTimers(draftId, userId, req.body);
+
+    res.status(200).json({ draft: draft.toSafeObject(), server_time: new Date().toISOString() });
+  };
+
   // ---- Derby (draft order selection) ----
 
   startDerby = async (req: AuthRequest, res: Response): Promise<void> => {

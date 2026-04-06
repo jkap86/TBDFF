@@ -184,6 +184,7 @@ export default function DraftRoomPage() {
             clockState={room.clockState}
             onPause={room.handlePauseDraft}
             onStop={room.handleStopDraft}
+            onUpdateTimers={room.handleUpdateTimers}
           />
         </div>
       )}
@@ -256,6 +257,8 @@ export default function DraftRoomPage() {
               clockState={room.clockState}
               onPause={room.handlePauseDraft}
               onStop={room.handleStopDraft}
+              onUpdateTimers={room.handleUpdateTimers}
+              pickTimer={draft.settings.pick_timer}
             />
             <DraftBoard draft={draft} picks={picks} members={members} rosters={rosters} currentUserId={user?.id} />
           </>

@@ -130,6 +130,9 @@ export const draftApi = {
   stop: (draftId: string, token: string) =>
     apiClient.post<DraftResponse>(`/drafts/${draftId}/stop`, undefined, token),
 
+  updateTimers: (draftId: string, body: Record<string, number>, token: string) =>
+    apiClient.put<DraftResponse>(`/drafts/${draftId}/timers`, body, token),
+
   // Derby (draft order selection)
   startDerby: (draftId: string, token: string) =>
     apiClient.post<DerbyPickResponse>(`/drafts/${draftId}/derby/start`, undefined, token),

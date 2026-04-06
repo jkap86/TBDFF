@@ -189,4 +189,59 @@ export class DraftClockService {
     this.draftGateway?.broadcast(draftId, 'draft:state_updated', { draft: updated, server_time: new Date().toISOString() });
     return updated;
   }
+
+  async updateTimers(draftId: string, userId: string, timerSettings: Record<string, number>): Promise<Draft> {
+    const draft = await this.draftRepository.findById(draftId);
+    if (!draft) throw new NotFoundException('Draft not found');
+    if (draft.status !== 'drafting') throw new ValidationException('Draft is not active');
+
+    const member = await this.leagueMembersRepository.findMember(draft.leagueId, userId);
+    if (!member || member.role !== 'commissioner') {
+      throw new ForbiddenException('Only commissioners can update timers');
+    }
+
+    const newSettings = { ...draft.settings, ...timerSettings };
+    const clockState = draft.metadata?.clock_state ?? 'running';
+    const updateData: Record<string, any> = { settings: newSettings };
+
+    if (clockState === 'paused' || clockState === 'stopped') {
+      // When paused/stopped, update the frozen remaining time to the new timer value
+      const relevantTimer = draft.type === 'auction'
+        ? (draft.metadata?.current_nomination
+            ? (timerSettings.nomination_timer ?? draft.settings.nomination_timer)
+            : (timerSettings.offering_timer ?? draft.settings.offering_timer))
+        : (timerSettings.pick_timer ?? draft.settings.pick_timer);
+      updateData.metadata = { ...draft.metadata, clock_paused_remaining: relevantTimer };
+    } else if (draft.type === 'auction') {
+      // Running auction — reset current deadline
+      const nom = draft.metadata?.current_nomination;
+      if (nom?.bid_deadline && timerSettings.nomination_timer != null) {
+        updateData.metadata = {
+          ...draft.metadata,
+          current_nomination: {
+            ...nom,
+            bid_deadline: new Date(Date.now() + timerSettings.nomination_timer * 1000).toISOString(),
+          },
+        };
+      } else if (draft.metadata?.nomination_deadline && timerSettings.offering_timer != null) {
+        updateData.metadata = {
+          ...draft.metadata,
+          nomination_deadline: new Date(Date.now() + timerSettings.offering_timer * 1000).toISOString(),
+        };
+      }
+    } else if (draft.type !== 'slow_auction' && timerSettings.pick_timer != null) {
+      // Running snake/linear/3rr — reset pick deadline
+      updateData.lastPicked = new Date(Date.now()).toISOString();
+      // Cancel old timeout and schedule new one
+      await this.draftTimerRepository.deleteAutoPickJobsByDraft(draftId);
+      const runAt = new Date(Date.now() + timerSettings.pick_timer * 1000);
+      await this.draftTimerRepository.insertAutoPickJob(draftId, 'timeout', runAt);
+    }
+    // Slow auction: only settings change, active lots keep existing deadlines
+
+    const updated = await this.draftRepository.update(draftId, updateData);
+    if (!updated) throw new NotFoundException('Draft not found');
+    this.draftGateway?.broadcast(draftId, 'draft:state_updated', { draft: updated, server_time: new Date().toISOString() });
+    return updated;
+  }
 }

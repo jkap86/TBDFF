@@ -12,6 +12,7 @@ interface AuctionSettingsSectionProps {
   onOfferingTimerChange: (v: number) => void;
   budget: number;
   onBudgetChange: (v: number) => void;
+  timersOnly?: boolean;
 }
 
 export function AuctionSettingsSection({
@@ -26,13 +27,14 @@ export function AuctionSettingsSection({
   onOfferingTimerChange,
   budget,
   onBudgetChange,
+  timersOnly,
 }: AuctionSettingsSectionProps) {
   const isAnyAuction = isAuction || isSlowAuction;
 
   return (
     <>
       {/* Shared auction fields: Max Players + Budget */}
-      {isAnyAuction && (
+      {isAnyAuction && !timersOnly && (
         <div className="grid grid-cols-2 gap-3">
           <div>
             <label className="block text-xs font-medium text-muted-foreground mb-1">Max Players / Team</label>

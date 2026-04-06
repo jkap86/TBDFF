@@ -101,6 +101,7 @@ interface AuctionControlsProps {
   clockState?: 'running' | 'paused' | 'stopped';
   onPause?: () => void;
   onStop?: () => void;
+  onUpdateTimers?: (timers: Record<string, number>) => void;
 }
 
 export function AuctionControls({
@@ -125,6 +126,7 @@ export function AuctionControls({
   clockState = 'running',
   onPause,
   onStop,
+  onUpdateTimers,
 }: AuctionControlsProps) {
   const isStopped = clockState === 'stopped';
 
@@ -138,6 +140,9 @@ export function AuctionControls({
 
   const [localBid, setLocalBid] = useState(minBid);
   const [isEditing, setIsEditing] = useState(false);
+  const [showTimerEdit, setShowTimerEdit] = useState(false);
+  const [localNomTimer, setLocalNomTimer] = useState(draft.settings.nomination_timer);
+  const [localOfferTimer, setLocalOfferTimer] = useState(draft.settings.offering_timer);
 
   // Reset bid to current + 1 whenever the current bid changes (new bid placed by anyone)
   useEffect(() => {
@@ -211,6 +216,60 @@ export function AuctionControls({
             >
               {clockState === 'stopped' ? 'Resume' : 'Stop'}
             </button>
+            <button
+              onClick={() => {
+                setLocalNomTimer(draft.settings.nomination_timer);
+                setLocalOfferTimer(draft.settings.offering_timer);
+                setShowTimerEdit(!showTimerEdit);
+              }}
+              className={`rounded-lg px-3 py-2 text-xs font-heading font-bold uppercase tracking-wide transition-colors ${
+                showTimerEdit
+                  ? 'bg-primary/15 text-primary border border-primary/30'
+                  : 'border border-border bg-card text-muted-foreground hover:text-foreground hover:border-foreground/30'
+              }`}
+            >
+              Timers
+            </button>
+            {showTimerEdit && (
+              <div className="flex items-center gap-2 border-l border-border pl-2 ml-0.5">
+                <label className="flex items-center gap-1">
+                  <span className="text-xs font-heading font-bold uppercase tracking-wide text-muted-foreground">Bid</span>
+                  <input
+                    type="number"
+                    value={localNomTimer}
+                    onChange={(e) => setLocalNomTimer(Math.max(5, parseInt(e.target.value) || 5))}
+                    min={5}
+                    max={86400}
+                    className="w-14 rounded-lg border border-border bg-card px-1.5 py-1.5 text-center text-sm font-mono font-bold text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary/50"
+                  />
+                  <span className="text-xs text-muted-foreground">s</span>
+                </label>
+                <label className="flex items-center gap-1">
+                  <span className="text-xs font-heading font-bold uppercase tracking-wide text-muted-foreground">Nom</span>
+                  <input
+                    type="number"
+                    value={localOfferTimer}
+                    onChange={(e) => setLocalOfferTimer(Math.max(5, parseInt(e.target.value) || 5))}
+                    min={5}
+                    max={86400}
+                    className="w-14 rounded-lg border border-border bg-card px-1.5 py-1.5 text-center text-sm font-mono font-bold text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary/50"
+                  />
+                  <span className="text-xs text-muted-foreground">s</span>
+                </label>
+                <button
+                  onClick={() => {
+                    const timers: Record<string, number> = {};
+                    if (localNomTimer !== draft.settings.nomination_timer) timers.nomination_timer = localNomTimer;
+                    if (localOfferTimer !== draft.settings.offering_timer) timers.offering_timer = localOfferTimer;
+                    if (Object.keys(timers).length > 0) onUpdateTimers?.(timers);
+                    setShowTimerEdit(false);
+                  }}
+                  className="rounded-lg bg-primary px-3 py-1.5 text-xs font-heading font-bold uppercase tracking-wide text-primary-foreground hover:bg-primary-hover transition-colors"
+                >
+                  Apply
+                </button>
+              </div>
+            )}
           </div>
         )}
 

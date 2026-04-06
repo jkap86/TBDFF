@@ -299,6 +299,16 @@ export function useDraftActions({
     }
   }, [draft, accessToken]);
 
+  const handleUpdateTimers = useCallback(async (timers: Record<string, number>) => {
+    if (!draft || !accessToken) return;
+    try {
+      const result = await draftApi.updateTimers(draft.id, timers, accessToken);
+      setDraft(result.draft);
+    } catch (err) {
+      if (err instanceof ApiError) toast.error(err.message);
+    }
+  }, [draft, accessToken]);
+
   return {
     // UI state
     isPicking,
@@ -330,5 +340,6 @@ export function useDraftActions({
     handleToggleAutoPick,
     handlePauseDraft,
     handleStopDraft,
+    handleUpdateTimers,
   };
 }

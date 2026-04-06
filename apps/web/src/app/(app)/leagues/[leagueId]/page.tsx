@@ -143,6 +143,12 @@ export default function LeagueDetailPage() {
     updateDraftsCache((prev) => prev.map((d) => (d.id === result.draft.id ? result.draft : d)));
   };
 
+  const handleUpdateTimers = async (draftId: string, timers: Record<string, number>) => {
+    if (!accessToken) return;
+    const result = await draftApi.updateTimers(draftId, timers, accessToken);
+    updateDraftsCache((prev) => prev.map((d) => (d.id === result.draft.id ? result.draft : d)));
+  };
+
   const handleStartDerby = async (draft: Draft) => {
     if (!accessToken) return;
     try {
@@ -336,6 +342,7 @@ export default function LeagueDetailPage() {
               onClose={() => setEditingDraftId(null)}
               draft={editDraft}
               onSave={(updates) => handleUpdateDraft(editDraft.id, updates)}
+              onSaveTimers={(timers) => handleUpdateTimers(editDraft.id, timers)}
               vetDraftIncludesRookiePicks={vetDraftIncludesRookiePicks}
             />
           );

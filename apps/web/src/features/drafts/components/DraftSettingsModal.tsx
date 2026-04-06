@@ -8,11 +8,14 @@ interface DraftSettingsModalProps {
   onClose: () => void;
   draft: Draft;
   onSave: (updates: UpdateDraftRequest) => Promise<void>;
+  onSaveTimers?: (timers: Record<string, number>) => Promise<void>;
   vetDraftIncludesRookiePicks?: boolean;
 }
 
-export function DraftSettingsModal({ isOpen, onClose, draft, onSave, vetDraftIncludesRookiePicks }: DraftSettingsModalProps) {
+export function DraftSettingsModal({ isOpen, onClose, draft, onSave, onSaveTimers, vetDraftIncludesRookiePicks }: DraftSettingsModalProps) {
   if (!isOpen) return null;
+
+  const isDrafting = draft.status === 'drafting';
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
@@ -33,8 +36,9 @@ export function DraftSettingsModal({ isOpen, onClose, draft, onSave, vetDraftInc
         <DraftSettingsForm
           draft={draft}
           onSave={onSave}
+          onSaveTimers={onSaveTimers}
           onSaveSuccess={onClose}
-          readOnly={false}
+          readOnly={isDrafting ? 'timers-only' : false}
           vetDraftIncludesRookiePicks={vetDraftIncludesRookiePicks}
         />
       </div>

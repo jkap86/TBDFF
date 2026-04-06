@@ -18,6 +18,7 @@ import {
   slowNominateSchema,
   slowSetMaxBidSchema,
   derbyPickSchema,
+  updateTimersSchema,
 } from './drafts.schemas';
 
 /**
@@ -103,9 +104,10 @@ export function createDraftRoutes(controller: DraftController): Router {
   router.get('/:draftId/budgets', asyncHandler(controller.getSlowAuctionBudgets));
   router.get('/:draftId/nomination-stats', asyncHandler(controller.getNominationStats));
 
-  // Commissioner draft controls (pause/stop)
+  // Commissioner draft controls (pause/stop/timers)
   router.post('/:draftId/pause', asyncHandler(controller.pauseDraft));
   router.post('/:draftId/stop', asyncHandler(controller.stopDraft));
+  router.put('/:draftId/timers', validate(updateTimersSchema), asyncHandler(controller.updateTimers));
 
   // Derby (draft order selection)
   router.post('/:draftId/derby/start', asyncHandler(controller.startDerby));

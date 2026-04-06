@@ -117,6 +117,16 @@ export const slowSetMaxBidSchema = z.object({
 
 export type SlowSetMaxBidInput = z.infer<typeof slowSetMaxBidSchema>;
 
+// Timer update schema (mid-draft)
+export const updateTimersSchema = z.object({
+  nomination_timer: z.number().int().min(5).max(86400).optional(),
+  offering_timer: z.number().int().min(5).max(86400).optional(),
+  pick_timer: z.number().int().min(5).max(86400).optional(),
+  bid_window_seconds: z.number().int().min(60).max(604800).optional(),
+}).strict().refine(data => Object.keys(data).length > 0, { message: 'At least one timer must be provided' });
+
+export type UpdateTimersInput = z.infer<typeof updateTimersSchema>;
+
 // Derby schemas
 export const derbyPickSchema = z.object({
   slot: z.number().int().min(1, 'Slot must be at least 1'),

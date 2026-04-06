@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import type { DraftPick } from '@/lib/api';
 
 interface DraftControlsProps {
@@ -16,6 +17,8 @@ interface DraftControlsProps {
   clockState?: 'running' | 'paused' | 'stopped';
   onPause?: () => void;
   onStop?: () => void;
+  onUpdateTimers?: (timers: Record<string, number>) => void;
+  pickTimer?: number;
 }
 
 export function DraftControls({
@@ -32,7 +35,11 @@ export function DraftControls({
   clockState = 'running',
   onPause,
   onStop,
+  onUpdateTimers,
+  pickTimer = 120,
 }: DraftControlsProps) {
+  const [showTimerEdit, setShowTimerEdit] = useState(false);
+  const [localPickTimer, setLocalPickTimer] = useState(pickTimer);
   return (
     <div className="rounded-lg border border-border bg-card p-3 shadow-lg">
       <div className="flex flex-wrap items-center gap-3">
@@ -77,6 +84,44 @@ export function DraftControls({
             >
               {clockState === 'stopped' ? 'Resume' : 'Stop'}
             </button>
+            <button
+              onClick={() => {
+                setLocalPickTimer(pickTimer);
+                setShowTimerEdit(!showTimerEdit);
+              }}
+              className={`rounded-lg px-3 py-2 text-xs font-heading font-bold uppercase tracking-wide transition-colors ${
+                showTimerEdit
+                  ? 'bg-primary/15 text-primary border border-primary/30'
+                  : 'border border-border bg-card text-muted-foreground hover:text-foreground hover:border-foreground/30'
+              }`}
+            >
+              Timer
+            </button>
+            {showTimerEdit && (
+              <div className="flex items-center gap-2 border-l border-border pl-2 ml-0.5">
+                <label className="flex items-center gap-1">
+                  <span className="text-xs font-heading font-bold uppercase tracking-wide text-muted-foreground">Pick</span>
+                  <input
+                    type="number"
+                    value={localPickTimer}
+                    onChange={(e) => setLocalPickTimer(Math.max(5, parseInt(e.target.value) || 5))}
+                    min={5}
+                    max={86400}
+                    className="w-16 rounded-lg border border-border bg-card px-1.5 py-1.5 text-center text-sm font-mono font-bold text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary/50"
+                  />
+                  <span className="text-xs text-muted-foreground">s</span>
+                </label>
+                <button
+                  onClick={() => {
+                    if (localPickTimer !== pickTimer) onUpdateTimers?.({ pick_timer: localPickTimer });
+                    setShowTimerEdit(false);
+                  }}
+                  className="rounded-lg bg-primary px-3 py-1.5 text-xs font-heading font-bold uppercase tracking-wide text-primary-foreground hover:bg-primary-hover transition-colors"
+                >
+                  Apply
+                </button>
+              </div>
+            )}
           </div>
         )}
 

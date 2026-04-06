@@ -23,18 +23,21 @@ const PLAYER_TYPE_LABELS: Record<number, string> = {
 interface DraftSettingsFormProps {
   draft: Draft;
   onSave: (updates: UpdateDraftRequest) => Promise<void>;
+  onSaveTimers?: (timers: Record<string, number>) => Promise<void>;
   onSaveSuccess?: () => void;
-  readOnly: boolean;
+  readOnly: boolean | 'timers-only';
   vetDraftIncludesRookiePicks?: boolean;
 }
 
 export function DraftSettingsForm({
   draft,
   onSave,
+  onSaveTimers,
   onSaveSuccess,
   readOnly,
   vetDraftIncludesRookiePicks,
 }: DraftSettingsFormProps) {
+  const isTimersOnly = readOnly === 'timers-only';
   const [draftType, setDraftType] = useState<DraftType>(
     draft.type === '3rr' ? 'snake' : draft.type,
   );
@@ -121,6 +124,37 @@ export function DraftSettingsForm({
   const isAnyAuction = isAuction || isSlowAuction;
 
   const handleSave = async () => {
+    // In timers-only mode, only save timer fields via the dedicated endpoint
+    if (isTimersOnly && onSaveTimers) {
+      const timerUpdates: Record<string, number> = {};
+      if (!isAnyAuction && pickTimer !== draft.settings.pick_timer)
+        timerUpdates.pick_timer = pickTimer;
+      if (isAuction && nominationTimer !== draft.settings.nomination_timer)
+        timerUpdates.nomination_timer = nominationTimer;
+      if (isAuction && offeringTimer !== (draft.settings.offering_timer ?? 120))
+        timerUpdates.offering_timer = offeringTimer;
+      if (isSlowAuction && bidWindowSeconds !== (draft.settings.bid_window_seconds ?? 43200))
+        timerUpdates.bid_window_seconds = bidWindowSeconds;
+
+      if (Object.keys(timerUpdates).length === 0) return;
+
+      try {
+        setIsSaving(true);
+        setError(null);
+        await onSaveTimers(timerUpdates);
+        onSaveSuccess?.();
+      } catch (err) {
+        if (err instanceof ApiError) {
+          setError(err.message);
+        } else {
+          setError('Failed to update timers');
+        }
+      } finally {
+        setIsSaving(false);
+      }
+      return;
+    }
+
     const updates: UpdateDraftRequest = {};
 
     const effectiveType: DraftType =
@@ -211,7 +245,7 @@ export function DraftSettingsForm({
   };
 
   // Read-only view
-  if (readOnly) {
+  if (readOnly === true) {
     return (
       <div className="space-y-4">
         <div>
@@ -322,8 +356,11 @@ export function DraftSettingsForm({
   // Editable view
   return (
     <div className="space-y-5 flex flex-col items-center">
+      {isTimersOnly && (
+        <p className="text-xs text-muted-foreground w-full">Only timer settings can be changed while the draft is active.</p>
+      )}
       {/* Draft Format */}
-      <div className="w-full">
+      {!isTimersOnly && <div className="w-full">
         <h3 className="text-sm font-semibold text-accent-foreground mb-3">Draft Format</h3>
         <div className="space-y-3">
           {/* Type + Rounds on one row */}
@@ -402,10 +439,10 @@ export function DraftSettingsForm({
             </label>
           )}
         </div>
-      </div>
+      </div>}
 
       {/* Draft Order (non-slow_auction only) */}
-      {!isSlowAuction && (
+      {!isTimersOnly && !isSlowAuction && (
         <div className="border-t border-border pt-4 w-full">
           <h3 className="text-sm font-semibold text-accent-foreground mb-3">Draft Order</h3>
           <div className="space-y-3">
@@ -549,7 +586,7 @@ export function DraftSettingsForm({
       {/* Auction Settings */}
       {isAnyAuction && (
         <div className="border-t border-border pt-4">
-          <h3 className="text-sm font-semibold text-accent-foreground mb-3">Auction Settings</h3>
+          <h3 className="text-sm font-semibold text-accent-foreground mb-3">{isTimersOnly ? 'Timer Settings' : 'Auction Settings'}</h3>
           <div className="space-y-3">
             <AuctionSettingsSection
               isAuction={isAuction}
@@ -563,10 +600,11 @@ export function DraftSettingsForm({
               onOfferingTimerChange={setOfferingTimer}
               budget={budget}
               onBudgetChange={setBudget}
+              timersOnly={isTimersOnly}
             />
 
             {/* Slow Auction Settings */}
-            {isSlowAuction && (
+            {isSlowAuction && !isTimersOnly && (
               <SlowAuctionSettingsSection
                 bidWindowSeconds={bidWindowSeconds}
                 onBidWindowSecondsChange={setBidWindowSeconds}
@@ -597,7 +635,7 @@ export function DraftSettingsForm({
           disabled={isSaving}
           className="rounded-lg bg-primary px-5 py-2 text-sm font-medium text-primary-foreground hover:bg-primary-hover disabled:opacity-50"
         >
-          {isSaving ? 'Saving...' : 'Save Settings'}
+          {isSaving ? 'Saving...' : isTimersOnly ? 'Update Timers' : 'Save Settings'}
         </button>
       </div>
     </div>

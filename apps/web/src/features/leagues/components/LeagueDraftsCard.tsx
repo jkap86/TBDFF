@@ -135,15 +135,17 @@ export function LeagueDraftsCard({
               <div className="mb-4 flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <h2 className="text-xl font-bold text-foreground">{playerPoolLabel(draft.settings.player_type)}</h2>
+                  {isCommissioner && (draft.status === 'pre_draft' || draft.status === 'drafting') && (
+                    <button
+                      onClick={() => onEditDraft(draft.id)}
+                      className="rounded p-2 text-muted-foreground hover:bg-muted hover:text-accent-foreground"
+                      title="Draft Settings"
+                    >
+                      <Settings className="h-5 w-5" />
+                    </button>
+                  )}
                   {isCommissioner && draft.status === 'pre_draft' && (
                     <>
-                      <button
-                        onClick={() => onEditDraft(draft.id)}
-                        className="rounded p-2 text-muted-foreground hover:bg-muted hover:text-accent-foreground"
-                        title="Draft Settings"
-                      >
-                        <Settings className="h-5 w-5" />
-                      </button>
                       {draft.type !== 'slow_auction' && !(draft.metadata?.derby as any)?.status
                         && !(draft.settings.player_type === 1 && drafts.some((d) => d.settings.player_type === 2 && d.settings.include_rookie_picks === 1)) && (
                         <button
