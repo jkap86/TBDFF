@@ -5,24 +5,30 @@ import { Player } from './players.model';
 export class PlayerRepository {
   constructor(private readonly db: Pool) {}
 
+  private readonly byeWeekJoin = `LEFT JOIN nfl_bye_weeks bw ON p.team = bw.team AND bw.season = (SELECT MAX(season) FROM nfl_bye_weeks)`;
+
   async findAll(limit: number = 1000, offset: number = 0): Promise<Player[]> {
     const result = await this.db.query(
-      'SELECT * FROM players ORDER BY full_name LIMIT $1 OFFSET $2',
+      `SELECT p.*, bw.bye_week FROM players p ${this.byeWeekJoin} ORDER BY p.full_name LIMIT $1 OFFSET $2`,
       [limit, offset]
     );
     return result.rows.map(Player.fromDatabase);
   }
 
   async findById(id: string): Promise<Player | null> {
-    const result = await this.db.query('SELECT * FROM players WHERE id = $1', [id]);
+    const result = await this.db.query(
+      `SELECT p.*, bw.bye_week FROM players p ${this.byeWeekJoin} WHERE p.id = $1`,
+      [id]
+    );
     return result.rows.length > 0 ? Player.fromDatabase(result.rows[0]) : null;
   }
 
   async search(query: string, limit: number = 50): Promise<Player[]> {
     const result = await this.db.query(
-      `SELECT * FROM players
-       WHERE full_name ILIKE $1 OR last_name ILIKE $1
-       ORDER BY full_name
+      `SELECT p.*, bw.bye_week FROM players p
+       ${this.byeWeekJoin}
+       WHERE p.full_name ILIKE $1 OR p.last_name ILIKE $1
+       ORDER BY p.full_name
        LIMIT $2`,
       [`%${query}%`, limit]
     );
@@ -31,7 +37,7 @@ export class PlayerRepository {
 
   async findByPosition(position: string): Promise<Player[]> {
     const result = await this.db.query(
-      'SELECT * FROM players WHERE position = $1 ORDER BY full_name',
+      `SELECT p.*, bw.bye_week FROM players p ${this.byeWeekJoin} WHERE p.position = $1 ORDER BY p.full_name`,
       [position]
     );
     return result.rows.map(Player.fromDatabase);
@@ -39,7 +45,7 @@ export class PlayerRepository {
 
   async findByTeam(team: string): Promise<Player[]> {
     const result = await this.db.query(
-      'SELECT * FROM players WHERE team = $1 ORDER BY position, full_name',
+      `SELECT p.*, bw.bye_week FROM players p ${this.byeWeekJoin} WHERE p.team = $1 ORDER BY p.position, p.full_name`,
       [team]
     );
     return result.rows.map(Player.fromDatabase);
@@ -103,7 +109,7 @@ export class PlayerRepository {
   async findByIds(ids: string[]): Promise<Player[]> {
     if (ids.length === 0) return [];
     const result = await this.db.query(
-      'SELECT * FROM players WHERE id = ANY($1)',
+      `SELECT p.*, bw.bye_week FROM players p ${this.byeWeekJoin} WHERE p.id = ANY($1)`,
       [ids],
     );
     return result.rows.map(Player.fromDatabase);
@@ -111,8 +117,9 @@ export class PlayerRepository {
 
   async findByExternalId(provider: string, externalId: string): Promise<Player | null> {
     const result = await this.db.query(
-      `SELECT p.* FROM players p
+      `SELECT p.*, bw.bye_week FROM players p
        JOIN player_external_ids e ON p.id = e.player_id
+       ${this.byeWeekJoin}
        WHERE e.provider = $1 AND e.external_id = $2`,
       [provider, externalId]
     );

@@ -17,6 +17,7 @@ export class Player {
     public readonly jerseyNumber: number | null,
     public readonly searchRank: number | null,
     public readonly auctionValue: number | null,
+    public readonly byeWeek: number | null,
     public readonly createdAt: Date,
     public readonly updatedAt: Date
   ) {}
@@ -37,6 +38,7 @@ export class Player {
       row.jersey_number,
       row.search_rank ?? null,
       row.auction_value ?? null,
+      row.bye_week ?? null,
       new Date(row.created_at),
       new Date(row.updated_at)
     );
@@ -58,6 +60,7 @@ export class Player {
       jersey_number: this.jerseyNumber,
       search_rank: this.searchRank,
       auction_value: this.auctionValue,
+      bye_week: this.byeWeek,
       created_at: this.createdAt.toISOString(),
       updated_at: this.updatedAt.toISOString(),
     };

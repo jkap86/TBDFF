@@ -151,4 +151,30 @@ export class ScoringRepository {
 
     return totalUpserted;
   }
+
+  // --- Bye Weeks ---
+
+  async upsertByeWeeks(
+    rows: Array<{ season: string; team: string; byeWeek: number }>,
+  ): Promise<number> {
+    if (rows.length === 0) return 0;
+
+    const values: any[] = [];
+    const placeholders: string[] = [];
+
+    rows.forEach((row, idx) => {
+      const offset = idx * 3;
+      placeholders.push(`($${offset + 1}, $${offset + 2}, $${offset + 3})`);
+      values.push(row.season, row.team, row.byeWeek);
+    });
+
+    const result = await this.db.query(
+      `INSERT INTO nfl_bye_weeks (season, team, bye_week)
+       VALUES ${placeholders.join(', ')}
+       ON CONFLICT (season, team) DO UPDATE SET
+         bye_week = EXCLUDED.bye_week`,
+      values,
+    );
+    return result.rowCount ?? 0;
+  }
 }

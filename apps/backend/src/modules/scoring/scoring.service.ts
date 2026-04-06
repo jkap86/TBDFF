@@ -107,6 +107,48 @@ export class ScoringService {
     return { season: state.season, week: state.week, seasonType: state.seasonType };
   }
 
+  async syncByeWeeks(season: string): Promise<number> {
+    // Fetch game schedule for weeks 5-14 (typical bye week range) to determine bye weeks
+    const teamWeeks = new Map<string, Set<number>>();
+
+    for (let week = 5; week <= 14; week++) {
+      const games = await this.statsProvider
+        .fetchGameSchedule(season, week, 'regular')
+        .catch(() => []);
+
+      for (const game of games) {
+        const meta = game.metadata || {};
+        const teams: string[] = [];
+        if (meta.home_team) teams.push(meta.home_team);
+        if (meta.away_team) teams.push(meta.away_team);
+        // Fallback: parse game_id (e.g. "BUF_KC")
+        if (teams.length === 0 && game.gameId) {
+          const parts = game.gameId.split('_');
+          for (const part of parts) {
+            if (/^[A-Z]{2,3}$/.test(part)) teams.push(part);
+          }
+        }
+        for (const team of teams) {
+          if (!teamWeeks.has(team)) teamWeeks.set(team, new Set());
+          teamWeeks.get(team)!.add(week);
+        }
+      }
+    }
+
+    // For each team, find the week in 5-14 where they don't play
+    const rows: Array<{ season: string; team: string; byeWeek: number }> = [];
+    for (const [team, weeks] of teamWeeks) {
+      for (let week = 5; week <= 14; week++) {
+        if (!weeks.has(week)) {
+          rows.push({ season, team, byeWeek: week });
+          break;
+        }
+      }
+    }
+
+    return this.scoringRepository.upsertByeWeeks(rows);
+  }
+
   // --- Read operations (API endpoints) ---
 
   async getLeaguePlayerScores(
