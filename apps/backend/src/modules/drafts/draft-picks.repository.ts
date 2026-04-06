@@ -364,6 +364,10 @@ export class DraftPicksRepository {
         SELECT dp.player_id FROM draft_picks dp
         WHERE dp.draft_id = $1 AND dp.player_id IS NOT NULL
       )`,
+      `p.id::text NOT IN (
+        SELECT al.player_id::text FROM auction_lots al
+        WHERE al.draft_id = $1 AND al.status = 'active'
+      )`,
     ];
 
     if (options.playerType === 1) {

@@ -3,6 +3,7 @@ export const draftTypeLabels: Record<string, string> = {
   linear: 'Linear',
   '3rr': '3rd Round Reversal',
   auction: 'Auction',
+  slow_auction: 'Slow Auction',
 };
 
 export const statusColors: Record<string, string> = {

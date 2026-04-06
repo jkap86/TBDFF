@@ -11,6 +11,10 @@ export function useLeagueQuery(leagueId: string) {
     queryFn: () => leagueApi.getById(leagueId, accessToken!),
     enabled: !!accessToken,
     select: (data) => data.league,
+    refetchInterval: (query) => {
+      const status = (query.state.data as any)?.league?.status;
+      return status === 'offseason' ? 30000 : false;
+    },
   });
 }
 

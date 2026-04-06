@@ -7,6 +7,7 @@ import { DraftQueue } from './DraftQueue';
 interface DraftSidebarProps {
   draftId: string;
   draftedPlayerIds: Set<string>;
+  activeLotPlayerIds?: Set<string>;
   queue: DraftQueueItem[];
   sidebarTab: 'queue' | 'players';
   onTabChange: (tab: 'queue' | 'players') => void;
@@ -29,6 +30,7 @@ interface DraftSidebarProps {
 export function DraftSidebar({
   draftId,
   draftedPlayerIds,
+  activeLotPlayerIds,
   queue,
   sidebarTab,
   onTabChange,
@@ -76,6 +78,7 @@ export function DraftSidebar({
           <BestAvailablePlayers
             draftId={draftId}
             draftedPlayerIds={draftedPlayerIds}
+            activeLotPlayerIds={activeLotPlayerIds}
             queuedPlayerIds={new Set(queue.map((q) => q.player_id))}
             onAdd={onAdd}
             onDraft={onDraft}

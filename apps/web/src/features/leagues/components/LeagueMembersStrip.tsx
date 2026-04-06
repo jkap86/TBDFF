@@ -27,7 +27,7 @@ export function LeagueMembersStrip({
   const emptyRosters = rosters.filter((r) => !r.owner_id);
 
   return (
-    <div className="flex items-center gap-2 overflow-x-auto py-1">
+    <div className="flex items-center gap-2 overflow-x-auto p-1">
       {activeMembers.map((member, i) => {
         const initial = (member.display_name || member.username).charAt(0).toUpperCase();
         const isMe = member.user_id === currentUserId;

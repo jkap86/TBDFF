@@ -12,6 +12,7 @@ interface BestAvailablePlayersProps {
   draftId: string;
   draftedPlayerIds: Set<string>;
   queuedPlayerIds: Set<string>;
+  activeLotPlayerIds?: Set<string>;
   onAdd: (playerId: string) => void;
   onDraft?: (playerId: string) => void;
   isMyTurn?: boolean;
@@ -25,6 +26,7 @@ export function BestAvailablePlayers({
   draftId,
   draftedPlayerIds,
   queuedPlayerIds,
+  activeLotPlayerIds,
   onAdd,
   onDraft,
   isMyTurn = false,
@@ -97,6 +99,16 @@ export function BestAvailablePlayers({
       fetchPlayers(true);
     }
   }, [draftedPlayerIds.size]);
+
+  // Refresh when active lots change (player nominated or lot closed)
+  const activeLotCountRef = useRef(activeLotPlayerIds?.size ?? 0);
+  useEffect(() => {
+    const size = activeLotPlayerIds?.size ?? 0;
+    if (size !== activeLotCountRef.current) {
+      activeLotCountRef.current = size;
+      fetchPlayers(true);
+    }
+  }, [activeLotPlayerIds?.size]);
 
   const handleScroll = () => {
     const el = scrollRef.current;

@@ -182,19 +182,21 @@ export function LeagueDraftsCard({
                     <p className="text-sm text-muted-foreground">Rounds</p>
                     <p className="font-medium text-foreground">{draft.settings.rounds}</p>
                   </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">Pick Timer</p>
-                    <p className="font-medium text-foreground">
-                      {(() => {
-                        const t = draft.settings.pick_timer;
-                        if (t === 0) return 'Off';
-                        const h = Math.floor(t / 3600);
-                        const m = Math.floor((t % 3600) / 60);
-                        const s = t % 60;
-                        return h > 0 ? `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}` : m > 0 ? `${m}:${String(s).padStart(2, '0')}` : `0:${String(s).padStart(2, '0')}`;
-                      })()}
-                    </p>
-                  </div>
+                  {draft.type !== 'auction' && draft.type !== 'slow_auction' && (
+                    <div>
+                      <p className="text-sm text-muted-foreground">Pick Timer</p>
+                      <p className="font-medium text-foreground">
+                        {(() => {
+                          const t = draft.settings.pick_timer;
+                          if (t === 0) return 'Off';
+                          const h = Math.floor(t / 3600);
+                          const m = Math.floor((t % 3600) / 60);
+                          const s = t % 60;
+                          return h > 0 ? `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}` : m > 0 ? `${m}:${String(s).padStart(2, '0')}` : `0:${String(s).padStart(2, '0')}`;
+                        })()}
+                      </p>
+                    </div>
+                  )}
                 </div>
 
                 <div className="flex gap-3">

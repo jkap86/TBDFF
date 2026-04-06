@@ -85,6 +85,9 @@ export default function DraftRoomPage() {
       isMyTurn: room.userRosterId !== undefined,
       isPicking: room.isNominating,
       actionLabel: 'Nominate',
+      activeLotPlayerIds: new Set(
+        room.slowAuctionLots.filter((l) => l.status === 'active').map((l) => l.player_id)
+      ),
     } : {
       onDraft: room.handleMakePick,
       isMyTurn: !!room.isMyTurn && !room.isDraftStopped,

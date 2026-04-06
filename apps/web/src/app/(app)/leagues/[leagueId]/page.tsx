@@ -196,6 +196,9 @@ export default function LeagueDetailPage() {
     const handleStateUpdate = (data: { draft: any; server_time?: string }) => {
       if (data.draft) {
         updateDraftsCache((prev) => prev.map((d) => (d.id === data.draft.id ? data.draft : d)));
+        if (data.draft.status === 'complete') {
+          queryClient.invalidateQueries({ queryKey: ['league', leagueId] });
+        }
       }
     };
 
