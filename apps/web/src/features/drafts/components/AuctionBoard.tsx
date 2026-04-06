@@ -154,6 +154,14 @@ export function AuctionBoard({ draft, picks, members, rosters, currentUserId, ro
     const resolvedUserId = userId || (rosters.find((r) => r.roster_id === rosterId)?.owner_id ?? '');
     if (resolvedUserId) rosterToUserId[rosterId] = resolvedUserId;
   }
+  // Fill in any rosters not in slot_to_roster_id (pre-randomization fallback)
+  for (const roster of rosters) {
+    if (!rosterToUser[roster.roster_id]) {
+      const member = roster.owner_id ? members.find((m) => m.user_id === roster.owner_id) : null;
+      rosterToUser[roster.roster_id] = member?.display_name || member?.username || `Team ${roster.roster_id}`;
+      if (roster.owner_id) rosterToUserId[roster.roster_id] = roster.owner_id;
+    }
+  }
 
   // Find who the current bidder is
   const currentBidderName = nomination
@@ -173,19 +181,32 @@ export function AuctionBoard({ draft, picks, members, rosters, currentUserId, ro
 
   // Teams sorted by draft slot (nomination order) — includes unfilled slots
   const teamsInOrder = useMemo(() => {
-    const draftOrder = draft.draft_order ?? {};
-    const slotToUserIdLocal: Record<number, string> = {};
-    for (const [userId, slot] of Object.entries(draftOrder) as [string, number][]) {
-      slotToUserIdLocal[slot] = userId;
+    const s2r = draft.slot_to_roster_id ?? {};
+    if (Object.keys(s2r).length > 0) {
+      // Order already set — use it
+      const draftOrder = draft.draft_order ?? {};
+      const slotToUserIdLocal: Record<number, string> = {};
+      for (const [userId, slot] of Object.entries(draftOrder) as [string, number][]) {
+        slotToUserIdLocal[slot] = userId;
+      }
+      return Object.entries(s2r)
+        .sort(([a], [b]) => Number(a) - Number(b))
+        .map(([slotStr, rosterId]) => {
+          const slot = Number(slotStr);
+          const userId = slotToUserIdLocal[slot] ?? '';
+          return { userId, slot, rosterId };
+        });
     }
-    return Object.entries(draft.slot_to_roster_id ?? {})
-      .sort(([a], [b]) => Number(a) - Number(b))
-      .map(([slotStr, rosterId]) => {
-        const slot = Number(slotStr);
-        const userId = slotToUserIdLocal[slot] ?? '';
-        return { userId, slot, rosterId };
-      });
-  }, [draft.draft_order, draft.slot_to_roster_id]);
+    // No order yet — default: rosters sorted by roster_id
+    return rosters
+      .slice()
+      .sort((a, b) => a.roster_id - b.roster_id)
+      .map((r, i) => ({
+        userId: r.owner_id ?? '',
+        slot: i + 1,
+        rosterId: r.roster_id,
+      }));
+  }, [draft.draft_order, draft.slot_to_roster_id, rosters]);
 
   // Build per-team pick lists
   const teamPicksMap = useMemo(() => {
