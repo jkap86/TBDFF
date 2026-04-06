@@ -234,7 +234,7 @@ export default function LeagueDetailPage() {
   }
 
   return (
-    <div className="min-h-screen bg-surface p-6">
+    <div className="min-h-screen overflow-x-hidden bg-surface p-6">
       <div className="mx-auto max-w-6xl space-y-6">
         <LeagueActionBanner
           league={league}
@@ -259,7 +259,7 @@ export default function LeagueDetailPage() {
 
         <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
           {/* Primary column: Drafts & Matchups */}
-          <div className="space-y-6">
+          <div className="min-w-0 space-y-6">
             <LeagueDraftsCard
               league={league}
               leagueId={leagueId}
@@ -295,7 +295,7 @@ export default function LeagueDetailPage() {
           </div>
 
           {/* Sidebar: Members & Dues */}
-          <div className="space-y-6">
+          <div className="min-w-0 space-y-6">
             <LeagueMembersStrip
               members={members}
               rosters={rosters}
