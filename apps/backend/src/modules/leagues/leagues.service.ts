@@ -262,8 +262,8 @@ export class LeagueService {
       }
     }
 
-    // Sync drafts if draft_setup changed
-    if (data.settings?.draft_setup !== undefined) {
+    // Sync drafts if draft_setup actually changed
+    if (data.settings?.draft_setup !== undefined && data.settings.draft_setup !== league.settings.draft_setup) {
       await this.syncLeagueDrafts(leagueId, userId, updated, updated.settings.draft_setup ?? 0);
     }
 
@@ -356,9 +356,13 @@ export class LeagueService {
     // Create missing drafts
     let firstCreatedId: string | null = null;
     for (const config of desired) {
-      const alreadyExists = preDraftDrafts.some(
-        (d) => d.settings.player_type === config.player_type && matched.has(d.id),
-      );
+      const alreadyExists =
+        preDraftDrafts.some(
+          (d) => d.settings.player_type === config.player_type && matched.has(d.id),
+        ) ||
+        allDrafts.some(
+          (d) => d.status !== 'pre_draft' && d.settings.player_type === config.player_type,
+        );
       if (!alreadyExists) {
         const draft = await this.draftRepository.create({
           leagueId,
