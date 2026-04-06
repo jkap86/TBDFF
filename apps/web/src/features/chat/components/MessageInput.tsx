@@ -2,20 +2,34 @@
 
 import { useRef, useState, type KeyboardEvent } from 'react';
 import { Send } from 'lucide-react';
+import type { ConnectionStatus } from '../context/SocketProvider';
 
 interface Props {
   onSend: (content: string) => void;
+  onTyping?: () => void;
   disabled?: boolean;
   placeholder?: string;
+  connectionStatus?: ConnectionStatus;
+  socketError?: string | null;
 }
 
-export function MessageInput({ onSend, disabled, placeholder = 'Type a message...' }: Props) {
+export function MessageInput({
+  onSend,
+  onTyping,
+  disabled,
+  placeholder = 'Type a message...',
+  connectionStatus,
+  socketError,
+}: Props) {
   const [value, setValue] = useState('');
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
+  const isDisconnected = connectionStatus !== undefined && connectionStatus !== 'connected';
+  const isDisabled = disabled || isDisconnected;
+
   const handleSend = () => {
     const trimmed = value.trim();
-    if (!trimmed) return;
+    if (!trimmed || isDisabled) return;
     onSend(trimmed);
     setValue('');
     if (textareaRef.current) {
@@ -32,32 +46,42 @@ export function MessageInput({ onSend, disabled, placeholder = 'Type a message..
 
   const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setValue(e.target.value);
+    onTyping?.();
     const el = e.target;
     el.style.height = 'auto';
     el.style.height = `${Math.min(el.scrollHeight, 120)}px`;
   };
 
+  const effectivePlaceholder = isDisconnected ? 'Reconnecting...' : placeholder;
+
   return (
-    <div className="flex items-end gap-2 border-t border-border bg-background/40 p-3 shadow-[0_-2px_4px_rgba(0,0,0,0.15)]">
-      <textarea
-        ref={textareaRef}
-        value={value}
-        onChange={handleChange}
-        onKeyDown={handleKeyDown}
-        disabled={disabled}
-        placeholder={placeholder}
-        maxLength={1000}
-        rows={1}
-        className="flex-1 resize-none rounded-lg border border-input bg-card px-3 py-2 text-sm text-foreground placeholder-disabled focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-50"
-      />
-      <button
-        onClick={handleSend}
-        disabled={disabled || !value.trim()}
-        aria-label="Send message"
-        className="rounded-lg bg-primary p-2 text-primary-foreground hover:bg-primary-hover disabled:cursor-not-allowed disabled:opacity-50"
-      >
-        <Send className="h-4 w-4" />
-      </button>
+    <div className="shrink-0 border-t border-border bg-background/40 shadow-[0_-2px_4px_rgba(0,0,0,0.15)]">
+      {socketError && (
+        <div className="px-3 py-1.5 text-xs text-destructive-foreground bg-destructive/10 border-b border-border">
+          {socketError}
+        </div>
+      )}
+      <div className="flex items-end gap-2 p-3">
+        <textarea
+          ref={textareaRef}
+          value={value}
+          onChange={handleChange}
+          onKeyDown={handleKeyDown}
+          disabled={isDisabled}
+          placeholder={effectivePlaceholder}
+          maxLength={1000}
+          rows={1}
+          className="flex-1 resize-none rounded-lg border border-input bg-card px-3 py-2 text-sm text-foreground placeholder-disabled focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-50"
+        />
+        <button
+          onClick={handleSend}
+          disabled={isDisabled || !value.trim()}
+          aria-label="Send message"
+          className="rounded-lg bg-primary p-2 text-primary-foreground hover:bg-primary-hover disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          <Send className="h-4 w-4" />
+        </button>
+      </div>
     </div>
   );
 }

@@ -10,11 +10,12 @@ export const chatApi = {
   getLeagueMessages: (
     leagueId: string,
     token: string,
-    params?: { limit?: number; before?: string },
+    params?: { limit?: number; before?: string; after?: string },
   ) => {
     const search = new URLSearchParams();
     if (params?.limit !== undefined) search.set('limit', params.limit.toString());
     if (params?.before) search.set('before', params.before);
+    if (params?.after) search.set('after', params.after);
     const q = search.toString() ? `?${search.toString()}` : '';
     return apiClient.get<MessageListResponse>(`/leagues/${leagueId}/chat/messages${q}`, token);
   },
@@ -28,11 +29,12 @@ export const chatApi = {
   getConversationMessages: (
     conversationId: string,
     token: string,
-    params?: { limit?: number; before?: string },
+    params?: { limit?: number; before?: string; after?: string },
   ) => {
     const search = new URLSearchParams();
     if (params?.limit !== undefined) search.set('limit', params.limit.toString());
     if (params?.before) search.set('before', params.before);
+    if (params?.after) search.set('after', params.after);
     const q = search.toString() ? `?${search.toString()}` : '';
     return apiClient.get<MessageListResponse>(`/conversations/${conversationId}/messages${q}`, token);
   },

@@ -22,6 +22,7 @@ interface ServerToClientEvents {
   'chat:message': (message: ChatMessage) => void;
   'chat:error': (error: ChatErrorEvent) => void;
   'chat:joined': (data: ChatJoinedEvent) => void;
+  'chat:user_typing': (data: { username: string; roomType: 'league' | 'dm'; roomId: string }) => void;
   'draft:state_updated': (data: DraftStateUpdate) => void;
   'slow_auction:lot_created': (data: { lot: AuctionLot }) => void;
   'slow_auction:lot_updated': (data: { lot: AuctionLot }) => void;
@@ -49,6 +50,7 @@ interface ClientToServerEvents {
   'chat:join_dm': (conversationId: string) => void;
   'chat:leave_dm': (conversationId: string) => void;
   'chat:send': (payload: { type: 'league' | 'dm'; roomId: string; content: string }) => void;
+  'chat:typing': (payload: { type: 'league' | 'dm'; roomId: string }) => void;
   'draft:join': (draftId: string) => void;
   'draft:leave': (draftId: string) => void;
   'matchup_derby:join': (leagueId: string) => void;
@@ -68,6 +70,7 @@ interface SocketContextValue {
   joinDM: (conversationId: string) => void;
   leaveDM: (conversationId: string) => void;
   sendMessage: (type: 'league' | 'dm', roomId: string, content: string) => void;
+  emitTyping: (type: 'league' | 'dm', roomId: string) => void;
 }
 
 const SocketContext = createContext<SocketContextValue | null>(null);
@@ -163,6 +166,13 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
     [],
   );
 
+  const emitTyping = useCallback(
+    (type: 'league' | 'dm', roomId: string) => {
+      socketRef.current?.emit('chat:typing', { type, roomId });
+    },
+    [],
+  );
+
   return (
     <SocketContext.Provider
       value={{
@@ -174,6 +184,7 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
         joinDM,
         leaveDM,
         sendMessage,
+        emitTyping,
       }}
     >
       {children}

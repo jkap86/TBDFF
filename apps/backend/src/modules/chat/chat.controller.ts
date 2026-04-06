@@ -17,19 +17,21 @@ export class ChatController {
     if (!parsed.success) {
       throw new ValidationException(parsed.error.issues.map((e) => e.message).join(', '));
     }
-    const { limit, before } = parsed.data;
+    const { limit, before, after } = parsed.data;
 
     const messages = await this.chatService.getLeagueMessages(
       leagueId,
       userId,
       limit,
       before ?? null,
+      after ?? null,
     );
 
     res.status(200).json({
       messages: messages.map((m) => m.toSafeObject()),
       limit,
       before: before ?? null,
+      after: after ?? null,
     });
   };
 
@@ -62,19 +64,21 @@ export class ChatController {
     if (!parsed.success) {
       throw new ValidationException(parsed.error.issues.map((e) => e.message).join(', '));
     }
-    const { limit, before } = parsed.data;
+    const { limit, before, after } = parsed.data;
 
     const messages = await this.chatService.getConversationMessages(
       conversationId,
       userId,
       limit,
       before ?? null,
+      after ?? null,
     );
 
     res.status(200).json({
       messages: messages.map((m) => m.toSafeObject()),
       limit,
       before: before ?? null,
+      after: after ?? null,
     });
   };
 }

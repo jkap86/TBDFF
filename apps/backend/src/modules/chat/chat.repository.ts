@@ -25,6 +25,20 @@ export class ChatRepository {
     return result.rows.map(Message.fromDatabase);
   }
 
+  async findLeagueMessagesAfter(leagueId: string, limit: number, after: string): Promise<Message[]> {
+    const result = await this.db.query(
+      `SELECT m.*, u.display_username AS sender_username
+       FROM messages m
+       LEFT JOIN users u ON u.id = m.sender_id
+       WHERE m.league_id = $1
+         AND m.created_at >= $3
+       ORDER BY m.created_at ASC
+       LIMIT $2`,
+      [leagueId, limit, after],
+    );
+    return result.rows.map(Message.fromDatabase);
+  }
+
   async findConversationMessages(conversationId: string, limit: number, before: string | null): Promise<Message[]> {
     const query = before
       ? `SELECT m.*, u.display_username AS sender_username
@@ -43,6 +57,20 @@ export class ChatRepository {
 
     const params = before ? [conversationId, limit, before] : [conversationId, limit];
     const result = await this.db.query(query, params);
+    return result.rows.map(Message.fromDatabase);
+  }
+
+  async findConversationMessagesAfter(conversationId: string, limit: number, after: string): Promise<Message[]> {
+    const result = await this.db.query(
+      `SELECT m.*, u.display_username AS sender_username
+       FROM messages m
+       LEFT JOIN users u ON u.id = m.sender_id
+       WHERE m.conversation_id = $1
+         AND m.created_at >= $3
+       ORDER BY m.created_at ASC
+       LIMIT $2`,
+      [conversationId, limit, after],
+    );
     return result.rows.map(Message.fromDatabase);
   }
 

@@ -14,11 +14,15 @@ export class ChatService {
     userId: string,
     limit: number,
     before: string | null,
+    after?: string | null,
   ): Promise<Message[]> {
     const isMember = await this.chatRepository.isLeagueMember(leagueId, userId);
     if (!isMember) throw new ForbiddenException('You are not a member of this league');
 
     const clampedLimit = Math.min(Math.max(limit, 1), 100);
+    if (after) {
+      return this.chatRepository.findLeagueMessagesAfter(leagueId, clampedLimit, after);
+    }
     return this.chatRepository.findLeagueMessages(leagueId, clampedLimit, before);
   }
 
@@ -27,6 +31,7 @@ export class ChatService {
     userId: string,
     limit: number,
     before: string | null,
+    after?: string | null,
   ): Promise<Message[]> {
     const conversation = await this.chatRepository.findConversationById(conversationId);
     if (!conversation) throw new NotFoundException('Conversation not found');
@@ -36,6 +41,9 @@ export class ChatService {
     }
 
     const clampedLimit = Math.min(Math.max(limit, 1), 100);
+    if (after) {
+      return this.chatRepository.findConversationMessagesAfter(conversationId, clampedLimit, after);
+    }
     return this.chatRepository.findConversationMessages(conversationId, clampedLimit, before);
   }
 

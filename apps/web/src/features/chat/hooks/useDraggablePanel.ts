@@ -13,6 +13,8 @@ interface UseDraggablePanelReturn {
   panelRect: PanelRect;
   isDragging: boolean;
   isResizing: boolean;
+  isMaximized: boolean;
+  toggleMaximize: () => void;
   handleDragPointerDown: (e: React.PointerEvent) => void;
   handleResizePointerDown: (e: React.PointerEvent) => void;
 }
@@ -64,12 +66,28 @@ function saveToStorage(rect: PanelRect): void {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(rect));
 }
 
+const MAXIMIZED_PADDING = 8;
+
+function getMaximizedRect(): PanelRect {
+  if (typeof window === 'undefined') {
+    return { x: 0, y: 0, width: 800, height: 600 };
+  }
+  return {
+    x: MAXIMIZED_PADDING,
+    y: MAXIMIZED_PADDING,
+    width: window.innerWidth - MAXIMIZED_PADDING * 2,
+    height: window.innerHeight - MAXIMIZED_PADDING * 2,
+  };
+}
+
 export function useDraggablePanel(isOpen: boolean): UseDraggablePanelReturn {
   const [panelRect, setPanelRect] = useState<PanelRect>(getDefaultRect);
   const [isDragging, setIsDragging] = useState(false);
   const [isResizing, setIsResizing] = useState(false);
+  const [isMaximized, setIsMaximized] = useState(false);
 
   const rectRef = useRef<PanelRect>(panelRect);
+  const preMaxRectRef = useRef<PanelRect | null>(null);
   const dragStartRef = useRef<{
     pointerX: number;
     pointerY: number;
@@ -128,9 +146,31 @@ export function useDraggablePanel(isOpen: boolean): UseDraggablePanelReturn {
     };
   }, [isDragging, isResizing]);
 
+  const toggleMaximize = useCallback(() => {
+    if (isMaximized) {
+      // Restore to previous size
+      const restored = preMaxRectRef.current
+        ? clampToViewport(preMaxRectRef.current)
+        : getDefaultRect();
+      rectRef.current = restored;
+      setPanelRect(restored);
+      saveToStorage(restored);
+      setIsMaximized(false);
+    } else {
+      // Save current rect then maximize
+      preMaxRectRef.current = { ...rectRef.current };
+      const maxRect = getMaximizedRect();
+      rectRef.current = maxRect;
+      setPanelRect(maxRect);
+      setIsMaximized(true);
+    }
+  }, [isMaximized]);
+
   const handleDragPointerDown = useCallback((e: React.PointerEvent) => {
     e.preventDefault();
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+
+    if (isMaximized) setIsMaximized(false);
 
     dragStartRef.current = {
       pointerX: e.clientX,
@@ -178,6 +218,8 @@ export function useDraggablePanel(isOpen: boolean): UseDraggablePanelReturn {
     e.stopPropagation();
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
 
+    if (isMaximized) setIsMaximized(false);
+
     resizeStartRef.current = {
       pointerX: e.clientX,
       pointerY: e.clientY,
@@ -221,6 +263,8 @@ export function useDraggablePanel(isOpen: boolean): UseDraggablePanelReturn {
     panelRect,
     isDragging,
     isResizing,
+    isMaximized,
+    toggleMaximize,
     handleDragPointerDown,
     handleResizePointerDown,
   };

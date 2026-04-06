@@ -11,7 +11,19 @@ interface Props {
 
 export function LeagueChat({ leagueId }: Props) {
   const { user } = useAuth();
-  const { messages, isLoading, error, hasMore, send, loadMore } = useLeagueChat(leagueId);
+  const {
+    messages,
+    isLoading,
+    error,
+    hasMore,
+    send,
+    loadMore,
+    socketError,
+    connectionStatus,
+    typingUsers,
+    handleTyping,
+    jumpToDate,
+  } = useLeagueChat(leagueId);
 
   if (isLoading) {
     return (
@@ -30,16 +42,24 @@ export function LeagueChat({ leagueId }: Props) {
   }
 
   return (
-    <div className="flex h-full flex-col">
-      <div className="flex-1 overflow-hidden">
+    <div className="flex min-h-0 flex-1 flex-col">
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
         <MessageList
           messages={messages}
           currentUserId={user?.id ?? ''}
           onLoadMore={loadMore}
           hasMore={hasMore}
+          typingUsers={typingUsers}
+          onJumpToDate={jumpToDate}
         />
       </div>
-      <MessageInput onSend={send} placeholder="Message the league..." />
+      <MessageInput
+        onSend={send}
+        onTyping={handleTyping}
+        placeholder="Message the league..."
+        connectionStatus={connectionStatus}
+        socketError={socketError}
+      />
     </div>
   );
 }

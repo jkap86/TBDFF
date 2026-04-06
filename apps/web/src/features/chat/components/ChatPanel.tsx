@@ -1,12 +1,27 @@
 'use client';
 
-import { ChevronLeft, MessageSquare, X } from 'lucide-react';
+import { ChevronLeft, Maximize2, MessageSquare, Minimize2, X } from 'lucide-react';
 import { useConversations } from '../hooks/useConversations';
 import { useDraggablePanel } from '../hooks/useDraggablePanel';
 import { useChatPanel } from '../context/ChatPanelContext';
 import { ConversationList } from './ConversationList';
 import { DMConversation } from './DMConversation';
 import { LeagueChat } from './LeagueChat';
+
+function Badge({ count }: { count: number }) {
+  if (count <= 0) return null;
+  const display = count > 99 ? '99+' : String(count);
+  return (
+    <span className="absolute -right-1.5 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-neon-rose px-1 text-[10px] font-bold leading-none text-white">
+      {display}
+    </span>
+  );
+}
+
+function TabDot({ show }: { show: boolean }) {
+  if (!show) return null;
+  return <span className="ml-1.5 inline-block h-1.5 w-1.5 rounded-full bg-neon-rose" />;
+}
 
 export function ChatPanel() {
   const {
@@ -18,10 +33,14 @@ export function ChatPanel() {
     openPanel,
     closePanel,
     setActiveConversation,
+    unreadLeague,
+    unreadDM,
   } = useChatPanel();
   const { conversations, isLoading, startConversation } = useConversations();
-  const { panelRect, isDragging, handleDragPointerDown, handleResizePointerDown } =
+  const { panelRect, isDragging, isMaximized, toggleMaximize, handleDragPointerDown, handleResizePointerDown } =
     useDraggablePanel(isOpen);
+
+  const totalUnread = unreadLeague + unreadDM;
 
   const handleSelect = (conversationId: string) => {
     const conv = conversations.find((c) => c.id === conversationId);
@@ -65,7 +84,10 @@ export function ChatPanel() {
         aria-label="Open messages"
         className="fixed bottom-6 right-6 z-50 flex h-12 w-12 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg hover:bg-primary-hover focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
       >
-        <MessageSquare className="h-5 w-5" />
+        <span className="relative">
+          <MessageSquare className="h-5 w-5" />
+          <Badge count={totalUnread} />
+        </span>
       </button>
 
       {/* Panel */}
@@ -78,6 +100,7 @@ export function ChatPanel() {
             width: panelRect.width,
             height: panelRect.height,
           }}
+          onWheel={(e) => e.stopPropagation()}
         >
           {/* Header — drag handle */}
           <div
@@ -108,14 +131,24 @@ export function ChatPanel() {
                 {headerTitle}
               </span>
             )}
-            <button
-              onClick={closePanel}
-              onPointerDown={(e) => e.stopPropagation()}
-              className="rounded p-0.5 text-muted-foreground hover:text-accent-foreground"
-              aria-label="Close messages"
-            >
-              <X className="h-5 w-5" />
-            </button>
+            <div className="flex items-center gap-1">
+              <button
+                onClick={toggleMaximize}
+                onPointerDown={(e) => e.stopPropagation()}
+                className="rounded p-0.5 text-muted-foreground hover:text-accent-foreground"
+                aria-label={isMaximized ? 'Restore panel size' : 'Maximize panel'}
+              >
+                {isMaximized ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
+              </button>
+              <button
+                onClick={closePanel}
+                onPointerDown={(e) => e.stopPropagation()}
+                className="rounded p-0.5 text-muted-foreground hover:text-accent-foreground"
+                aria-label="Close messages"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
           </div>
 
           {/* Tabs */}
@@ -123,23 +156,25 @@ export function ChatPanel() {
             <div className="flex shrink-0 border-b border-border bg-background/40 shadow-[0_2px_4px_rgba(0,0,0,0.15)]">
               <button
                 onClick={() => setActiveTab('league')}
-                className={`flex-1 py-2 text-center text-sm font-medium transition-colors ${
+                className={`flex flex-1 items-center justify-center py-2 text-sm font-medium transition-colors ${
                   activeTab === 'league'
                     ? 'border-b-2 border-primary text-primary'
                     : 'text-muted-foreground hover:text-accent-foreground'
                 }`}
               >
                 League Chat
+                {activeTab !== 'league' && <TabDot show={unreadLeague > 0} />}
               </button>
               <button
                 onClick={() => setActiveTab('dms')}
-                className={`flex-1 py-2 text-center text-sm font-medium transition-colors ${
+                className={`flex flex-1 items-center justify-center py-2 text-sm font-medium transition-colors ${
                   activeTab === 'dms'
                     ? 'border-b-2 border-primary text-primary'
                     : 'text-muted-foreground hover:text-accent-foreground'
                 }`}
               >
                 DMs
+                {activeTab !== 'dms' && <TabDot show={unreadDM > 0} />}
               </button>
             </div>
           )}
@@ -148,13 +183,13 @@ export function ChatPanel() {
           <div className="flex flex-1 overflow-hidden shadow-[inset_0_2px_8px_rgba(0,0,0,0.2)]">
             {/* League Chat tab */}
             {leagueId && (
-              <div className={`w-full ${activeTab === 'league' ? 'flex flex-col' : 'hidden'}`}>
+              <div className={`min-h-0 w-full ${activeTab === 'league' ? 'flex flex-1 flex-col overflow-hidden' : 'hidden'}`}>
                 <LeagueChat leagueId={leagueId} />
               </div>
             )}
 
             {/* DMs tab */}
-            <div className={`w-full ${activeTab === 'dms' ? 'flex flex-col' : 'hidden'}`}>
+            <div className={`min-h-0 w-full ${activeTab === 'dms' ? 'flex flex-1 flex-col overflow-hidden' : 'hidden'}`}>
               {activeConversation ? (
                 <DMConversation conversationId={activeConversation.id} />
               ) : (

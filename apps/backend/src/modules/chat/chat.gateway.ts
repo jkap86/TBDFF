@@ -8,6 +8,7 @@ interface ServerToClientEvents {
   'chat:message': (message: Record<string, unknown>) => void;
   'chat:error': (error: { message: string }) => void;
   'chat:joined': (data: { type: string; roomId: string }) => void;
+  'chat:user_typing': (data: { username: string; roomType: 'league' | 'dm'; roomId: string }) => void;
 }
 
 interface ClientToServerEvents {
@@ -16,6 +17,7 @@ interface ClientToServerEvents {
   'chat:join_dm': (conversationId: string) => void;
   'chat:leave_dm': (conversationId: string) => void;
   'chat:send': (payload: { type: 'league' | 'dm'; roomId: string; content: string }) => void;
+  'chat:typing': (payload: { type: 'league' | 'dm'; roomId: string }) => void;
 }
 
 interface SocketData {
@@ -172,6 +174,25 @@ export function createChatGateway(
       } catch (err: unknown) {
         const message = err instanceof Error ? err.message : 'Failed to send message';
         socket.emit('chat:error', { message });
+      }
+    });
+
+    // Client is typing — relay to room (exclude sender)
+    socket.on('chat:typing', (payload) => {
+      if (!payload || !payload.roomId || !payload.type) return;
+      const { username } = socket.data;
+      if (payload.type === 'league') {
+        socket.to(`league:${payload.roomId}`).emit('chat:user_typing', {
+          username,
+          roomType: 'league',
+          roomId: payload.roomId,
+        });
+      } else if (payload.type === 'dm') {
+        socket.to(`dm:${payload.roomId}`).emit('chat:user_typing', {
+          username,
+          roomType: 'dm',
+          roomId: payload.roomId,
+        });
       }
     });
 

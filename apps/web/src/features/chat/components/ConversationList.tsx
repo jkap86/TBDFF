@@ -74,7 +74,7 @@ export function ConversationList({ conversations, isLoading, onSelect, onStartCo
           </p>
         </div>
       ) : (
-        <div className="flex-1 overflow-y-auto">
+        <div className="flex-1 overflow-y-auto overscroll-contain">
           {conversations.map((c) => {
             const lastMsgTime = c.last_message_at
               ? new Date(c.last_message_at).toLocaleDateString([], {
