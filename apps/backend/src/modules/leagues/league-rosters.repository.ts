@@ -1,5 +1,6 @@
 import { Pool, PoolClient } from 'pg';
 import { LeagueMember, Roster } from './leagues.model';
+import { ConflictException, NotFoundException } from '../../shared/exceptions';
 
 export class LeagueRostersRepository {
   constructor(private readonly db: Pool) {}
@@ -113,12 +114,35 @@ export class LeagueRostersRepository {
     userId: string,
   ): Promise<{ roster: Roster; member: LeagueMember }> {
     return this.withTransaction(async (client) => {
+      // Lock the target roster row to prevent concurrent assignment races
+      const lockResult = await client.query(
+        `SELECT owner_id FROM rosters WHERE league_id = $1 AND roster_id = $2 FOR UPDATE`,
+        [leagueId, rosterId]
+      );
+      if (lockResult.rows.length === 0) {
+        throw new NotFoundException('Roster not found');
+      }
+      if (lockResult.rows[0].owner_id !== null) {
+        throw new ConflictException('Roster is already assigned');
+      }
+
+      // Re-check inside the transaction that the user does not already own a roster
+      const existing = await client.query(
+        `SELECT 1 FROM rosters WHERE league_id = $1 AND owner_id = $2 FOR UPDATE`,
+        [leagueId, userId]
+      );
+      if (existing.rows.length > 0) {
+        throw new ConflictException('User is already assigned to a roster');
+      }
+
       const rosterResult = await client.query(
-        `UPDATE rosters SET owner_id = $1 WHERE league_id = $2 AND roster_id = $3 RETURNING *`,
+        `UPDATE rosters SET owner_id = $1
+         WHERE league_id = $2 AND roster_id = $3 AND owner_id IS NULL
+         RETURNING *`,
         [userId, leagueId, rosterId]
       );
       if (rosterResult.rows.length === 0) {
-        throw new Error('Roster not found');
+        throw new ConflictException('Roster is already assigned');
       }
 
       await client.query(
