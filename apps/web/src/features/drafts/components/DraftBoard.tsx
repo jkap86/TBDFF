@@ -5,13 +5,20 @@ import type { Draft, DraftPick, LeagueMember, Roster } from '@/lib/api';
 
 function getPositionColor(position: string | undefined): string {
   switch (position) {
-    case 'QB': return 'rgba(239, 68, 68, 0.25)';
-    case 'RB': return 'rgba(34, 197, 94, 0.25)';
-    case 'WR': return 'rgba(59, 130, 246, 0.25)';
-    case 'TE': return 'rgba(249, 115, 22, 0.25)';
-    case 'K':  return 'rgba(168, 85, 247, 0.25)';
-    case 'DEF': return 'rgba(161, 98, 7, 0.25)';
-    default:   return 'hsl(var(--card))';
+    case 'QB':
+      return 'rgba(239, 68, 68, 0.25)';
+    case 'RB':
+      return 'rgba(34, 197, 94, 0.25)';
+    case 'WR':
+      return 'rgba(59, 130, 246, 0.25)';
+    case 'TE':
+      return 'rgba(249, 115, 22, 0.25)';
+    case 'K':
+      return 'rgba(168, 85, 247, 0.25)';
+    case 'DEF':
+      return 'rgba(161, 98, 7, 0.25)';
+    default:
+      return 'hsl(var(--card))';
   }
 }
 
@@ -21,6 +28,21 @@ interface DraftBoardProps {
   members: LeagueMember[];
   rosters: Roster[];
   currentUserId: string | undefined;
+}
+
+/** Returns true if the given round picks in reverse slot order (last team picks first). */
+function isRoundReversed(roundNum: number, draftType: string): boolean {
+  if (draftType === 'snake') return roundNum % 2 === 0;
+  if (draftType === '3rr') {
+    // Rounds 1-2: standard snake. Round 3 reverses again, then snake from there.
+    return roundNum <= 2 ? roundNum % 2 === 0 : roundNum % 2 === 1;
+  }
+  return false;
+}
+
+/** Position within the round (1..teams) for a given column slot, accounting for snake reversal. */
+function getPickInRound(roundNum: number, slot: number, teams: number, draftType: string): number {
+  return isRoundReversed(roundNum, draftType) ? teams - slot + 1 : slot;
 }
 
 export function DraftBoard({ draft, picks, members, rosters, currentUserId }: DraftBoardProps) {
@@ -50,7 +72,8 @@ export function DraftBoard({ draft, picks, members, rosters, currentUserId }: Dr
   // Find which slot the current user has
   const userSlot = currentUserId ? draft_order[currentUserId] : undefined;
   // Resolve current user's roster_id for trade-aware highlighting
-  const userRosterId = userSlot !== undefined ? draft.slot_to_roster_id?.[String(userSlot)] : undefined;
+  const userRosterId =
+    userSlot !== undefined ? draft.slot_to_roster_id?.[String(userSlot)] : undefined;
 
   // Find the next pick
   const nextPick = picks.find((p) => !p.player_id);
@@ -121,7 +144,10 @@ export function DraftBoard({ draft, picks, members, rosters, currentUserId }: Dr
       >
         {isFilled ? (
           <>
-            <span className="absolute top-0.5 right-1 text-xs text-foreground/40">{roundNum}.{String(slot).padStart(2, '0')}</span>
+            <span className="absolute top-0.5 right-1 text-xs text-foreground/40">
+              {roundNum}.
+              {String(getPickInRound(roundNum, slot, teams, draft.type)).padStart(2, '0')}
+            </span>
             <div className="leading-tight">
               {pick.metadata?.rookie_pick ? (
                 <span className="font-heading font-bold text-warning-foreground">
@@ -133,7 +159,10 @@ export function DraftBoard({ draft, picks, members, rosters, currentUserId }: Dr
                     {pick.metadata?.first_name?.[0]}. {pick.metadata?.last_name || pick.player_id}
                   </span>
                   {(pick.metadata?.position || pick.metadata?.team) && (
-                    <div className="text-xs text-disabled">{pick.metadata.position}{pick.metadata.team ? ` - ${pick.metadata.team}` : ''}</div>
+                    <div className="text-xs text-disabled">
+                      {pick.metadata.position}
+                      {pick.metadata.team ? ` - ${pick.metadata.team}` : ''}
+                    </div>
                   )}
                 </>
               )}
@@ -152,14 +181,19 @@ export function DraftBoard({ draft, picks, members, rosters, currentUserId }: Dr
         ) : isTraded && tradedOwnerName ? (
           <span className="text-xs text-info-foreground">&rarr; {tradedOwnerName}</span>
         ) : (
-          <span className="font-heading font-bold text-disabled/40">{roundNum}.{String(slot).padStart(2, '0')}</span>
+          <span className="font-heading font-bold text-disabled/40">
+            {roundNum}.{String(getPickInRound(roundNum, slot, teams, draft.type)).padStart(2, '0')}
+          </span>
         )}
       </td>
     );
   };
 
   return (
-    <div className="overflow-auto flex-1 scrollbar-sleek" style={{ WebkitOverflowScrolling: 'touch' }}>
+    <div
+      className="overflow-auto flex-1 scrollbar-sleek mx-auto"
+      style={{ WebkitOverflowScrolling: 'touch' }}
+    >
       <table className="min-w-max" style={{ borderSpacing: 0 }}>
         <thead>
           <tr>
@@ -173,7 +207,16 @@ export function DraftBoard({ draft, picks, members, rosters, currentUserId }: Dr
                 className="p-1.5 rounded hover:bg-foreground/10 text-muted-foreground transition-colors"
                 title={transposed ? 'Switch to rounds as rows' : 'Switch to teams as rows'}
               >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <svg
+                  width="18"
+                  height="18"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
                   <polyline points="7 2 3 6 7 10" />
                   <path d="M3 6h18" />
                   <polyline points="17 14 21 18 17 22" />
@@ -181,109 +224,122 @@ export function DraftBoard({ draft, picks, members, rosters, currentUserId }: Dr
                 </svg>
               </button>
             </th>
-            {transposed ? (
-              // Transposed: columns are rounds
-              Array.from({ length: rounds }, (_, i) => i + 1).map((roundNum) => {
-                const isReversed = isSnake && roundNum % 2 === 0;
-                return (
+            {transposed
+              ? // Transposed: columns are rounds
+                Array.from({ length: rounds }, (_, i) => i + 1).map((roundNum) => {
+                  const isReversed = isSnake && isRoundReversed(roundNum, draft.type);
+                  return (
+                    <th
+                      key={roundNum}
+                      className="sticky top-0 z-20 border-b border-r border-border px-3 py-3.5 text-sm font-heading font-semibold whitespace-nowrap bg-muted text-muted-foreground"
+                      style={{ boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}
+                    >
+                      <div className="flex items-center justify-center gap-1">
+                        Rd {roundNum}
+                        {isSnake && (
+                          <span
+                            className="text-xs text-disabled"
+                            title={isReversed ? 'Reverse order' : 'Normal order'}
+                          >
+                            {isReversed ? '\u2193' : '\u2191'}
+                          </span>
+                        )}
+                      </div>
+                    </th>
+                  );
+                })
+              : // Normal: columns are teams
+                Array.from({ length: teams }, (_, i) => i + 1).map((slot) => (
                   <th
-                    key={roundNum}
-                    className="sticky top-0 z-20 border-b border-r border-border px-3 py-3.5 text-sm font-heading font-semibold whitespace-nowrap bg-muted text-muted-foreground"
-                    style={{ boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}
-                  >
-                    <div className="flex items-center justify-center gap-1">
-                      Rd {roundNum}
-                      {isSnake && (
-                        <span className="text-xs text-disabled" title={isReversed ? 'Reverse order' : 'Normal order'}>
-                          {isReversed ? '\u2193' : '\u2191'}
-                        </span>
-                      )}
-                    </div>
-                  </th>
-                );
-              })
-            ) : (
-              // Normal: columns are teams
-              Array.from({ length: teams }, (_, i) => i + 1).map((slot) => (
-                <th
-                  key={slot}
-                  className={`sticky top-0 z-20 border-b border-r border-border px-3 py-3.5 text-sm font-heading font-semibold whitespace-nowrap bg-muted ${
-                    slot === userSlot
-                      ? 'text-primary'
-                      : 'text-muted-foreground'
-                  }`}
-                  style={{
-                    boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-                  }}
-                >
-                  <div className="flex items-center justify-center gap-1.5">
-                    {slotToUser[slot] || `Slot ${slot}`}
-                    {autoPickUsers.includes(slotToUserId[slot]) && (
-                      <span className="rounded bg-neon-orange/20 px-1 text-xs font-bold text-neon-orange" title="Auto-picking">AUTO</span>
-                    )}
-                  </div>
-                </th>
-              ))
-            )}
-          </tr>
-        </thead>
-        <tbody>
-          {transposed ? (
-            // Transposed: rows are teams, columns are rounds
-            Array.from({ length: teams }, (_, sIdx) => {
-              const slot = sIdx + 1;
-              const isUser = slot === userSlot;
-              return (
-                <tr key={sIdx}>
-                  <td
-                    className={`sticky left-0 z-10 border-b border-r border-border bg-muted px-3 py-5 text-center text-sm font-heading font-semibold whitespace-nowrap ${
-                      isUser ? 'text-primary' : 'text-muted-foreground'
+                    key={slot}
+                    className={`sticky top-0 z-20 border-b border-r border-border px-3 py-3.5 text-sm font-heading font-semibold whitespace-nowrap bg-muted ${
+                      slot === userSlot ? 'text-primary' : 'text-muted-foreground'
                     }`}
-                    style={{ boxShadow: '2px 0 4px rgba(0,0,0,0.1)' }}
+                    style={{
+                      boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+                    }}
                   >
                     <div className="flex items-center justify-center gap-1.5">
                       {slotToUser[slot] || `Slot ${slot}`}
                       {autoPickUsers.includes(slotToUserId[slot]) && (
-                        <span className="rounded bg-neon-orange/20 px-1 text-xs font-bold text-neon-orange" title="Auto-picking">AUTO</span>
-                      )}
-                    </div>
-                  </td>
-                  {Array.from({ length: rounds }, (_, rIdx) => {
-                    const roundNum = rIdx + 1;
-                    const pick = grid[rIdx]?.[sIdx] ?? null;
-                    return renderPickCell(pick, roundNum, slot, rIdx);
-                  })}
-                </tr>
-              );
-            })
-          ) : (
-            // Normal: rows are rounds, columns are teams
-            grid.map((row, rIdx) => {
-              const roundNum = rIdx + 1;
-              const isReversed = isSnake && roundNum % 2 === 0;
-              const hasOtc = nextPick && row.some((p) => p?.id === nextPick.id);
-
-              return (
-                <tr key={rIdx} ref={hasOtc ? otcRef : undefined}>
-                  {/* Frozen round column */}
-                  <td className="sticky left-0 z-10 border-b border-r border-border bg-muted px-3 py-5 text-center text-sm font-heading font-semibold text-muted-foreground" style={{ boxShadow: '2px 0 4px rgba(0,0,0,0.1)' }}>
-                    <div className="flex items-center justify-center gap-1">
-                      {roundNum}
-                      {isSnake && (
-                        <span className="text-xs text-disabled" title={isReversed ? 'Reverse order' : 'Normal order'}>
-                          {isReversed ? '\u2190' : '\u2192'}
+                        <span
+                          className="rounded bg-neon-orange/20 px-1 text-xs font-bold text-neon-orange"
+                          title="Auto-picking"
+                        >
+                          AUTO
                         </span>
                       )}
                     </div>
-                  </td>
-                  {row.map((pick, sIdx) => {
-                    const slot = sIdx + 1;
-                    return renderPickCell(pick, roundNum, slot, sIdx);
-                  })}
-                </tr>
-              );
-            })
-          )}
+                  </th>
+                ))}
+          </tr>
+        </thead>
+        <tbody>
+          {transposed
+            ? // Transposed: rows are teams, columns are rounds
+              Array.from({ length: teams }, (_, sIdx) => {
+                const slot = sIdx + 1;
+                const isUser = slot === userSlot;
+                return (
+                  <tr key={sIdx}>
+                    <td
+                      className={`sticky left-0 z-10 border-b border-r border-border bg-muted px-3 py-5 text-center text-sm font-heading font-semibold whitespace-nowrap ${
+                        isUser ? 'text-primary' : 'text-muted-foreground'
+                      }`}
+                      style={{ boxShadow: '2px 0 4px rgba(0,0,0,0.1)' }}
+                    >
+                      <div className="flex items-center justify-center gap-1.5">
+                        {slotToUser[slot] || `Slot ${slot}`}
+                        {autoPickUsers.includes(slotToUserId[slot]) && (
+                          <span
+                            className="rounded bg-neon-orange/20 px-1 text-xs font-bold text-neon-orange"
+                            title="Auto-picking"
+                          >
+                            AUTO
+                          </span>
+                        )}
+                      </div>
+                    </td>
+                    {Array.from({ length: rounds }, (_, rIdx) => {
+                      const roundNum = rIdx + 1;
+                      const pick = grid[rIdx]?.[sIdx] ?? null;
+                      return renderPickCell(pick, roundNum, slot, rIdx);
+                    })}
+                  </tr>
+                );
+              })
+            : // Normal: rows are rounds, columns are teams
+              grid.map((row, rIdx) => {
+                const roundNum = rIdx + 1;
+                const isReversed = isSnake && isRoundReversed(roundNum, draft.type);
+                const hasOtc = nextPick && row.some((p) => p?.id === nextPick.id);
+
+                return (
+                  <tr key={rIdx} ref={hasOtc ? otcRef : undefined}>
+                    {/* Frozen round column */}
+                    <td
+                      className="sticky left-0 z-10 border-b border-r border-border bg-muted px-3 py-5 text-center text-sm font-heading font-semibold text-muted-foreground"
+                      style={{ boxShadow: '2px 0 4px rgba(0,0,0,0.1)' }}
+                    >
+                      <div className="flex items-center justify-center gap-1">
+                        {roundNum}
+                        {isSnake && (
+                          <span
+                            className="text-xs text-disabled"
+                            title={isReversed ? 'Reverse order' : 'Normal order'}
+                          >
+                            {isReversed ? '\u2190' : '\u2192'}
+                          </span>
+                        )}
+                      </div>
+                    </td>
+                    {row.map((pick, sIdx) => {
+                      const slot = sIdx + 1;
+                      return renderPickCell(pick, roundNum, slot, sIdx);
+                    })}
+                  </tr>
+                );
+              })}
         </tbody>
       </table>
     </div>
