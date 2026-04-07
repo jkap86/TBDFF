@@ -135,6 +135,12 @@ export function DraftSettingsForm({
         timerUpdates.offering_timer = offeringTimer;
       if (isSlowAuction && bidWindowSeconds !== (draft.settings.bid_window_seconds ?? 43200))
         timerUpdates.bid_window_seconds = bidWindowSeconds;
+      if (isSlowAuction && maxNominationsPerTeam !== (draft.settings.max_nominations_per_team ?? 2))
+        timerUpdates.max_nominations_per_team = maxNominationsPerTeam;
+      if (isSlowAuction && maxNominationsGlobal !== (draft.settings.max_nominations_global ?? 25))
+        timerUpdates.max_nominations_global = maxNominationsGlobal;
+      if (isSlowAuction && dailyNominationLimit !== (draft.settings.daily_nomination_limit ?? 0))
+        timerUpdates.daily_nomination_limit = dailyNominationLimit;
 
       if (Object.keys(timerUpdates).length === 0) return;
 
@@ -604,7 +610,7 @@ export function DraftSettingsForm({
             />
 
             {/* Slow Auction Settings */}
-            {isSlowAuction && !isTimersOnly && (
+            {isSlowAuction && (
               <SlowAuctionSettingsSection
                 bidWindowSeconds={bidWindowSeconds}
                 onBidWindowSecondsChange={setBidWindowSeconds}
@@ -620,6 +626,7 @@ export function DraftSettingsForm({
                 onMinIncrementChange={setMinIncrement}
                 maxLotDurationSeconds={maxLotDurationSeconds}
                 onMaxLotDurationSecondsChange={setMaxLotDurationSeconds}
+                timersOnly={isTimersOnly}
               />
             )}
           </div>

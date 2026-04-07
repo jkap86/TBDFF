@@ -12,6 +12,7 @@ export class AuctionLotRepository {
       playerId: string;
       nominatorRosterId: number;
       currentBid: number;
+      currentBidderRosterId: number;
       bidDeadline: Date;
       nominationDate: string;
     },
@@ -19,12 +20,12 @@ export class AuctionLotRepository {
   ): Promise<AuctionLot> {
     const conn = client ?? this.db;
     const result = await conn.query(
-      `INSERT INTO auction_lots (draft_id, player_id, nominator_roster_id, current_bid, bid_deadline, nomination_date, status, bid_count)
-       VALUES ($1, $2, $3, $4, $5, $6, 'active', 1)
+      `INSERT INTO auction_lots (draft_id, player_id, nominator_roster_id, current_bid, current_bidder_roster_id, bid_deadline, nomination_date, status, bid_count)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, 'active', 1)
        ON CONFLICT (draft_id, player_id) WHERE status IN ('active', 'won')
        DO NOTHING
        RETURNING *`,
-      [data.draftId, data.playerId, data.nominatorRosterId, data.currentBid, data.bidDeadline, data.nominationDate],
+      [data.draftId, data.playerId, data.nominatorRosterId, data.currentBid, data.currentBidderRosterId, data.bidDeadline, data.nominationDate],
     );
     if (result.rows.length > 0) {
       return AuctionLot.fromDatabase(result.rows[0]);

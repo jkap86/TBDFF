@@ -19,7 +19,7 @@ interface SlowAuctionBoardProps {
   onSetMaxBid: (lotId: string, maxBid: number) => Promise<void>;
 }
 
-function useCountdown(lots: AuctionLot[]) {
+function useCountdown() {
   const [now, setNow] = useState(Date.now());
   useEffect(() => {
     const interval = setInterval(() => setNow(Date.now()), 1000);
@@ -54,7 +54,8 @@ export function SlowAuctionBoard({
   const [expandedLotId, setExpandedLotId] = useState<string | null>(null);
   const [bidHistory, setBidHistory] = useState<AuctionBidHistoryEntry[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
-  const formatCountdown = useCountdown(lots);
+  const [budgetsExpanded, setBudgetsExpanded] = useState(false);
+  const formatCountdown = useCountdown();
 
   // Build roster_id -> display name mapping
   const rosterToUser: Record<number, string> = {};
@@ -153,7 +154,7 @@ export function SlowAuctionBoard({
   const completedPicks = picks.filter((p) => p.player_id).sort((a, b) => b.pick_no - a.pick_no);
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 pb-12">
       {/* Active Lots */}
       <div className="rounded-lg border border-border bg-card p-4 shadow">
         <h3 className="text-sm font-heading font-bold uppercase tracking-wide text-accent-foreground mb-3">
@@ -256,51 +257,62 @@ export function SlowAuctionBoard({
         )}
       </div>
 
-      {/* Team Budgets */}
+      {/* Team Budgets — sticky bottom panel */}
       {budgets.length > 0 && (
-        <div className="rounded-lg border border-border bg-card p-4 shadow">
-          <h3 className="text-sm font-heading font-bold uppercase tracking-wide text-accent-foreground mb-3">Team Budgets</h3>
-          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-2">
-            {budgets
-              .sort((a, b) => b.available - a.available)
-              .map((budget) => {
-                const isCurrentUser = rosterToUserId[budget.roster_id] === currentUserId;
-                const activeNomCount = activeLots.filter(
-                  (l) => l.nominator_roster_id === budget.roster_id
-                ).length;
-                const winningCount = activeLots.filter(
-                  (l) => l.current_bidder_roster_id === budget.roster_id
-                ).length;
-                const committedPlayers = budget.won_count + winningCount;
-                const committedSpend = budget.spent + budget.leading_commitment;
-                return (
-                  <div
-                    key={budget.roster_id}
-                    className={`rounded-lg border p-2 text-center ${
-                      isCurrentUser
-                        ? 'border-primary/30 bg-primary/10'
-                        : 'border-border'
-                    }`}
-                  >
-                    <div className="text-xs font-medium text-muted-foreground truncate">
-                      {budget.username}
+        <div className="sticky bottom-0 rounded-lg border border-border bg-card/95 shadow-xl ring-1 ring-border backdrop-blur-md">
+          <button
+            type="button"
+            onClick={() => setBudgetsExpanded((v) => !v)}
+            className="w-full flex items-center justify-between px-4 py-2.5 text-left hover:bg-muted/50 transition-colors rounded-lg"
+          >
+            <h3 className="text-sm font-heading font-bold uppercase tracking-wide text-accent-foreground">
+              Team Budgets
+            </h3>
+            {budgetsExpanded ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronUp className="h-4 w-4 text-muted-foreground" />}
+          </button>
+          {budgetsExpanded && (
+            <div className="px-4 pb-4 grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-2">
+              {budgets
+                .sort((a, b) => b.available - a.available)
+                .map((budget) => {
+                  const isCurrentUser = rosterToUserId[budget.roster_id] === currentUserId;
+                  const activeNomCount = activeLots.filter(
+                    (l) => l.nominator_roster_id === budget.roster_id
+                  ).length;
+                  const winningCount = activeLots.filter(
+                    (l) => l.current_bidder_roster_id === budget.roster_id
+                  ).length;
+                  const committedPlayers = budget.won_count + winningCount;
+                  const committedSpend = budget.spent + budget.leading_commitment;
+                  return (
+                    <div
+                      key={budget.roster_id}
+                      className={`rounded-lg border p-2 text-center ${
+                        isCurrentUser
+                          ? 'border-primary/30 bg-primary/10'
+                          : 'border-border'
+                      }`}
+                    >
+                      <div className="text-xs font-medium text-foreground truncate">
+                        {budget.username}
+                      </div>
+                      <div className={`text-lg font-bold ${budget.available > 0 ? 'text-success-foreground' : 'text-destructive-foreground'}`}>
+                        ${budget.available}
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        {activeNomCount} active nom{activeNomCount !== 1 ? 's' : ''}
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        {committedPlayers}/{budget.total_slots} | ${committedSpend} spent
+                      </div>
+                      <div className="text-xs text-disabled">
+                        {budget.won_count}/{budget.total_slots} | ${budget.spent} won
+                      </div>
                     </div>
-                    <div className={`text-lg font-bold ${budget.available > 0 ? 'text-success-foreground' : 'text-destructive-foreground'}`}>
-                      ${budget.available}
-                    </div>
-                    <div className="text-xs text-disabled">
-                      {activeNomCount} active nom{activeNomCount !== 1 ? 's' : ''}
-                    </div>
-                    <div className="text-xs text-disabled">
-                      {committedPlayers}/{budget.total_slots} | ${committedSpend} spent
-                    </div>
-                    <div className="text-xs text-disabled/60">
-                      {budget.won_count}/{budget.total_slots} | ${budget.spent} won
-                    </div>
-                  </div>
-                );
-              })}
-          </div>
+                  );
+                })}
+            </div>
+          )}
         </div>
       )}
 

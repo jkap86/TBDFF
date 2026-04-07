@@ -142,16 +142,19 @@ export class SlowAuctionService {
         }
       }
 
-      // Create the lot
+      // Create the lot with nominator as initial bidder at minBid
       const bidDeadline = new Date(Date.now() + settings.bidWindowSeconds * 1000);
-      return this.lotRepo.createLot({
+      const lot = await this.lotRepo.createLot({
         draftId,
         playerId,
         nominatorRosterId: rosterId,
         currentBid: settings.minBid,
+        currentBidderRosterId: rosterId,
         bidDeadline,
         nominationDate: this.getEasternDateString(),
       }, client);
+      await this.lotRepo.upsertProxyBid(lot.id, rosterId, settings.minBid, client);
+      return lot;
     });
 
     // Broadcast

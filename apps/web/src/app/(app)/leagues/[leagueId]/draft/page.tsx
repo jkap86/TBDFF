@@ -232,6 +232,11 @@ export default function DraftRoomPage() {
             <SlowAuctionControls
               pickError={room.pickError}
               nominationStats={room.nominationStats}
+              isCommissioner={room.isCommissioner}
+              maxNominationsPerTeam={draft.settings.max_nominations_per_team}
+              maxNominationsGlobal={draft.settings.max_nominations_global}
+              dailyNominationLimit={draft.settings.daily_nomination_limit}
+              onUpdateTimers={room.handleUpdateTimers}
             />
             <SlowAuctionBoard
               draft={draft}

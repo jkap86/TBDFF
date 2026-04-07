@@ -123,6 +123,9 @@ export const updateTimersSchema = z.object({
   offering_timer: z.number().int().min(5).max(86400).optional(),
   pick_timer: z.number().int().min(5).max(86400).optional(),
   bid_window_seconds: z.number().int().min(60).max(604800).optional(),
+  max_nominations_per_team: z.number().int().min(1).max(50).optional(),
+  max_nominations_global: z.number().int().min(1).max(200).optional(),
+  daily_nomination_limit: z.number().int().min(0).max(50).optional(),
 }).strict().refine(data => Object.keys(data).length > 0, { message: 'At least one timer must be provided' });
 
 export type UpdateTimersInput = z.infer<typeof updateTimersSchema>;
