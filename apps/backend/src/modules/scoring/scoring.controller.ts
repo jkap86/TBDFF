@@ -83,24 +83,4 @@ export class ScoringController {
     res.status(200).json(result);
   };
 
-  syncStats = async (req: AuthRequest, res: Response): Promise<void> => {
-    const userId = req.user?.userId;
-    if (!userId) throw new InvalidCredentialsException();
-
-    const state = await this.scoringService.getNflState();
-    const season = (req.query.season as string) || state.season;
-    const week = req.query.week ? parseInt(req.query.week as string, 10) : state.week;
-    const seasonType = (req.query.season_type as string) || state.seasonType;
-
-    const [statsResult, projectionsResult] = await Promise.all([
-      this.scoringService.syncWeeklyStats(season, week, seasonType),
-      this.scoringService.syncWeeklyProjections(season, week, seasonType),
-    ]);
-
-    res.status(200).json({
-      stats: statsResult,
-      projections: projectionsResult,
-      synced_for: { season, week, season_type: seasonType },
-    });
-  };
 }

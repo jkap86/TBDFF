@@ -13,7 +13,6 @@ export function createScoringRoutes(controller: ScoringController): Router {
 
   router.get('/nfl-state', asyncHandler(controller.getNflState));
   router.get('/schedule/:season/:week', asyncHandler(controller.getGameSchedule));
-  router.post('/sync', asyncHandler(controller.syncStats));
 
   return router;
 }

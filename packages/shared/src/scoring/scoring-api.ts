@@ -29,16 +29,4 @@ export const scoringApi = {
       token,
     ),
 
-  syncStats: (token: string, season?: string, week?: number, seasonType?: string) => {
-    const params = new URLSearchParams();
-    if (season) params.set('season', season);
-    if (week) params.set('week', String(week));
-    if (seasonType) params.set('season_type', seasonType);
-    const qs = params.toString();
-    return apiClient.post<{
-      stats: { synced: number; skipped: number };
-      projections: { synced: number; skipped: number };
-      synced_for: { season: string; week: number; season_type: string };
-    }>(`/scoring/sync${qs ? `?${qs}` : ''}`, undefined, token);
-  },
 };
