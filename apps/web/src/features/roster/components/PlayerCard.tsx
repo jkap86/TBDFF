@@ -12,11 +12,25 @@ function positionChipClass(position: string | null): string {
   }
 }
 
+function positionTintClass(slot: string): string {
+  switch (slot) {
+    case 'QB': return 'bg-neon-cyan/15 text-neon-cyan';
+    case 'RB': return 'bg-neon-orange/15 text-neon-orange';
+    case 'WR': return 'bg-neon-magenta/15 text-neon-magenta';
+    case 'TE': return 'bg-neon-purple/15 text-neon-purple';
+    case 'FLEX':
+    case 'SUPER_FLEX':
+    case 'REC_FLEX':
+    case 'WRRB_FLEX': return 'bg-neon-rose/15 text-neon-rose';
+    default: return 'bg-muted/50 text-muted-foreground';
+  }
+}
+
 const INJURY_CONFIG: Record<string, { label: string; color: string }> = {
-  Out:        { label: 'O',  color: 'bg-destructive text-destructive-foreground' },
-  Doubtful:   { label: 'D',  color: 'bg-neon-rose/20 text-neon-rose' },
-  Questionable:{ label: 'Q', color: 'bg-neon-orange/20 text-neon-orange' },
-  Probable:   { label: 'P',  color: 'bg-muted text-muted-foreground' },
+  Out:          { label: 'OUT', color: 'bg-neon-rose text-white' },
+  Doubtful:     { label: 'D',   color: 'bg-neon-rose/25 text-neon-rose' },
+  Questionable: { label: 'Q',   color: 'bg-neon-orange/25 text-neon-orange' },
+  Probable:     { label: 'P',   color: 'bg-neon-cyan/20 text-neon-cyan' },
 };
 
 const SLOT_LABELS: Record<string, string> = {
@@ -42,15 +56,20 @@ export function PlayerCard({
   onClick,
 }: PlayerCardProps) {
   const displaySlot = SLOT_LABELS[slotLabel] ?? slotLabel;
+  const slotTint = positionTintClass(slotLabel);
+
+  const showSlotLabel = slotLabel !== '';
 
   if (!player) {
     return (
-      <div className="flex items-center gap-3 py-3 px-1">
-        <span className="flex h-7 w-9 items-center justify-center rounded text-xs font-bold bg-muted/50 text-disabled">
-          {displaySlot}
-        </span>
-        <span className="flex-1 rounded border border-dashed border-border px-3 py-2 text-sm text-disabled italic">
-          Empty
+      <div className="flex items-center gap-2 py-2 px-1.5">
+        {showSlotLabel && (
+          <span className={`flex h-6 w-8 flex-shrink-0 items-center justify-center rounded text-[11px] font-bold ${slotTint}`}>
+            {displaySlot}
+          </span>
+        )}
+        <span className="flex-1 rounded-md border border-dashed border-neon-cyan/30 bg-neon-cyan/[0.03] px-2.5 py-1.5 text-sm text-disabled italic">
+          Empty slot
         </span>
       </div>
     );
@@ -64,23 +83,25 @@ export function PlayerCard({
       type="button"
       disabled={!editMode && !onClick}
       onClick={onClick}
-      className={`flex w-full items-center gap-3 rounded-lg px-1 py-2.5 text-left transition-all ${
+      className={`flex w-full items-center gap-2 rounded-lg px-1.5 py-2 text-left transition-all ${
         editMode
           ? isSelected
-            ? 'ring-2 ring-neon-cyan bg-neon-cyan/5'
+            ? 'ring-2 ring-neon-cyan bg-neon-cyan/15 shadow-[0_0_12px_rgba(0,240,255,0.35)] scale-[1.01]'
             : isSwappable
-              ? 'hover:bg-muted/60 cursor-pointer ring-1 ring-border'
+              ? 'hover:bg-neon-cyan/10 hover:ring-1 hover:ring-neon-cyan/40 cursor-pointer ring-1 ring-border/60'
               : 'hover:bg-muted/40 cursor-pointer'
           : 'cursor-default'
       }`}
     >
-      {/* Slot label */}
-      <span className="flex h-7 w-9 flex-shrink-0 items-center justify-center rounded text-xs font-bold bg-muted/50 text-muted-foreground">
-        {displaySlot}
-      </span>
+      {/* Slot label (color-coded by position) */}
+      {showSlotLabel && (
+        <span className={`flex h-6 w-8 flex-shrink-0 items-center justify-center rounded text-[11px] font-bold ${slotTint}`}>
+          {displaySlot}
+        </span>
+      )}
 
       {/* Position chip */}
-      <span className={`flex h-6 w-9 flex-shrink-0 items-center justify-center rounded-full text-xs font-bold ${posClass}`}>
+      <span className={`flex h-6 w-8 flex-shrink-0 items-center justify-center rounded-full text-[11px] font-bold ${posClass}`}>
         {player.position ?? '—'}
       </span>
 
@@ -97,7 +118,7 @@ export function PlayerCard({
       {/* Injury badge */}
       {injuryCfg && (
         <span
-          className={`flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full text-xs font-bold ${injuryCfg.color}`}
+          className={`flex h-5 min-w-[24px] flex-shrink-0 items-center justify-center rounded-full px-1.5 text-[10px] font-bold uppercase tracking-wide ${injuryCfg.color}`}
           title={player.injury_status ?? ''}
         >
           {injuryCfg.label}
@@ -107,4 +128,4 @@ export function PlayerCard({
   );
 }
 
-export { positionChipClass };
+export { positionChipClass, positionTintClass };
