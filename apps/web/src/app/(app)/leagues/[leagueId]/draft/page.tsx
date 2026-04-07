@@ -21,7 +21,8 @@ export default function DraftRoomPage() {
   const draftId = searchParams.get('draftId') ?? undefined;
 
   const room = useDraftRoom(leagueId, draftId);
-  const { draft, league, picks, members, rosters, queue, isLoading, error, user, accessToken } = room;
+  const { draft, league, picks, members, rosters, queue, isLoading, error, user, accessToken } =
+    room;
   const [isStarting, setIsStarting] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [errorDismissed, setErrorDismissed] = useState(false);
@@ -80,36 +81,52 @@ export default function DraftRoomPage() {
     picks,
     rosters,
     members,
-    ...(room.isAuction ? {
-      onDraft: room.handleNominate,
-      isMyTurn: !!room.isMyTurn && !draft.metadata?.current_nomination && !room.isAutoPick && !room.isDraftStopped,
-      isPicking: room.isNominating,
-      actionLabel: 'Nominate',
-    } : room.isSlowAuction ? {
-      onDraft: room.handleSlowNominate,
-      isMyTurn: room.userRosterId !== undefined,
-      isPicking: room.isNominating,
-      actionLabel: 'Nominate',
-      activeLotPlayerIds: new Set(
-        room.slowAuctionLots.filter((l) => l.status === 'active').map((l) => l.player_id)
-      ),
-    } : {
-      onDraft: room.handleMakePick,
-      isMyTurn: !!room.isMyTurn && !room.isDraftStopped,
-      isPicking: room.isPicking,
-    }),
+    ...(room.isAuction
+      ? {
+          onDraft: room.handleNominate,
+          isMyTurn:
+            !!room.isMyTurn &&
+            !draft.metadata?.current_nomination &&
+            !room.isAutoPick &&
+            !room.isDraftStopped,
+          isPicking: room.isNominating,
+          actionLabel: 'Nominate',
+        }
+      : room.isSlowAuction
+        ? {
+            onDraft: room.handleSlowNominate,
+            isMyTurn: room.userRosterId !== undefined,
+            isPicking: room.isNominating,
+            actionLabel: 'Nominate',
+            activeLotPlayerIds: new Set(
+              room.slowAuctionLots.filter((l) => l.status === 'active').map((l) => l.player_id),
+            ),
+          }
+        : {
+            onDraft: room.handleMakePick,
+            isMyTurn: !!room.isMyTurn && !room.isDraftStopped,
+            isPicking: room.isPicking,
+          }),
   };
 
   return (
     <div className="h-[calc(100vh-3.5rem)] flex flex-col bg-surface overflow-hidden">
       {/* Dismissible error modal for transient errors */}
       {error && !errorDismissed && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setErrorDismissed(true)}>
-          <div className="w-full max-w-sm rounded-xl glass-strong border border-border p-6 shadow-xl text-center" onClick={(e) => e.stopPropagation()}>
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+          onClick={() => setErrorDismissed(true)}
+        >
+          <div
+            className="w-full max-w-sm rounded-xl glass-strong border border-border p-6 shadow-xl text-center"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-destructive/15 border border-destructive-foreground/30">
               <X className="h-6 w-6 text-destructive-foreground" />
             </div>
-            <h2 className="text-lg font-heading font-bold text-foreground mb-2">Something went wrong</h2>
+            <h2 className="text-lg font-heading font-bold text-foreground mb-2">
+              Something went wrong
+            </h2>
             <p className="text-sm text-muted-foreground mb-5">{error}</p>
             <button
               onClick={() => setErrorDismissed(true)}
@@ -127,16 +144,24 @@ export default function DraftRoomPage() {
           <div className="flex items-center gap-4">
             <h1 className="text-2xl font-bold gradient-text">Draft Room</h1>
             {draft.status !== 'pre_draft' && (
-              <span className={`rounded-full px-3 py-1 text-sm font-heading font-bold uppercase tracking-wide ${
-                draft.status === 'complete'
-                  ? 'bg-success text-success-foreground border border-success-foreground/30'
+              <span
+                className={`rounded-full px-3 py-1 text-sm font-heading font-bold uppercase tracking-wide ${
+                  draft.status === 'complete'
+                    ? 'bg-success text-success-foreground border border-success-foreground/30'
+                    : room.isDraftStopped
+                      ? 'bg-destructive/15 text-destructive-foreground border border-destructive-foreground/30'
+                      : room.isDraftPaused
+                        ? 'bg-warning/15 text-warning-foreground border border-warning-foreground/30'
+                        : 'bg-primary/15 text-primary border border-primary/30'
+                }`}
+              >
+                {draft.status === 'complete'
+                  ? 'Complete'
                   : room.isDraftStopped
-                    ? 'bg-destructive/15 text-destructive-foreground border border-destructive-foreground/30'
+                    ? 'Stopped'
                     : room.isDraftPaused
-                      ? 'bg-warning/15 text-warning-foreground border border-warning-foreground/30'
-                      : 'bg-primary/15 text-primary border border-primary/30'
-              }`}>
-                {draft.status === 'complete' ? 'Complete' : room.isDraftStopped ? 'Stopped' : room.isDraftPaused ? 'Paused' : 'Live'}
+                      ? 'Paused'
+                      : 'Live'}
               </span>
             )}
           </div>
@@ -198,32 +223,55 @@ export default function DraftRoomPage() {
       )}
 
       {/* Board content — fills remaining space */}
-      <div className={`flex-1 min-h-0 flex flex-col p-4 gap-4 ${
-        draft.status === 'drafting' && room.isAuction ? '' : 'overflow-y-auto scrollbar-sleek'
-      }`}>
+      <div
+        className={`flex-1 min-h-0 flex flex-col gap-4 ${
+          draft.status === 'drafting' && room.isAuction ? '' : 'overflow-y-auto scrollbar-sleek'
+        }`}
+      >
         {/* Pre-Draft Board */}
-        {draft.status === 'pre_draft' && (
-          room.isSlowAuction
-            ? <SlowAuctionBoard
-                draft={draft}
-                lots={room.slowAuctionLots}
-                budgets={room.slowAuctionBudgets}
-                members={members}
-                rosters={rosters}
-                picks={picks}
-                currentUserId={user?.id}
-                myRosterId={room.userRosterId}
-                accessToken={room.accessToken}
-                onSetMaxBid={room.handleSlowSetMaxBid}
-              />
-            : room.isAuction
-              ? <AuctionBoard draft={draft} picks={picks} members={members} rosters={rosters} currentUserId={user?.id} rosterPositions={league?.roster_positions ?? []} />
-              : <DraftBoard draft={draft} picks={picks} members={members} rosters={rosters} currentUserId={user?.id} />
-        )}
+        {draft.status === 'pre_draft' &&
+          (room.isSlowAuction ? (
+            <SlowAuctionBoard
+              draft={draft}
+              lots={room.slowAuctionLots}
+              budgets={room.slowAuctionBudgets}
+              members={members}
+              rosters={rosters}
+              picks={picks}
+              currentUserId={user?.id}
+              myRosterId={room.userRosterId}
+              accessToken={room.accessToken}
+              onSetMaxBid={room.handleSlowSetMaxBid}
+            />
+          ) : room.isAuction ? (
+            <AuctionBoard
+              draft={draft}
+              picks={picks}
+              members={members}
+              rosters={rosters}
+              currentUserId={user?.id}
+              rosterPositions={league?.roster_positions ?? []}
+            />
+          ) : (
+            <DraftBoard
+              draft={draft}
+              picks={picks}
+              members={members}
+              rosters={rosters}
+              currentUserId={user?.id}
+            />
+          ))}
 
         {/* Auction Draft Board */}
         {draft.status === 'drafting' && room.isAuction && (
-          <AuctionBoard draft={draft} picks={picks} members={members} rosters={rosters} currentUserId={user?.id} rosterPositions={league?.roster_positions ?? []} />
+          <AuctionBoard
+            draft={draft}
+            picks={picks}
+            members={members}
+            rosters={rosters}
+            currentUserId={user?.id}
+            rosterPositions={league?.roster_positions ?? []}
+          />
         )}
 
         {/* Slow Auction Draft Board */}
@@ -273,29 +321,50 @@ export default function DraftRoomPage() {
               onUpdateTimers={room.handleUpdateTimers}
               pickTimer={draft.settings.pick_timer}
             />
-            <DraftBoard draft={draft} picks={picks} members={members} rosters={rosters} currentUserId={user?.id} />
+            <DraftBoard
+              draft={draft}
+              picks={picks}
+              members={members}
+              rosters={rosters}
+              currentUserId={user?.id}
+            />
           </>
         )}
 
         {/* Complete State */}
-        {draft.status === 'complete' && picks.length > 0 && (
-          room.isSlowAuction
-            ? <SlowAuctionBoard
-                draft={draft}
-                lots={room.slowAuctionLots}
-                budgets={room.slowAuctionBudgets}
-                members={members}
-                rosters={rosters}
-                picks={picks}
-                currentUserId={user?.id}
-                myRosterId={room.userRosterId}
-                accessToken={room.accessToken}
-                onSetMaxBid={room.handleSlowSetMaxBid}
-              />
-            : room.isAuction
-              ? <AuctionBoard draft={draft} picks={picks} members={members} rosters={rosters} currentUserId={user?.id} rosterPositions={league?.roster_positions ?? []} />
-              : <DraftBoard draft={draft} picks={picks} members={members} rosters={rosters} currentUserId={user?.id} />
-        )}
+        {draft.status === 'complete' &&
+          picks.length > 0 &&
+          (room.isSlowAuction ? (
+            <SlowAuctionBoard
+              draft={draft}
+              lots={room.slowAuctionLots}
+              budgets={room.slowAuctionBudgets}
+              members={members}
+              rosters={rosters}
+              picks={picks}
+              currentUserId={user?.id}
+              myRosterId={room.userRosterId}
+              accessToken={room.accessToken}
+              onSetMaxBid={room.handleSlowSetMaxBid}
+            />
+          ) : room.isAuction ? (
+            <AuctionBoard
+              draft={draft}
+              picks={picks}
+              members={members}
+              rosters={rosters}
+              currentUserId={user?.id}
+              rosterPositions={league?.roster_positions ?? []}
+            />
+          ) : (
+            <DraftBoard
+              draft={draft}
+              picks={picks}
+              members={members}
+              rosters={rosters}
+              currentUserId={user?.id}
+            />
+          ))}
       </div>
 
       {/* Players/Queue Side Drawer */}
@@ -308,11 +377,15 @@ export default function DraftRoomPage() {
               onClick={() => setDrawerOpen(false)}
             />
           )}
-          <div className={`fixed top-0 right-0 z-50 h-full w-96 glass-strong shadow-2xl border-l border-border transition-transform duration-300 ease-in-out ${
-            drawerOpen ? 'translate-x-0' : 'translate-x-full'
-          }`}>
+          <div
+            className={`fixed top-0 right-0 z-50 h-full w-96 glass-strong shadow-2xl border-l border-border transition-transform duration-300 ease-in-out ${
+              drawerOpen ? 'translate-x-0' : 'translate-x-full'
+            }`}
+          >
             <div className="flex items-center justify-between border-b border-border px-4 py-3">
-              <h2 className="text-sm font-heading font-bold uppercase tracking-wide text-foreground">Players & Queue</h2>
+              <h2 className="text-sm font-heading font-bold uppercase tracking-wide text-foreground">
+                Players & Queue
+              </h2>
               <button
                 onClick={() => setDrawerOpen(false)}
                 className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
