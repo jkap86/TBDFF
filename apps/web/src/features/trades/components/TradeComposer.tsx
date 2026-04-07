@@ -224,11 +224,11 @@ export function TradeComposer({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-      <div className="w-full max-w-2xl rounded-lg bg-card p-6 shadow-xl max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm">
+      <div className="w-full max-w-2xl rounded-lg bg-card glass-strong glow-border p-6 shadow-xl max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-bold text-foreground">{isCounter ? 'Counter Trade' : 'Propose Trade'}</h2>
-          <button onClick={onClose} className="text-disabled hover:text-muted-foreground">
+          <h2 className="text-xl font-bold gradient-text font-heading">{isCounter ? 'Counter Trade' : 'Propose Trade'}</h2>
+          <button onClick={onClose} className="text-muted-foreground hover:text-accent-foreground transition-colors">
             <X className="h-5 w-5" />
           </button>
         </div>

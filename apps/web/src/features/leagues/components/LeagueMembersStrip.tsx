@@ -17,6 +17,16 @@ const ACCENT_COLORS = [
   'bg-neon-rose/20 text-neon-rose',
 ] as const;
 
+// Deterministic hash so each user keeps the same accent color across sessions.
+function hashUserId(userId: string): number {
+  let hash = 0;
+  for (let i = 0; i < userId.length; i++) {
+    hash = (hash << 5) - hash + userId.charCodeAt(i);
+    hash |= 0;
+  }
+  return Math.abs(hash);
+}
+
 export function LeagueMembersStrip({
   members,
   rosters,
@@ -28,10 +38,10 @@ export function LeagueMembersStrip({
 
   return (
     <div className="flex items-center gap-2 overflow-x-auto p-1">
-      {activeMembers.map((member, i) => {
+      {activeMembers.map((member) => {
         const initial = (member.display_name || member.username).charAt(0).toUpperCase();
         const isMe = member.user_id === currentUserId;
-        const colorClass = ACCENT_COLORS[i % ACCENT_COLORS.length];
+        const colorClass = ACCENT_COLORS[hashUserId(member.user_id) % ACCENT_COLORS.length];
 
         return (
           <button

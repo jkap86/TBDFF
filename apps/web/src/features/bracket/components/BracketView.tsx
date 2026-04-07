@@ -35,13 +35,13 @@ function BracketSlotCard({
       {/* Team A */}
       <div
         className={`flex items-center gap-2 px-3 py-2.5 ${
-          aWins ? 'border-l-2 border-neon-cyan bg-neon-cyan/5' : ''
+          aWins ? 'border-l-[3px] border-neon-cyan bg-neon-cyan/10' : ''
         }`}
       >
         <span className={`min-w-0 flex-1 truncate text-sm font-medium ${aWins ? 'text-foreground' : 'text-accent-foreground'}`}>
           {nameA}
         </span>
-        <span className={`flex-shrink-0 tabular-nums text-sm font-bold ${aWins ? 'text-neon-cyan' : hasScore ? 'text-foreground' : 'text-disabled'}`}>
+        <span className={`flex-shrink-0 tabular-nums text-sm font-bold ${aWins ? 'text-neon-cyan glow-text' : hasScore ? 'text-foreground' : 'text-disabled'}`}>
           {hasScore ? slot.pointsA.toFixed(2) : '—'}
         </span>
       </div>
@@ -51,13 +51,13 @@ function BracketSlotCard({
       {/* Team B */}
       <div
         className={`flex items-center gap-2 px-3 py-2.5 ${
-          bWins ? 'border-l-2 border-neon-cyan bg-neon-cyan/5' : ''
+          bWins ? 'border-l-[3px] border-neon-cyan bg-neon-cyan/10' : ''
         }`}
       >
         <span className={`min-w-0 flex-1 truncate text-sm font-medium ${bWins ? 'text-foreground' : slot.rosterIdB ? 'text-accent-foreground' : 'text-disabled italic'}`}>
           {nameB}
         </span>
-        <span className={`flex-shrink-0 tabular-nums text-sm font-bold ${bWins ? 'text-neon-cyan' : hasScore && slot.rosterIdB ? 'text-foreground' : 'text-disabled'}`}>
+        <span className={`flex-shrink-0 tabular-nums text-sm font-bold ${bWins ? 'text-neon-cyan glow-text' : hasScore && slot.rosterIdB ? 'text-foreground' : 'text-disabled'}`}>
           {hasScore && slot.rosterIdB ? slot.pointsB.toFixed(2) : '—'}
         </span>
       </div>

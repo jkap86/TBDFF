@@ -2,8 +2,7 @@
 
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useParams } from 'next/navigation';
-import Link from 'next/link';
-import { ArrowLeft, Search } from 'lucide-react';
+import { Search } from 'lucide-react';
 import { playerApi } from '@/lib/api';
 import type { Player, WaiverClaim } from '@/lib/api';
 import { useAuth } from '@/features/auth/hooks/useAuth';
@@ -13,6 +12,7 @@ import { useTransactionSocket } from '@/features/transactions/hooks/useTransacti
 import { useLeagueQuery, useRostersQuery } from '@/hooks/useLeagueQueries';
 import { WaiverClaimForm } from '@/features/transactions/components/WaiverClaimForm';
 import { MyWaiverClaims } from '@/features/transactions/components/MyWaiverClaims';
+import { LeagueSubPageHeader } from '@/components/ui/LeagueSubPageHeader';
 
 export default function WaiversPage() {
   const params = useParams();
@@ -107,24 +107,15 @@ export default function WaiversPage() {
   return (
     <div className="min-h-screen bg-surface p-6">
       <div className="mx-auto max-w-4xl space-y-6">
-        {/* Header */}
-        <div className="flex items-center gap-3">
-          <Link
-            href={`/leagues/${leagueId}`}
-            className="rounded p-2 text-muted-foreground hover:bg-muted"
-          >
-            <ArrowLeft className="h-5 w-5" />
-          </Link>
-          <h1 className="text-2xl font-bold text-foreground">Waiver Claims</h1>
-        </div>
+        <LeagueSubPageHeader leagueId={leagueId} title="Waiver Claims" />
 
         {addError && (
           <div className="rounded bg-destructive p-3 text-sm text-destructive-foreground">{addError}</div>
         )}
 
         {/* My Pending Claims */}
-        <div className="rounded-lg bg-card p-6 shadow">
-          <h2 className="text-lg font-bold text-foreground mb-4">My Pending Claims</h2>
+        <div className="rounded-lg bg-card glass-strong glow-border p-6 shadow">
+          <h2 className="text-sm font-heading font-bold uppercase tracking-wide text-accent-foreground mb-4">My Pending Claims</h2>
           <MyWaiverClaims
             claims={claims}
             playerNames={{ ...rosterPlayerNames, ...claimPlayerNames }}
@@ -159,8 +150,8 @@ export default function WaiversPage() {
 
         {/* Player Search / Claim Entry */}
         {!claimingPlayer && !editingClaim && myRoster && (
-          <div className="rounded-lg bg-card p-6 shadow">
-            <h2 className="text-lg font-bold text-foreground mb-4">Place a Waiver Claim</h2>
+          <div className="rounded-lg bg-card glass-strong glow-border p-6 shadow">
+            <h2 className="text-sm font-heading font-bold uppercase tracking-wide text-accent-foreground mb-4">Place a Waiver Claim</h2>
             <div className="relative">
               <div className="flex items-center gap-2 rounded border border-input bg-surface px-3 py-2">
                 <Search className="h-4 w-4 text-muted-foreground" />
@@ -221,8 +212,8 @@ export default function WaiversPage() {
 
         {/* My Roster */}
         {myRoster && (
-          <div className="rounded-lg bg-card p-6 shadow">
-            <h2 className="text-lg font-bold text-foreground mb-4">My Roster</h2>
+          <div className="rounded-lg bg-card glass-subtle border border-border p-6 shadow">
+            <h2 className="text-sm font-heading font-bold uppercase tracking-wide text-accent-foreground mb-4">My Roster</h2>
             <div className="space-y-2">
               {myRoster.players.map((playerId) => (
                 <div

@@ -2,10 +2,17 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { Settings, ChevronDown, Shuffle } from 'lucide-react';
+import { Settings, ChevronDown, ChevronUp, Shuffle } from 'lucide-react';
 import { DerbyPickBoard } from '@/features/drafts/components/DerbyPickBoard';
-import { draftTypeLabels, draftStatusColors, draftStatusLabels, playerPoolLabel } from '@/features/leagues/config/league-detail-constants';
+import { draftTypeLabels, draftStatusLabels, playerPoolLabel } from '@/features/leagues/config/league-detail-constants';
+import { StatusBadge, type StatusBadgeVariant } from '@/components/ui/StatusBadge';
 import type { Draft, LeagueMember, Roster, League } from '@tbdff/shared';
+
+const DRAFT_STATUS_VARIANT: Record<string, StatusBadgeVariant> = {
+  pre_draft: 'setup',
+  drafting: 'live',
+  complete: 'complete',
+};
 
 interface ShuffleDisplay {
   draftId: string;
@@ -85,16 +92,15 @@ export function LeagueDraftsCard({
 
   return (
     <>
-      <div className={`rounded-lg bg-card shadow ${isDraftsExpanded ? 'p-6 glass-strong glow-border' : 'p-4 glass-subtle'}`}>
-        <div className={`flex items-center justify-between ${isDraftsExpanded ? 'mb-4' : ''}`}>
-          <button
-            onClick={() => setIsDraftsExpanded((prev) => !prev)}
-            className="flex flex-1 items-center gap-3"
-          >
-            <ChevronDown
-              className={`h-5 w-5 text-muted-foreground transition-transform ${isDraftsExpanded ? '' : '-rotate-90'}`}
-            />
-            <h2 className="text-xl font-bold text-foreground">Drafts</h2>
+      <div className={`rounded-lg bg-card shadow ${isDraftsExpanded ? 'glass-strong glow-border' : 'glass-subtle border border-border'}`}>
+        <button
+          onClick={() => setIsDraftsExpanded((prev) => !prev)}
+          className={`w-full flex items-center justify-between px-4 py-3 text-left hover:bg-muted/40 transition-colors rounded-lg ${isDraftsExpanded ? 'mb-1' : ''}`}
+        >
+          <div className="flex items-center gap-3">
+            <h3 className="text-sm font-heading font-bold uppercase tracking-wide text-accent-foreground">
+              Drafts
+            </h3>
             <span className="text-sm text-muted-foreground">
               {!isDraftsExpanded && activeDrafts.length > 0
                 ? activeDrafts.map((d) => `${playerPoolLabel(d.settings.player_type)}: ${draftStatusLabels[d.status]}`).join(', ')
@@ -103,16 +109,21 @@ export function LeagueDraftsCard({
             </span>
             {isMyTurn && (
               <span
-                className="rounded-full bg-neon-cyan/20 px-2 py-0.5 text-xs font-bold text-neon-cyan"
+                className="rounded-full bg-neon-cyan/20 px-2 py-0.5 text-xs font-semibold uppercase tracking-wide text-neon-cyan glow-text"
                 style={{ animation: 'neon-pulse 2s ease-in-out infinite' }}
               >
                 Your Pick!
               </span>
             )}
-          </button>
-        </div>
+          </div>
+          {isDraftsExpanded ? (
+            <ChevronUp className="h-4 w-4 text-muted-foreground" />
+          ) : (
+            <ChevronDown className="h-4 w-4 text-muted-foreground" />
+          )}
+        </button>
 
-        {isDraftsExpanded && (<>
+        {isDraftsExpanded && (<div className="px-4 pb-4">
         {activeDrafts.length > 0 ? (
         <div className="space-y-4">
         {activeDrafts.map((draft) => {
@@ -167,9 +178,9 @@ export function LeagueDraftsCard({
                     </>
                   )}
                 </div>
-                <span className={`rounded-full px-3 py-1 text-sm font-medium ${draftStatusColors[draft.status]}`}>
+                <StatusBadge variant={DRAFT_STATUS_VARIANT[draft.status] ?? 'neutral'}>
                   {draftStatusLabels[draft.status]}
-                </span>
+                </StatusBadge>
               </div>
 
               <div className="space-y-4">
@@ -216,7 +227,7 @@ export function LeagueDraftsCard({
                         <button
                           onClick={() => handleStartDerbyClick(draft)}
                           disabled={isStartingDerby}
-                          className="rounded-lg bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-50"
+                          className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary-hover disabled:opacity-50 transition-colors"
                         >
                           {isStartingDerby ? 'Starting...' : 'Start Derby'}
                         </button>
@@ -374,9 +385,7 @@ export function LeagueDraftsCard({
                     </div>
                   </div>
                   <div className="flex items-center gap-3">
-                    <span className={`rounded-full px-2 py-1 text-xs font-medium ${draftStatusColors.complete}`}>
-                      Complete
-                    </span>
+                    <StatusBadge variant="complete">Complete</StatusBadge>
                     <Link
                       href={`/leagues/${leagueId}/draft?draftId=${draft.id}`}
                       className="rounded-lg bg-muted px-3 py-1.5 text-sm font-medium text-accent-foreground hover:bg-muted-hover"
@@ -389,16 +398,16 @@ export function LeagueDraftsCard({
             </div>
           </div>
         )}
-        </>)}
+        </div>)}
       </div>
 
       {/* Re-randomize Confirmation Dialog */}
       {reRandomizeDraftId && (() => {
         const reRandomizeDraft = drafts.find((d) => d.id === reRandomizeDraftId);
         return reRandomizeDraft ? (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-            <div className="rounded-lg bg-card p-6 shadow-xl max-w-sm w-full">
-              <h3 className="text-lg font-semibold text-foreground mb-2">Confirm Action</h3>
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm">
+            <div className="rounded-lg bg-card glass-strong glow-border p-6 shadow-xl max-w-sm w-full">
+              <h3 className="text-lg font-semibold gradient-text font-heading mb-2">Confirm Action</h3>
               <p className="text-sm text-muted-foreground mb-4">
                 Draft order is already set. Are you sure you want to re-randomize?
               </p>

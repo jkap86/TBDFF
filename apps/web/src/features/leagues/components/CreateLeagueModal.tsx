@@ -45,9 +45,9 @@ export function CreateLeagueModal({ isOpen, onClose, onCreate }: CreateLeagueMod
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
-      <div className="w-full max-w-md rounded-lg bg-card p-6 shadow-xl glass-strong">
-        <h2 className="mb-4 text-xl font-bold text-foreground font-heading">Create New League</h2>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm">
+      <div className="w-full max-w-md rounded-lg bg-card p-6 shadow-xl glass-strong glow-border">
+        <h2 className="mb-4 text-xl font-bold gradient-text font-heading">Create New League</h2>
 
         {error && (
           <div className="mb-4 rounded bg-destructive p-3 text-sm text-destructive-foreground">{error}</div>

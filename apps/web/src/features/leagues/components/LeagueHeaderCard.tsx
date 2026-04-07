@@ -4,8 +4,17 @@ import { useState } from 'react';
 import { Settings, Info, X } from 'lucide-react';
 import { SCORING_CATEGORIES, scoringFromLeague } from '@/features/leagues/config/scoring-config';
 import { ROSTER_POSITION_CONFIG, positionArrayToCounts } from '@/features/leagues/config/roster-config';
-import { statusColors, statusLabels } from '@/features/leagues/config/league-detail-constants';
-import type { League } from '@tbdff/shared';
+import { statusLabels } from '@/features/leagues/config/league-detail-constants';
+import { StatusBadge, type StatusBadgeVariant } from '@/components/ui/StatusBadge';
+import type { League, LeagueStatus } from '@tbdff/shared';
+
+const STATUS_VARIANT: Record<LeagueStatus, StatusBadgeVariant> = {
+  not_filled: 'neutral',
+  offseason: 'info',
+  reg_season: 'live',
+  post_season: 'warning',
+  complete: 'complete',
+};
 
 interface LeagueHeaderCardProps {
   league: League;
@@ -25,41 +34,42 @@ export function LeagueHeaderCard({ league, isCommissioner, onOpenSettings }: Lea
   const buyIn = (league.settings as Record<string, unknown>)?.buy_in as number | undefined;
   const hasBuyIn = buyIn != null && buyIn > 0;
 
+  const labelClass = 'text-xs font-heading font-bold uppercase tracking-wide text-muted-foreground';
+  const valueClass = 'text-lg font-semibold text-foreground';
+
   return (
     <>
-    <div className="rounded-lg bg-card p-6 shadow">
+    <div className="rounded-lg bg-card glass-strong glow-border p-6 shadow">
       <div className="mb-4 flex items-start justify-between">
         <div className="flex items-center gap-3">
-          <h1 className="text-3xl font-bold text-foreground">{league.name}</h1>
+          <h1 className="text-3xl font-bold gradient-text font-heading">{league.name}</h1>
           {isCommissioner && (
             <button
               onClick={onOpenSettings}
-              className="rounded p-2 text-muted-foreground hover:bg-muted hover:text-accent-foreground"
+              className="rounded p-2 text-muted-foreground hover:bg-muted hover:text-accent-foreground transition-colors"
               title="League Settings"
             >
               <Settings className="h-5 w-5" />
             </button>
           )}
         </div>
-        <span
-          className={`rounded-full px-3 py-1 text-sm font-medium ${statusColors[league.status] || statusColors.not_filled}`}
-        >
+        <StatusBadge variant={STATUS_VARIANT[league.status] ?? 'neutral'}>
           {statusLabels[league.status] || league.status}
-        </span>
+        </StatusBadge>
       </div>
 
       <div className="flex gap-4 justify-between">
         <div className="min-w-0">
-          <p className="text-sm text-muted-foreground">Season</p>
-          <p className="text-lg font-medium text-foreground">{league.season}</p>
+          <p className={labelClass}>Season</p>
+          <p className={valueClass}>{league.season}</p>
         </div>
         <div>
-          <p className="text-sm text-muted-foreground">Teams</p>
-          <p className="text-lg font-medium text-foreground">{league.total_rosters}</p>
+          <p className={labelClass}>Teams</p>
+          <p className={valueClass}>{league.total_rosters}</p>
         </div>
         <div>
-          <p className="text-sm text-muted-foreground">Type</p>
-          <p className="text-lg font-medium text-foreground">
+          <p className={labelClass}>Type</p>
+          <p className={valueClass}>
             {league.settings?.type === 0
               ? 'Redraft'
               : league.settings?.type === 1
@@ -68,20 +78,20 @@ export function LeagueHeaderCard({ league, isCommissioner, onOpenSettings }: Lea
           </p>
         </div>
         <div>
-          <p className="text-sm text-muted-foreground">Scoring</p>
-          <p className="text-lg font-medium text-foreground">{scoringLabel}</p>
+          <p className={labelClass}>Scoring</p>
+          <p className={valueClass}>{scoringLabel}</p>
         </div>
         {hasBuyIn && (
           <div>
-            <p className="text-sm text-muted-foreground">Buy-In</p>
-            <p className="text-lg font-medium text-foreground">${buyIn}</p>
+            <p className={labelClass}>Buy-In</p>
+            <p className={valueClass}>${buyIn}</p>
           </div>
         )}
         <div className="flex items-end">
           <button
             type="button"
             onClick={() => setIsInfoOpen(true)}
-            className="rounded p-1.5 text-muted-foreground hover:bg-muted hover:text-accent-foreground"
+            className="rounded p-1.5 text-muted-foreground hover:bg-muted hover:text-accent-foreground transition-colors"
             title="Scoring & Roster Info"
           >
             <Info className="h-4 w-4" />
@@ -96,10 +106,10 @@ export function LeagueHeaderCard({ league, isCommissioner, onOpenSettings }: Lea
         const scoring = scoringFromLeague(league);
         const counts = positionArrayToCounts(league.roster_positions ?? []);
         return (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={() => setIsInfoOpen(false)}>
-            <div className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-lg bg-card p-6 shadow-xl glass-strong" onClick={(e) => e.stopPropagation()}>
+          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-background/80 backdrop-blur-sm" onClick={() => setIsInfoOpen(false)}>
+            <div className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-lg bg-card p-6 shadow-xl glass-strong glow-border" onClick={(e) => e.stopPropagation()}>
               <div className="mb-4 flex items-center justify-between">
-                <h2 className="text-xl font-bold text-foreground font-heading">League Info</h2>
+                <h2 className="text-xl font-bold gradient-text font-heading">League Info</h2>
                 <button type="button" onClick={() => setIsInfoOpen(false)} className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-accent-foreground">
                   <X className="h-5 w-5" />
                 </button>

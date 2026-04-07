@@ -3,8 +3,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useParams } from 'next/navigation';
-import Link from 'next/link';
-import { ArrowLeft, Plus } from 'lucide-react';
+import { Plus } from 'lucide-react';
 import { playerApi } from '@/lib/api';
 import type { Player, TradeProposal } from '@/lib/api';
 import { useAuth } from '@/features/auth/hooks/useAuth';
@@ -14,6 +13,7 @@ import { useMembersQuery, useRostersQuery } from '@/hooks/useLeagueQueries';
 import { TradeCard } from '@/features/trades/components/TradeCard';
 import { TradeComposer } from '@/features/trades/components/TradeComposer';
 import { Skeleton } from '@/components/ui/Skeleton';
+import { LeagueSubPageHeader } from '@/components/ui/LeagueSubPageHeader';
 
 export default function TradesPage() {
   const params = useParams();
@@ -116,25 +116,19 @@ export default function TradesPage() {
   return (
     <div className="min-h-screen bg-surface p-6">
       <div className="mx-auto max-w-4xl space-y-6">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <Link
-              href={`/leagues/${leagueId}`}
-              className="rounded p-2 text-muted-foreground hover:bg-muted"
+        <LeagueSubPageHeader
+          leagueId={leagueId}
+          title="Trade Center"
+          actions={
+            <button
+              onClick={() => setIsComposerOpen(true)}
+              className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary-hover transition-colors"
             >
-              <ArrowLeft className="h-5 w-5" />
-            </Link>
-            <h1 className="text-2xl font-bold text-foreground">Trade Center</h1>
-          </div>
-          <button
-            onClick={() => setIsComposerOpen(true)}
-            className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary-hover"
-          >
-            <Plus className="h-4 w-4" />
-            Propose Trade
-          </button>
-        </div>
+              <Plus className="h-4 w-4" />
+              Propose Trade
+            </button>
+          }
+        />
 
         {/* Status Filters */}
         <div className="flex gap-2 overflow-x-auto pb-1">
@@ -142,7 +136,7 @@ export default function TradesPage() {
             <button
               key={filter.label}
               onClick={() => setStatusFilter(filter.value)}
-              className={`rounded-full px-3 py-1 text-sm font-medium whitespace-nowrap ${
+              className={`rounded-full px-3 py-1.5 text-sm font-medium whitespace-nowrap transition-colors ${
                 statusFilter === filter.value
                   ? 'bg-primary text-primary-foreground'
                   : 'bg-muted text-accent-foreground hover:bg-muted-hover'
@@ -181,9 +175,9 @@ export default function TradesPage() {
             ))}
           </div>
         ) : trades.length === 0 ? (
-          <div className="rounded-lg bg-card p-8 shadow text-center">
+          <div className="rounded-lg bg-card glass-strong glow-border p-8 shadow text-center">
             <p className="text-muted-foreground">No trades found</p>
-            <p className="text-sm text-disabled mt-1">Click &quot;Propose Trade&quot; to get started</p>
+            <p className="text-sm text-muted-foreground mt-1">Click &quot;Propose Trade&quot; to get started</p>
           </div>
         ) : (
           <div className="space-y-3">
@@ -229,9 +223,9 @@ export default function TradesPage() {
 
       {/* Confirmation Dialog */}
       {confirmAction && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="rounded-lg bg-card p-6 shadow-xl max-w-sm w-full">
-            <h3 className="text-lg font-semibold text-foreground mb-2">Confirm Action</h3>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm">
+          <div className="rounded-lg bg-card glass-strong glow-border p-6 shadow-xl max-w-sm w-full">
+            <h3 className="text-lg font-semibold gradient-text font-heading mb-2">Confirm Action</h3>
             <p className="text-sm text-muted-foreground mb-4">
               Are you sure you want to <strong>{confirmAction.label.toLowerCase()}</strong> this trade? This action cannot be undone.
             </p>

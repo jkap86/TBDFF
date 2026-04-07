@@ -197,7 +197,7 @@ export default function RosterPage() {
               <ArrowLeft className="h-5 w-5" />
             </Link>
             <div>
-              <h1 className="text-2xl font-bold text-foreground leading-tight">
+              <h1 className="text-2xl font-bold gradient-text font-heading leading-tight">
                 {viewedRoster?.owner_id === user?.id ? 'My Roster' : `${viewedName}'s Roster`}
               </h1>
               {league && (
@@ -284,8 +284,8 @@ export default function RosterPage() {
         ) : (
           <>
             {/* Starters */}
-            <div className="rounded-lg bg-card p-6 shadow glass-strong">
-              <h2 className="mb-1 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+            <div className="rounded-lg bg-card p-6 shadow glass-strong glow-border">
+              <h2 className="mb-1 text-sm font-heading font-bold uppercase tracking-wide text-accent-foreground">
                 Starters
               </h2>
               <div className="divide-y divide-border/50">
@@ -310,7 +310,7 @@ export default function RosterPage() {
             {/* Bench */}
             {benchSlotCount > 0 && (
               <div className="rounded-lg bg-card p-6 shadow glass-subtle">
-                <h2 className="mb-1 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+                <h2 className="mb-1 text-sm font-heading font-bold uppercase tracking-wide text-accent-foreground">
                   Bench
                 </h2>
                 <div className="divide-y divide-border/50">
@@ -336,7 +336,7 @@ export default function RosterPage() {
             {/* IR */}
             {viewedRoster && viewedRoster.reserve.length > 0 && (
               <div className="rounded-lg bg-card p-6 shadow glass-subtle">
-                <h2 className="mb-1 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+                <h2 className="mb-1 text-sm font-heading font-bold uppercase tracking-wide text-accent-foreground">
                   Injured Reserve
                 </h2>
                 <div className="divide-y divide-border/50">
@@ -354,7 +354,7 @@ export default function RosterPage() {
             {/* Taxi */}
             {viewedRoster && viewedRoster.taxi.length > 0 && (
               <div className="rounded-lg bg-card p-6 shadow glass-subtle">
-                <h2 className="mb-1 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+                <h2 className="mb-1 text-sm font-heading font-bold uppercase tracking-wide text-accent-foreground">
                   Taxi Squad
                 </h2>
                 <div className="divide-y divide-border/50">
@@ -371,9 +371,9 @@ export default function RosterPage() {
 
             {/* Empty state */}
             {viewedRoster && viewedRoster.players.length === 0 && (
-              <div className="rounded-lg bg-card p-8 shadow text-center">
+              <div className="rounded-lg bg-card glass-strong glow-border p-8 shadow text-center">
                 <p className="text-muted-foreground">No players on this roster yet.</p>
-                <p className="mt-1 text-sm text-disabled">Players are added after the draft.</p>
+                <p className="mt-1 text-sm text-muted-foreground/70">Players are added after the draft.</p>
               </div>
             )}
           </>

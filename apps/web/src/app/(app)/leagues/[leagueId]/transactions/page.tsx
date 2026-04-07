@@ -2,12 +2,11 @@
 
 import { useState, useCallback, useMemo } from 'react';
 import { useParams } from 'next/navigation';
-import Link from 'next/link';
-import { ArrowLeft } from 'lucide-react';
 import { useTransactions } from '@/features/transactions/hooks/useTransactions';
 import { useTransactionSocket } from '@/features/transactions/hooks/useTransactionSocket';
 import { TransactionFeed } from '@/features/transactions/components/TransactionFeed';
 import { useMembersQuery, useRostersQuery } from '@/hooks/useLeagueQueries';
+import { LeagueSubPageHeader } from '@/components/ui/LeagueSubPageHeader';
 
 export default function TransactionsPage() {
   const params = useParams();
@@ -46,19 +45,10 @@ export default function TransactionsPage() {
   return (
     <div className="min-h-screen bg-surface p-6">
       <div className="mx-auto max-w-4xl space-y-6">
-        {/* Header */}
-        <div className="flex items-center gap-3">
-          <Link
-            href={`/leagues/${leagueId}`}
-            className="rounded p-2 text-muted-foreground hover:bg-muted"
-          >
-            <ArrowLeft className="h-5 w-5" />
-          </Link>
-          <h1 className="text-2xl font-bold text-foreground">Activity Feed</h1>
-        </div>
+        <LeagueSubPageHeader leagueId={leagueId} title="Activity Feed" />
 
         {/* Transaction Feed */}
-        <div className="rounded-lg bg-card p-6 shadow">
+        <div className="rounded-lg bg-card glass-strong glow-border p-6 shadow">
           <TransactionFeed
             transactions={transactions}
             total={total}

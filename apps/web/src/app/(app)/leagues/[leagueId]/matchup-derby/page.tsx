@@ -3,10 +3,13 @@
 import { useState, useMemo } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, Trophy } from 'lucide-react';
+import { Trophy } from 'lucide-react';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import { useMatchupDerby } from '@/features/matchups/hooks/useMatchupDerby';
 import { MatchupDerbyBoard } from '@/features/matchups/components/MatchupDerbyBoard';
+import { LeagueSubPageHeader } from '@/components/ui/LeagueSubPageHeader';
+import { StatusBadge } from '@/components/ui/StatusBadge';
+import { Skeleton } from '@/components/ui/Skeleton';
 
 export default function MatchupDerbyPage() {
   const params = useParams();
@@ -66,11 +69,11 @@ export default function MatchupDerbyPage() {
   if (isLoading) {
     return (
       <div className="min-h-screen bg-surface p-6">
-        <div className="mx-auto max-w-7xl">
-          <div className="mb-4 h-6 w-32 animate-pulse rounded bg-muted" />
+        <div className="mx-auto max-w-7xl space-y-4">
+          <Skeleton className="h-8 w-48" />
           <div className="grid gap-4 lg:grid-cols-[256px_1fr]">
-            <div className="h-96 animate-pulse rounded-lg bg-muted" />
-            <div className="h-96 animate-pulse rounded-lg bg-muted" />
+            <Skeleton className="h-96" />
+            <Skeleton className="h-96" />
           </div>
         </div>
       </div>
@@ -80,14 +83,9 @@ export default function MatchupDerbyPage() {
   if (error) {
     return (
       <div className="min-h-screen bg-surface p-6">
-        <div className="mx-auto max-w-7xl">
-          <Link
-            href={`/leagues/${leagueId}`}
-            className="mb-4 flex items-center gap-2 text-sm text-muted-foreground hover:text-accent-foreground"
-          >
-            <ArrowLeft className="h-4 w-4" /> Back to League
-          </Link>
-          <div className="rounded bg-destructive p-4 text-destructive-foreground">
+        <div className="mx-auto max-w-7xl space-y-4">
+          <LeagueSubPageHeader leagueId={leagueId} title="Matchup Derby" />
+          <div className="rounded-lg bg-card glass-strong glow-border p-4 text-destructive-foreground">
             {error}
           </div>
         </div>
@@ -97,35 +95,21 @@ export default function MatchupDerbyPage() {
 
   return (
     <div className="min-h-screen bg-surface p-4 lg:p-6">
-      <div className="mx-auto max-w-7xl">
-        {/* Header */}
-        <div className="mb-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <Link
-              href={`/leagues/${leagueId}`}
-              className="flex items-center gap-2 text-sm text-muted-foreground hover:text-accent-foreground"
-            >
-              <ArrowLeft className="h-4 w-4" /> Back
-            </Link>
-            <h1 className="text-xl font-bold text-foreground">Matchup Derby</h1>
-            {!derby && (
-              <span className="rounded-full bg-yellow-500/20 px-2 py-0.5 text-xs font-medium text-yellow-600">
-                Setup
-              </span>
-            )}
-            {derby?.status === 'active' && (
-              <span className="rounded-full bg-green-500/20 px-2 py-0.5 text-xs font-medium text-green-600">
-                Live
-              </span>
-            )}
-            {derby?.status === 'complete' && (
-              <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
-                Complete
-              </span>
-            )}
-          </div>
-          <div className="flex items-center gap-4">
-            {!derby && isCommissioner && (
+      <div className="mx-auto max-w-7xl space-y-4">
+        <LeagueSubPageHeader
+          leagueId={leagueId}
+          title="Matchup Derby"
+          badge={
+            !derby ? (
+              <StatusBadge variant="setup">Setup</StatusBadge>
+            ) : derby.status === 'active' ? (
+              <StatusBadge variant="live">Live</StatusBadge>
+            ) : derby.status === 'complete' ? (
+              <StatusBadge variant="complete">Complete</StatusBadge>
+            ) : null
+          }
+          actions={
+            !derby && isCommissioner ? (
               <button
                 onClick={async () => {
                   setIsStarting(true);
@@ -133,22 +117,21 @@ export default function MatchupDerbyPage() {
                   setIsStarting(false);
                 }}
                 disabled={isStarting}
-                className="rounded-lg bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-50"
+                className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary-hover disabled:opacity-50 transition-colors"
               >
                 {isStarting ? 'Starting...' : 'Start Derby'}
               </button>
-            )}
-            {!derby && !isCommissioner && (
+            ) : !derby && !isCommissioner ? (
               <span className="text-sm text-muted-foreground">
                 Waiting for commissioner to start
               </span>
-            )}
-          </div>
-        </div>
+            ) : null
+          }
+        />
 
         {/* Pre-derby empty grid */}
         {!derby && sortedRosters.length > 0 && (
-          <div className="rounded-lg bg-card p-4 shadow">
+          <div className="rounded-lg bg-card glass-strong glow-border p-4 shadow">
             <div className="overflow-x-auto">
               <table className="w-full border-collapse text-sm">
                 <thead>
@@ -187,9 +170,9 @@ export default function MatchupDerbyPage() {
 
         {/* Complete state */}
         {derby?.status === 'complete' && (
-          <div className="mb-6 rounded-lg bg-card p-6 shadow text-center">
-            <Trophy className="mx-auto mb-3 h-10 w-10 text-primary" />
-            <h2 className="text-lg font-bold text-foreground mb-1">Derby Complete!</h2>
+          <div className="mb-6 rounded-lg bg-card glass-strong glow-border p-6 shadow text-center">
+            <Trophy className="mx-auto mb-3 h-10 w-10 text-primary glow-text" />
+            <h2 className="text-lg font-bold gradient-text font-heading mb-1">Derby Complete!</h2>
             <p className="text-sm text-muted-foreground mb-4">
               All {derby.total_picks} matchups have been selected. The schedule is set!
             </p>

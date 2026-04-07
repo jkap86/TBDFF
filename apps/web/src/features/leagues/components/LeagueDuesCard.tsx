@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { ChevronDown, MessageSquare, Pencil, Check, X } from 'lucide-react';
+import { ChevronDown, ChevronUp, MessageSquare, Pencil, Check, X } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { paymentApi, ApiError } from '@/lib/api';
@@ -94,26 +94,30 @@ export function LeagueDuesCard({
   };
 
   return (
-    <div className={`rounded-lg bg-card shadow ${duesExpanded ? 'p-6 glass-strong glow-border' : 'p-4 glass-subtle'}`}>
-      <div className={`flex items-center justify-between ${duesExpanded ? 'mb-4' : ''}`}>
+    <div className={`rounded-lg bg-card shadow ${duesExpanded ? 'glass-strong glow-border' : 'glass-subtle border border-border'}`}>
+      <div className={`flex items-center justify-between ${duesExpanded ? '' : ''}`}>
         <button
           onClick={() => setIsDuesExpanded((prev) => ((prev ?? !allPaid) ? false : true))}
-          className="flex flex-1 items-center gap-3"
+          className="flex flex-1 items-center justify-between px-4 py-3 text-left hover:bg-muted/40 transition-colors rounded-lg"
         >
-          <ChevronDown
-            className={`h-5 w-5 text-muted-foreground transition-transform ${duesExpanded ? '' : '-rotate-90'}`}
-          />
-          <h2 className="text-xl font-bold text-foreground">
-            Dues {hasBuyIn ? `- $${buyIn}` : '- Free'}
-          </h2>
-          <span className="text-sm text-muted-foreground">
-            {paidCount}/{totalRosters} Paid
-          </span>
+          <div className="flex items-center gap-3">
+            <h3 className="text-sm font-heading font-bold uppercase tracking-wide text-accent-foreground">
+              Dues {hasBuyIn ? `- $${buyIn}` : '- Free'}
+            </h3>
+            <span className="text-sm text-muted-foreground">
+              {paidCount}/{totalRosters} Paid
+            </span>
+          </div>
+          {duesExpanded ? (
+            <ChevronUp className="h-4 w-4 text-muted-foreground" />
+          ) : (
+            <ChevronDown className="h-4 w-4 text-muted-foreground" />
+          )}
         </button>
         {isCommissioner && duesExpanded && (
           <button
             onClick={() => setIsDuesEditing((prev) => !prev)}
-            className="rounded p-1.5 text-disabled hover:bg-muted hover:text-accent-foreground"
+            className="mr-2 rounded p-1.5 text-muted-foreground hover:bg-muted hover:text-accent-foreground transition-colors"
             title={isDuesEditing ? 'Done editing' : 'Edit dues'}
           >
             {isDuesEditing ? <Check className="h-4 w-4" /> : <Pencil className="h-4 w-4" />}
@@ -123,7 +127,7 @@ export function LeagueDuesCard({
 
       {/* Active members */}
       {duesExpanded && (
-        <>
+        <div className="px-4 pb-4">
           {payouts &&
             payouts.length > 0 &&
             (() => {
@@ -189,7 +193,7 @@ export function LeagueDuesCard({
                     {member.user_id !== currentUserId && !isDuesEditing && (
                       <button
                         onClick={() => onStartDM(member.user_id)}
-                        className="rounded p-1.5 text-disabled hover:bg-muted hover:text-link"
+                        className="rounded p-1.5 text-muted-foreground hover:bg-muted hover:text-link transition-colors"
                         title={`Message ${member.username}`}
                       >
                         <MessageSquare className="h-4 w-4" />
@@ -316,7 +320,7 @@ export function LeagueDuesCard({
                         {member.user_id !== currentUserId && !isDuesEditing && (
                           <button
                             onClick={() => onStartDM(member.user_id)}
-                            className="rounded p-1.5 text-disabled hover:bg-muted hover:text-link"
+                            className="rounded p-1.5 text-muted-foreground hover:bg-muted hover:text-link transition-colors"
                             title={`Message ${member.username}`}
                           >
                             <MessageSquare className="h-4 w-4" />
@@ -329,7 +333,7 @@ export function LeagueDuesCard({
               )}
             </div>
           )}
-        </>
+        </div>
       )}
     </div>
   );

@@ -2,9 +2,10 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { useParams } from 'next/navigation';
-import Link from 'next/link';
-import { ArrowLeft, ChevronDown, Radio } from 'lucide-react';
+import { ChevronDown, Radio } from 'lucide-react';
 import { playerApi } from '@/lib/api';
+import { LeagueSubPageHeader } from '@/components/ui/LeagueSubPageHeader';
+import { StatusBadge } from '@/components/ui/StatusBadge';
 import type { Player } from '@/lib/api';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import {
@@ -144,22 +145,18 @@ export default function ScoresPage() {
   return (
     <div className="min-h-screen bg-surface p-6">
       <div className="mx-auto max-w-3xl space-y-6">
-        {/* Header */}
-        <div className="flex items-center gap-3">
-          <Link
-            href={`/leagues/${leagueId}`}
-            className="rounded p-2 text-muted-foreground hover:bg-muted"
-          >
-            <ArrowLeft className="h-5 w-5" />
-          </Link>
-          <h1 className="text-2xl font-bold text-foreground">Scores</h1>
-          {isLiveWeek && hasScores && (
-            <span className="flex items-center gap-1 rounded-full bg-neon-cyan/20 px-2 py-0.5 text-xs font-bold text-neon-cyan">
-              <Radio className="h-3 w-3" />
-              LIVE
-            </span>
-          )}
-        </div>
+        <LeagueSubPageHeader
+          leagueId={leagueId}
+          title="Scores"
+          badge={
+            isLiveWeek && hasScores ? (
+              <StatusBadge variant="live">
+                <Radio className="mr-1 h-3 w-3" />
+                Live
+              </StatusBadge>
+            ) : null
+          }
+        />
 
         {/* Week selector */}
         {weeks.length > 0 && (
@@ -168,7 +165,7 @@ export default function ScoresPage() {
               <button
                 key={week}
                 onClick={() => { setSelectedWeek(week); setExpandedMatchupId(null); }}
-                className={`rounded-full px-3 py-1 text-sm font-medium whitespace-nowrap ${
+                className={`rounded-full px-3 py-1.5 text-sm font-medium whitespace-nowrap transition-colors ${
                   selectedWeek === week
                     ? 'bg-primary text-primary-foreground'
                     : 'bg-muted text-accent-foreground hover:bg-muted-hover'
@@ -217,11 +214,11 @@ export default function ScoresPage() {
                     className="flex w-full items-center gap-4 px-5 py-4 text-left"
                   >
                     {/* Team A */}
-                    <div className={`flex min-w-0 flex-1 flex-col ${winnerA ? 'border-l-2 border-neon-cyan pl-2' : ''}`}>
+                    <div className={`flex min-w-0 flex-1 flex-col ${winnerA ? 'border-l-[3px] border-neon-cyan bg-neon-cyan/10 pl-2 -ml-1' : ''}`}>
                       <span className={`truncate text-sm font-semibold ${winnerA ? 'text-foreground' : 'text-accent-foreground'}`}>
                         {nameA}
                       </span>
-                      <span className={`text-lg font-bold tabular-nums ${winnerA ? 'text-neon-cyan' : hasResult ? 'text-foreground' : 'text-disabled'}`}>
+                      <span className={`text-lg font-bold tabular-nums ${winnerA ? 'text-neon-cyan glow-text' : hasResult ? 'text-foreground' : 'text-disabled'}`}>
                         {hasResult ? scoreA.toFixed(2) : '—'}
                       </span>
                     </div>
@@ -229,11 +226,11 @@ export default function ScoresPage() {
                     <span className="flex-shrink-0 text-xs font-medium text-disabled">vs</span>
 
                     {/* Team B */}
-                    <div className={`flex min-w-0 flex-1 flex-col items-end ${winnerB ? 'border-r-2 border-neon-cyan pr-2' : ''}`}>
+                    <div className={`flex min-w-0 flex-1 flex-col items-end ${winnerB ? 'border-r-[3px] border-neon-cyan bg-neon-cyan/10 pr-2 -mr-1' : ''}`}>
                       <span className={`truncate text-sm font-semibold ${winnerB ? 'text-foreground' : 'text-accent-foreground'}`}>
                         {nameB}
                       </span>
-                      <span className={`text-lg font-bold tabular-nums ${winnerB ? 'text-neon-cyan' : hasResult ? 'text-foreground' : 'text-disabled'}`}>
+                      <span className={`text-lg font-bold tabular-nums ${winnerB ? 'text-neon-cyan glow-text' : hasResult ? 'text-foreground' : 'text-disabled'}`}>
                         {hasResult ? scoreB.toFixed(2) : '—'}
                       </span>
                     </div>

@@ -2,11 +2,12 @@
 
 import { useMemo } from 'react';
 import { useParams } from 'next/navigation';
-import Link from 'next/link';
-import { ArrowLeft, GitBranch } from 'lucide-react';
+import { GitBranch } from 'lucide-react';
 import { useLeagueQuery, useMembersQuery, useRostersQuery, useMatchupsQuery } from '@/hooks/useLeagueQueries';
 import { BracketView } from '@/features/bracket/components/BracketView';
 import { buildBracket } from '@/features/bracket/utils/buildBracket';
+import { LeagueSubPageHeader } from '@/components/ui/LeagueSubPageHeader';
+import { Skeleton } from '@/components/ui/Skeleton';
 
 export default function BracketPage() {
   const params = useParams();
@@ -42,44 +43,32 @@ export default function BracketPage() {
   return (
     <div className="min-h-screen bg-surface p-6">
       <div className="mx-auto max-w-5xl space-y-6">
-        {/* Header */}
-        <div className="flex items-center gap-3">
-          <Link
-            href={`/leagues/${leagueId}`}
-            className="rounded p-2 text-muted-foreground hover:bg-muted"
-          >
-            <ArrowLeft className="h-5 w-5" />
-          </Link>
-          <div>
-            <h1 className="text-2xl font-bold text-foreground">Playoff Bracket</h1>
-            {league && (
-              <p className="text-xs text-muted-foreground">
-                {league.name} · {league.season}
-              </p>
-            )}
-          </div>
-        </div>
+        <LeagueSubPageHeader
+          leagueId={leagueId}
+          title="Playoff Bracket"
+        />
 
         {isLoading ? (
-          <div className="flex items-center justify-center py-16">
-            <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+          <div className="space-y-4">
+            <Skeleton className="h-8 w-48" />
+            <Skeleton className="h-64" />
           </div>
         ) : !isPlayoff ? (
-          <div className="rounded-lg bg-card p-10 shadow glass-subtle text-center">
+          <div className="rounded-lg bg-card glass-subtle border border-border p-10 shadow text-center">
             <GitBranch className="mx-auto mb-3 h-10 w-10 text-muted-foreground" />
             <p className="text-base font-medium text-muted-foreground">
               Playoff bracket will appear when the post season begins.
             </p>
-            <p className="mt-1 text-sm text-disabled">
+            <p className="mt-1 text-sm text-muted-foreground/70">
               Playoffs start Week {playoffWeekStart}.
             </p>
           </div>
         ) : rounds.length === 0 ? (
-          <div className="rounded-lg bg-card p-8 shadow text-center">
+          <div className="rounded-lg bg-card glass-subtle border border-border p-8 shadow text-center">
             <p className="text-muted-foreground">No playoff matchup data yet.</p>
           </div>
         ) : (
-          <div className="rounded-lg bg-card p-6 shadow glass-strong">
+          <div className="rounded-lg bg-card glass-strong glow-border p-6 shadow">
             <BracketView rounds={rounds} getRosterLabel={getRosterLabel} />
           </div>
         )}

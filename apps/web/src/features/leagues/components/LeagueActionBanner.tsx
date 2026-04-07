@@ -141,12 +141,21 @@ export function LeagueActionBanner(props: LeagueActionBannerProps) {
   return (
     <div className={`flex items-center justify-between rounded-lg border px-4 py-3 ${variantClasses[banner.variant]}`}>
       <div className="flex items-center gap-3">
-        <Icon className={`h-4 w-4 flex-shrink-0 ${
-          banner.variant === 'urgent' ? 'text-neon-cyan' : banner.variant === 'action' ? 'text-warning' : 'text-muted-foreground'
-        }`} />
-        <span className={`text-sm font-medium ${
-          banner.variant === 'urgent' ? 'text-neon-cyan' : 'text-foreground'
-        }`}>
+        <Icon
+          className={`h-4 w-4 flex-shrink-0 ${
+            banner.variant === 'urgent'
+              ? 'text-neon-cyan'
+              : banner.variant === 'action'
+                ? 'text-warning'
+                : 'text-muted-foreground'
+          }`}
+          style={banner.variant === 'urgent' ? { animation: 'neon-pulse 2s ease-in-out infinite' } : undefined}
+        />
+        <span
+          className={`text-sm font-medium ${
+            banner.variant === 'urgent' ? 'text-neon-cyan glow-text' : 'text-foreground'
+          }`}
+        >
           {banner.text}
         </span>
       </div>
@@ -155,7 +164,7 @@ export function LeagueActionBanner(props: LeagueActionBannerProps) {
           href={banner.cta.href}
           className={`flex-shrink-0 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${
             banner.variant === 'urgent'
-              ? 'bg-primary text-primary-foreground hover:bg-primary-hover'
+              ? 'bg-primary text-primary-foreground hover:bg-primary-hover glow-text'
               : 'bg-muted text-accent-foreground hover:bg-muted-hover'
           }`}
         >

@@ -51,12 +51,12 @@ export function SlowBidDialog({ lot, myBudget, minBid, minIncrement, onSubmit, o
   const hoursRemaining = Math.max(0, msRemaining / (1000 * 60 * 60));
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm" onClick={onClose}>
       <div
-        className="w-full max-w-md rounded-xl glass-strong p-6 shadow-xl"
+        className="w-full max-w-md rounded-xl glass-strong glow-border p-6 shadow-xl"
         onClick={(e) => e.stopPropagation()}
       >
-        <h3 className="text-lg font-bold text-foreground mb-1">
+        <h3 className="text-lg font-bold gradient-text font-heading mb-1">
           Set Max Bid
         </h3>
         <p className="text-sm text-muted-foreground mb-4">

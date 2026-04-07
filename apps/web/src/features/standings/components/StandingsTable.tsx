@@ -67,21 +67,21 @@ export function StandingsTable({
             return (
               <React.Fragment key={roster.id}>
                 <tr className={`border-b border-border/40 transition-colors ${
-                    isCurrentUser ? 'bg-neon-cyan/5 ring-1 ring-inset ring-neon-cyan/20' : 'hover:bg-muted/30'
+                    isCurrentUser ? 'bg-neon-cyan/10 ring-1 ring-inset ring-neon-cyan/40' : 'hover:bg-muted/30'
                   }`}
                 >
-                  <td className="py-3 pr-3 font-bold tabular-nums text-muted-foreground">{rank}</td>
+                  <td className={`py-3 pr-3 font-bold tabular-nums ${isCurrentUser ? 'text-neon-cyan glow-text' : 'text-muted-foreground'}`}>{rank}</td>
                   <td className="py-3 pr-3">
                     <div className="flex items-center gap-2 min-w-0">
-                      <span className="truncate font-medium text-foreground">{name}</span>
+                      <span className={`truncate font-medium ${isCurrentUser ? 'text-foreground glow-text' : 'text-foreground'}`}>{name}</span>
                       {isCurrentUser && (
-                        <span className="flex-shrink-0 rounded-full bg-neon-cyan/20 px-1.5 py-0.5 text-xs font-medium text-neon-cyan">
+                        <span className="flex-shrink-0 rounded-full bg-neon-cyan/20 px-1.5 py-0.5 text-xs font-semibold uppercase tracking-wide text-neon-cyan">
                           You
                         </span>
                       )}
                       {clinched && (
-                        <span className="flex-shrink-0 rounded-full bg-neon-orange/20 px-1.5 py-0.5 text-xs font-bold text-neon-orange">
-                          C
+                        <span className="flex-shrink-0 rounded-full bg-neon-orange/20 px-2 py-0.5 text-xs font-semibold uppercase tracking-wide text-neon-orange">
+                          Clinched
                         </span>
                       )}
                     </div>

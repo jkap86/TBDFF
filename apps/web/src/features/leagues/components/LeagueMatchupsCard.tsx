@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useQueryClient } from '@tanstack/react-query';
-import { Settings, ChevronDown, Shuffle } from 'lucide-react';
+import { Settings, ChevronDown, ChevronUp, Shuffle } from 'lucide-react';
 import { matchupApi, ApiError } from '@/lib/api';
 import type { League, LeagueMember, Roster, Matchup } from '@tbdff/shared';
 
@@ -67,16 +67,15 @@ export function LeagueMatchupsCard({
   };
 
   return (
-    <div className={`rounded-lg bg-card shadow ${isExpanded ? 'p-6 glass-strong glow-border' : 'p-4 glass-subtle'}`}>
-      <div className={`flex items-center justify-between ${isExpanded ? 'mb-4' : ''}`}>
-        <button
-          onClick={() => setIsExpanded((prev) => !prev)}
-          className="flex flex-1 items-center gap-3"
-        >
-          <ChevronDown
-            className={`h-5 w-5 text-muted-foreground transition-transform ${isExpanded ? '' : '-rotate-90'}`}
-          />
-          <h2 className="text-xl font-bold text-foreground">Matchups</h2>
+    <div className={`rounded-lg bg-card shadow ${isExpanded ? 'glass-strong glow-border' : 'glass-subtle border border-border'}`}>
+      <button
+        onClick={() => setIsExpanded((prev) => !prev)}
+        className={`w-full flex items-center justify-between px-4 py-3 text-left hover:bg-muted/40 transition-colors rounded-lg ${isExpanded ? 'mb-1' : ''}`}
+      >
+        <div className="flex items-center gap-3">
+          <h3 className="text-sm font-heading font-bold uppercase tracking-wide text-accent-foreground">
+            Matchups
+          </h3>
           <span className="text-sm text-muted-foreground">
             {(() => {
               if (matchups.length === 0) return 'No schedule';
@@ -97,10 +96,15 @@ export function LeagueMatchupsCard({
               return `${weeks.length} weeks`;
             })()}
           </span>
-        </button>
-      </div>
+        </div>
+        {isExpanded ? (
+          <ChevronUp className="h-4 w-4 text-muted-foreground" />
+        ) : (
+          <ChevronDown className="h-4 w-4 text-muted-foreground" />
+        )}
+      </button>
 
-      {isExpanded && (<>
+      {isExpanded && (<div className="px-4 pb-4">
       {matchups.length > 0 ? (
         <div>
           {isCommissioner && (league.settings?.matchup_type ?? 0) === 0 && (
@@ -142,7 +146,7 @@ export function LeagueMatchupsCard({
                 <button
                   key={week}
                   onClick={() => setSelectedWeek(week)}
-                  className={`rounded-full px-3 py-1 text-sm font-medium whitespace-nowrap ${
+                  className={`rounded-full px-3 py-1.5 text-sm font-medium whitespace-nowrap transition-colors ${
                     selectedWeek === week
                       ? 'bg-primary text-primary-foreground'
                       : 'bg-muted text-accent-foreground hover:bg-muted-hover'
@@ -233,7 +237,7 @@ export function LeagueMatchupsCard({
           )}
         </div>
       )}
-      </>)}
+      </div>)}
     </div>
   );
 }
