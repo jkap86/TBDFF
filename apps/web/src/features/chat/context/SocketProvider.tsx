@@ -88,6 +88,9 @@ function getSocketUrl(): string {
   if (process.env.NEXT_PUBLIC_API_URL) {
     return process.env.NEXT_PUBLIC_API_URL.replace(/\/api\/?$/, '');
   }
+  if (process.env.NEXT_PUBLIC_BACKEND_URL) {
+    return process.env.NEXT_PUBLIC_BACKEND_URL;
+  }
   // Fall back to same origin — works when /socket.io is proxied via Next.js rewrites
   if (typeof window !== 'undefined') {
     return window.location.origin;
