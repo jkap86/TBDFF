@@ -108,9 +108,15 @@ export class LeagueInviteService {
       throw new ConflictException(`Invite has already been ${invite.status}`);
     }
 
-    // 4. Verify league still exists and has capacity
+    // 4. Verify league still exists and has capacity (best-effort fast path;
+    //    the authoritative check happens inside acceptInviteTransaction under
+    //    a row lock to prevent overfilling on concurrent accepts).
     const league = await this.leagueRepository.findById(invite.leagueId);
     if (!league) throw new NotFoundException('League no longer exists');
+    const memberCount = await this.leagueMembersRepository.getMemberCount(invite.leagueId);
+    if (memberCount >= league.totalRosters) {
+      throw new ConflictException('League is full');
+    }
 
     // 5. Check if user is already a member (race condition check)
     const existingMember = await this.leagueMembersRepository.findMember(invite.leagueId, userId);

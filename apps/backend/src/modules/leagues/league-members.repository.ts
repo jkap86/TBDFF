@@ -1,5 +1,6 @@
 import { Pool, PoolClient } from 'pg';
 import { LeagueMember, LeagueInvite } from './leagues.model';
+import { ConflictException, NotFoundException } from '../../shared/exceptions';
 
 export class LeagueMembersRepository {
   constructor(private readonly db: Pool) {}
@@ -227,6 +228,42 @@ export class LeagueMembersRepository {
     inviteId: string,
   ): Promise<LeagueMember> {
     return this.withTransaction(async (client) => {
+      // Lock the league row so concurrent accepts serialize on capacity check
+      const leagueResult = await client.query(
+        `SELECT total_rosters FROM leagues WHERE id = $1 FOR UPDATE`,
+        [leagueId]
+      );
+      if (leagueResult.rows.length === 0) {
+        throw new NotFoundException('League no longer exists');
+      }
+      const totalRosters: number = leagueResult.rows[0].total_rosters;
+
+      // Re-verify the invite is still pending inside the transaction
+      const inviteResult = await client.query(
+        `SELECT status, invitee_id, league_id FROM league_invites WHERE id = $1 FOR UPDATE`,
+        [inviteId]
+      );
+      if (inviteResult.rows.length === 0) {
+        throw new NotFoundException('Invite not found');
+      }
+      const inviteRow = inviteResult.rows[0];
+      if (inviteRow.status !== 'pending') {
+        throw new ConflictException(`Invite has already been ${inviteRow.status}`);
+      }
+      if (inviteRow.invitee_id !== userId || inviteRow.league_id !== leagueId) {
+        throw new ConflictException('Invite does not match user or league');
+      }
+
+      // Count current members under the lock
+      const countResult = await client.query(
+        `SELECT COUNT(*)::int AS count FROM league_members WHERE league_id = $1`,
+        [leagueId]
+      );
+      const memberCount: number = countResult.rows[0].count;
+      if (memberCount >= totalRosters) {
+        throw new ConflictException('League is full');
+      }
+
       const memberResult = await client.query(
         `WITH inserted AS (
            INSERT INTO league_members (league_id, user_id, role)
