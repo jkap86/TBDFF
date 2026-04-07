@@ -26,6 +26,20 @@ const STARTER_POSITIONS = new Set([
   'WRRB_FLEX',
 ]);
 
+// Which player positions are eligible for each starter slot.
+const SLOT_ELIGIBILITY: Record<string, Set<string>> = {
+  QB: new Set(['QB']),
+  RB: new Set(['RB']),
+  WR: new Set(['WR']),
+  TE: new Set(['TE']),
+  K: new Set(['K']),
+  DEF: new Set(['DEF']),
+  FLEX: new Set(['RB', 'WR', 'TE']),
+  SUPER_FLEX: new Set(['QB', 'RB', 'WR', 'TE']),
+  REC_FLEX: new Set(['WR', 'TE']),
+  WRRB_FLEX: new Set(['RB', 'WR']),
+};
+
 export default function RosterPage() {
   const params = useParams();
   const leagueId = params.leagueId as string;
@@ -164,6 +178,19 @@ export default function RosterPage() {
     }
   }
 
+  // A player fits a slot if the slot is bench, or the player's position is
+  // eligible for the starter slot label. Empty player ids always "fit" so a
+  // filled slot can move into an empty target.
+  function playerFitsSlot(playerId: string, section: 'starters' | 'bench', idx: number) {
+    if (!playerId) return true;
+    if (section === 'bench') return true;
+    const slotLabel = starterSlots[idx];
+    const eligible = SLOT_ELIGIBILITY[slotLabel];
+    if (!eligible) return true;
+    const pos = playerMap[playerId]?.position;
+    return pos ? eligible.has(pos) : false;
+  }
+
   function handleSlotTap(section: 'starters' | 'bench', idx: number) {
     if (!canEditLineup) return;
 
@@ -182,15 +209,29 @@ export default function RosterPage() {
       return;
     }
 
+    const srcVal =
+      selectedSlot.section === 'starters'
+        ? pendingStarters[selectedSlot.idx] ?? ''
+        : pendingBench[selectedSlot.idx] ?? '';
+    const dstVal = currentValue;
+
+    // Reject swap if either player wouldn't fit its destination slot.
+    if (
+      !playerFitsSlot(srcVal, section, idx) ||
+      !playerFitsSlot(dstVal, selectedSlot.section, selectedSlot.idx)
+    ) {
+      setSaveError('Player position not eligible for that slot');
+      setSelectedSlot(null);
+      setTimeout(() => setSaveError(null), 2000);
+      return;
+    }
+
     const newStarters = [...pendingStarters];
     const newBench = [...pendingBench];
-    const getArr = (s: 'starters' | 'bench') => (s === 'starters' ? newStarters : newBench);
-    const srcArr = getArr(selectedSlot.section);
-    const dstArr = getArr(section);
-    const srcVal = srcArr[selectedSlot.idx] ?? '';
-    const dstVal = dstArr[idx] ?? '';
-    srcArr[selectedSlot.idx] = dstVal;
-    dstArr[idx] = srcVal;
+    if (selectedSlot.section === 'starters') newStarters[selectedSlot.idx] = dstVal;
+    else newBench[selectedSlot.idx] = dstVal;
+    if (section === 'starters') newStarters[idx] = srcVal;
+    else newBench[idx] = srcVal;
 
     performSwap(newStarters, newBench);
   }
@@ -198,6 +239,20 @@ export default function RosterPage() {
   // Display data: always the local pending arrays (source of truth).
   const displayStarters = pendingStarters;
   const displayBench = pendingBench;
+
+  function isEligibleSwapTarget(section: 'starters' | 'bench', idx: number) {
+    if (!selectedSlot) return false;
+    if (selectedSlot.section === section && selectedSlot.idx === idx) return false;
+    const srcVal =
+      selectedSlot.section === 'starters'
+        ? pendingStarters[selectedSlot.idx] ?? ''
+        : pendingBench[selectedSlot.idx] ?? '';
+    const dstVal = section === 'starters' ? pendingStarters[idx] ?? '' : pendingBench[idx] ?? '';
+    return (
+      playerFitsSlot(srcVal, section, idx) &&
+      playerFitsSlot(dstVal, selectedSlot.section, selectedSlot.idx)
+    );
+  }
 
   const viewedMember = members.find((m) => m.user_id === viewedRoster?.owner_id);
   const viewedName = viewedMember?.display_name || viewedMember?.username || 'Unowned';
@@ -328,11 +383,7 @@ export default function RosterPage() {
                             selectedSlot?.section === 'starters' &&
                             selectedSlot.idx === idx
                           }
-                          isSwappable={
-                            canEditLineup &&
-                            selectedSlot !== null &&
-                            !(selectedSlot.section === 'starters' && selectedSlot.idx === idx)
-                          }
+                          isSwappable={canEditLineup && isEligibleSwapTarget('starters', idx)}
                           onClick={
                             canEditLineup ? () => handleSlotTap('starters', idx) : undefined
                           }
@@ -369,11 +420,7 @@ export default function RosterPage() {
                               selectedSlot?.section === 'bench' &&
                               selectedSlot.idx === idx
                             }
-                            isSwappable={
-                              canEditLineup &&
-                              selectedSlot !== null &&
-                              !(selectedSlot.section === 'bench' && selectedSlot.idx === idx)
-                            }
+                            isSwappable={canEditLineup && isEligibleSwapTarget('bench', idx)}
                             onClick={
                               canEditLineup ? () => handleSlotTap('bench', idx) : undefined
                             }
