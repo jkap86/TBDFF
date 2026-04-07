@@ -8,6 +8,10 @@ const nextConfig = {
         source: '/api/:path*',
         destination: `${process.env.BACKEND_URL || 'http://localhost:5000'}/api/:path*`,
       },
+      {
+        source: '/socket.io/:path*',
+        destination: `${process.env.BACKEND_URL || 'http://localhost:5000'}/socket.io/:path*`,
+      },
     ];
   },
 };

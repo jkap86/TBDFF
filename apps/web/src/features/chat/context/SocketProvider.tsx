@@ -82,9 +82,17 @@ function getSocketUrl(): string {
   if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
     return `${window.location.protocol}//${window.location.hostname}:5000`;
   }
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:5000/api';
-  // Strip /api suffix to get the base server URL
-  return apiUrl.replace(/\/api\/?$/, '');
+  if (process.env.NEXT_PUBLIC_SOCKET_URL) {
+    return process.env.NEXT_PUBLIC_SOCKET_URL;
+  }
+  if (process.env.NEXT_PUBLIC_API_URL) {
+    return process.env.NEXT_PUBLIC_API_URL.replace(/\/api\/?$/, '');
+  }
+  // Fall back to same origin — works when /socket.io is proxied via Next.js rewrites
+  if (typeof window !== 'undefined') {
+    return window.location.origin;
+  }
+  return 'http://localhost:5000';
 }
 
 export function SocketProvider({ children }: { children: React.ReactNode }) {
