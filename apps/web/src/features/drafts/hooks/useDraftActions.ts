@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { toast } from 'sonner';
 import { draftApi, ApiError, type Draft, type DraftPick, type DraftQueueItem, type Roster, type UpdateDraftRequest, type AuctionLot, type RosterBudget, type NominationStatsResponse } from '@/lib/api';
 import { applyChainedPicksSequentially } from './useDraftSocket';
@@ -33,6 +33,20 @@ export function useDraftActions({
   const [isPicking, setIsPicking] = useState(false);
   const [pickError, setPickError] = useState<string | null>(null);
   const [isTogglingAutoPick, setIsTogglingAutoPick] = useState(false);
+
+  // Centralized in-flight dedupe: at most one action per (draftId, type) at a time.
+  // Survives rerenders/remounts within the hook instance and protects against
+  // double-click races and repeated triggers from upstream state churn.
+  const inFlightRef = useRef<Set<string>>(new Set());
+  const runExclusive = useCallback(async <T,>(key: string, fn: () => Promise<T>): Promise<T | undefined> => {
+    if (inFlightRef.current.has(key)) return undefined;
+    inFlightRef.current.add(key);
+    try {
+      return await fn();
+    } finally {
+      inFlightRef.current.delete(key);
+    }
+  }, []);
 
   // Auction-specific UI state
   const [nominatePlayerId, setNominatePlayerId] = useState('');
@@ -102,90 +116,97 @@ export function useDraftActions({
 
   const handleMakePick = useCallback(async (playerId: string) => {
     if (!draft || !accessToken || !playerId.trim()) return;
+    await runExclusive(`${draft.id}:makePick`, async () => {
+      try {
+        setIsPicking(true);
+        setPickError(null);
+        const result = await draftApi.makePick(draft.id, { player_id: playerId.trim() }, accessToken);
+        setPicks((prev) => prev.map((p) => (p.id === result.pick.id ? result.pick : p)));
+        if (result.chained_picks?.length) {
+          applyChainedPicksSequentially(setPicks, result.chained_picks);
+        }
 
-    try {
-      setIsPicking(true);
-      setPickError(null);
-      const result = await draftApi.makePick(draft.id, { player_id: playerId.trim() }, accessToken);
-      setPicks((prev) => prev.map((p) => (p.id === result.pick.id ? result.pick : p)));
-      if (result.chained_picks?.length) {
-        applyChainedPicksSequentially(setPicks, result.chained_picks);
+        const draftResult = await draftApi.getById(draft.id, accessToken);
+        setDraft(draftResult.draft);
+      } catch (err) {
+        if (err instanceof ApiError) {
+          setPickError(err.message);
+        } else {
+          setPickError('Failed to make pick');
+        }
+      } finally {
+        setIsPicking(false);
       }
-
-      const draftResult = await draftApi.getById(draft.id, accessToken);
-      setDraft(draftResult.draft);
-    } catch (err) {
-      if (err instanceof ApiError) {
-        setPickError(err.message);
-      } else {
-        setPickError('Failed to make pick');
-      }
-    } finally {
-      setIsPicking(false);
-    }
-  }, [draft, accessToken]);
+    });
+  }, [draft, accessToken, runExclusive]);
 
   const handleNominate = useCallback(async (playerId?: string) => {
     const pid = playerId || nominatePlayerId;
     if (!draft || !accessToken || !pid.trim()) return;
-    try {
-      setIsNominating(true);
-      setPickError(null);
-      const result = await draftApi.nominate(draft.id, { player_id: pid.trim(), amount: nominateAmount }, accessToken);
-      setDraft(result.draft);
-      setNominatePlayerId('');
-      setNominateAmount(1);
-    } catch (err) {
-      if (err instanceof ApiError) setPickError(err.message);
-      else setPickError('Failed to nominate');
-    } finally {
-      setIsNominating(false);
-    }
-  }, [draft, accessToken, nominatePlayerId, nominateAmount]);
+    await runExclusive(`${draft.id}:nominate`, async () => {
+      try {
+        setIsNominating(true);
+        setPickError(null);
+        const result = await draftApi.nominate(draft.id, { player_id: pid.trim(), amount: nominateAmount }, accessToken);
+        setDraft(result.draft);
+        setNominatePlayerId('');
+        setNominateAmount(1);
+      } catch (err) {
+        if (err instanceof ApiError) setPickError(err.message);
+        else setPickError('Failed to nominate');
+      } finally {
+        setIsNominating(false);
+      }
+    });
+  }, [draft, accessToken, nominatePlayerId, nominateAmount, runExclusive]);
 
   const handleBid = useCallback(async (amount?: number) => {
     if (!draft || !accessToken) return;
     const bidAmt = amount ?? bidAmount;
     if (bidAmt < 1) return;
-    try {
-      setIsBidding(true);
-      setPickError(null);
-      const result = await draftApi.bid(draft.id, { amount: bidAmt }, accessToken);
-      setDraft(result.draft);
-      if (result.won) {
-        setPicks((prev) => prev.map((p) => (p.id === result.won!.id ? result.won! : p)));
+    await runExclusive(`${draft.id}:bid`, async () => {
+      try {
+        setIsBidding(true);
+        setPickError(null);
+        const result = await draftApi.bid(draft.id, { amount: bidAmt }, accessToken);
+        setDraft(result.draft);
+        if (result.won) {
+          setPicks((prev) => prev.map((p) => (p.id === result.won!.id ? result.won! : p)));
+        }
+        setBidAmount(0);
+      } catch (err) {
+        if (err instanceof ApiError) setPickError(err.message);
+        else setPickError('Failed to place bid');
+      } finally {
+        setIsBidding(false);
       }
-      setBidAmount(0);
-    } catch (err) {
-      if (err instanceof ApiError) setPickError(err.message);
-      else setPickError('Failed to place bid');
-    } finally {
-      setIsBidding(false);
-    }
-  }, [draft, accessToken, bidAmount]);
+    });
+  }, [draft, accessToken, bidAmount, runExclusive]);
 
   const handleSlowNominate = useCallback(async (playerId?: string) => {
     const pid = playerId || nominatePlayerId;
     if (!draft || !accessToken || !pid.trim()) return;
-    try {
-      setIsNominating(true);
-      setPickError(null);
-      const result = await draftApi.slowNominate(draft.id, { player_id: pid.trim() }, accessToken);
-      setSlowAuctionLots((prev) => {
-        const existing = prev.find((l) => l.id === result.lot.id);
-        if (existing) return prev.map((l) => (l.id === result.lot.id ? result.lot : l));
-        return [...prev, result.lot];
-      });
-      setNominatePlayerId('');
-      const statsResult = await draftApi.getNominationStats(draft.id, accessToken);
-      setNominationStats(statsResult);
-    } catch (err) {
-      if (err instanceof ApiError) setPickError(err.message);
-      else setPickError('Failed to nominate');
-    } finally {
-      setIsNominating(false);
-    }
-  }, [draft, accessToken, nominatePlayerId]);
+    await runExclusive(`${draft.id}:slowNominate`, async () => {
+      try {
+        setIsNominating(true);
+        setPickError(null);
+        const result = await draftApi.slowNominate(draft.id, { player_id: pid.trim() }, accessToken);
+        setSlowAuctionLots((prev) => {
+          const existing = prev.find((l) => l.id === result.lot.id);
+          if (existing) return prev.map((l) => (l.id === result.lot.id ? result.lot : l));
+          return [...prev, result.lot];
+        });
+        setNominatePlayerId('');
+        const statsResult = await draftApi.getNominationStats(draft.id, accessToken);
+        setNominationStats(statsResult);
+      } catch (err) {
+        if (err instanceof ApiError) setPickError(err.message);
+        else setPickError('Failed to nominate');
+      } finally {
+        setIsNominating(false);
+      }
+    });
+  }, [draft, accessToken, nominatePlayerId, runExclusive]);
 
   const handleSlowSetMaxBid = useCallback(async (lotId: string, maxBid: number) => {
     if (!draft || !accessToken) return;
@@ -260,24 +281,25 @@ export function useDraftActions({
 
   const handleToggleAutoPick = useCallback(async () => {
     if (!draft || !accessToken) return;
+    await runExclusive(`${draft.id}:toggleAutoPick`, async () => {
+      try {
+        setIsTogglingAutoPick(true);
+        setPickError(null);
+        const result = await draftApi.toggleAutoPick(draft.id, accessToken);
+        setDraft(result.draft);
 
-    try {
-      setIsTogglingAutoPick(true);
-      setPickError(null);
-      const result = await draftApi.toggleAutoPick(draft.id, accessToken);
-      setDraft(result.draft);
-
-      if (result.picks.length > 0) {
-        applyChainedPicksSequentially(setPicks, result.picks);
+        if (result.picks.length > 0) {
+          applyChainedPicksSequentially(setPicks, result.picks);
+        }
+      } catch (err) {
+        if (err instanceof ApiError) {
+          setPickError(err.message);
+        }
+      } finally {
+        setIsTogglingAutoPick(false);
       }
-    } catch (err) {
-      if (err instanceof ApiError) {
-        setPickError(err.message);
-      }
-    } finally {
-      setIsTogglingAutoPick(false);
-    }
-  }, [draft, accessToken]);
+    });
+  }, [draft, accessToken, runExclusive]);
 
   const handlePauseDraft = useCallback(async () => {
     if (!draft || !accessToken) return;
