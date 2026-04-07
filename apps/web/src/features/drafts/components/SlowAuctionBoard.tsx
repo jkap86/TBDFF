@@ -55,6 +55,7 @@ export function SlowAuctionBoard({
   const [bidHistory, setBidHistory] = useState<AuctionBidHistoryEntry[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [budgetsExpanded, setBudgetsExpanded] = useState(false);
+  const [wonExpanded, setWonExpanded] = useState(false);
   const formatCountdown = useCountdown();
 
   // Build roster_id -> display name mapping
@@ -155,6 +156,93 @@ export function SlowAuctionBoard({
 
   return (
     <div className="space-y-4 pb-12">
+      {/* Completed Picks */}
+      {completedPicks.length > 0 && (
+        <div className="rounded-lg border border-border bg-card shadow">
+          <button
+            type="button"
+            onClick={() => setWonExpanded((v) => !v)}
+            className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-muted/50 transition-colors rounded-lg"
+          >
+            <h3 className="text-sm font-heading font-bold uppercase tracking-wide text-accent-foreground">
+              Won Players ({completedPicks.length})
+            </h3>
+            {wonExpanded ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
+          </button>
+          {wonExpanded && <div className="px-4 pb-4 overflow-x-auto">
+            <table className="min-w-full">
+              <thead>
+                <tr className="border-b border-border">
+                  <th className="pb-2 text-left text-xs font-medium text-muted-foreground">#</th>
+                  <th className="pb-2 text-left text-xs font-medium text-muted-foreground">Player</th>
+                  <th className="pb-2 text-left text-xs font-medium text-muted-foreground">Pos</th>
+                  <th className="pb-2 text-left text-xs font-medium text-muted-foreground">Team</th>
+                  <th className="pb-2 text-right text-xs font-medium text-muted-foreground">Amount</th>
+                </tr>
+              </thead>
+              <tbody>
+                {completedPicks.map((pick, idx) => {
+                  const isUserPick = rosterToUserId[pick.roster_id] === currentUserId;
+                  const lotId = pick.metadata?.lot_id as string | undefined;
+                  const isExpanded = lotId != null && expandedLotId === lotId;
+                  return (
+                    <tr
+                      key={pick.id}
+                      className={`border-b border-border ${isUserPick ? 'bg-primary/10' : ''}`}
+                    >
+                      <td className="py-1.5 text-xs text-disabled">
+                        {lotId ? (
+                          <button
+                            type="button"
+                            onClick={() => toggleBidHistory(lotId)}
+                            className="flex items-center gap-0.5 hover:text-accent-foreground transition-colors"
+                          >
+                            {isExpanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+                            {completedPicks.length - idx}
+                          </button>
+                        ) : (
+                          completedPicks.length - idx
+                        )}
+                      </td>
+                      <td className="py-1.5">
+                        <span className="text-sm font-medium text-foreground">
+                          {pick.metadata?.full_name || pick.player_id}
+                        </span>
+                        <span className="ml-2 text-xs text-disabled">
+                          {rosterToUser[pick.roster_id]}
+                        </span>
+                      </td>
+                      <td className="py-1.5 text-xs text-muted-foreground">
+                        {pick.metadata?.position}
+                      </td>
+                      <td className="py-1.5 text-xs text-muted-foreground">
+                        {pick.metadata?.team}
+                      </td>
+                      <td className="py-1.5 text-right text-sm font-bold text-success-foreground">
+                        ${pick.amount}
+                      </td>
+                    </tr>
+                  );
+                }).flatMap((row, idx) => {
+                  const pick = completedPicks[idx];
+                  const lotId = pick.metadata?.lot_id as string | undefined;
+                  if (lotId && expandedLotId === lotId) {
+                    return [row, (
+                      <tr key={`${pick.id}-history`} className="bg-surface">
+                        <td colSpan={5} className="px-4 py-2">
+                          {renderBidHistory()}
+                        </td>
+                      </tr>
+                    )];
+                  }
+                  return [row];
+                })}
+              </tbody>
+            </table>
+          </div>}
+        </div>
+      )}
+
       {/* Active Lots */}
       <div className="rounded-lg border border-border bg-card p-4 shadow">
         <h3 className="text-sm font-heading font-bold uppercase tracking-wide text-accent-foreground mb-3">
@@ -313,86 +401,6 @@ export function SlowAuctionBoard({
                 })}
             </div>
           )}
-        </div>
-      )}
-
-      {/* Completed Picks */}
-      {completedPicks.length > 0 && (
-        <div className="rounded-lg border border-border bg-card p-4 shadow">
-          <h3 className="text-sm font-heading font-bold uppercase tracking-wide text-accent-foreground mb-3">
-            Won Players ({completedPicks.length})
-          </h3>
-          <div className="overflow-x-auto">
-            <table className="min-w-full">
-              <thead>
-                <tr className="border-b border-border">
-                  <th className="pb-2 text-left text-xs font-medium text-muted-foreground">#</th>
-                  <th className="pb-2 text-left text-xs font-medium text-muted-foreground">Player</th>
-                  <th className="pb-2 text-left text-xs font-medium text-muted-foreground">Pos</th>
-                  <th className="pb-2 text-left text-xs font-medium text-muted-foreground">Team</th>
-                  <th className="pb-2 text-right text-xs font-medium text-muted-foreground">Amount</th>
-                </tr>
-              </thead>
-              <tbody>
-                {completedPicks.map((pick, idx) => {
-                  const isUserPick = rosterToUserId[pick.roster_id] === currentUserId;
-                  const lotId = pick.metadata?.lot_id as string | undefined;
-                  const isExpanded = lotId != null && expandedLotId === lotId;
-                  return (
-                    <tr
-                      key={pick.id}
-                      className={`border-b border-border ${isUserPick ? 'bg-primary/10' : ''}`}
-                    >
-                      <td className="py-1.5 text-xs text-disabled">
-                        {lotId ? (
-                          <button
-                            type="button"
-                            onClick={() => toggleBidHistory(lotId)}
-                            className="flex items-center gap-0.5 hover:text-accent-foreground transition-colors"
-                          >
-                            {isExpanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
-                            {completedPicks.length - idx}
-                          </button>
-                        ) : (
-                          completedPicks.length - idx
-                        )}
-                      </td>
-                      <td className="py-1.5">
-                        <span className="text-sm font-medium text-foreground">
-                          {pick.metadata?.full_name || pick.player_id}
-                        </span>
-                        <span className="ml-2 text-xs text-disabled">
-                          {rosterToUser[pick.roster_id]}
-                        </span>
-                      </td>
-                      <td className="py-1.5 text-xs text-muted-foreground">
-                        {pick.metadata?.position}
-                      </td>
-                      <td className="py-1.5 text-xs text-muted-foreground">
-                        {pick.metadata?.team}
-                      </td>
-                      <td className="py-1.5 text-right text-sm font-bold text-success-foreground">
-                        ${pick.amount}
-                      </td>
-                    </tr>
-                  );
-                }).flatMap((row, idx) => {
-                  const pick = completedPicks[idx];
-                  const lotId = pick.metadata?.lot_id as string | undefined;
-                  if (lotId && expandedLotId === lotId) {
-                    return [row, (
-                      <tr key={`${pick.id}-history`} className="bg-surface">
-                        <td colSpan={5} className="px-4 py-2">
-                          {renderBidHistory()}
-                        </td>
-                      </tr>
-                    )];
-                  }
-                  return [row];
-                })}
-              </tbody>
-            </table>
-          </div>
         </div>
       )}
 
