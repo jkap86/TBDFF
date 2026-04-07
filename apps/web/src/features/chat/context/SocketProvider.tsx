@@ -122,7 +122,7 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
     const socket: AppSocket = io(getSocketUrl(), {
       auth: { token: accessToken },
       path: '/socket.io',
-      transports: ['websocket', 'polling'],
+      transports: ['polling', 'websocket'],
       autoConnect: true,
     });
 
