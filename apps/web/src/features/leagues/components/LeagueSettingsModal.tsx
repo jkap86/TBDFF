@@ -209,7 +209,7 @@ export function LeagueSettingsModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-sm">
       <div className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-lg bg-card px-6 shadow-xl glass-strong">
         <div className="sticky top-0 py-3 bg-card">
           <h2 className="mb-4 text-xl font-bold text-foreground font-heading bg-card">

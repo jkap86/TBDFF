@@ -341,17 +341,16 @@ export function AuctionBoard({
       {/* Draft Board — teams as columns, roster positions as rows */}
       {rosterPositions.length > 0 && (
         <div
-          className="flex-1 min-h-0 overflow-auto rounded-lg shadow-lg border border-border glass-subtle scrollbar-sleek"
+          className="overflow-auto flex-1 min-h-0 scrollbar-sleek"
+          style={{ WebkitOverflowScrolling: 'touch' }}
         >
-          <table className="w-full table-fixed" style={{ borderSpacing: 0 }}>
+          <table className="min-w-max" style={{ borderSpacing: 0 }}>
             <thead>
               <tr>
-                {/* Position column header */}
+                {/* Position column header — frozen top-left */}
                 <th
-                  className="sticky top-0 left-0 z-30 border-b-2 border-r border-border px-3 py-2.5 text-xs font-heading font-bold text-foreground uppercase tracking-wider w-[60px] bg-muted"
-                  style={{
-                    boxShadow: '2px 2px 4px rgba(0,0,0,0.2)',
-                  }}
+                  className="sticky top-0 left-0 z-30 bg-muted border-b border-r border-border px-3 py-2.5 text-xs font-heading font-bold uppercase tracking-widest text-muted-foreground"
+                  style={{ boxShadow: '2px 2px 4px rgba(0,0,0,0.15)' }}
                 >
                   Pos
                 </th>
@@ -361,19 +360,15 @@ export function AuctionBoard({
                   return (
                     <th
                       key={team.rosterId}
-                      className={`sticky top-0 z-20 border-b-2 border-r border-border px-3 py-2.5 text-center whitespace-nowrap ${
-                        isCurrentUser ? 'text-primary bg-primary/10 border-b-primary' : 'text-foreground bg-muted'
+                      className={`sticky top-0 z-20 border-b border-r border-border px-3 py-3.5 text-center whitespace-nowrap bg-muted font-heading font-semibold ${
+                        isCurrentUser ? 'text-primary' : 'text-muted-foreground'
                       }`}
-                      style={{
-                        boxShadow: '0 2px 4px rgba(0,0,0,0.15)',
-                      }}
+                      style={{ boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}
                     >
-                      <div className="text-xs font-heading font-bold uppercase tracking-wide truncate">
+                      <div className="text-sm truncate">
                         {rosterToUser[team.rosterId] || `Slot ${team.slot}`}
                       </div>
-                      <div
-                        className={`text-xs font-mono font-bold ${budget > 0 ? 'text-success-foreground' : 'text-destructive-foreground'}`}
-                      >
+                      <div className={`text-xs font-mono font-bold ${budget > 0 ? 'text-success-foreground' : 'text-destructive-foreground'}`}>
                         ${budget}
                       </div>
                     </th>
@@ -384,12 +379,10 @@ export function AuctionBoard({
             <tbody>
               {rosterPositions.map((pos, rowIdx) => (
                 <tr key={rowIdx} className="hover:bg-muted/30 transition-colors">
-                  {/* Position label */}
+                  {/* Position label — frozen left */}
                   <td
-                    className="sticky left-0 z-10 border-b border-r border-border px-3 py-1.5 text-center text-xs font-heading font-bold text-muted-foreground whitespace-nowrap uppercase tracking-wide bg-muted"
-                    style={{
-                      boxShadow: '2px 0 4px rgba(0,0,0,0.15)',
-                    }}
+                    className="sticky left-0 z-10 border-b border-r border-border bg-muted px-3 py-5 text-center text-sm font-heading font-semibold text-muted-foreground whitespace-nowrap"
+                    style={{ boxShadow: '2px 0 4px rgba(0,0,0,0.1)' }}
                   >
                     {SLOT_LABELS[pos] ?? pos}
                   </td>
@@ -401,19 +394,22 @@ export function AuctionBoard({
                     return (
                       <td
                         key={team.rosterId}
-                        className={`border-b border-r border-border px-1.5 py-2 text-left h-[50px] overflow-hidden transition-colors ${
-                          isUserTeam && !pick ? 'bg-primary/5' : ''
-                        }`}
+                        className="relative border-b border-r border-border px-2 py-5 text-left text-sm transition-colors min-w-[120px]"
                         style={{
-                          background: posColor || undefined,
+                          background: posColor
+                            ? posColor
+                            : isUserTeam
+                              ? 'hsl(var(--primary) / 0.05)'
+                              : 'radial-gradient(ellipse at 50% 30%, hsl(var(--surface) / 1) 0%, hsl(var(--surface) / 0.7) 100%)',
+                          boxShadow: pick
+                            ? 'inset 0 1px 2px rgba(0,0,0,0.1), 0 1px 0 rgba(255,255,255,0.04)'
+                            : 'inset 0 2px 4px rgba(0,0,0,0.06)',
                         }}
                       >
                         {pick ? (
                           <div
                             className="leading-tight rounded px-1 py-0.5"
-                            style={{
-                              borderLeft: `3px solid ${posBorder}`,
-                            }}
+                            style={{ borderLeft: `3px solid ${posBorder}` }}
                           >
                             <div className="text-xs font-heading font-bold text-foreground truncate">
                               {pick.metadata?.first_name?.[0]}.{' '}

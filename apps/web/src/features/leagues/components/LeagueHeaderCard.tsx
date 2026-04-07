@@ -26,6 +26,7 @@ export function LeagueHeaderCard({ league, isCommissioner, onOpenSettings }: Lea
   const hasBuyIn = buyIn != null && buyIn > 0;
 
   return (
+    <>
     <div className="rounded-lg bg-card p-6 shadow">
       <div className="mb-4 flex items-start justify-between">
         <div className="flex items-center gap-3">
@@ -88,12 +89,14 @@ export function LeagueHeaderCard({ league, isCommissioner, onOpenSettings }: Lea
         </div>
       </div>
 
-      {/* League Info Modal (Scoring + Roster Positions) */}
+    </div>
+
+      {/* League Info Modal — rendered outside bg-card to avoid backdrop-filter stacking context */}
       {isInfoOpen && (() => {
         const scoring = scoringFromLeague(league);
         const counts = positionArrayToCounts(league.roster_positions ?? []);
         return (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={() => setIsInfoOpen(false)}>
+          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={() => setIsInfoOpen(false)}>
             <div className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-lg bg-card p-6 shadow-xl glass-strong" onClick={(e) => e.stopPropagation()}>
               <div className="mb-4 flex items-center justify-between">
                 <h2 className="text-xl font-bold text-foreground font-heading">League Info</h2>
@@ -142,6 +145,6 @@ export function LeagueHeaderCard({ league, isCommissioner, onOpenSettings }: Lea
           </div>
         );
       })()}
-    </div>
+    </>
   );
 }
