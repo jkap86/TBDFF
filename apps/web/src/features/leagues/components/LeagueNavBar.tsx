@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, ArrowLeftRight, ClipboardList, Activity } from 'lucide-react';
+import { LayoutDashboard, ArrowLeftRight, ClipboardList, Activity, Users2, BarChart2, Trophy, GitBranch } from 'lucide-react';
 import type { LeagueStatus } from '@tbdff/shared';
 
 interface LeagueNavBarProps {
@@ -16,12 +16,19 @@ export function LeagueNavBar({ leagueId, leagueStatus }: LeagueNavBarProps) {
 
   const showWaivers = leagueStatus === 'reg_season' || leagueStatus === 'post_season' || leagueStatus === 'complete';
   const showActivity = showWaivers;
+  const showScores = leagueStatus === 'reg_season' || leagueStatus === 'post_season' || leagueStatus === 'complete';
+  const showStandings = showScores;
+  const showBracket = leagueStatus === 'post_season' || leagueStatus === 'complete';
 
   const tabs = [
-    { label: 'Home', href: basePath, icon: LayoutDashboard, show: true },
-    { label: 'Trades', href: `${basePath}/trades`, icon: ArrowLeftRight, show: true },
-    { label: 'Waivers', href: `${basePath}/waivers`, icon: ClipboardList, show: showWaivers },
-    { label: 'Activity', href: `${basePath}/transactions`, icon: Activity, show: showActivity },
+    { label: 'Home',      href: basePath,                    icon: LayoutDashboard, show: true },
+    { label: 'Trades',    href: `${basePath}/trades`,         icon: ArrowLeftRight,  show: true },
+    { label: 'Waivers',   href: `${basePath}/waivers`,        icon: ClipboardList,   show: showWaivers },
+    { label: 'Roster',    href: `${basePath}/roster`,         icon: Users2,          show: true },
+    { label: 'Scores',    href: `${basePath}/scores`,         icon: BarChart2,       show: showScores },
+    { label: 'Standings', href: `${basePath}/standings`,      icon: Trophy,          show: showStandings },
+    { label: 'Bracket',   href: `${basePath}/bracket`,        icon: GitBranch,       show: showBracket },
+    { label: 'Activity',  href: `${basePath}/transactions`,   icon: Activity,        show: showActivity },
   ].filter((t) => t.show);
 
   return (

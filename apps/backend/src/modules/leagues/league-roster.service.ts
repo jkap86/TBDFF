@@ -98,6 +98,52 @@ export class LeagueRosterService {
     return result;
   }
 
+  async updateLineup(
+    leagueId: string,
+    requestingUserId: string,
+    rosterId: number,
+    starters: string[],
+  ): Promise<Roster> {
+    // 1. Verify league exists and is in-season
+    const league = await this.leagueRepository.findById(leagueId);
+    if (!league) throw new NotFoundException('League not found');
+    if (league.status !== 'reg_season' && league.status !== 'post_season') {
+      throw new ForbiddenException('Lineup changes are only allowed during the regular and post season');
+    }
+
+    // 2. Verify requester is a league member
+    const member = await this.leagueMembersRepository.findMember(leagueId, requestingUserId);
+    if (!member) throw new NotFoundException('Not a member of this league');
+
+    // 3. Find the roster and verify ownership
+    const rosters = await this.leagueRostersRepository.findRostersByLeagueId(leagueId);
+    const roster = rosters.find((r) => r.rosterId === rosterId);
+    if (!roster) throw new NotFoundException('Roster not found');
+    if (roster.ownerId !== requestingUserId && member.role !== 'commissioner') {
+      throw new ForbiddenException('You can only edit your own lineup');
+    }
+
+    // 4. Validate all starters are on the roster
+    const rosterPlayerSet = new Set(roster.players);
+    for (const pid of starters) {
+      if (!rosterPlayerSet.has(pid)) {
+        throw new ValidationException(`Player ${pid} is not on this roster`);
+      }
+    }
+
+    // 5. Validate starters length matches non-BN/non-IR slot count
+    const starterSlotCount = league.rosterPositions.filter(
+      (p) => p !== 'BN' && p !== 'IR',
+    ).length;
+    if (starters.length !== starterSlotCount) {
+      throw new ValidationException(
+        `Starters array must have exactly ${starterSlotCount} entries`,
+      );
+    }
+
+    return this.leagueRostersRepository.updateStarters(leagueId, rosterId, starters);
+  }
+
   async unassignMemberFromRoster(
     leagueId: string,
     requestingUserId: string,

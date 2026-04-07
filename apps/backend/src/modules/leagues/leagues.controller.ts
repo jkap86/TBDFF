@@ -4,7 +4,7 @@ import { LeagueService } from './leagues.service';
 import { LeagueInviteService } from './league-invite.service';
 import { LeagueRosterService } from './league-roster.service';
 import { InvalidCredentialsException, NotFoundException } from '../../shared/exceptions';
-import { UpdateLeagueInput, CreateInviteInput } from './leagues.schemas';
+import { UpdateLeagueInput, CreateInviteInput, UpdateLineupInput } from './leagues.schemas';
 
 export class LeagueController {
   constructor(
@@ -239,6 +239,19 @@ export class LeagueController {
       roster: result.roster.toSafeObject(),
       member: result.member.toSafeObject(),
     });
+  };
+
+  updateLineup = async (req: AuthRequest, res: Response): Promise<void> => {
+    const userId = req.user?.userId;
+    if (!userId) throw new InvalidCredentialsException();
+
+    const leagueId = Array.isArray(req.params.leagueId) ? req.params.leagueId[0] : req.params.leagueId;
+    const rosterIdParam = Array.isArray(req.params.rosterId) ? req.params.rosterId[0] : req.params.rosterId;
+    const rosterId = parseInt(rosterIdParam, 10);
+    const { starters } = req.body as UpdateLineupInput;
+
+    const roster = await this.leagueRosterService.updateLineup(leagueId, userId, rosterId, starters);
+    res.status(200).json({ roster: roster.toSafeObject() });
   };
 
   unassignRoster = async (req: AuthRequest, res: Response): Promise<void> => {

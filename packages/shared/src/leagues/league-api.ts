@@ -57,6 +57,9 @@ export const leagueApi = {
   unassignRoster: (leagueId: string, rosterId: number, token: string) =>
     apiClient.delete<{ message: string }>(`/leagues/${leagueId}/rosters/${rosterId}/assign`, token),
 
+  updateLineup: (leagueId: string, rosterId: number, starters: string[], token: string) =>
+    apiClient.patch<{ roster: Roster }>(`/leagues/${leagueId}/rosters/${rosterId}/lineup`, { starters }, token),
+
   // Public leagues (no auth required)
   getPublicLeagues: (limit = 20, offset = 0) =>
     apiClient.get<PublicLeaguesResponse>(`/leagues/public?limit=${limit}&offset=${offset}`),

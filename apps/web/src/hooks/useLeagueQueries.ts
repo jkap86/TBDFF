@@ -1,7 +1,7 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
-import { leagueApi } from '@/lib/api';
+import { leagueApi, matchupApi, scoringApi } from '@/lib/api';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 
 export function useLeagueQuery(leagueId: string) {
@@ -35,5 +35,35 @@ export function useRostersQuery(leagueId: string) {
     queryFn: () => leagueApi.getRosters(leagueId, accessToken!),
     enabled: !!accessToken,
     select: (data) => data.rosters,
+  });
+}
+
+export function useMatchupsQuery(leagueId: string) {
+  const { accessToken } = useAuth();
+  return useQuery({
+    queryKey: ['matchups', leagueId],
+    queryFn: () => matchupApi.getAll(leagueId, accessToken!),
+    enabled: !!accessToken,
+    select: (data) => data.matchups,
+  });
+}
+
+export function useScoresQuery(leagueId: string, week: number) {
+  const { accessToken } = useAuth();
+  return useQuery({
+    queryKey: ['scores', leagueId, week],
+    queryFn: () => scoringApi.getLeagueScores(leagueId, week, accessToken!),
+    enabled: !!accessToken && week > 0,
+    select: (data) => data.scores,
+  });
+}
+
+export function useLiveScoresQuery(leagueId: string, week: number) {
+  const { accessToken } = useAuth();
+  return useQuery({
+    queryKey: ['liveScores', leagueId, week],
+    queryFn: () => scoringApi.getLiveScores(leagueId, week, accessToken!),
+    enabled: !!accessToken && week > 0,
+    refetchInterval: 30_000,
   });
 }

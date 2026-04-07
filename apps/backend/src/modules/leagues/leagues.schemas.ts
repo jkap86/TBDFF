@@ -181,6 +181,15 @@ export const createInviteSchema = z.object({
 export type CreateInviteInput = z.infer<typeof createInviteSchema>;
 
 /**
+ * Schema for updating a roster's lineup (starters array)
+ */
+export const updateLineupSchema = z.object({
+  starters: z.array(z.string().min(1)).min(1, 'Must provide at least one starter'),
+}).strict();
+
+export type UpdateLineupInput = z.infer<typeof updateLineupSchema>;
+
+/**
  * Schema for pagination parameters (public leagues)
  */
 export const paginationSchema = z.object({

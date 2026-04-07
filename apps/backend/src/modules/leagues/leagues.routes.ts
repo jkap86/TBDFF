@@ -4,7 +4,7 @@ import { authMiddleware } from '../../middleware/auth.middleware';
 import { userMutationLimiter } from '../../middleware/rate-limit.middleware';
 import { asyncHandler } from '../../shared/async-handler';
 import { validate } from '../../shared/validate';
-import { updateLeagueSchema, createInviteSchema } from './leagues.schemas';
+import { updateLeagueSchema, createInviteSchema, updateLineupSchema } from './leagues.schemas';
 
 export function createLeagueRoutes(controller: LeagueController): Router {
   const router = Router();
@@ -38,6 +38,7 @@ export function createLeagueRoutes(controller: LeagueController): Router {
   router.get('/:leagueId/rosters', asyncHandler(controller.getRosters));
   router.put('/:leagueId/rosters/:rosterId/assign', asyncHandler(controller.assignRoster));
   router.delete('/:leagueId/rosters/:rosterId/assign', asyncHandler(controller.unassignRoster));
+  router.patch('/:leagueId/rosters/:rosterId/lineup', validate(updateLineupSchema), asyncHandler(controller.updateLineup));
 
   // League invites management
   router.post('/:leagueId/invites', validate(createInviteSchema), asyncHandler(controller.createInvite));
