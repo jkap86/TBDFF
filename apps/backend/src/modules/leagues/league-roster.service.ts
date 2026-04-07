@@ -71,37 +71,58 @@ export class LeagueRosterService {
     // 4. Assign roster owner and promote to member (transactional)
     const result = await this.leagueRostersRepository.assignRosterOwnerTransaction(leagueId, rosterId, targetUserId);
 
-    // 5. Seed future draft picks so they're available in the Trade Center
-    // even before a draft is created. Use active draft rounds if available,
-    // otherwise fall back to the league's draft_rounds setting.
+    // 5. Reconcile derived state for ALL assigned rosters in this league.
+    //    Each step is individually idempotent, so re-running across the full
+    //    set self-heals any prior partial state from a previous assignment
+    //    where a follow-up step failed mid-way.
+    await this.reconcileLeagueRosterState(leagueId);
+
+    try {
+      await this.systemMessages.send(leagueId, `${target.username} was assigned to a roster`);
+    } catch { /* non-fatal */ }
+
+    return result;
+  }
+
+  /**
+   * Idempotent reconciliation of all roster-assignment side effects:
+   *  - seed future draft picks for every assigned roster
+   *  - sync draft_order for any active drafts
+   *  - auto-transition not_filled → offseason for free leagues when full
+   *
+   * Safe to call repeatedly. Run after every assign so partial failures from
+   * any earlier call get repaired on the next one.
+   */
+  async reconcileLeagueRosterState(leagueId: string): Promise<void> {
     const league = await this.leagueRepository.findById(leagueId);
-    if (league) {
+    if (!league) return;
+
+    const allRosters = await this.leagueRostersRepository.findRostersByLeagueId(leagueId);
+    const assigned = allRosters.filter((r) => r.ownerId);
+
+    // 1) Future draft picks (idempotent via ON CONFLICT DO NOTHING)
+    if (assigned.length > 0) {
       const activeDraft = await this.draftRepository.findActiveDraftByLeagueId(leagueId);
       const rounds = activeDraft?.settings.rounds ?? league.settings.draft_rounds;
       await this.draftRepository.createFutureDraftPicks(
         leagueId,
         league.season,
         rounds,
-        [{ rosterId, ownerId: targetUserId }],
+        assigned.map((r) => ({ rosterId: r.rosterId, ownerId: r.ownerId! })),
       );
     }
 
-    // 6. Sync draft_order for any active drafts that have this roster in slot_to_roster_id
-    await this.syncDraftOrderForRosterAssignment(leagueId, rosterId, targetUserId);
+    // 2) Draft order sync for any active drafts (idempotent overwrite)
+    for (const r of assigned) {
+      await this.syncDraftOrderForRosterAssignment(leagueId, r.rosterId, r.ownerId!);
+    }
 
+    // 3) Auto-transition not_filled → offseason for free leagues when full
     try {
-      await this.systemMessages.send(leagueId, `${target.username} was assigned to a roster`);
-    } catch { /* non-fatal */ }
-
-    // Auto-transition: not_filled → offseason for free leagues when all rosters filled
-    try {
-      const currentLeague = league ?? await this.leagueRepository.findById(leagueId);
-      if (currentLeague && currentLeague.status === 'not_filled') {
-        const buyIn = (currentLeague.settings as unknown as Record<string, unknown>).buy_in as number | undefined;
+      if (league.status === 'not_filled') {
+        const buyIn = (league.settings as unknown as Record<string, unknown>).buy_in as number | undefined;
         if (!buyIn || buyIn === 0) {
-          const allRosters = await this.leagueRostersRepository.findRostersByLeagueId(leagueId);
-          const assignedCount = allRosters.filter((r) => r.ownerId).length;
-          if (assignedCount >= allRosters.length) {
+          if (assigned.length >= allRosters.length) {
             await this.leagueRepository.update(leagueId, { status: 'offseason' });
             try {
               await this.systemMessages.send(leagueId, 'All rosters filled — league moved to offseason');
@@ -110,8 +131,6 @@ export class LeagueRosterService {
         }
       }
     } catch { /* non-fatal */ }
-
-    return result;
   }
 
   async updateLineup(
