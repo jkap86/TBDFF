@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { useParams } from 'next/navigation';
-import { Pencil, X, Check, Zap, Users, Heart, Truck } from 'lucide-react';
+import { X, Zap, Users, Heart, Truck } from 'lucide-react';
 import { playerApi, leagueApi, ApiError } from '@/lib/api';
 import type { Player } from '@/lib/api';
 import { useAuth } from '@/features/auth/hooks/useAuth';
@@ -78,21 +78,35 @@ export default function RosterPage() {
       .finally(() => setPlayersLoading(false));
   }, [allPlayerIds.join(','), accessToken]);
 
-  // Edit lineup state
-  const [editMode, setEditMode] = useState(false);
+  // Lineup state (always-on editing, Sleeper-style)
   const [selectedPlayerId, setSelectedPlayerId] = useState<string | null>(null);
   const [pendingStarters, setPendingStarters] = useState<string[]>([]);
   const [pendingBench, setPendingBench] = useState<string[]>([]);
-  const [isSaving, setIsSaving] = useState(false);
+  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
   const [saveError, setSaveError] = useState<string | null>(null);
-  const [saveSuccess, setSaveSuccess] = useState(false);
-  const [confirmCancel, setConfirmCancel] = useState(false);
 
   const isOwnRoster = viewedRoster?.owner_id === user?.id;
   const currentWeek = (league?.settings as any)?.leg ?? 1;
 
   const canEditLineup =
     (league?.status === 'reg_season' || league?.status === 'post_season') && isOwnRoster;
+
+  // Sync local lineup state from server when switching teams or on first load.
+  // Intentionally NOT dependent on the whole viewedRoster — refetches after save
+  // shouldn't clobber in-flight user edits.
+  useEffect(() => {
+    if (!viewedRoster) return;
+    setPendingStarters([...viewedRoster.starters]);
+    const nonBench = new Set([
+      ...viewedRoster.starters,
+      ...viewedRoster.reserve,
+      ...viewedRoster.taxi,
+    ]);
+    setPendingBench(viewedRoster.players.filter((pid) => !nonBench.has(pid)));
+    setSelectedPlayerId(null);
+    setSaveError(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [viewedRoster?.roster_id]);
 
   // Derive starter slots and bench from roster_positions
   const starterSlots = useMemo(() => {
@@ -105,46 +119,43 @@ export default function RosterPage() {
     return league.roster_positions.filter((p) => p === 'BN').length;
   }, [league]);
 
-  function enterEditMode() {
-    if (!viewedRoster) return;
-    setPendingStarters([...viewedRoster.starters]);
-    // Bench = all players not in starters, reserve, or taxi
-    const nonBench = new Set([
-      ...viewedRoster.starters,
-      ...viewedRoster.reserve,
-      ...viewedRoster.taxi,
-    ]);
-    const bench = viewedRoster.players.filter((pid) => !nonBench.has(pid));
-    setPendingBench(bench);
-    setEditMode(true);
-    setSelectedPlayerId(null);
-    setSaveError(null);
-    setSaveSuccess(false);
-    setConfirmCancel(false);
-  }
+  async function performSwap(newStarters: string[], newBench: string[]) {
+    // Snapshot for rollback
+    const prevStarters = pendingStarters;
+    const prevBench = pendingBench;
 
-  function cancelEdit() {
-    const dirty =
-      viewedRoster && JSON.stringify(pendingStarters) !== JSON.stringify(viewedRoster.starters);
-    if (dirty && !confirmCancel) {
-      setConfirmCancel(true);
-      return;
+    // Optimistic update
+    setPendingStarters(newStarters);
+    setPendingBench(newBench);
+    setSelectedPlayerId(null);
+
+    if (!canEditLineup || !accessToken || !viewedRoster) return;
+
+    try {
+      setSaveStatus('saving');
+      setSaveError(null);
+      await leagueApi.updateLineup(
+        leagueId,
+        viewedRoster.roster_id,
+        newStarters,
+        accessToken
+      );
+      queryClient.invalidateQueries({ queryKey: ['rosters', leagueId] });
+      setSaveStatus('saved');
+      setTimeout(() => {
+        setSaveStatus((s) => (s === 'saved' ? 'idle' : s));
+      }, 1500);
+    } catch (err) {
+      // Rollback
+      setPendingStarters(prevStarters);
+      setPendingBench(prevBench);
+      setSaveError(err instanceof ApiError ? err.message : 'Failed to save lineup');
+      setSaveStatus('idle');
     }
-    setEditMode(false);
-    setSelectedPlayerId(null);
-    setSaveError(null);
-    setConfirmCancel(false);
   }
 
-  function forceCancelEdit() {
-    setEditMode(false);
-    setSelectedPlayerId(null);
-    setSaveError(null);
-    setConfirmCancel(false);
-  }
-
-  function handlePlayerTap(playerId: string, section: 'starters' | 'bench') {
-    if (!editMode) return;
+  function handlePlayerTap(playerId: string, _section: 'starters' | 'bench') {
+    if (!canEditLineup) return;
 
     if (selectedPlayerId === null) {
       setSelectedPlayerId(playerId);
@@ -156,7 +167,7 @@ export default function RosterPage() {
       return;
     }
 
-    // Perform swap
+    // Compute swap
     const newStarters = [...pendingStarters];
     const newBench = [...pendingBench];
     const selectedInStarters = newStarters.indexOf(selectedPlayerId);
@@ -184,45 +195,18 @@ export default function RosterPage() {
         newBench[targetInBench],
         newBench[selectedInBench],
       ];
+    } else {
+      // No valid swap — clear selection
+      setSelectedPlayerId(null);
+      return;
     }
 
-    setPendingStarters(newStarters);
-    setPendingBench(newBench);
-    setSelectedPlayerId(null);
+    performSwap(newStarters, newBench);
   }
 
-  async function saveLineup() {
-    if (!accessToken || !viewedRoster) return;
-    try {
-      setIsSaving(true);
-      setSaveError(null);
-      await leagueApi.updateLineup(leagueId, viewedRoster.roster_id, pendingStarters, accessToken);
-      queryClient.invalidateQueries({ queryKey: ['rosters', leagueId] });
-      setSaveSuccess(true);
-      setTimeout(() => {
-        setSaveSuccess(false);
-        setEditMode(false);
-        setConfirmCancel(false);
-      }, 1200);
-    } catch (err) {
-      setSaveError(err instanceof ApiError ? err.message : 'Failed to save lineup');
-    } finally {
-      setIsSaving(false);
-    }
-  }
-
-  // Display data: use pending arrays in edit mode, actual roster otherwise
-  const displayStarters = editMode ? pendingStarters : (viewedRoster?.starters ?? []);
-  const displayBench = useMemo(() => {
-    if (!viewedRoster) return [];
-    if (editMode) return pendingBench;
-    const nonBench = new Set([
-      ...viewedRoster.starters,
-      ...viewedRoster.reserve,
-      ...viewedRoster.taxi,
-    ]);
-    return viewedRoster.players.filter((pid) => !nonBench.has(pid));
-  }, [viewedRoster, editMode, pendingBench]);
+  // Display data: always the local pending arrays (source of truth).
+  const displayStarters = pendingStarters;
+  const displayBench = pendingBench;
 
   const viewedMember = members.find((m) => m.user_id === viewedRoster?.owner_id);
   const viewedName = viewedMember?.display_name || viewedMember?.username || 'Unowned';
@@ -231,40 +215,12 @@ export default function RosterPage() {
   const filledStarters = displayStarters.filter(Boolean).length;
   const filledBench = displayBench.filter(Boolean).length;
 
-  const headerActions = canEditLineup ? (
-    !editMode ? (
-      <button
-        onClick={enterEditMode}
-        className="flex items-center gap-1.5 rounded-lg bg-muted px-3 py-1.5 text-sm font-medium text-accent-foreground hover:bg-muted-hover transition-colors"
-      >
-        <Pencil className="h-3.5 w-3.5" />
-        Edit Lineup
-      </button>
-    ) : (
-      <div className="flex items-center gap-2">
-        <button
-          onClick={cancelEdit}
-          className="flex items-center gap-1.5 rounded-lg bg-muted px-3 py-1.5 text-sm font-medium text-accent-foreground hover:bg-muted-hover transition-colors"
-        >
-          <X className="h-3.5 w-3.5" />
-          Cancel
-        </button>
-        <button
-          onClick={saveLineup}
-          disabled={isSaving}
-          className="flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:bg-primary-hover disabled:opacity-50 transition-colors"
-        >
-          <Check className="h-3.5 w-3.5" />
-          {isSaving ? 'Saving…' : 'Save'}
-        </button>
-      </div>
-    )
-  ) : null;
-
   const headerBadge = !isOwnRoster ? (
     <StatusBadge variant="info">Viewing</StatusBadge>
-  ) : editMode ? (
-    <StatusBadge variant="warning">Editing</StatusBadge>
+  ) : saveStatus === 'saving' ? (
+    <StatusBadge variant="live">Saving…</StatusBadge>
+  ) : saveStatus === 'saved' ? (
+    <StatusBadge variant="success">Saved</StatusBadge>
   ) : null;
 
   return (
@@ -274,7 +230,6 @@ export default function RosterPage() {
           leagueId={leagueId}
           title={isOwnRoster ? 'My Roster' : viewedName}
           badge={headerBadge}
-          actions={headerActions}
         />
 
         {/* Commissioner team switcher */}
@@ -290,7 +245,8 @@ export default function RosterPage() {
                   key={r.roster_id}
                   onClick={() => {
                     setSelectedRosterId(r.roster_id);
-                    forceCancelEdit();
+                    setSelectedPlayerId(null);
+                    setSaveError(null);
                   }}
                   className={`rounded-full px-3 py-1.5 text-sm font-medium whitespace-nowrap transition-colors ${
                     isActive
@@ -327,51 +283,17 @@ export default function RosterPage() {
           </div>
         )}
 
-        {/* Edit-mode instruction banner */}
-        {editMode && !confirmCancel && (
-          <div className="rounded-lg bg-neon-cyan/5 border border-neon-cyan/30 px-4 py-3 flex items-center gap-3">
-            <div className="flex-shrink-0 h-6 w-6 rounded-full bg-neon-cyan/20 flex items-center justify-center text-xs font-bold text-neon-cyan">
-              {selectedPlayerId ? '2' : '1'}
-            </div>
-            <p className="text-sm text-foreground">
-              {selectedPlayerId ? (
-                <>
-                  Now tap any other player to{' '}
-                  <span className="text-neon-cyan font-semibold">swap positions</span>.
-                </>
-              ) : (
-                <>Tap a player to select them for swapping.</>
-              )}
-            </p>
+        {/* Thin selection hint — only while a player is selected */}
+        {canEditLineup && selectedPlayerId && (
+          <div className="rounded-lg bg-neon-cyan/5 border border-neon-cyan/30 px-4 py-2 text-sm text-foreground flex items-center gap-2">
+            <span className="flex-shrink-0 h-2 w-2 rounded-full bg-neon-cyan animate-pulse" />
+            <span>
+              Tap another player to{' '}
+              <span className="text-neon-cyan font-semibold">swap positions</span>.
+            </span>
           </div>
         )}
 
-        {/* Unsaved-changes confirm */}
-        {confirmCancel && (
-          <div className="rounded-lg bg-neon-rose/10 border border-neon-rose/40 px-4 py-3 flex items-center justify-between gap-3">
-            <p className="text-sm text-foreground">Discard unsaved lineup changes?</p>
-            <div className="flex gap-2">
-              <button
-                onClick={() => setConfirmCancel(false)}
-                className="rounded-md bg-muted px-3 py-1 text-xs font-medium hover:bg-muted-hover transition-colors"
-              >
-                Keep Editing
-              </button>
-              <button
-                onClick={forceCancelEdit}
-                className="rounded-md bg-neon-rose/20 text-neon-rose px-3 py-1 text-xs font-semibold hover:bg-neon-rose/30 transition-colors"
-              >
-                Discard
-              </button>
-            </div>
-          </div>
-        )}
-
-        {saveSuccess && (
-          <div className="rounded-lg bg-neon-cyan/15 border border-neon-cyan/40 px-4 py-2 text-sm text-neon-cyan flex items-center gap-2">
-            <Check className="h-4 w-4" /> Lineup saved successfully.
-          </div>
-        )}
         {saveError && (
           <div className="rounded-lg bg-neon-rose/15 border border-neon-rose/40 px-4 py-2 text-sm text-neon-rose flex items-center gap-2">
             <X className="h-4 w-4" /> {saveError}
@@ -409,13 +331,15 @@ export default function RosterPage() {
                           key={`${slot}-${idx}`}
                           player={player}
                           slotLabel={slot}
-                          editMode={editMode}
-                          isSelected={editMode && selectedPlayerId === playerId}
+                          editMode={canEditLineup}
+                          isSelected={canEditLineup && selectedPlayerId === playerId}
                           isSwappable={
-                            editMode && selectedPlayerId !== null && selectedPlayerId !== playerId
+                            canEditLineup &&
+                            selectedPlayerId !== null &&
+                            selectedPlayerId !== playerId
                           }
                           onClick={
-                            editMode && playerId
+                            canEditLineup && playerId
                               ? () => handlePlayerTap(playerId, 'starters')
                               : undefined
                           }
@@ -446,13 +370,15 @@ export default function RosterPage() {
                             key={`bench-${idx}`}
                             player={player}
                             slotLabel=""
-                            editMode={editMode}
-                            isSelected={editMode && selectedPlayerId === playerId}
+                            editMode={canEditLineup}
+                            isSelected={canEditLineup && selectedPlayerId === playerId}
                             isSwappable={
-                              editMode && selectedPlayerId !== null && selectedPlayerId !== playerId
+                              canEditLineup &&
+                              selectedPlayerId !== null &&
+                              selectedPlayerId !== playerId
                             }
                             onClick={
-                              editMode && playerId
+                              canEditLineup && playerId
                                 ? () => handlePlayerTap(playerId, 'bench')
                                 : undefined
                             }
