@@ -79,7 +79,8 @@ export default function RosterPage() {
   }, [allPlayerIds.join(','), accessToken]);
 
   // Lineup state (always-on editing, Sleeper-style)
-  const [selectedPlayerId, setSelectedPlayerId] = useState<string | null>(null);
+  type SlotRef = { section: 'starters' | 'bench'; idx: number };
+  const [selectedSlot, setSelectedSlot] = useState<SlotRef | null>(null);
   const [pendingStarters, setPendingStarters] = useState<string[]>([]);
   const [pendingBench, setPendingBench] = useState<string[]>([]);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
@@ -90,23 +91,6 @@ export default function RosterPage() {
 
   const canEditLineup =
     (league?.status === 'reg_season' || league?.status === 'post_season') && isOwnRoster;
-
-  // Sync local lineup state from server when switching teams or on first load.
-  // Intentionally NOT dependent on the whole viewedRoster — refetches after save
-  // shouldn't clobber in-flight user edits.
-  useEffect(() => {
-    if (!viewedRoster) return;
-    setPendingStarters([...viewedRoster.starters]);
-    const nonBench = new Set([
-      ...viewedRoster.starters,
-      ...viewedRoster.reserve,
-      ...viewedRoster.taxi,
-    ]);
-    setPendingBench(viewedRoster.players.filter((pid) => !nonBench.has(pid)));
-    setSelectedPlayerId(null);
-    setSaveError(null);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [viewedRoster?.roster_id]);
 
   // Derive starter slots and bench from roster_positions
   const starterSlots = useMemo(() => {
@@ -119,6 +103,29 @@ export default function RosterPage() {
     return league.roster_positions.filter((p) => p === 'BN').length;
   }, [league]);
 
+  // Sync local lineup state from server when switching teams or on first load.
+  // Intentionally NOT dependent on the whole viewedRoster — refetches after save
+  // shouldn't clobber in-flight user edits.
+  useEffect(() => {
+    if (!viewedRoster) return;
+    const starters = [...viewedRoster.starters];
+    while (starters.length < starterSlots.length) starters.push('');
+    setPendingStarters(starters);
+
+    const nonBench = new Set([
+      ...viewedRoster.starters.filter(Boolean),
+      ...viewedRoster.reserve,
+      ...viewedRoster.taxi,
+    ]);
+    const bench = viewedRoster.players.filter((pid) => !nonBench.has(pid));
+    while (bench.length < benchSlotCount) bench.push('');
+    setPendingBench(bench);
+
+    setSelectedSlot(null);
+    setSaveError(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [viewedRoster?.roster_id, starterSlots.length, benchSlotCount]);
+
   async function performSwap(newStarters: string[], newBench: string[]) {
     // Snapshot for rollback
     const prevStarters = pendingStarters;
@@ -127,9 +134,12 @@ export default function RosterPage() {
     // Optimistic update
     setPendingStarters(newStarters);
     setPendingBench(newBench);
-    setSelectedPlayerId(null);
+    setSelectedSlot(null);
 
     if (!canEditLineup || !accessToken || !viewedRoster) return;
+
+    // Only persist a fully-filled lineup (backend validates length).
+    if (newStarters.some((s) => !s)) return;
 
     try {
       setSaveStatus('saving');
@@ -154,52 +164,33 @@ export default function RosterPage() {
     }
   }
 
-  function handlePlayerTap(playerId: string, _section: 'starters' | 'bench') {
+  function handleSlotTap(section: 'starters' | 'bench', idx: number) {
     if (!canEditLineup) return;
 
-    if (selectedPlayerId === null) {
-      setSelectedPlayerId(playerId);
+    const currentValue =
+      section === 'starters' ? pendingStarters[idx] ?? '' : pendingBench[idx] ?? '';
+
+    if (selectedSlot === null) {
+      // Can't start a selection from an empty slot
+      if (!currentValue) return;
+      setSelectedSlot({ section, idx });
       return;
     }
 
-    if (selectedPlayerId === playerId) {
-      setSelectedPlayerId(null);
+    if (selectedSlot.section === section && selectedSlot.idx === idx) {
+      setSelectedSlot(null);
       return;
     }
 
-    // Compute swap
     const newStarters = [...pendingStarters];
     const newBench = [...pendingBench];
-    const selectedInStarters = newStarters.indexOf(selectedPlayerId);
-    const targetInStarters = newStarters.indexOf(playerId);
-    const selectedInBench = newBench.indexOf(selectedPlayerId);
-    const targetInBench = newBench.indexOf(playerId);
-
-    if (selectedInStarters !== -1 && targetInBench !== -1) {
-      // Swap starter → bench
-      newStarters[selectedInStarters] = playerId;
-      newBench[targetInBench] = selectedPlayerId;
-    } else if (selectedInBench !== -1 && targetInStarters !== -1) {
-      // Swap bench → starter
-      newBench[selectedInBench] = playerId;
-      newStarters[targetInStarters] = selectedPlayerId;
-    } else if (selectedInStarters !== -1 && targetInStarters !== -1) {
-      // Swap two starters
-      [newStarters[selectedInStarters], newStarters[targetInStarters]] = [
-        newStarters[targetInStarters],
-        newStarters[selectedInStarters],
-      ];
-    } else if (selectedInBench !== -1 && targetInBench !== -1) {
-      // Swap two bench players
-      [newBench[selectedInBench], newBench[targetInBench]] = [
-        newBench[targetInBench],
-        newBench[selectedInBench],
-      ];
-    } else {
-      // No valid swap — clear selection
-      setSelectedPlayerId(null);
-      return;
-    }
+    const getArr = (s: 'starters' | 'bench') => (s === 'starters' ? newStarters : newBench);
+    const srcArr = getArr(selectedSlot.section);
+    const dstArr = getArr(section);
+    const srcVal = srcArr[selectedSlot.idx] ?? '';
+    const dstVal = dstArr[idx] ?? '';
+    srcArr[selectedSlot.idx] = dstVal;
+    dstArr[idx] = srcVal;
 
     performSwap(newStarters, newBench);
   }
@@ -245,7 +236,7 @@ export default function RosterPage() {
                   key={r.roster_id}
                   onClick={() => {
                     setSelectedRosterId(r.roster_id);
-                    setSelectedPlayerId(null);
+                    setSelectedSlot(null);
                     setSaveError(null);
                   }}
                   className={`rounded-full px-3 py-1.5 text-sm font-medium whitespace-nowrap transition-colors ${
@@ -284,7 +275,7 @@ export default function RosterPage() {
         )}
 
         {/* Thin selection hint — only while a player is selected */}
-        {canEditLineup && selectedPlayerId && (
+        {canEditLineup && selectedSlot && (
           <div className="rounded-lg bg-neon-cyan/5 border border-neon-cyan/30 px-4 py-2 text-sm text-foreground flex items-center gap-2">
             <span className="flex-shrink-0 h-2 w-2 rounded-full bg-neon-cyan animate-pulse" />
             <span>
@@ -332,16 +323,18 @@ export default function RosterPage() {
                           player={player}
                           slotLabel={slot}
                           editMode={canEditLineup}
-                          isSelected={canEditLineup && selectedPlayerId === playerId}
+                          isSelected={
+                            canEditLineup &&
+                            selectedSlot?.section === 'starters' &&
+                            selectedSlot.idx === idx
+                          }
                           isSwappable={
                             canEditLineup &&
-                            selectedPlayerId !== null &&
-                            selectedPlayerId !== playerId
+                            selectedSlot !== null &&
+                            !(selectedSlot.section === 'starters' && selectedSlot.idx === idx)
                           }
                           onClick={
-                            canEditLineup && playerId
-                              ? () => handlePlayerTap(playerId, 'starters')
-                              : undefined
+                            canEditLineup ? () => handleSlotTap('starters', idx) : undefined
                           }
                         />
                       );
@@ -371,16 +364,18 @@ export default function RosterPage() {
                             player={player}
                             slotLabel=""
                             editMode={canEditLineup}
-                            isSelected={canEditLineup && selectedPlayerId === playerId}
+                            isSelected={
+                              canEditLineup &&
+                              selectedSlot?.section === 'bench' &&
+                              selectedSlot.idx === idx
+                            }
                             isSwappable={
                               canEditLineup &&
-                              selectedPlayerId !== null &&
-                              selectedPlayerId !== playerId
+                              selectedSlot !== null &&
+                              !(selectedSlot.section === 'bench' && selectedSlot.idx === idx)
                             }
                             onClick={
-                              canEditLineup && playerId
-                                ? () => handlePlayerTap(playerId, 'bench')
-                                : undefined
+                              canEditLineup ? () => handleSlotTap('bench', idx) : undefined
                             }
                           />
                         );

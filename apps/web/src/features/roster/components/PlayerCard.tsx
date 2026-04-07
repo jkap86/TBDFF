@@ -61,18 +61,44 @@ export function PlayerCard({
   const showSlotLabel = slotLabel !== '';
 
   if (!player) {
-    return (
-      <div className="flex items-center gap-2 py-2 px-1.5">
+    const emptyContent = (
+      <>
         {showSlotLabel && (
           <span className={`flex h-6 w-8 flex-shrink-0 items-center justify-center rounded text-[11px] font-bold ${slotTint}`}>
             {displaySlot}
           </span>
         )}
-        <span className="flex-1 rounded-md border border-dashed border-neon-cyan/30 bg-neon-cyan/[0.03] px-2.5 py-1.5 text-sm text-disabled italic">
+        <span
+          className={`flex-1 rounded-md border border-dashed px-2.5 py-1.5 text-sm italic ${
+            isSelected
+              ? 'border-neon-cyan bg-neon-cyan/15 text-neon-cyan'
+              : isSwappable
+                ? 'border-neon-cyan/50 bg-neon-cyan/[0.06] text-neon-cyan/80'
+                : 'border-neon-cyan/30 bg-neon-cyan/[0.03] text-disabled'
+          }`}
+        >
           Empty slot
         </span>
-      </div>
+      </>
     );
+    if (editMode && onClick) {
+      return (
+        <button
+          type="button"
+          onClick={onClick}
+          className={`flex w-full items-center gap-2 rounded-lg px-1.5 py-2 text-left transition-all ${
+            isSelected
+              ? 'ring-2 ring-neon-cyan shadow-[0_0_12px_rgba(0,240,255,0.35)]'
+              : isSwappable
+                ? 'hover:bg-neon-cyan/10 cursor-pointer'
+                : 'hover:bg-muted/40 cursor-pointer'
+          }`}
+        >
+          {emptyContent}
+        </button>
+      );
+    }
+    return <div className="flex items-center gap-2 py-2 px-1.5">{emptyContent}</div>;
   }
 
   const injuryCfg = player.injury_status ? INJURY_CONFIG[player.injury_status] : null;
