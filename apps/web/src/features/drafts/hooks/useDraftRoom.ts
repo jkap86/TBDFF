@@ -21,7 +21,7 @@ export function useDraftRoom(leagueId: string, preferredDraftId?: string) {
 
   // Queue state
   const [queue, setQueue] = useState<DraftQueueItem[]>([]);
-  const [sidebarTab, setSidebarTab] = useState<'queue' | 'players'>('players');
+  const [sidebarTab, setSidebarTab] = useState<'queue' | 'players' | 'schedule'>('players');
 
   // Slow auction state
   const [slowAuctionLots, setSlowAuctionLots] = useState<AuctionLot[]>([]);

@@ -265,6 +265,14 @@ export function SlowAuctionBoard({
               .sort((a, b) => b.available - a.available)
               .map((budget) => {
                 const isCurrentUser = rosterToUserId[budget.roster_id] === currentUserId;
+                const activeNomCount = activeLots.filter(
+                  (l) => l.nominator_roster_id === budget.roster_id
+                ).length;
+                const winningCount = activeLots.filter(
+                  (l) => l.current_bidder_roster_id === budget.roster_id
+                ).length;
+                const committedPlayers = budget.won_count + winningCount;
+                const committedSpend = budget.spent + budget.leading_commitment;
                 return (
                   <div
                     key={budget.roster_id}
@@ -281,7 +289,13 @@ export function SlowAuctionBoard({
                       ${budget.available}
                     </div>
                     <div className="text-xs text-disabled">
-                      {budget.won_count}/{budget.total_slots} | ${budget.spent} spent
+                      {activeNomCount} active nom{activeNomCount !== 1 ? 's' : ''}
+                    </div>
+                    <div className="text-xs text-disabled">
+                      {committedPlayers}/{budget.total_slots} | ${committedSpend} spent
+                    </div>
+                    <div className="text-xs text-disabled/60">
+                      {budget.won_count}/{budget.total_slots} | ${budget.spent} won
                     </div>
                   </div>
                 );

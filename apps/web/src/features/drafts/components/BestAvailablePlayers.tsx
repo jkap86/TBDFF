@@ -197,7 +197,7 @@ export function BestAvailablePlayers({
                       {player.full_name}
                     </div>
                     <div className="text-xs text-muted-foreground">
-                      {player.position}{player.team ? ` - ${player.team}` : ''}
+                      {player.position}{player.team ? ` · ${player.team}` : ''}{player.bye_week != null ? ` · BYE ${player.bye_week}` : ''}
                     </div>
                   </>
                 )}

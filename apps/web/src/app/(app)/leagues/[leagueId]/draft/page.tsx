@@ -62,6 +62,7 @@ export default function DraftRoomPage() {
 
   const sidebarProps = {
     draftId: draft.id,
+    leagueId,
     draftedPlayerIds: room.draftedPlayerIds,
     queue,
     sidebarTab: room.sidebarTab,
@@ -75,6 +76,10 @@ export default function DraftRoomPage() {
     budget: draft.settings.budget,
     teams: draft.settings.teams,
     includeRookiePicks: draft.settings.include_rookie_picks === 1,
+    myRosterId: room.userRosterId,
+    picks,
+    rosters,
+    members,
     ...(room.isAuction ? {
       onDraft: room.handleNominate,
       isMyTurn: !!room.isMyTurn && !draft.metadata?.current_nomination && !room.isAutoPick && !room.isDraftStopped,

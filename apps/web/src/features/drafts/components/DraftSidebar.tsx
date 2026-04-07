@@ -1,16 +1,18 @@
 'use client';
 
-import type { DraftQueueItem } from '@/lib/api';
+import type { DraftPick, DraftQueueItem, Roster, LeagueMember } from '@/lib/api';
 import { BestAvailablePlayers } from './BestAvailablePlayers';
 import { DraftQueue } from './DraftQueue';
+import { ScheduleTab } from './ScheduleTab';
 
 interface DraftSidebarProps {
   draftId: string;
+  leagueId: string;
   draftedPlayerIds: Set<string>;
   activeLotPlayerIds?: Set<string>;
   queue: DraftQueueItem[];
-  sidebarTab: 'queue' | 'players';
-  onTabChange: (tab: 'queue' | 'players') => void;
+  sidebarTab: 'queue' | 'players' | 'schedule';
+  onTabChange: (tab: 'queue' | 'players' | 'schedule') => void;
   onAdd: (playerId: string) => void;
   onDraft?: (playerId: string) => void;
   isMyTurn?: boolean;
@@ -25,10 +27,15 @@ interface DraftSidebarProps {
   teams: number;
   height?: string;
   includeRookiePicks?: boolean;
+  myRosterId?: number;
+  picks: DraftPick[];
+  rosters: Roster[];
+  members: LeagueMember[];
 }
 
 export function DraftSidebar({
   draftId,
+  leagueId,
   draftedPlayerIds,
   activeLotPlayerIds,
   queue,
@@ -48,6 +55,10 @@ export function DraftSidebar({
   teams,
   height = 'calc(100vh - 200px)',
   includeRookiePicks,
+  myRosterId,
+  picks,
+  rosters,
+  members,
 }: DraftSidebarProps) {
   return (
     <div className="rounded-lg border border-border bg-card shadow flex flex-col" style={{ height }}>
@@ -72,6 +83,16 @@ export function DraftSidebar({
         >
           My Queue
         </button>
+        <button
+          onClick={() => onTabChange('schedule')}
+          className={`flex-1 px-3 py-2.5 text-sm font-heading font-bold uppercase tracking-wide transition-colors ${
+            sidebarTab === 'schedule'
+              ? 'border-b-2 border-primary text-primary'
+              : 'text-muted-foreground hover:text-accent-foreground hover:bg-accent/50'
+          }`}
+        >
+          Schedule
+        </button>
       </div>
       <div className="flex-1 min-h-0">
         {sidebarTab === 'players' ? (
@@ -88,7 +109,7 @@ export function DraftSidebar({
             accessToken={accessToken}
             includeRookiePicks={includeRookiePicks}
           />
-        ) : (
+        ) : sidebarTab === 'queue' ? (
           <DraftQueue
             queue={queue}
             draftedPlayerIds={draftedPlayerIds}
@@ -98,6 +119,15 @@ export function DraftSidebar({
             isAuction={isAuction}
             budget={budget}
             teams={teams}
+          />
+        ) : (
+          <ScheduleTab
+            leagueId={leagueId}
+            myRosterId={myRosterId}
+            picks={picks}
+            rosters={rosters}
+            members={members}
+            accessToken={accessToken}
           />
         )}
       </div>
