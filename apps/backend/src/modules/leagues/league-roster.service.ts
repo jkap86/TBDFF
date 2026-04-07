@@ -10,6 +10,21 @@ import {
 } from '../../shared/exceptions';
 import { DraftRepository } from '../drafts/drafts.repository';
 import { SystemMessageService } from '../chat/system-message.service';
+import { PlayerRepository } from '../players/players.repository';
+
+// Which player positions are eligible for each starter slot label.
+const SLOT_ELIGIBILITY: Record<string, ReadonlySet<string>> = {
+  QB: new Set(['QB']),
+  RB: new Set(['RB']),
+  WR: new Set(['WR']),
+  TE: new Set(['TE']),
+  K: new Set(['K']),
+  DEF: new Set(['DEF']),
+  FLEX: new Set(['RB', 'WR', 'TE']),
+  SUPER_FLEX: new Set(['QB', 'RB', 'WR', 'TE']),
+  REC_FLEX: new Set(['WR', 'TE']),
+  WRRB_FLEX: new Set(['RB', 'WR']),
+};
 
 export class LeagueRosterService {
   constructor(
@@ -18,6 +33,7 @@ export class LeagueRosterService {
     private readonly leagueRostersRepository: LeagueRostersRepository,
     private readonly draftRepository: DraftRepository,
     private readonly systemMessages: SystemMessageService,
+    private readonly playerRepository: PlayerRepository,
   ) {}
 
   async getLeagueRosters(leagueId: string, userId: string): Promise<Roster[]> {
@@ -131,14 +147,45 @@ export class LeagueRosterService {
       }
     }
 
-    // 5. Validate starters length matches non-BN/non-IR slot count
-    const starterSlotCount = league.rosterPositions.filter(
+    // 5. Validate no duplicate starters
+    if (new Set(starters).size !== starters.length) {
+      throw new ValidationException('Lineup contains duplicate players');
+    }
+
+    // 6. Validate starters length matches non-BN/non-IR slot count
+    const starterSlots = league.rosterPositions.filter(
       (p) => p !== 'BN' && p !== 'IR',
-    ).length;
-    if (starters.length !== starterSlotCount) {
+    );
+    if (starters.length !== starterSlots.length) {
       throw new ValidationException(
-        `Starters array must have exactly ${starterSlotCount} entries`,
+        `Starters array must have exactly ${starterSlots.length} entries`,
       );
+    }
+
+    // 7. Validate slot eligibility (starters[i] must fit starterSlots[i])
+    const players = await this.playerRepository.findByIds(starters);
+    const playerById = new Map(players.map((p) => [p.id, p]));
+    for (let i = 0; i < starters.length; i++) {
+      const pid = starters[i];
+      const slot = starterSlots[i];
+      const eligible = SLOT_ELIGIBILITY[slot];
+      if (!eligible) {
+        throw new ValidationException(`Unknown roster slot: ${slot}`);
+      }
+      const player = playerById.get(pid);
+      if (!player) {
+        throw new ValidationException(`Player ${pid} not found`);
+      }
+      const positions = new Set<string>([
+        ...(player.fantasyPositions ?? []),
+        ...(player.position ? [player.position] : []),
+      ]);
+      const fits = Array.from(positions).some((pos) => eligible.has(pos));
+      if (!fits) {
+        throw new ValidationException(
+          `Player ${pid} (${player.position ?? 'unknown'}) is not eligible for ${slot}`,
+        );
+      }
     }
 
     return this.leagueRostersRepository.updateStarters(leagueId, rosterId, starters);

@@ -79,6 +79,7 @@ export function createContainer() {
     leagueRostersRepository,
     draftRepository,
     systemMessageService: chat.systemMessageService,
+    playerRepository,
   });
 
   const drafts = registerDraftsModule({ pool, draftRepository, draftPicksRepository, draftTimerRepository, draftQueueRepository, leagueRepository, leagueMembersRepository, leagueRostersRepository, playerRepository });

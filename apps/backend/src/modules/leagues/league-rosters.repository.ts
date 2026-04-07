@@ -168,7 +168,7 @@ export class LeagueRostersRepository {
       `UPDATE rosters SET starters = $1, updated_at = NOW()
        WHERE league_id = $2 AND roster_id = $3
        RETURNING *`,
-      [JSON.stringify(starters), leagueId, rosterId]
+      [starters, leagueId, rosterId]
     );
     if (result.rows.length === 0) throw new Error('Roster not found');
     return Roster.fromDatabase(result.rows[0]);

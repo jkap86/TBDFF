@@ -7,6 +7,7 @@ import { LeagueRosterService } from './league-roster.service';
 import { LeagueController } from './leagues.controller';
 import { DraftRepository } from '../drafts/drafts.repository';
 import { SystemMessageService } from '../chat/system-message.service';
+import { PlayerRepository } from '../players/players.repository';
 
 interface LeaguesModuleDeps {
   leagueRepository: LeagueRepository;
@@ -14,6 +15,7 @@ interface LeaguesModuleDeps {
   leagueRostersRepository: LeagueRostersRepository;
   draftRepository: DraftRepository;
   systemMessageService: SystemMessageService;
+  playerRepository: PlayerRepository;
 }
 
 export function registerLeaguesModule(deps: LeaguesModuleDeps) {
@@ -35,6 +37,7 @@ export function registerLeaguesModule(deps: LeaguesModuleDeps) {
     deps.leagueRostersRepository,
     deps.draftRepository,
     deps.systemMessageService,
+    deps.playerRepository,
   );
   const leagueController = new LeagueController(leagueService, leagueInviteService, leagueRosterService);
 
