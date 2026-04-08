@@ -397,9 +397,9 @@ export default function RosterPage() {
           <>
             {/* Lineup card: Starters + Bench always side-by-side with independent scroll */}
             <div className="rounded-lg bg-card p-2.5 sm:p-4 shadow glass-strong glow-border flex flex-col">
-              <div className="grid grid-cols-2">
+              <div className="grid grid-cols-2 grid-rows-[minmax(0,70vh)] h-[70vh]">
                 {/* Starters column */}
-                <div className="flex flex-col min-h-0 pr-2 sm:pr-4">
+                <div className="flex flex-col min-h-0 min-w-0 pr-2 sm:pr-4 overflow-hidden">
                   <div className="mb-2 flex items-center justify-between flex-shrink-0">
                     <h2 className="flex items-center gap-2 text-sm font-heading font-bold uppercase tracking-wide text-accent-foreground">
                       <Zap className="h-3.5 w-3.5 text-neon-cyan" />
@@ -409,7 +409,7 @@ export default function RosterPage() {
                       {filledStarters}/{starterSlots.length}
                     </span>
                   </div>
-                  <div className="divide-y divide-border/50">
+                  <div className="divide-y divide-border/50 overflow-y-auto flex-1 min-h-0">
                     {starterSlots.map((slot, idx) => {
                       const playerId = displayStarters[idx] ?? '';
                       const player = playerMap[playerId] ?? null;
@@ -437,7 +437,7 @@ export default function RosterPage() {
 
                 {/* Bench column */}
                 {benchSlotCount > 0 && (
-                  <div className="flex flex-col min-h-0 border-l border-border/50 pl-2 sm:pl-4">
+                  <div className="flex flex-col min-h-0 min-w-0 border-l border-border/50 pl-2 sm:pl-4 overflow-hidden">
                     <div className="mb-2 flex items-center justify-between flex-shrink-0">
                       <h2 className="flex items-center gap-2 text-sm font-heading font-bold uppercase tracking-wide text-accent-foreground">
                         <Users className="h-3.5 w-3.5 text-neon-cyan/70" />
@@ -447,8 +447,8 @@ export default function RosterPage() {
                         {filledBench}/{benchSlotCount}
                       </span>
                     </div>
-                    <div className="divide-y divide-border/50">
-                      {Array.from({ length: benchSlotCount }).map((_, idx) => {
+                    <div className="divide-y divide-border/50 overflow-y-auto flex-1 min-h-0">
+                      {Array.from({ length: Math.max(benchSlotCount, displayBench.length) }).map((_, idx) => {
                         const playerId = displayBench[idx] ?? '';
                         const player = playerMap[playerId] ?? null;
                         return (
