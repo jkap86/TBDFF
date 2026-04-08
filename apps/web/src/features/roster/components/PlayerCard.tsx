@@ -45,6 +45,7 @@ interface PlayerCardProps {
   isSelected?: boolean;
   isSwappable?: boolean;
   onClick?: () => void;
+  opponent?: string | null;
 }
 
 export function PlayerCard({
@@ -54,6 +55,7 @@ export function PlayerCard({
   isSelected = false,
   isSwappable = false,
   onClick,
+  opponent,
 }: PlayerCardProps) {
   const displaySlot = SLOT_LABELS[slotLabel] ?? slotLabel;
   const slotTint = positionTintClass(slotLabel);
@@ -137,7 +139,12 @@ export function PlayerCard({
           {player.full_name}
         </span>
         <span className="text-xs text-muted-foreground leading-tight">
-          {player.team ?? 'FA'}{player.bye_week ? ` · Bye ${player.bye_week}` : ''}
+          {player.team ?? 'FA'}
+          {opponent === undefined
+            ? ''
+            : opponent === null
+              ? ' · BYE'
+              : ` · ${opponent}`}
         </span>
       </div>
 

@@ -3,7 +3,8 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useParams } from 'next/navigation';
 import { X, Zap, Users, Heart, Truck } from 'lucide-react';
-import { playerApi, leagueApi, ApiError } from '@/lib/api';
+import { playerApi, leagueApi, scoringApi, ApiError } from '@/lib/api';
+import { useQuery } from '@tanstack/react-query';
 import type { Player } from '@/lib/api';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import { useLeagueQuery, useMembersQuery, useRostersQuery } from '@/hooks/useLeagueQueries';
@@ -103,6 +104,35 @@ export default function RosterPage() {
   const isOwnRoster = viewedRoster?.owner_id === user?.id;
   const currentWeek = (league?.settings as any)?.leg ?? 1;
 
+  // Schedule for the current week → map of NFL team → opponent ("@DAL"/"vsNYG"), or null for BYE
+  const { data: scheduleData } = useQuery({
+    queryKey: ['schedule', league?.season, currentWeek],
+    queryFn: () =>
+      scoringApi.getGameSchedule(league!.season, currentWeek, accessToken!, 'regular'),
+    enabled: !!accessToken && !!league?.season && !!currentWeek,
+    staleTime: 60_000,
+  });
+
+  const opponentByTeam = useMemo(() => {
+    const map = new Map<string, string>();
+    const games = scheduleData?.games ?? [];
+    for (const g of games) {
+      const meta: any = g.metadata || {};
+      const home = meta.home_team;
+      const away = meta.away_team;
+      if (home && away) {
+        map.set(home, `vs ${away}`);
+        map.set(away, `@ ${home}`);
+      }
+    }
+    return map;
+  }, [scheduleData]);
+
+  function getOpponent(team: string | null | undefined): string | null | undefined {
+    if (!team) return undefined;
+    return opponentByTeam.get(team) ?? null; // null = BYE
+  }
+
   const canEditLineup =
     (league?.status === 'reg_season' || league?.status === 'post_season') && isOwnRoster;
 
@@ -198,8 +228,6 @@ export default function RosterPage() {
       section === 'starters' ? pendingStarters[idx] ?? '' : pendingBench[idx] ?? '';
 
     if (selectedSlot === null) {
-      // Can't start a selection from an empty slot
-      if (!currentValue) return;
       setSelectedSlot({ section, idx });
       return;
     }
@@ -329,16 +357,29 @@ export default function RosterPage() {
           </div>
         )}
 
-        {/* Thin selection hint — only while a player is selected */}
-        {canEditLineup && selectedSlot && (
-          <div className="rounded-lg bg-neon-cyan/5 border border-neon-cyan/30 px-4 py-2 text-sm text-foreground flex items-center gap-2">
-            <span className="flex-shrink-0 h-2 w-2 rounded-full bg-neon-cyan animate-pulse" />
-            <span>
-              Tap another player to{' '}
-              <span className="text-neon-cyan font-semibold">swap positions</span>.
-            </span>
-          </div>
-        )}
+        {/* Thin selection hint — only while a slot is selected */}
+        {canEditLineup && selectedSlot && (() => {
+          const selVal =
+            selectedSlot.section === 'starters'
+              ? pendingStarters[selectedSlot.idx] ?? ''
+              : pendingBench[selectedSlot.idx] ?? '';
+          return (
+            <div className="rounded-lg bg-neon-cyan/5 border border-neon-cyan/30 px-4 py-2 text-sm text-foreground flex items-center gap-2">
+              <span className="flex-shrink-0 h-2 w-2 rounded-full bg-neon-cyan animate-pulse" />
+              {selVal ? (
+                <span>
+                  Tap another slot to{' '}
+                  <span className="text-neon-cyan font-semibold">move the player</span>.
+                </span>
+              ) : (
+                <span>
+                  Tap a player to{' '}
+                  <span className="text-neon-cyan font-semibold">fill this slot</span>.
+                </span>
+              )}
+            </div>
+          );
+        })()}
 
         {saveError && (
           <div className="rounded-lg bg-neon-rose/15 border border-neon-rose/40 px-4 py-2 text-sm text-neon-rose flex items-center gap-2">
@@ -387,6 +428,7 @@ export default function RosterPage() {
                           onClick={
                             canEditLineup ? () => handleSlotTap('starters', idx) : undefined
                           }
+                          opponent={getOpponent(player?.team)}
                         />
                       );
                     })}
@@ -424,6 +466,7 @@ export default function RosterPage() {
                             onClick={
                               canEditLineup ? () => handleSlotTap('bench', idx) : undefined
                             }
+                            opponent={getOpponent(player?.team)}
                           />
                         );
                       })}
@@ -441,9 +484,17 @@ export default function RosterPage() {
                   Injured Reserve
                 </h2>
                 <div className="divide-y divide-border/50">
-                  {viewedRoster.reserve.map((pid, idx) => (
-                    <PlayerCard key={`ir-${idx}`} player={playerMap[pid] ?? null} slotLabel="IR" />
-                  ))}
+                  {viewedRoster.reserve.map((pid, idx) => {
+                    const p = playerMap[pid] ?? null;
+                    return (
+                      <PlayerCard
+                        key={`ir-${idx}`}
+                        player={p}
+                        slotLabel="IR"
+                        opponent={getOpponent(p?.team)}
+                      />
+                    );
+                  })}
                 </div>
               </div>
             )}
@@ -456,13 +507,17 @@ export default function RosterPage() {
                   Taxi Squad
                 </h2>
                 <div className="divide-y divide-border/50">
-                  {viewedRoster.taxi.map((pid, idx) => (
-                    <PlayerCard
-                      key={`taxi-${idx}`}
-                      player={playerMap[pid] ?? null}
-                      slotLabel="BN"
-                    />
-                  ))}
+                  {viewedRoster.taxi.map((pid, idx) => {
+                    const p = playerMap[pid] ?? null;
+                    return (
+                      <PlayerCard
+                        key={`taxi-${idx}`}
+                        player={p}
+                        slotLabel="BN"
+                        opponent={getOpponent(p?.team)}
+                      />
+                    );
+                  })}
                 </div>
               </div>
             )}
