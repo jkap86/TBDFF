@@ -121,25 +121,24 @@ export function PlayerCard({
           : 'cursor-default'
       }`}
     >
-      {/* Slot label (color-coded by position) */}
-      {showSlotLabel && (
+      {/* Slot label (color-coded by position) — or position chip on bench */}
+      {showSlotLabel ? (
         <span className={`flex h-6 w-8 flex-shrink-0 items-center justify-center rounded text-[11px] font-bold ${slotTint}`}>
           {displaySlot}
         </span>
+      ) : (
+        <span className={`flex h-6 w-8 flex-shrink-0 items-center justify-center rounded-full text-[11px] font-bold ${posClass}`}>
+          {player.position ?? '—'}
+        </span>
       )}
 
-      {/* Position chip */}
-      <span className={`flex h-6 w-8 flex-shrink-0 items-center justify-center rounded-full text-[11px] font-bold ${posClass}`}>
-        {player.position ?? '—'}
-      </span>
-
-      {/* Name + team */}
+      {/* Name + team/position/opponent */}
       <div className="flex min-w-0 flex-1 flex-col">
         <span className="truncate text-sm font-medium text-foreground leading-tight">
           {player.full_name}
         </span>
         <span className="text-xs text-muted-foreground leading-tight">
-          {player.team ?? 'FA'}
+          {player.position ?? '—'} · {player.team ?? 'FA'}
           {opponent === undefined
             ? ''
             : opponent === null
