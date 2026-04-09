@@ -2,18 +2,24 @@
 
 import { useEffect } from 'react';
 import { useParams } from 'next/navigation';
-import { useChatPanel } from '../context/ChatPanelContext';
-import { useSocket } from '../context/SocketProvider';
+import { useChatPanel } from '@/features/chat/context/ChatPanelContext';
+import { useSocket } from '@/features/chat/context/SocketProvider';
+import { useActionsPanel } from '@/features/actions/context/ActionsPanelContext';
 
 export function LeagueIdSync() {
   const params = useParams();
-  const { setLeagueId } = useChatPanel();
+  const { setLeagueId: setChatLeagueId } = useChatPanel();
+  const { setLeagueId: setActionsLeagueId } = useActionsPanel();
   const { socket, isConnected } = useSocket();
   const leagueId = (params?.leagueId as string) ?? null;
 
   useEffect(() => {
-    setLeagueId(leagueId);
-  }, [leagueId, setLeagueId]);
+    setChatLeagueId(leagueId);
+  }, [leagueId, setChatLeagueId]);
+
+  useEffect(() => {
+    setActionsLeagueId(leagueId);
+  }, [leagueId, setActionsLeagueId]);
 
   // Join/leave league Socket.IO room independently of chat panel state.
   // This ensures trade, transaction, roster, and waiver events are received

@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import { useParams } from 'next/navigation';
 import { Search } from 'lucide-react';
 import { playerApi } from '@/lib/api';
 import type { Player, WaiverClaim } from '@/lib/api';
@@ -12,11 +11,12 @@ import { useTransactionSocket } from '@/features/transactions/hooks/useTransacti
 import { useLeagueQuery, useRostersQuery } from '@/hooks/useLeagueQueries';
 import { WaiverClaimForm } from '@/features/transactions/components/WaiverClaimForm';
 import { MyWaiverClaims } from '@/features/transactions/components/MyWaiverClaims';
-import { LeagueSubPageHeader } from '@/components/ui/LeagueSubPageHeader';
 
-export default function WaiversPage() {
-  const params = useParams();
-  const leagueId = params.leagueId as string;
+interface WaiversViewProps {
+  leagueId: string;
+}
+
+export function WaiversView({ leagueId }: WaiversViewProps) {
   const { accessToken, user } = useAuth();
 
   const [rosterPlayerNames, setRosterPlayerNames] = useState<Record<string, string>>({});
@@ -25,7 +25,6 @@ export default function WaiversPage() {
   const [editingClaim, setEditingClaim] = useState<WaiverClaim | null>(null);
   const [addError, setAddError] = useState<string | null>(null);
 
-  // Player search state
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<Player[]>([]);
   const [isSearching, setIsSearching] = useState(false);
@@ -34,11 +33,18 @@ export default function WaiversPage() {
   const { data: league } = useLeagueQuery(leagueId);
   const { data: rosters = [] } = useRostersQuery(leagueId);
 
-  const { claims, playerNames: claimPlayerNames, isLoading: claimsLoading, fetchClaims, placeClaim, updateClaim, cancelClaim } = useWaivers(leagueId);
+  const {
+    claims,
+    playerNames: claimPlayerNames,
+    isLoading: claimsLoading,
+    fetchClaims,
+    placeClaim,
+    updateClaim,
+    cancelClaim,
+  } = useWaivers(leagueId);
   const { dropPlayer } = useTransactions(leagueId);
   useTransactionSocket(leagueId);
 
-  // Collect all rostered player IDs
   const allPlayerIds = useMemo(() => {
     const ids = new Set<string>();
     for (const r of rosters) {
@@ -49,42 +55,45 @@ export default function WaiversPage() {
 
   const rosteredSet = useMemo(() => new Set(allPlayerIds), [allPlayerIds]);
 
-  // Fetch player names for roster display
   useEffect(() => {
     if (!accessToken || allPlayerIds.length === 0) return;
-    playerApi.getByIds(allPlayerIds, accessToken).then((res) => {
-      const names: Record<string, string> = {};
-      for (const p of res.players) {
-        if (p) names[p.id] = p.full_name;
-      }
-      setRosterPlayerNames(names);
-    }).catch(() => {});
+    playerApi
+      .getByIds(allPlayerIds, accessToken)
+      .then((res) => {
+        const names: Record<string, string> = {};
+        for (const p of res.players) {
+          if (p) names[p.id] = p.full_name;
+        }
+        setRosterPlayerNames(names);
+      })
+      .catch(() => {});
   }, [allPlayerIds, accessToken]);
 
-  // Debounced player search
-  const handleSearchChange = useCallback((query: string) => {
-    setSearchQuery(query);
-    if (searchTimeout.current) clearTimeout(searchTimeout.current);
+  const handleSearchChange = useCallback(
+    (query: string) => {
+      setSearchQuery(query);
+      if (searchTimeout.current) clearTimeout(searchTimeout.current);
 
-    if (!query.trim() || !accessToken) {
-      setSearchResults([]);
-      setIsSearching(false);
-      return;
-    }
-
-    setIsSearching(true);
-    searchTimeout.current = setTimeout(async () => {
-      try {
-        const res = await playerApi.search(query, accessToken, 10);
-        // Filter out already-rostered players
-        setSearchResults(res.players.filter((p) => !rosteredSet.has(p.id)));
-      } catch {
+      if (!query.trim() || !accessToken) {
         setSearchResults([]);
-      } finally {
         setIsSearching(false);
+        return;
       }
-    }, 300);
-  }, [accessToken, rosteredSet]);
+
+      setIsSearching(true);
+      searchTimeout.current = setTimeout(async () => {
+        try {
+          const res = await playerApi.search(query, accessToken, 10);
+          setSearchResults(res.players.filter((p) => !rosteredSet.has(p.id)));
+        } catch {
+          setSearchResults([]);
+        } finally {
+          setIsSearching(false);
+        }
+      }, 300);
+    },
+    [accessToken, rosteredSet],
+  );
 
   const handleSelectPlayer = (player: Player) => {
     setClaimingPlayer(player.id);
@@ -105,23 +114,35 @@ export default function WaiversPage() {
   };
 
   return (
-    <div className="min-h-screen bg-surface p-6">
-      <div className="mx-auto max-w-4xl space-y-6">
-        <LeagueSubPageHeader leagueId={leagueId} title="Waiver Claims" />
+    <div className="flex h-full flex-col overflow-hidden">
+      {/* Inline header bar */}
+      <div className="flex shrink-0 items-center justify-between gap-2 border-b border-border/60 px-4 py-2">
+        <h2 className="text-sm font-heading font-bold uppercase tracking-wide text-accent-foreground">
+          Waiver Claims
+        </h2>
+      </div>
 
+      <div className="flex-1 min-h-0 overflow-y-auto px-3 py-3 space-y-3">
         {addError && (
-          <div className="rounded bg-destructive p-3 text-sm text-destructive-foreground">{addError}</div>
+          <div className="rounded bg-destructive p-2 text-xs text-destructive-foreground">
+            {addError}
+          </div>
         )}
 
         {/* My Pending Claims */}
-        <div className="rounded-lg bg-card glass-strong glow-border p-6 shadow">
-          <h2 className="text-sm font-heading font-bold uppercase tracking-wide text-accent-foreground mb-4">My Pending Claims</h2>
+        <div className="rounded-lg bg-card glass-strong glow-border p-4 shadow">
+          <h3 className="text-xs font-heading font-bold uppercase tracking-wide text-accent-foreground mb-3">
+            My Pending Claims
+          </h3>
           <MyWaiverClaims
             claims={claims}
             playerNames={{ ...rosterPlayerNames, ...claimPlayerNames }}
             isLoading={claimsLoading}
             onCancel={cancelClaim}
-            onEdit={(claim) => { setEditingClaim(claim); setClaimingPlayer(null); }}
+            onEdit={(claim) => {
+              setEditingClaim(claim);
+              setClaimingPlayer(null);
+            }}
           />
         </div>
 
@@ -129,7 +150,10 @@ export default function WaiversPage() {
         {editingClaim && myRoster && league && (
           <WaiverClaimForm
             playerId={editingClaim.player_id}
-            playerName={rosterPlayerNames[editingClaim.player_id] || claimPlayerNames[editingClaim.player_id]}
+            playerName={
+              rosterPlayerNames[editingClaim.player_id] ||
+              claimPlayerNames[editingClaim.player_id]
+            }
             roster={myRoster}
             playerNames={rosterPlayerNames}
             waiverType={league.settings.waiver_type}
@@ -150,8 +174,10 @@ export default function WaiversPage() {
 
         {/* Player Search / Claim Entry */}
         {!claimingPlayer && !editingClaim && myRoster && (
-          <div className="rounded-lg bg-card glass-strong glow-border p-6 shadow">
-            <h2 className="text-sm font-heading font-bold uppercase tracking-wide text-accent-foreground mb-4">Place a Waiver Claim</h2>
+          <div className="rounded-lg bg-card glass-strong glow-border p-4 shadow">
+            <h3 className="text-xs font-heading font-bold uppercase tracking-wide text-accent-foreground mb-3">
+              Place a Waiver Claim
+            </h3>
             <div className="relative">
               <div className="flex items-center gap-2 rounded border border-input bg-surface px-3 py-2">
                 <Search className="h-4 w-4 text-muted-foreground" />
@@ -164,11 +190,13 @@ export default function WaiversPage() {
                 />
               </div>
               {(searchResults.length > 0 || isSearching) && searchQuery.trim() && (
-                <div className="absolute z-10 mt-1 w-full rounded border border-border bg-card shadow-lg max-h-64 overflow-y-auto">
+                <div className="absolute z-20 mt-1 w-full rounded border border-border bg-card shadow-lg max-h-64 overflow-y-auto">
                   {isSearching ? (
                     <p className="px-3 py-2 text-sm text-muted-foreground">Searching...</p>
                   ) : searchResults.length === 0 ? (
-                    <p className="px-3 py-2 text-sm text-muted-foreground">No available players found</p>
+                    <p className="px-3 py-2 text-sm text-muted-foreground">
+                      No available players found
+                    </p>
                   ) : (
                     searchResults.map((player) => (
                       <button
@@ -193,7 +221,11 @@ export default function WaiversPage() {
         {claimingPlayer && myRoster && league && (
           <WaiverClaimForm
             playerId={claimingPlayer}
-            playerName={claimingPlayerName || rosterPlayerNames[claimingPlayer] || claimPlayerNames[claimingPlayer]}
+            playerName={
+              claimingPlayerName ||
+              rosterPlayerNames[claimingPlayer] ||
+              claimPlayerNames[claimingPlayer]
+            }
             roster={myRoster}
             playerNames={rosterPlayerNames}
             waiverType={league.settings.waiver_type}
@@ -212,18 +244,22 @@ export default function WaiversPage() {
 
         {/* My Roster */}
         {myRoster && (
-          <div className="rounded-lg bg-card glass-subtle border border-border p-6 shadow">
-            <h2 className="text-sm font-heading font-bold uppercase tracking-wide text-accent-foreground mb-4">My Roster</h2>
-            <div className="space-y-2">
+          <div className="rounded-lg bg-card glass-subtle border border-border p-4 shadow">
+            <h3 className="text-xs font-heading font-bold uppercase tracking-wide text-accent-foreground mb-3">
+              My Roster
+            </h3>
+            <div className="space-y-1.5">
               {myRoster.players.map((playerId) => (
                 <div
                   key={playerId}
-                  className="flex items-center justify-between rounded border border-border p-3"
+                  className="flex items-center justify-between rounded border border-border p-2"
                 >
-                  <span className="text-sm font-medium text-foreground">{rosterPlayerNames[playerId] || playerId}</span>
+                  <span className="text-sm font-medium text-foreground truncate">
+                    {rosterPlayerNames[playerId] || playerId}
+                  </span>
                   <button
                     onClick={() => handleDropPlayer(playerId)}
-                    className="rounded bg-destructive px-2 py-1 text-xs font-medium text-destructive-foreground hover:bg-destructive/80"
+                    className="rounded bg-destructive px-2 py-1 text-xs font-medium text-destructive-foreground hover:bg-destructive/80 ml-2 shrink-0"
                   >
                     Drop
                   </button>

@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { useParams } from 'next/navigation';
 import { Plus } from 'lucide-react';
 import { playerApi } from '@/lib/api';
 import type { Player, TradeProposal } from '@/lib/api';
@@ -13,18 +12,23 @@ import { useMembersQuery, useRostersQuery } from '@/hooks/useLeagueQueries';
 import { TradeCard } from '@/features/trades/components/TradeCard';
 import { TradeComposer } from '@/features/trades/components/TradeComposer';
 import { Skeleton } from '@/components/ui/Skeleton';
-import { LeagueSubPageHeader } from '@/components/ui/LeagueSubPageHeader';
 
-export default function TradesPage() {
-  const params = useParams();
-  const leagueId = params.leagueId as string;
+interface TradesViewProps {
+  leagueId: string;
+}
+
+export function TradesView({ leagueId }: TradesViewProps) {
   const { accessToken, user } = useAuth();
 
   const [playerMap, setPlayerMap] = useState<Record<string, Player>>({});
   const [isComposerOpen, setIsComposerOpen] = useState(false);
   const [counterTarget, setCounterTarget] = useState<TradeProposal | null>(null);
   const [statusFilter, setStatusFilter] = useState<string | undefined>(undefined);
-  const [confirmAction, setConfirmAction] = useState<{ label: string; tradeId: string; action: (id: string) => Promise<any> } | null>(null);
+  const [confirmAction, setConfirmAction] = useState<{
+    label: string;
+    tradeId: string;
+    action: (id: string) => Promise<any>;
+  } | null>(null);
 
   const queryClient = useQueryClient();
   const { data: members = [] } = useMembersQuery(leagueId);
@@ -46,7 +50,6 @@ export default function TradesPage() {
     pushTrade,
   } = useTrades(leagueId, statusFilter);
 
-  // Fetch player data for all rostered players + visible trade item players
   const allPlayerIds = useMemo(() => {
     const ids = new Set<string>();
     for (const r of rosters) {
@@ -62,22 +65,28 @@ export default function TradesPage() {
 
   useEffect(() => {
     if (!accessToken || allPlayerIds.length === 0) return;
-    playerApi.getByIds(allPlayerIds, accessToken).then((res) => {
-      const map: Record<string, Player> = {};
-      for (const p of res.players) {
-        if (p) map[p.id] = p;
-      }
-      setPlayerMap(map);
-    }).catch(() => {});
+    playerApi
+      .getByIds(allPlayerIds, accessToken)
+      .then((res) => {
+        const map: Record<string, Player> = {};
+        for (const p of res.players) {
+          if (p) map[p.id] = p;
+        }
+        setPlayerMap(map);
+      })
+      .catch(() => {});
   }, [allPlayerIds, accessToken]);
 
-  const handleTradeUpdate = useCallback((trade: TradeProposal) => {
-    invalidateTrades();
-    if (trade.status === 'completed') {
-      queryClient.invalidateQueries({ queryKey: ['rosters', leagueId] });
-      queryClient.invalidateQueries({ queryKey: ['futurePicks', leagueId] });
-    }
-  }, [invalidateTrades, queryClient, leagueId]);
+  const handleTradeUpdate = useCallback(
+    (trade: TradeProposal) => {
+      invalidateTrades();
+      if (trade.status === 'completed') {
+        queryClient.invalidateQueries({ queryKey: ['rosters', leagueId] });
+        queryClient.invalidateQueries({ queryKey: ['futurePicks', leagueId] });
+      }
+    },
+    [invalidateTrades, queryClient, leagueId],
+  );
 
   useTradeSocket(leagueId, handleTradeUpdate);
 
@@ -104,7 +113,11 @@ export default function TradesPage() {
     }
   };
 
-  const confirmAndAct = (label: string, action: (id: string) => Promise<any>, tradeId: string) => {
+  const confirmAndAct = (
+    label: string,
+    action: (id: string) => Promise<any>,
+    tradeId: string,
+  ) => {
     setConfirmAction({ label, tradeId, action });
   };
 
@@ -114,29 +127,29 @@ export default function TradesPage() {
   };
 
   return (
-    <div className="min-h-screen bg-surface p-6">
-      <div className="mx-auto max-w-4xl space-y-6">
-        <LeagueSubPageHeader
-          leagueId={leagueId}
-          title="Trade Center"
-          actions={
-            <button
-              onClick={() => setIsComposerOpen(true)}
-              className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary-hover transition-colors"
-            >
-              <Plus className="h-4 w-4" />
-              Propose Trade
-            </button>
-          }
-        />
+    <div className="flex h-full flex-col overflow-hidden">
+      {/* Inline header bar */}
+      <div className="flex shrink-0 items-center justify-between gap-2 border-b border-border/60 px-4 py-2">
+        <h2 className="text-sm font-heading font-bold uppercase tracking-wide text-accent-foreground">
+          Trade Center
+        </h2>
+        <button
+          onClick={() => setIsComposerOpen(true)}
+          className="flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary-hover transition-colors"
+        >
+          <Plus className="h-3.5 w-3.5" />
+          Propose
+        </button>
+      </div>
 
+      <div className="flex-1 min-h-0 overflow-y-auto px-3 py-3 space-y-3">
         {/* Status Filters */}
         <div className="flex gap-2 overflow-x-auto pb-1">
           {statusFilters.map((filter) => (
             <button
               key={filter.label}
               onClick={() => setStatusFilter(filter.value)}
-              className={`rounded-full px-3 py-1.5 text-sm font-medium whitespace-nowrap transition-colors ${
+              className={`rounded-full px-3 py-1 text-xs font-medium whitespace-nowrap transition-colors ${
                 statusFilter === filter.value
                   ? 'bg-primary text-primary-foreground'
                   : 'bg-muted text-accent-foreground hover:bg-muted-hover'
@@ -147,40 +160,42 @@ export default function TradesPage() {
           ))}
         </div>
 
-        {/* Error */}
         {error && (
-          <div className="rounded bg-destructive p-4 text-destructive-foreground">{error}</div>
+          <div className="rounded bg-destructive p-3 text-xs text-destructive-foreground">
+            {error}
+          </div>
         )}
 
-        {/* Trades List */}
         {isLoading ? (
-          <div className="space-y-3">
+          <div className="space-y-2">
             {Array.from({ length: 3 }).map((_, i) => (
-              <div key={i} className="rounded-lg bg-card p-5 shadow">
+              <div key={i} className="rounded-lg bg-card p-4 shadow">
                 <div className="flex items-center justify-between mb-3">
-                  <Skeleton className="h-5 w-32" />
-                  <Skeleton className="h-5 w-16 rounded-full" />
+                  <Skeleton className="h-4 w-24" />
+                  <Skeleton className="h-4 w-12 rounded-full" />
                 </div>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-2">
-                    <Skeleton className="h-4 w-24" />
-                    <Skeleton className="h-4 w-36" />
+                    <Skeleton className="h-3 w-20" />
+                    <Skeleton className="h-3 w-32" />
                   </div>
                   <div className="space-y-2">
-                    <Skeleton className="h-4 w-24" />
-                    <Skeleton className="h-4 w-36" />
+                    <Skeleton className="h-3 w-20" />
+                    <Skeleton className="h-3 w-32" />
                   </div>
                 </div>
               </div>
             ))}
           </div>
         ) : trades.length === 0 ? (
-          <div className="rounded-lg bg-card glass-strong glow-border p-8 shadow text-center">
-            <p className="text-muted-foreground">No trades found</p>
-            <p className="text-sm text-muted-foreground mt-1">Click &quot;Propose Trade&quot; to get started</p>
+          <div className="rounded-lg bg-card glass-strong glow-border p-6 shadow text-center">
+            <p className="text-sm text-muted-foreground">No trades found</p>
+            <p className="text-xs text-muted-foreground mt-1">
+              Click &quot;Propose&quot; to get started
+            </p>
           </div>
         ) : (
-          <div className="space-y-3">
+          <div className="space-y-2">
             {trades.map((trade) => (
               <TradeCard
                 key={trade.id}
@@ -204,7 +219,10 @@ export default function TradesPage() {
       {/* Trade Composer Modal */}
       <TradeComposer
         isOpen={isComposerOpen}
-        onClose={() => { setIsComposerOpen(false); setCounterTarget(null); }}
+        onClose={() => {
+          setIsComposerOpen(false);
+          setCounterTarget(null);
+        }}
         members={members}
         rosters={rosters}
         currentUserId={user?.id ?? ''}
@@ -214,20 +232,27 @@ export default function TradesPage() {
         onSubmit={proposeTrade}
         mode={counterTarget ? 'counter' : 'propose'}
         counterTradeId={counterTarget?.id}
-        fixedPartner={counterTarget ? {
-          userId: counterTarget.proposed_by,
-          username: counterTarget.proposed_by_username ?? 'Unknown',
-        } : undefined}
+        fixedPartner={
+          counterTarget
+            ? {
+                userId: counterTarget.proposed_by,
+                username: counterTarget.proposed_by_username ?? 'Unknown',
+              }
+            : undefined
+        }
         onSubmitCounter={counterTrade}
       />
 
       {/* Confirmation Dialog */}
       {confirmAction && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm">
-          <div className="rounded-lg bg-card glass-strong glow-border p-6 shadow-xl max-w-sm w-full">
-            <h3 className="text-lg font-semibold gradient-text font-heading mb-2">Confirm Action</h3>
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-background/80 backdrop-blur-sm">
+          <div className="rounded-lg bg-card glass-strong glow-border p-6 shadow-xl max-w-sm w-full mx-4">
+            <h3 className="text-lg font-semibold gradient-text font-heading mb-2">
+              Confirm Action
+            </h3>
             <p className="text-sm text-muted-foreground mb-4">
-              Are you sure you want to <strong>{confirmAction.label.toLowerCase()}</strong> this trade? This action cannot be undone.
+              Are you sure you want to <strong>{confirmAction.label.toLowerCase()}</strong> this
+              trade? This action cannot be undone.
             </p>
             <div className="flex justify-end gap-3">
               <button

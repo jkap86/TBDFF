@@ -2,7 +2,7 @@
 
 import { ChevronLeft, Maximize2, MessageSquare, Minimize2, X } from 'lucide-react';
 import { useConversations } from '../hooks/useConversations';
-import { useDraggablePanel } from '../hooks/useDraggablePanel';
+import { useDraggablePanel } from '@/hooks/useDraggablePanel';
 import { useChatPanel } from '../context/ChatPanelContext';
 import { ConversationList } from './ConversationList';
 import { DMConversation } from './DMConversation';
@@ -38,7 +38,12 @@ export function ChatPanel() {
   } = useChatPanel();
   const { conversations, isLoading, startConversation } = useConversations();
   const { panelRect, isDragging, isMaximized, toggleMaximize, handleDragPointerDown, handleResizePointerDown } =
-    useDraggablePanel(isOpen);
+    useDraggablePanel(isOpen, {
+      storageKey: 'chat_panel_rect',
+      defaultWidth: 350,
+      defaultHeight: 400,
+      defaultAnchor: 'bottom-right',
+    });
 
   const totalUnread = unreadLeague + unreadDM;
 

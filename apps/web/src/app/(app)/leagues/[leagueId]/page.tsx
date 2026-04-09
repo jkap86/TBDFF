@@ -30,6 +30,7 @@ import { LeagueMatchupsCard } from '@/features/leagues/components/LeagueMatchups
 import { LeagueNavBar } from '@/features/leagues/components/LeagueNavBar';
 import { LeagueActionBanner } from '@/features/leagues/components/LeagueActionBanner';
 import { LeagueMembersStrip } from '@/features/leagues/components/LeagueMembersStrip';
+import { LeagueRegSeasonDashboard } from '@/features/leagues/components/dashboard/LeagueRegSeasonDashboard';
 
 export default function LeagueDetailPage() {
   const params = useParams();
@@ -266,66 +267,81 @@ export default function LeagueDetailPage() {
           <LeagueNavBar leagueId={leagueId} leagueStatus={league.status} />
         )}
 
-        <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
-          {/* Primary column: Drafts & Matchups */}
-          <div className="min-w-0 space-y-6">
-            <LeagueDraftsCard
-              league={league}
-              leagueId={leagueId}
-              drafts={drafts}
-              activeDrafts={activeDrafts}
-              completedDrafts={completedDrafts}
-              members={members}
-              rosters={rosters}
-              isCommissioner={isCommissioner}
-              currentUserId={user?.id}
-              accessToken={accessToken}
-              shuffleDisplay={shuffleDisplay}
-              mutationError={mutationError}
-              initialExpanded={defaultSection === 'drafts'}
-              onRandomizeDraftOrder={handleRandomizeDraftOrder}
-              onStartDerby={handleStartDerby}
-              onEditDraft={setEditingDraftId}
-              onDraftUpdated={handleDraftUpdated}
-            />
+        {league.status === 'reg_season' ? (
+          <LeagueRegSeasonDashboard
+            league={league}
+            leagueId={leagueId}
+            members={members}
+            rosters={rosters}
+            payments={payments}
+            currentUserId={user?.id}
+            isCommissioner={isCommissioner}
+            accessToken={accessToken}
+            onStartDM={handleStartDM}
+            onAssignRoster={handleAssignRoster}
+          />
+        ) : (
+          <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
+            {/* Primary column: Drafts & Matchups */}
+            <div className="min-w-0 space-y-6">
+              <LeagueDraftsCard
+                league={league}
+                leagueId={leagueId}
+                drafts={drafts}
+                activeDrafts={activeDrafts}
+                completedDrafts={completedDrafts}
+                members={members}
+                rosters={rosters}
+                isCommissioner={isCommissioner}
+                currentUserId={user?.id}
+                accessToken={accessToken}
+                shuffleDisplay={shuffleDisplay}
+                mutationError={mutationError}
+                initialExpanded={defaultSection === 'drafts'}
+                onRandomizeDraftOrder={handleRandomizeDraftOrder}
+                onStartDerby={handleStartDerby}
+                onEditDraft={setEditingDraftId}
+                onDraftUpdated={handleDraftUpdated}
+              />
 
-            <LeagueMatchupsCard
-              league={league}
-              leagueId={leagueId}
-              matchups={matchups}
-              members={members}
-              rosters={rosters}
-              isCommissioner={isCommissioner}
-              accessToken={accessToken}
-              initialExpanded={defaultSection === 'matchups'}
-              currentUserId={user?.id}
-              onOpenDerbySettings={() => setShowDerbySettings(true)}
-            />
+              <LeagueMatchupsCard
+                league={league}
+                leagueId={leagueId}
+                matchups={matchups}
+                members={members}
+                rosters={rosters}
+                isCommissioner={isCommissioner}
+                accessToken={accessToken}
+                initialExpanded={defaultSection === 'matchups'}
+                currentUserId={user?.id}
+                onOpenDerbySettings={() => setShowDerbySettings(true)}
+              />
+            </div>
+
+            {/* Sidebar: Members & Dues */}
+            <div className="min-w-0 space-y-6">
+              <LeagueMembersStrip
+                members={members}
+                rosters={rosters}
+                currentUserId={user?.id}
+                onStartDM={handleStartDM}
+              />
+
+              <LeagueDuesCard
+                league={league}
+                members={members}
+                rosters={rosters}
+                payments={payments}
+                leagueId={leagueId}
+                currentUserId={user?.id}
+                isCommissioner={isCommissioner}
+                accessToken={accessToken}
+                onStartDM={handleStartDM}
+                onAssignRoster={handleAssignRoster}
+              />
+            </div>
           </div>
-
-          {/* Sidebar: Members & Dues */}
-          <div className="min-w-0 space-y-6">
-            <LeagueMembersStrip
-              members={members}
-              rosters={rosters}
-              currentUserId={user?.id}
-              onStartDM={handleStartDM}
-            />
-
-            <LeagueDuesCard
-              league={league}
-              members={members}
-              rosters={rosters}
-              payments={payments}
-              leagueId={leagueId}
-              currentUserId={user?.id}
-              isCommissioner={isCommissioner}
-              accessToken={accessToken}
-              onStartDM={handleStartDM}
-              onAssignRoster={handleAssignRoster}
-            />
-          </div>
-        </div>
+        )}
 
       </div>
 
