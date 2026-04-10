@@ -1,8 +1,10 @@
 'use client';
 
+import { useEffect } from 'react';
 import { ChevronLeft, Maximize2, MessageSquare, Minimize2, X } from 'lucide-react';
 import { useConversations } from '../hooks/useConversations';
 import { useDraggablePanel } from '@/hooks/useDraggablePanel';
+import { usePanelFocus } from '@/hooks/usePanelFocus';
 import { useChatPanel } from '../context/ChatPanelContext';
 import { ConversationList } from './ConversationList';
 import { DMConversation } from './DMConversation';
@@ -44,6 +46,12 @@ export function ChatPanel() {
       defaultHeight: 400,
       defaultAnchor: 'bottom-right',
     });
+  const { isFocused, focus } = usePanelFocus('chat');
+
+  useEffect(() => {
+    if (isOpen) focus();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen]);
 
   const totalUnread = unreadLeague + unreadDM;
 
@@ -87,7 +95,7 @@ export function ChatPanel() {
       <button
         onClick={handleToggle}
         aria-label="Open messages"
-        className="fixed bottom-6 right-6 z-50 flex h-12 w-12 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg hover:bg-primary-hover focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+        className="fixed bottom-6 right-6 z-[60] flex h-12 w-12 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg hover:bg-primary-hover focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
       >
         <span className="relative">
           <MessageSquare className="h-5 w-5" />
@@ -98,13 +106,15 @@ export function ChatPanel() {
       {/* Panel */}
       {isOpen && (
         <div
-          className="fixed z-50 flex flex-col overflow-hidden rounded-2xl border border-border bg-chat-bg/50 backdrop-blur-md shadow-[0_8px_32px_rgba(0,0,0,0.4),0_2px_8px_rgba(0,0,0,0.3)]"
+          className="fixed flex flex-col overflow-hidden rounded-2xl border border-border bg-chat-bg/50 backdrop-blur-md shadow-[0_8px_32px_rgba(0,0,0,0.4),0_2px_8px_rgba(0,0,0,0.3)]"
           style={{
             left: panelRect.x,
             top: panelRect.y,
             width: panelRect.width,
             height: panelRect.height,
+            zIndex: isFocused ? 51 : 50,
           }}
+          onPointerDown={focus}
           onWheel={(e) => e.stopPropagation()}
         >
           {/* Header — drag handle */}

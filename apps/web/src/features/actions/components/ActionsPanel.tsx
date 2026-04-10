@@ -1,7 +1,9 @@
 'use client';
 
+import { useEffect } from 'react';
 import { Maximize2, Minimize2, X, Zap, ArrowLeftRight, ClipboardList, Settings } from 'lucide-react';
 import { useDraggablePanel } from '@/hooks/useDraggablePanel';
+import { usePanelFocus } from '@/hooks/usePanelFocus';
 import { useActionsPanel } from '../context/ActionsPanelContext';
 import { LineupView } from './LineupView';
 import { TradesView } from './TradesView';
@@ -28,6 +30,12 @@ export function ActionsPanel() {
     defaultHeight: 600,
     defaultAnchor: 'bottom-left',
   });
+  const { isFocused, focus } = usePanelFocus('actions');
+
+  useEffect(() => {
+    if (isOpen) focus();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen]);
 
   const handleToggle = () => {
     if (isOpen) {
@@ -46,20 +54,22 @@ export function ActionsPanel() {
         onClick={handleToggle}
         disabled={triggerDisabled}
         aria-label="Open actions"
-        className="fixed bottom-6 right-24 z-50 flex h-12 w-12 items-center justify-center rounded-full bg-neon-purple text-white shadow-lg hover:bg-neon-purple/80 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:opacity-40 disabled:cursor-not-allowed"
+        className="fixed bottom-6 right-24 z-[60] flex h-12 w-12 items-center justify-center rounded-full bg-neon-purple text-white shadow-lg hover:bg-neon-purple/80 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:opacity-40 disabled:cursor-not-allowed"
       >
         <Settings className="h-5 w-5" />
       </button>
 
       {isOpen && leagueId && (
         <div
-          className="fixed z-50 flex flex-col overflow-hidden rounded-2xl border border-border bg-chat-bg/50 backdrop-blur-md shadow-[0_8px_32px_rgba(0,0,0,0.4),0_2px_8px_rgba(0,0,0,0.3)]"
+          className="fixed flex flex-col overflow-hidden rounded-2xl border border-border bg-chat-bg/50 backdrop-blur-md shadow-[0_8px_32px_rgba(0,0,0,0.4),0_2px_8px_rgba(0,0,0,0.3)]"
           style={{
             left: panelRect.x,
             top: panelRect.y,
             width: panelRect.width,
             height: panelRect.height,
+            zIndex: isFocused ? 51 : 50,
           }}
+          onPointerDown={focus}
           onWheel={(e) => e.stopPropagation()}
         >
           {/* Header — drag handle */}
